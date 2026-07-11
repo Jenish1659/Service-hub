@@ -1,0 +1,8892 @@
+# ROLE
+
+You are an expert Flutter Developer, Software Architect, Backend Engineer,
+Database Architect, Cybersecurity Engineer, UI/UX Designer,
+DevOps Engineer, Product Manager, QA Engineer and Startup Consultant.
+
+Your responsibility is to design and build a production-ready,
+commercial-quality Flutter application called "ServiceHub".
+
+==================================================
+
+# PROJECT OVERVIEW
+
+Explain the complete vision of the project.
+
+What problem does it solve?
+
+Why is this platform required?
+
+How is it different from existing applications?
+
+What are the project goals?
+
+==================================================
+
+# PROJECT OBJECTIVES
+
+Clearly define:
+
+• Main objective
+
+• Business objective
+
+• Technical objective
+
+• Customer objective
+
+• Startup objective
+
+==================================================
+
+# TARGET USERS
+
+Explain every user.
+
+Customer
+
+Shopkeeper
+
+Service Provider
+
+Delivery Agent
+
+Admin
+
+==================================================
+
+# APPLICATION ECOSYSTEM
+
+Explain that the project contains three applications.
+
+Application 1
+
+ServiceHub Customer
+
+Application 2
+
+ServiceHub Partner
+
+Contains
+
+• Shopkeeper Dashboard
+
+• Delivery Agent Dashboard
+
+Application 3
+
+ServiceHub Admin
+
+Explain why these applications are separated.
+
+==================================================
+
+# BUSINESS MODEL
+
+Explain
+
+How the company earns money.
+
+Commission.
+
+Visiting Charges.
+
+Product Commission.
+
+Featured Listings.
+
+Advertisements.
+
+Future Subscription.
+
+==================================================
+
+# SERVICE CATEGORIES
+
+Explain every category.
+
+Hardware Services
+
+Plumbing
+
+Cooking
+
+Laundry
+
+Car Service
+
+Also explain future scalability.
+
+==================================================
+
+# PRODUCT MARKETPLACE
+
+Explain
+
+Products.
+
+Categories.
+
+Inventory.
+
+Shopping.
+
+Orders.
+
+Delivery.
+
+Future expansion.
+
+==================================================
+
+# CUSTOMER EXPERIENCE
+
+Explain complete customer journey.
+
+App opening.
+
+Browsing.
+
+Login popup.
+
+Booking.
+
+Payment.
+
+Tracking.
+
+Review.
+
+Complaint.
+
+==================================================
+
+# PARTNER EXPERIENCE
+
+Explain
+
+Shopkeeper workflow.
+
+Delivery workflow.
+
+Role Detection.
+
+Dashboard.
+
+Business management.
+
+==================================================
+
+# ADMIN EXPERIENCE
+
+Explain
+
+Analytics.
+
+Users.
+
+Verification.
+
+Revenue.
+
+Reports.
+
+Commission.
+
+Security.
+
+==================================================
+
+# LOGIN FLOW
+
+Customer
+
+Partner
+
+Admin
+
+Location permission.
+
+Role detection.
+
+Authentication.
+
+==================================================
+
+# SERVICE BOOKING FLOW
+
+Customer
+
+↓
+
+Book Service
+
+↓
+
+Provider Accept
+
+↓
+
+Visit Customer
+
+↓
+
+OTP Verification
+
+↓
+
+Complete
+
+==================================================
+
+# PRODUCT ORDER FLOW
+
+Customer
+
+↓
+
+Order Product
+
+↓
+
+Shopkeeper Accept
+
+↓
+
+Delivery Agent
+
+↓
+
+GPS Verification
+
+↓
+
+Encrypted PIN
+
+↓
+
+Delivery
+
+==================================================
+
+# GPS & PIN VERIFICATION
+
+Explain
+
+5 KM Radius
+
+5 Meter Verification
+
+Encrypted PIN
+
+Location Matching
+
+Failure Handling
+
+==================================================
+
+# HYGIENE POLICY
+
+Cooking.
+
+Laundry.
+
+Checklist.
+
+Ratings.
+
+==================================================
+
+# SECURITY GOALS
+
+Authentication.
+
+Authorization.
+
+Supabase RLS.
+
+JWT.
+
+HTTPS.
+
+Secure Storage.
+
+Input Validation.
+
+==================================================
+
+# TECHNOLOGY STACK
+
+Flutter.
+
+Dart.
+
+Riverpod.
+
+GoRouter.
+
+Supabase.
+
+PostgreSQL.
+
+Firebase.
+
+Google Maps.
+
+Juspay.
+
+Hive.
+
+==================================================
+
+# DEVELOPMENT RULES
+
+Clean Architecture.
+
+MVVM.
+
+Repository Pattern.
+
+SOLID.
+
+Reusable Components.
+
+Modular Features.
+
+Error Handling.
+
+Logging.
+
+==================================================
+
+# PERFORMANCE GOALS
+
+Fast Loading.
+
+Realtime Updates.
+
+Caching.
+
+Scalability.
+
+==================================================
+
+# FUTURE SCALABILITY
+
+Multi City.
+
+Multi State.
+
+AI Features.
+
+Membership.
+
+Loyalty.
+
+Business Expansion.
+
+==================================================
+
+# FINAL GOAL
+
+Build a real startup-quality Flutter application.
+
+This is not a demo project.
+
+Every feature should be production-ready.
+
+Every module should be scalable.
+
+Every component should follow industry standards.
+
+Always think like a Senior Software Architect before generating any code.
+
+# ROLE
+
+You are an Expert Flutter Developer, Senior Mobile Application Architect,
+Backend Engineer, Software Architect, DevOps Engineer,
+and Clean Architecture Specialist.
+
+Your responsibility is to build the complete Flutter project foundation
+for the ServiceHub ecosystem.
+
+This prompt only focuses on project architecture.
+
+Do NOT create application features yet.
+
+Do NOT create screens.
+
+Do NOT create business logic.
+
+Only build the entire project architecture.
+
+==================================================
+
+# PROJECT SETUP
+
+Create the complete Flutter project.
+
+Project Name
+
+ServiceHub
+
+Programming Language
+
+Dart
+
+Framework
+
+Flutter Stable
+
+Target Platforms
+
+Android
+
+iOS
+
+Architecture
+
+Clean Architecture
+
+Pattern
+
+MVVM
+
+Repository Pattern
+
+SOLID Principles
+
+Feature First Architecture
+
+Dependency Injection
+
+==================================================
+
+# PROJECT STRUCTURE
+
+Generate the complete folder structure.
+
+Explain every folder.
+
+Explain every file.
+
+Explain responsibilities.
+
+==================================================
+
+# LIB STRUCTURE
+
+Create folders.
+
+core/
+
+features/
+
+shared/
+
+config/
+
+routes/
+
+theme/
+
+services/
+
+utils/
+
+models/
+
+repositories/
+
+domain/
+
+presentation/
+
+data/
+
+Explain why each folder exists.
+
+==================================================
+
+# FEATURE STRUCTURE
+
+Every feature should contain.
+
+data/
+
+domain/
+
+presentation/
+
+widgets/
+
+providers/
+
+repositories/
+
+models/
+
+datasources/
+
+usecases/
+
+Explain each folder.
+
+==================================================
+
+# PACKAGE MANAGEMENT
+
+Select only production-ready packages.
+
+For each package explain.
+
+Purpose
+
+Why selected
+
+Alternative packages
+
+When it is used
+
+==================================================
+
+# REQUIRED PACKAGES
+
+Flutter SDK
+
+Riverpod
+
+GoRouter
+
+Dio
+
+Supabase Flutter
+
+Google Maps Flutter
+
+Firebase Messaging
+
+Flutter Local Notifications
+
+Hive
+
+Cached Network Image
+
+Flutter Dotenv
+
+Image Picker
+
+Permission Handler
+
+Connectivity Plus
+
+Flutter Secure Storage
+
+FL Chart
+
+Logger
+
+Equatable
+
+Freezed
+
+Json Serializable
+
+Build Runner
+
+Very Good Analysis
+
+==================================================
+
+# DEPENDENCY INJECTION
+
+Explain
+
+Why Dependency Injection is required.
+
+Select package.
+
+Show complete architecture.
+
+==================================================
+
+# STATE MANAGEMENT
+
+Use Riverpod.
+
+Explain.
+
+Provider
+
+StateNotifier
+
+AsyncNotifier
+
+FutureProvider
+
+StreamProvider
+
+When each should be used.
+
+==================================================
+
+# NAVIGATION
+
+Use GoRouter.
+
+Explain.
+
+Route Structure
+
+Nested Routes
+
+Protected Routes
+
+Deep Links
+
+Authentication Routes
+
+Role Based Navigation
+
+==================================================
+
+# ENVIRONMENT
+
+Create
+
+.env
+
+Development
+
+Production
+
+Staging
+
+API Keys
+
+Maps Keys
+
+Supabase Keys
+
+==================================================
+
+# CONFIGURATION
+
+Create.
+
+Constants
+
+App Config
+
+API Config
+
+Theme Config
+
+Route Config
+
+Environment Config
+
+Explain each.
+
+==================================================
+
+# THEMING
+
+Material 3
+
+Light Theme
+
+Dark Theme
+
+Typography
+
+Spacing
+
+Colors
+
+Radius
+
+Buttons
+
+Cards
+
+Icons
+
+==================================================
+
+# REUSABLE COMPONENTS
+
+Create reusable.
+
+Buttons
+
+Cards
+
+Dialogs
+
+Bottom Sheets
+
+Snackbars
+
+Loading
+
+Error Widgets
+
+Search Bars
+
+App Bars
+
+Text Fields
+
+==================================================
+
+# ERROR HANDLING
+
+Global Exception Handler
+
+API Errors
+
+Network Errors
+
+Authentication Errors
+
+Validation Errors
+
+Timeout Errors
+
+Offline Errors
+
+==================================================
+
+# LOGGING
+
+Create logging system.
+
+Development Logs
+
+Production Logs
+
+Crash Logs
+
+API Logs
+
+==================================================
+
+# NETWORK LAYER
+
+Use Dio.
+
+Explain.
+
+Interceptors
+
+Headers
+
+Authentication
+
+Retry Logic
+
+Timeout
+
+Caching
+
+==================================================
+
+# LOCAL STORAGE
+
+Use Hive.
+
+Store.
+
+Theme
+
+Token
+
+User
+
+Settings
+
+Cache
+
+==================================================
+
+# SECURITY FOUNDATION
+
+JWT
+
+Secure Storage
+
+Encryption
+
+Environment Variables
+
+Input Validation
+
+Role Based Access
+
+==================================================
+
+# CODING STANDARDS
+
+Use.
+
+SOLID
+
+DRY
+
+KISS
+
+YAGNI
+
+Meaningful Naming
+
+Reusable Widgets
+
+Single Responsibility
+
+Documentation
+
+==================================================
+
+# NAMING CONVENTIONS
+
+Folders
+
+Files
+
+Classes
+
+Variables
+
+Methods
+
+Widgets
+
+Repositories
+
+Providers
+
+==================================================
+
+# TESTING STRUCTURE
+
+Create.
+
+Unit Testing
+
+Widget Testing
+
+Integration Testing
+
+Mock Services
+
+==================================================
+
+# PERFORMANCE RULES
+
+Lazy Loading
+
+Pagination
+
+Caching
+
+Image Optimization
+
+Memory Optimization
+
+API Optimization
+
+==================================================
+
+# DEVELOPMENT RULES
+
+Never duplicate code.
+
+Never place business logic inside widgets.
+
+Always separate UI and Business Logic.
+
+Always use repository pattern.
+
+Always create reusable components.
+
+Always follow Clean Architecture.
+
+Always keep modules independent.
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate.
+
+Complete Flutter folder structure.
+
+Architecture diagram.
+
+Package configuration.
+
+Dependency tree.
+
+Feature structure.
+
+Development guidelines.
+
+Coding standards.
+
+Environment setup.
+
+Reusable component architecture.
+
+Testing strategy.
+
+Everything must be production-ready.
+
+Never generate feature modules in this prompt.
+
+Only build the complete Flutter project foundation.
+
+# MASTER PROMPT 03
+
+## Customer Application Development (ServiceHub Customer)
+
+You are an Expert Flutter Developer, Senior Mobile Application Architect, Product Designer, Backend Engineer, and UX Specialist.
+
+Continue developing the existing ServiceHub project. Do **not** recreate the project structure, architecture, packages, or database foundation. Assume Master Prompt 01 and Master Prompt 02 have already been completed.
+
+Your task is to build the complete **ServiceHub Customer Application** using Flutter, Dart, Riverpod, GoRouter, Material 3, and Supabase.
+
+The application must be production-ready, scalable, maintainable, and suitable for commercial deployment.
+
+==================================================
+
+# CUSTOMER APPLICATION OBJECTIVE
+
+Develop a modern customer application that allows users to:
+
+* Browse services without login.
+* Browse products without login.
+* Search services and products.
+* View service providers.
+* View product details.
+* Book services after login.
+* Purchase products after login.
+* Track bookings.
+* Track product deliveries.
+* Chat with providers.
+* Chat with delivery agents.
+* Use the AI chatbot.
+* View notifications.
+* Manage profile and addresses.
+* Manage orders and bookings.
+
+==================================================
+
+# APPLICATION FLOW
+
+App Launch
+
+↓
+
+Splash Screen
+
+↓
+
+Location Permission Request
+
+↓
+
+Home Screen (Guest Mode)
+
+↓
+
+Browse Services & Products
+
+↓
+
+Protected Action
+
+↓
+
+Login Popup
+
+↓
+
+Authentication
+
+↓
+
+Continue Previous Action
+
+The Home Screen must always be accessible without login.
+
+==================================================
+
+# SPLASH SCREEN
+
+Create a professional splash screen.
+
+Requirements:
+
+* ServiceHub logo
+* App name
+* Smooth animation
+* Version check
+* Internet availability check
+* Authentication token check
+* Location permission status
+
+If a valid session exists, continue without asking the user to log in again.
+
+==================================================
+
+# LOCATION PERMISSION
+
+When the app starts:
+
+Request location permission.
+
+Explain why location is required.
+
+If denied:
+
+Allow browsing only.
+
+Disable booking and product purchase until location permission is granted.
+
+Use location to:
+
+* Detect nearby providers.
+* Detect nearby shops.
+* Calculate delivery eligibility.
+* Display nearby offers.
+
+==================================================
+
+# HOME SCREEN
+
+Do not redesign the UI if it already exists.
+
+Integrate business logic into the existing design.
+
+The Home Screen should support:
+
+* Search bar
+* Service categories
+* Product categories
+* Featured services
+* Featured products
+* Promotional banners
+* Recommended providers
+* Popular products
+* Recently viewed items
+* Pull-to-refresh
+* Infinite scrolling where applicable
+
+==================================================
+
+# SEARCH
+
+Implement one intelligent search system.
+
+Search should return:
+
+* Services
+* Products
+* Categories
+* Shops
+
+Support:
+
+* Instant search
+* Suggestions
+* Recent searches
+* Trending searches
+* Filters
+* Sorting
+
+==================================================
+
+# SERVICE CATEGORIES
+
+Display:
+
+* Hardware Services
+* Plumbing
+* Cooking
+* Laundry
+* Car Services
+
+Each category should open a dedicated listing page.
+
+==================================================
+
+# HARDWARE SERVICES
+
+Display:
+
+* AC Repair
+* Washing Machine Repair
+* Water Purifier Repair
+* Mixer Grinder Repair
+* Sewing Machine Repair
+* Refrigerator Repair
+* Microwave Repair
+* Fan Repair
+* Geyser Repair
+* Other Home Appliance Repair
+
+Each service page should show:
+
+* Provider profile
+* Ratings
+* Reviews
+* Experience
+* Visiting charges
+* Estimated price
+* Service description
+* Available slots
+
+==================================================
+
+# PRODUCT MARKETPLACE
+
+Allow customers to browse products related to services.
+
+Features:
+
+* Product images
+* Product details
+* Multiple images
+* Price
+* Discount
+* Stock availability
+* Ratings
+* Reviews
+* Related products
+
+Actions:
+
+* Add to Cart
+* Buy Now
+* Add to Wishlist
+* Favorite
+* Share Product
+
+==================================================
+
+# LOGIN POPUP
+
+Do not redirect users to a separate login page immediately.
+
+Whenever the user performs a protected action:
+
+Display a beautiful login popup.
+
+The popup must be dismissible.
+
+Protected actions include:
+
+* Booking a service
+* Buying a product
+* Adding to cart
+* Wishlist
+* Chat
+* Reviews
+* Profile
+* Order placement
+
+After successful login:
+
+Automatically continue the action the user originally selected.
+
+==================================================
+
+# CUSTOMER PROFILE
+
+Create a complete profile section.
+
+Features:
+
+* Edit profile
+* Profile picture
+* Mobile number
+* Email
+* Saved addresses
+* Default address
+* Account settings
+* Privacy settings
+* Logout
+
+==================================================
+
+# ADDRESS MANAGEMENT
+
+Support:
+
+* Multiple addresses
+* Home
+* Office
+* Other
+
+Use Google Maps location picker.
+
+Allow:
+
+* Edit
+* Delete
+* Default selection
+
+==================================================
+
+# SERVICE BOOKING
+
+Booking flow:
+
+Browse Service
+
+↓
+
+View Provider
+
+↓
+
+Select Date
+
+↓
+
+Select Time
+
+↓
+
+View Estimated Cost
+
+↓
+
+Book Service
+
+↓
+
+Login (if required)
+
+↓
+
+Booking Confirmation
+
+After booking:
+
+* Booking ID
+* Provider details
+* Booking status
+* OTP generated when service is completed
+
+==================================================
+
+# PRODUCT PURCHASE
+
+Shopping flow:
+
+Browse Product
+
+↓
+
+Add to Cart
+
+↓
+
+Checkout
+
+↓
+
+Address Selection
+
+↓
+
+Payment
+
+↓
+
+Order Confirmation
+
+↓
+
+Tracking
+
+Only show products available within the 5 km delivery radius.
+
+==================================================
+
+# BOOKING HISTORY
+
+Display:
+
+* Upcoming bookings
+* Completed bookings
+* Cancelled bookings
+
+Each booking should include:
+
+* Provider
+* Date
+* Time
+* Charges
+* Status
+* Invoice
+* Rating option
+
+==================================================
+
+# ORDER HISTORY
+
+Display:
+
+* Active orders
+* Delivered orders
+* Cancelled orders
+
+Allow:
+
+* View invoice
+* Track order
+* Reorder
+* Download receipt
+
+==================================================
+
+# NOTIFICATIONS
+
+Support push notifications for:
+
+* Booking accepted
+* Booking cancelled
+* Provider arriving
+* Order confirmed
+* Order dispatched
+* Delivery completed
+* Payment successful
+* Complaint updates
+* Promotional offers
+
+==================================================
+
+# AI CHATBOT
+
+Provide an AI assistant that can:
+
+* Explain services
+* Recommend products
+* Guide bookings
+* Answer FAQs
+* Register complaints
+* Create support tickets
+* Help first-time users
+
+==================================================
+
+# LIVE CHAT
+
+Support:
+
+Customer ↔ Shopkeeper
+
+Customer ↔ Delivery Agent
+
+Customer ↔ Support Team
+
+Features:
+
+* Typing indicator
+* Read receipts
+* Image sharing
+* File sharing
+* Push notifications
+
+==================================================
+
+# PAYMENTS
+
+Integrate:
+
+* UPI
+* Debit Cards
+* Credit Cards
+* Net Banking
+
+Support:
+
+* Payment history
+* Failed payment retry
+* Refund requests
+* Digital invoices
+
+==================================================
+
+# REVIEWS & RATINGS
+
+Allow customers to:
+
+* Rate services
+* Rate products
+* Review providers
+* Upload images with reviews
+
+Only verified customers who completed an order or service should be allowed to submit reviews.
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete Customer Application architecture
+* Navigation flow
+* State management structure
+* API integration points
+* Screens and routing
+* Business logic
+* Validation rules
+* Error handling
+* Offline behavior
+* Performance optimizations
+
+Do not build the Partner Application or Admin Application in this prompt. Focus exclusively on the Customer Application while integrating with the existing project architecture.
+
+
+# MASTER PROMPT 04
+
+## ServiceHub Partner Application (Shopkeeper + Service Provider + Delivery Agent)
+
+You are an Expert Flutter Developer, Senior Mobile Application Architect, Backend Engineer, Product Manager, Database Architect, and System Designer.
+
+Continue developing the existing **ServiceHub** project. Assume that Master Prompt 01 (Project Foundation), Master Prompt 02 (Architecture & Flutter Setup), and Master Prompt 03 (Customer Application) are already completed.
+
+Your task is to build the complete **ServiceHub Partner Application**.
+
+Do NOT rebuild the Customer Application.
+
+Do NOT rebuild the project architecture.
+
+Use the existing Flutter project, Clean Architecture, Riverpod, GoRouter, Supabase, and PostgreSQL.
+
+==================================================
+
+# PARTNER APPLICATION OVERVIEW
+
+The Partner Application is a single Flutter application used by two different roles:
+
+* Shopkeeper / Service Provider
+* Delivery Agent
+
+After successful login, the system must detect the user's role from Supabase and automatically open the correct dashboard.
+
+Role-Based Access Control (RBAC) must be implemented.
+
+A Delivery Agent must never access Shopkeeper features.
+
+A Shopkeeper must never access Delivery Agent features.
+
+==================================================
+
+# LOGIN FLOW
+
+App Launch
+
+↓
+
+Check Internet Connection
+
+↓
+
+Request Location Permission (Mandatory)
+
+↓
+
+Partner Login
+
+↓
+
+Authentication
+
+↓
+
+Check Role
+
+↓
+
+Open Correct Dashboard
+
+If location permission is denied:
+
+* Prevent login.
+* Display a message explaining why location is required.
+* Allow login only after location access is granted.
+
+==================================================
+
+# SHOPKEEPER DASHBOARD
+
+Create a professional business dashboard displaying:
+
+* Today's revenue
+* Today's service bookings
+* Today's product orders
+* Pending service bookings
+* Pending product orders
+* Active deliveries
+* Monthly revenue
+* Monthly profit
+* Customer rating
+* Business verification status
+* Quick action buttons
+
+==================================================
+
+# SHOP PROFILE
+
+Allow the shopkeeper to manage:
+
+* Shop logo
+* Shop images
+* Shop description
+* Address
+* Contact information
+* Business hours
+* Holidays
+* Service radius
+* Visiting charges
+* Product delivery availability
+* Verification status
+
+==================================================
+
+# SERVICE MANAGEMENT
+
+The shopkeeper can:
+
+* Add new services
+* Edit services
+* Disable services
+* Set pricing
+* Set estimated completion time
+* Upload service images
+* Add service descriptions
+* Configure service availability
+
+The admin should also be able to create new service categories globally.
+
+==================================================
+
+# SERVICE BOOKING MANAGEMENT
+
+The dashboard should display:
+
+* New booking requests
+* Accepted bookings
+* Scheduled bookings
+* Ongoing services
+* Completed services
+* Cancelled services
+
+The shopkeeper can:
+
+* Accept bookings
+* Reject bookings
+* Reschedule bookings
+* Contact customers
+* View customer details
+* Navigate to customer location
+* Mark service completed after OTP verification
+
+==================================================
+
+# PRODUCT MANAGEMENT
+
+Allow the shopkeeper to:
+
+* Add products
+* Edit products
+* Delete products
+* Manage categories
+* Upload multiple product images
+* Manage stock quantity
+* Set product price
+* Configure discounts
+* Mark products as featured
+* Enable or disable products
+
+==================================================
+
+# INVENTORY MANAGEMENT
+
+Create an inventory system supporting:
+
+* Stock quantity
+* Low stock alerts
+* Out-of-stock status
+* Inventory history
+* Product movement logs
+
+==================================================
+
+# PRODUCT ORDER MANAGEMENT
+
+Display:
+
+* New orders
+* Accepted orders
+* Packed orders
+* Ready for pickup
+* Picked up
+* Delivered
+* Cancelled
+* Returned
+
+The shopkeeper can:
+
+* Accept or reject orders
+* Update order status
+* Contact customer
+* Assign delivery (system-assisted)
+* View invoices
+
+==================================================
+
+# DELIVERY AGENT ASSIGNMENT
+
+When a product order is accepted:
+
+* Find eligible delivery agents.
+* Filter by availability.
+* Filter by verification status.
+* Filter by distance.
+* Assign the most suitable agent.
+
+The system should be designed to support automatic assignment in the future.
+
+==================================================
+
+# EARNINGS & PROFIT DASHBOARD
+
+Display:
+
+* Daily earnings
+* Weekly earnings
+* Monthly earnings
+* Total revenue
+* Total profit
+* Commission paid
+* Service revenue
+* Product revenue
+* Best-selling products
+* Most-booked services
+
+Provide graphical reports using charts.
+
+==================================================
+
+# CUSTOMER MANAGEMENT
+
+Allow the shopkeeper to:
+
+* View customer list
+* View booking history
+* View order history
+* Contact customers through chat
+* View ratings and reviews
+
+==================================================
+
+# DELIVERY AGENT DASHBOARD
+
+Create a separate dashboard for delivery agents.
+
+Display:
+
+* Assigned deliveries
+* Active deliveries
+* Completed deliveries
+* Today's earnings
+* Weekly earnings
+* Monthly earnings
+* Performance score
+* Average rating
+* Incentives (future-ready)
+
+==================================================
+
+# DELIVERY WORKFLOW
+
+Assigned Order
+
+↓
+
+Navigate to Shop
+
+↓
+
+GPS Verification
+
+↓
+
+Encrypted Pickup PIN Becomes Visible
+
+↓
+
+Pickup Confirmed
+
+↓
+
+Navigate to Customer
+
+↓
+
+GPS Verification
+
+↓
+
+Encrypted Delivery PIN Becomes Visible
+
+↓
+
+Customer Confirms PIN
+
+↓
+
+Delivery Completed
+
+==================================================
+
+# GPS VERIFICATION
+
+GPS validation is mandatory.
+
+Pickup:
+
+* Agent must be within 5 meters of the shop.
+* Otherwise the pickup PIN remains encrypted.
+
+Delivery:
+
+* Agent must be within 5 meters of the customer's location.
+* Otherwise the delivery PIN remains encrypted.
+
+If GPS validation fails:
+
+* Prevent PIN decryption.
+* Display an appropriate error message.
+
+==================================================
+
+# DELIVERY AGENT PROFILE
+
+Allow the agent to manage:
+
+* Profile photo
+* Aadhaar verification status
+* Driving licence
+* Vehicle details
+* Vehicle registration
+* Emergency contact
+* Mobile number
+
+==================================================
+
+# DELIVERY PERFORMANCE
+
+Display:
+
+* Total deliveries
+* Successful deliveries
+* Failed deliveries
+* Acceptance rate
+* Completion rate
+* Customer ratings
+* Average delivery time
+
+==================================================
+
+# NAVIGATION
+
+Integrate Google Maps for:
+
+* Shop navigation
+* Customer navigation
+* Live route updates
+
+Provide ETA and distance information.
+
+==================================================
+
+# NOTIFICATIONS
+
+Shopkeeper receives:
+
+* New booking
+* New order
+* Cancellation
+* Customer messages
+* Payment confirmation
+
+Delivery Agent receives:
+
+* New delivery assignment
+* Pickup reminder
+* Delivery reminder
+* Navigation updates
+* Payment confirmation
+
+==================================================
+
+# LIVE CHAT
+
+Support:
+
+Customer ↔ Shopkeeper
+
+Customer ↔ Delivery Agent
+
+Shopkeeper ↔ Admin
+
+Features:
+
+* Read receipts
+* Typing indicator
+* Image sharing
+* File sharing
+* Push notifications
+
+==================================================
+
+# ANALYTICS
+
+Shopkeeper Analytics:
+
+* Revenue trend
+* Profit trend
+* Product sales
+* Service bookings
+* Customer growth
+
+Delivery Agent Analytics:
+
+* Delivery count
+* Earnings trend
+* Performance trend
+* Ratings trend
+
+==================================================
+
+# BUSINESS RULES
+
+Services:
+
+* No delivery agent required.
+* Service provider travels directly to the customer.
+* Completion uses customer OTP.
+
+Products:
+
+* Delivery limited to 5 km.
+* Delivery agent required.
+* GPS + Encrypted PIN verification mandatory.
+
+==================================================
+
+# SECURITY
+
+Implement:
+
+* Role-Based Access Control
+* Supabase Row Level Security
+* JWT authentication
+* Secure session handling
+* Secure file uploads
+* Input validation
+* Activity logging
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete Partner Application architecture
+* Shopkeeper Dashboard
+* Delivery Agent Dashboard
+* Navigation structure
+* State management
+* API integration points
+* Validation rules
+* Error handling
+* Business workflows
+* Performance optimizations
+
+Do not modify the Customer Application or Admin Application in this prompt. Focus exclusively on the Partner Application while following the architecture established in the previous master prompts.
+
+
+# MASTER PROMPT 05
+
+## ServiceHub Admin Application (Platform Management System)
+
+You are an Expert Flutter Developer, Software Architect, Backend Engineer, Database Architect, Cybersecurity Engineer, DevOps Engineer, Product Manager, Business Analyst, and Startup Consultant.
+
+Continue developing the existing **ServiceHub** project.
+
+Assume that the following have already been completed:
+
+* Master Prompt 01 – Project Foundation
+* Master Prompt 02 – Flutter Architecture & Development Standards
+* Master Prompt 03 – Customer Application
+* Master Prompt 04 – Partner Application
+
+Your task is to develop the complete **ServiceHub Admin Application**.
+
+Do NOT recreate the Customer Application.
+
+Do NOT recreate the Partner Application.
+
+Use the existing Flutter architecture, Supabase backend, PostgreSQL database, Clean Architecture, Riverpod, GoRouter, and Material 3.
+
+==================================================
+
+# ADMIN APPLICATION OBJECTIVE
+
+The Admin Application is responsible for managing, monitoring, controlling, and securing the complete ServiceHub ecosystem.
+
+The Admin should be able to monitor every activity occurring in the platform while maintaining proper security, role-based permissions, and audit logs.
+
+==================================================
+
+# LOGIN
+
+No guest mode.
+
+Flow:
+
+Launch Application
+
+↓
+
+Internet Check
+
+↓
+
+Admin Login
+
+↓
+
+Authentication
+
+↓
+
+Role Verification
+
+↓
+
+Admin Dashboard
+
+Only verified administrators can access this application.
+
+==================================================
+
+# ADMIN DASHBOARD
+
+Design a professional dashboard displaying real-time platform statistics.
+
+Dashboard Cards:
+
+* Total Customers
+* Total Shopkeepers
+* Total Delivery Agents
+* Total Services
+* Total Products
+* Total Orders
+* Total Bookings
+* Active Orders
+* Active Services
+* Today's Revenue
+* Monthly Revenue
+* Total Profit
+* Pending Complaints
+* Pending Verifications
+
+Graphs:
+
+* Daily Revenue
+* Monthly Revenue
+* Orders Trend
+* Service Booking Trend
+* Customer Growth
+* Shop Growth
+* Delivery Agent Growth
+* Category Performance
+
+==================================================
+
+# CUSTOMER MANAGEMENT
+
+The Admin can:
+
+* View customers
+* Search customers
+* Filter customers
+* View profile
+* View addresses
+* View bookings
+* View orders
+* View complaints
+* Suspend account
+* Reactivate account
+* Delete account (soft delete)
+* View login history
+
+==================================================
+
+# SHOPKEEPER MANAGEMENT
+
+The Admin can:
+
+* View all shopkeepers
+* Search businesses
+* Approve registration
+* Reject registration
+* Suspend account
+* Restore account
+* View products
+* View services
+* View revenue
+* View customer ratings
+* View complaints
+* View verification status
+
+==================================================
+
+# DELIVERY AGENT MANAGEMENT
+
+The Admin can:
+
+* View agents
+* Approve agents
+* Reject agents
+* Suspend agents
+* Restore agents
+* View vehicle details
+* View Aadhaar verification
+* View licence verification
+* View earnings
+* View delivery history
+* View ratings
+* View attendance
+
+==================================================
+
+# VERIFICATION MANAGEMENT
+
+Create a dedicated verification module.
+
+Verify:
+
+* Aadhaar
+* Shop Documents
+* Business Registration
+* Vehicle RC
+* Driving Licence
+* Insurance Documents
+
+Verification Status:
+
+* Pending
+* Approved
+* Rejected
+* Resubmission Required
+
+==================================================
+
+# SERVICE CATEGORY MANAGEMENT
+
+The Admin should manage all service categories.
+
+Functions:
+
+* Create category
+* Edit category
+* Delete category
+* Enable
+* Disable
+* Change display order
+* Upload category icon
+* Upload category image
+
+Future categories must be added without modifying application code.
+
+==================================================
+
+# PRODUCT CATEGORY MANAGEMENT
+
+Manage:
+
+* Hardware Products
+* Plumbing Products
+* Laundry Products
+* Cooking Products
+* Car Service Products
+
+Admin can:
+
+* Create
+* Update
+* Delete
+* Enable
+* Disable
+
+==================================================
+
+# SERVICE MANAGEMENT
+
+View all services.
+
+Approve new services if required.
+
+Manage:
+
+* Pricing policies
+* Visiting charge rules
+* Availability
+* Service status
+
+==================================================
+
+# PRODUCT MANAGEMENT
+
+View every product on the platform.
+
+Manage:
+
+* Featured products
+* Product visibility
+* Product status
+* Category assignment
+* Product reports
+* Product approval (future-ready)
+
+==================================================
+
+# ORDER MANAGEMENT
+
+Monitor every order.
+
+Statuses:
+
+* Pending
+* Accepted
+* Packed
+* Ready for Pickup
+* Picked Up
+* Out for Delivery
+* Delivered
+* Cancelled
+* Returned
+
+Admin can:
+
+* Search
+* Filter
+* View invoices
+* View payment details
+* Investigate disputes
+
+==================================================
+
+# SERVICE BOOKING MANAGEMENT
+
+View:
+
+* Pending bookings
+* Accepted bookings
+* Ongoing services
+* Completed services
+* Cancelled services
+
+Admin can:
+
+* Reassign bookings (future)
+* Resolve disputes
+* View OTP verification history
+* View provider notes
+
+==================================================
+
+# COMMISSION MANAGEMENT
+
+Create a flexible commission engine.
+
+Support:
+
+* Global commission
+* Category-wise commission
+* Shop-specific commission (future)
+
+Display:
+
+* Commission collected
+* Pending commission
+* Monthly commission report
+
+==================================================
+
+# REVENUE MANAGEMENT
+
+Generate reports for:
+
+* Daily revenue
+* Weekly revenue
+* Monthly revenue
+* Annual revenue
+
+Separate reports for:
+
+* Services
+* Products
+* Delivery
+* Commissions
+
+==================================================
+
+# COUPONS & OFFERS
+
+Manage:
+
+* Coupon creation
+* Discount percentage
+* Flat discount
+* Usage limits
+* Expiry dates
+* Eligible categories
+
+Banner Management:
+
+* Home banners
+* Promotional banners
+* Seasonal campaigns
+
+==================================================
+
+# COMPLAINT MANAGEMENT
+
+Admin can:
+
+* View complaints
+* Assign complaints
+* Update status
+* Add notes
+* Resolve complaints
+* Close complaints
+
+Complaint Status:
+
+* Open
+* In Progress
+* Resolved
+* Closed
+
+==================================================
+
+# REVIEW MODERATION
+
+Monitor:
+
+* Customer reviews
+* Product reviews
+* Service reviews
+
+Admin can:
+
+* Approve
+* Hide
+* Delete
+* Flag inappropriate content
+
+==================================================
+
+# NOTIFICATION MANAGEMENT
+
+Create notifications for:
+
+* Customers
+* Shopkeepers
+* Delivery Agents
+
+Support:
+
+* Broadcast notifications
+* Promotional notifications
+* Maintenance alerts
+* Emergency announcements
+
+==================================================
+
+# ANALYTICS
+
+Generate detailed analytics.
+
+Customer Analytics:
+
+* New registrations
+* Active users
+* Retention
+
+Business Analytics:
+
+* Best performing shops
+* Lowest performing shops
+* Service trends
+
+Product Analytics:
+
+* Best-selling products
+* Low-performing products
+
+Delivery Analytics:
+
+* Delivery time
+* Success rate
+* Failed deliveries
+
+==================================================
+
+# SECURITY MANAGEMENT
+
+Monitor:
+
+* Login history
+* Failed login attempts
+* Suspicious activities
+* Account lockouts
+* Active sessions
+* Device information
+
+==================================================
+
+# AUDIT LOGS
+
+Record every important action.
+
+Examples:
+
+* Login
+* Logout
+* Product creation
+* Category changes
+* Commission updates
+* Verification approval
+* User suspension
+
+Logs should include:
+
+* User
+* Timestamp
+* IP (where available)
+* Action
+* Previous value
+* Updated value
+
+==================================================
+
+# PLATFORM SETTINGS
+
+Configure:
+
+* Commission percentages
+* Default service radius
+* Product delivery radius (5 km)
+* Payment settings
+* Notification settings
+* AI chatbot settings
+* App maintenance mode
+* Privacy policy
+* Terms & Conditions
+
+==================================================
+
+# REPORTS
+
+Generate downloadable reports:
+
+* PDF
+* Excel
+* CSV
+
+Reports include:
+
+* Revenue
+* Orders
+* Bookings
+* Customers
+* Businesses
+* Delivery Agents
+* Complaints
+* Reviews
+
+==================================================
+
+# SECURITY RULES
+
+Implement:
+
+* Role-Based Access Control (RBAC)
+* Supabase Row Level Security (RLS)
+* JWT Authentication
+* Secure Sessions
+* Activity Logging
+* Input Validation
+* API Authorization
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete Admin Application architecture
+* Dashboard structure
+* Navigation flow
+* Module hierarchy
+* Business logic
+* State management
+* API integration points
+* Validation rules
+* Error handling
+* Analytics architecture
+* Reporting system
+* Security architecture
+
+Do not modify the Customer Application or Partner Application. Focus exclusively on building a production-ready Admin Application that can manage the entire ServiceHub ecosystem.
+
+
+# MASTER PROMPT 06
+
+## Authentication, User Management & Role-Based Access Control (RBAC)
+
+You are an Expert Flutter Developer, Authentication Architect, Backend Engineer, Security Engineer, Database Architect, and Mobile Application Specialist.
+
+Continue developing the existing **ServiceHub** project.
+
+Assume the following are already completed:
+
+* Master Prompt 01 – Project Foundation
+* Master Prompt 02 – Flutter Architecture & Development Standards
+* Master Prompt 03 – Customer Application
+* Master Prompt 04 – Partner Application
+* Master Prompt 05 – Admin Application
+
+Do NOT recreate previous modules.
+
+Your task is to design and implement the complete authentication system, user management system, role-based authorization, account lifecycle, session management, and permission architecture for the entire ServiceHub ecosystem.
+
+Use:
+
+* Flutter
+* Dart
+* Riverpod
+* GoRouter
+* Supabase Auth
+* PostgreSQL
+* Row Level Security (RLS)
+
+==================================================
+
+# OBJECTIVE
+
+Build a secure authentication system that supports multiple applications while keeping a single centralized user database.
+
+The authentication system must be scalable, secure, production-ready, and easy to maintain.
+
+==================================================
+
+# APPLICATIONS
+
+The authentication system must support:
+
+Application 1
+
+ServiceHub Customer
+
+Application 2
+
+ServiceHub Partner
+
+Roles:
+
+* Shopkeeper
+* Delivery Agent
+
+Application 3
+
+ServiceHub Admin
+
+Every application must authenticate independently while sharing the same authentication backend.
+
+==================================================
+
+# USER ROLES
+
+Support the following roles:
+
+Customer
+
+Shopkeeper
+
+Delivery Agent
+
+Administrator
+
+Store the role securely inside Supabase.
+
+Never allow role switching from the client application.
+
+==================================================
+
+# CUSTOMER LOGIN FLOW
+
+App Launch
+
+↓
+
+Splash Screen
+
+↓
+
+Location Permission
+
+↓
+
+Home Screen (Guest Mode)
+
+↓
+
+Protected Action
+
+↓
+
+Login Popup
+
+↓
+
+Authentication
+
+↓
+
+User Profile Check
+
+↓
+
+Continue Previous Action
+
+Protected actions include:
+
+* Book Service
+* Buy Product
+* Add to Cart
+* Wishlist
+* Reviews
+* Profile
+* Chat
+* Payment
+* Complaint Submission
+
+==================================================
+
+# PARTNER LOGIN FLOW
+
+Launch
+
+↓
+
+Internet Check
+
+↓
+
+Location Permission
+
+↓
+
+Login
+
+↓
+
+Authentication
+
+↓
+
+Role Detection
+
+↓
+
+Dashboard
+
+If Shopkeeper
+
+↓
+
+Shopkeeper Dashboard
+
+If Delivery Agent
+
+↓
+
+Delivery Dashboard
+
+Guest access is NOT allowed.
+
+==================================================
+
+# ADMIN LOGIN FLOW
+
+Launch
+
+↓
+
+Internet Check
+
+↓
+
+Authentication
+
+↓
+
+Administrator Verification
+
+↓
+
+Admin Dashboard
+
+Guest access is NOT allowed.
+
+==================================================
+
+# REGISTRATION
+
+Customer Registration
+
+Collect:
+
+* Full Name
+* Mobile Number
+* Email (Optional)
+* Password (if applicable)
+* Location Permission
+* Terms Acceptance
+
+Partner Registration
+
+Collect:
+
+* Full Name
+* Business Name
+* Business Type
+* Mobile Number
+* Email
+* Aadhaar
+* Shop Address
+* Business Address
+* GPS Location
+
+Delivery Agent Registration
+
+Collect:
+
+* Full Name
+* Mobile Number
+* Aadhaar
+* Driving Licence
+* Vehicle Details
+* Vehicle Registration Number
+* Emergency Contact
+
+Admin accounts should only be created by authorized administrators.
+
+==================================================
+
+# LOCATION PERMISSION
+
+Location must be enabled before login for:
+
+Customers
+
+Purpose:
+
+* Nearby services
+* Nearby products
+* Delivery eligibility
+* Distance calculation
+
+Partners
+
+Purpose:
+
+* Navigation
+* Delivery verification
+* Service radius
+* Order assignment
+
+If location permission is denied:
+
+Prevent login until permission is granted.
+
+==================================================
+
+# AUTHENTICATION METHODS
+
+Support:
+
+* Mobile OTP Login
+* Email Login
+* Password Login
+* Google Login (Future Ready)
+
+Future support:
+
+* Apple Login
+* Biometric Login
+* Passkeys
+
+==================================================
+
+# OTP VERIFICATION
+
+Generate secure OTP.
+
+OTP should have:
+
+* Expiration time
+* Retry limit
+* Resend option
+* Rate limiting
+
+Prevent OTP abuse.
+
+==================================================
+
+# PASSWORD MANAGEMENT
+
+Support:
+
+* Create Password
+* Change Password
+* Forgot Password
+* Reset Password
+
+Password Rules:
+
+* Minimum length
+* Uppercase
+* Lowercase
+* Number
+* Special Character
+
+Store only hashed passwords through Supabase authentication.
+
+==================================================
+
+# SESSION MANAGEMENT
+
+Maintain secure sessions.
+
+Support:
+
+* Auto Login
+* Session Refresh
+* Logout
+* Logout All Devices (Future)
+
+Automatically expire invalid sessions.
+
+==================================================
+
+# USER PROFILE
+
+Customer
+
+* Profile Photo
+* Name
+* Mobile
+* Email
+* Saved Addresses
+* Preferences
+
+Shopkeeper
+
+* Business Name
+* Logo
+* Services
+* Products
+* Working Hours
+* Verification Status
+
+Delivery Agent
+
+* Vehicle
+* Aadhaar
+* Licence
+* Earnings
+* Performance
+
+Admin
+
+* Name
+* Role
+* Contact
+* Security Settings
+
+==================================================
+
+# ACCOUNT STATUS
+
+Every account should have one of these states:
+
+* Pending Verification
+* Active
+* Suspended
+* Blocked
+* Deleted (Soft Delete)
+
+Applications must react correctly to each state.
+
+==================================================
+
+# ROLE BASED ACCESS CONTROL
+
+Implement RBAC.
+
+Customer
+
+Can only access customer features.
+
+Shopkeeper
+
+Can only access shopkeeper features.
+
+Delivery Agent
+
+Can only access delivery features.
+
+Admin
+
+Can access all administrative features.
+
+Every API must verify permissions.
+
+==================================================
+
+# ROUTE PROTECTION
+
+Protect all sensitive routes.
+
+Examples:
+
+Customer
+
+* Profile
+* Orders
+* Payments
+
+Partner
+
+* Dashboard
+* Products
+* Earnings
+
+Admin
+
+* Reports
+* Analytics
+* Settings
+
+Guests must never access protected routes.
+
+==================================================
+
+# SUPABASE RLS
+
+Create Row Level Security policies.
+
+Users should only access their own data.
+
+Shopkeepers should access only their business data.
+
+Delivery agents should access only assigned deliveries.
+
+Admins have elevated permissions.
+
+==================================================
+
+# SECURITY
+
+Implement:
+
+* JWT Authentication
+* Secure Session Storage
+* Token Refresh
+* API Authorization
+* Role Validation
+* Input Validation
+* SQL Injection Protection
+* Brute Force Protection
+* OTP Rate Limiting
+* Secure Logout
+
+==================================================
+
+# ACCOUNT RECOVERY
+
+Support:
+
+* Forgot Password
+* Mobile Verification
+* Email Verification
+* OTP Recovery
+
+==================================================
+
+# AUDIT LOGS
+
+Record:
+
+* Login
+* Logout
+* Failed Login
+* Password Reset
+* Profile Updates
+* Role Changes
+* Device Changes
+
+Store:
+
+* Timestamp
+* User ID
+* Role
+* Device
+* IP (where available)
+
+==================================================
+
+# ERROR HANDLING
+
+Handle:
+
+* Invalid Credentials
+* Expired OTP
+* Invalid Session
+* Suspended Account
+* Blocked Account
+* Verification Pending
+* No Internet
+* GPS Disabled
+
+Display user-friendly messages.
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete authentication architecture
+* Registration flow
+* Login flow
+* OTP flow
+* Session management
+* RBAC implementation
+* Route protection strategy
+* Supabase authentication integration
+* RLS policy design
+* User lifecycle management
+* Error handling strategy
+* Security best practices
+
+Do not build feature modules in this prompt.
+
+Focus only on creating a secure, scalable authentication and authorization system for the complete ServiceHub ecosystem.
+
+
+# MASTER PROMPT 07
+
+## Service Booking System (Complete Booking Lifecycle)
+
+You are an Expert Flutter Developer, Backend Engineer, Product Manager, Database Architect, Software Architect, and Business Process Designer.
+
+Continue developing the existing **ServiceHub** project.
+
+Assume the following modules are already completed:
+
+* Master Prompt 01 – Project Foundation
+* Master Prompt 02 – Flutter Architecture
+* Master Prompt 03 – Customer Application
+* Master Prompt 04 – Partner Application
+* Master Prompt 05 – Admin Application
+* Master Prompt 06 – Authentication & RBAC
+
+Do NOT recreate previous modules.
+
+Your task is to build the complete **Service Booking System**.
+
+The booking module must be production-ready, scalable, secure, and designed for a real commercial environment.
+
+==================================================
+
+# OBJECTIVE
+
+Develop a complete service booking system that allows customers to book verified service providers while giving shopkeepers complete control over scheduling, pricing, availability, and booking management.
+
+Delivery agents are NOT involved in service bookings.
+
+Only service providers complete service bookings.
+
+==================================================
+
+# SUPPORTED SERVICE CATEGORIES
+
+Initially support:
+
+* Hardware Services
+* Plumbing
+* Cooking
+* Laundry
+* Car Services
+
+Each category must support unlimited future services without changing application code.
+
+==================================================
+
+# SERVICE BOOKING FLOW
+
+Customer
+
+↓
+
+Browse Categories
+
+↓
+
+Choose Service
+
+↓
+
+View Nearby Providers
+
+↓
+
+Compare Providers
+
+↓
+
+Select Provider
+
+↓
+
+Select Date
+
+↓
+
+Select Time Slot
+
+↓
+
+Review Charges
+
+↓
+
+Confirm Booking
+
+↓
+
+Login (If Required)
+
+↓
+
+Booking Created
+
+↓
+
+Shopkeeper Notification
+
+↓
+
+Accept or Reject Booking
+
+↓
+
+Customer Notification
+
+↓
+
+Provider Travels
+
+↓
+
+Customer OTP Verification
+
+↓
+
+Service Completed
+
+↓
+
+Payment Confirmation
+
+↓
+
+Invoice Generated
+
+↓
+
+Rating & Review
+
+==================================================
+
+# PROVIDER DISCOVERY
+
+Display only verified providers.
+
+Sort providers using:
+
+* Distance
+* Ratings
+* Number of completed services
+* Availability
+* Estimated arrival time
+
+Allow users to filter providers by:
+
+* Price
+* Rating
+* Experience
+* Availability
+* Service radius
+
+==================================================
+
+# PROVIDER PROFILE
+
+Display:
+
+* Business name
+* Profile image
+* Shop images
+* Verification badge
+* Years of experience
+* Customer ratings
+* Reviews
+* Completed bookings
+* Service area
+* Visiting charges
+* Estimated arrival time
+* Working hours
+
+==================================================
+
+# SERVICE DETAILS PAGE
+
+Display:
+
+* Service name
+* Description
+* Estimated duration
+* Starting price
+* Visiting charge
+* Images
+* FAQs
+* Terms & Conditions
+* Provider details
+* Reviews
+
+==================================================
+
+# BOOKING FORM
+
+Collect:
+
+* Service
+* Address
+* Date
+* Time
+* Additional notes
+* Optional images
+* Contact number
+
+Validate all fields before submission.
+
+==================================================
+
+# SCHEDULING
+
+Support:
+
+* Instant booking
+* Scheduled booking
+
+Time slots should be generated automatically based on provider availability.
+
+Prevent double booking.
+
+==================================================
+
+# VISITING CHARGES
+
+Each provider can configure:
+
+* Visiting charge
+* Free visit threshold (future)
+* Minimum service charge
+
+The customer must clearly see:
+
+Service Cost
+
+*
+
+Visiting Charge
+
+=
+
+Estimated Total
+
+==================================================
+
+# BOOKING STATUS
+
+Support the following states:
+
+* Pending
+* Accepted
+* Rejected
+* Scheduled
+* Provider On The Way
+* Provider Arrived
+* Service Started
+* Waiting for OTP
+* Completed
+* Cancelled
+
+Every status update should notify the customer.
+
+==================================================
+
+# SHOPKEEPER ACTIONS
+
+Allow providers to:
+
+* Accept booking
+* Reject booking
+* Reschedule booking
+* Contact customer
+* Start navigation
+* Mark arrival
+* Start service
+* Complete service after OTP verification
+
+==================================================
+
+# CUSTOMER ACTIONS
+
+Allow customers to:
+
+* Book service
+* Reschedule before provider starts travel
+* Cancel booking (based on cancellation policy)
+* Contact provider
+* View live booking status
+* Download invoice
+* Submit review
+
+==================================================
+
+# SERVICE COMPLETION
+
+When work is finished:
+
+Generate a secure OTP.
+
+Provider requests OTP.
+
+Customer enters OTP.
+
+System verifies OTP.
+
+If correct:
+
+* Mark booking completed.
+* Generate invoice.
+* Enable rating.
+
+If incorrect:
+
+Do not complete booking.
+
+==================================================
+
+# CANCELLATION POLICY
+
+Customer cancellation:
+
+Before provider accepts:
+
+Free cancellation.
+
+After provider accepts:
+
+Follow configurable cancellation rules.
+
+Provider cancellation:
+
+Require cancellation reason.
+
+Notify customer immediately.
+
+Admin should be able to view cancellation history.
+
+==================================================
+
+# RESCHEDULING
+
+Support rescheduling by:
+
+Customer
+
+Provider
+
+Admin
+
+Maintain complete history of schedule changes.
+
+==================================================
+
+# SERVICE HISTORY
+
+Display:
+
+* Upcoming bookings
+* Completed bookings
+* Cancelled bookings
+
+Each booking should include:
+
+* Booking ID
+* Provider
+* Date
+* Time
+* Charges
+* Status
+* Invoice
+* Review status
+
+==================================================
+
+# RATINGS & REVIEWS
+
+Allow customers to rate:
+
+* Service quality
+* Provider behaviour
+* Punctuality
+* Professionalism
+
+Support:
+
+* Written review
+* Image upload
+* Overall rating
+
+Only verified completed bookings can be reviewed.
+
+==================================================
+
+# COMPLAINT SYSTEM
+
+After completion, customers can:
+
+* Report issue
+* Upload images
+* Request callback
+* Request admin assistance
+
+Generate support tickets automatically.
+
+==================================================
+
+# NOTIFICATIONS
+
+Notify customer when:
+
+* Booking received
+* Booking accepted
+* Booking rejected
+* Provider starts travel
+* Provider arrives
+* Service completed
+* Payment confirmed
+
+Notify provider when:
+
+* New booking
+* Customer reschedules
+* Customer cancels
+* OTP verified
+
+==================================================
+
+# HYGIENE CHECKLIST
+
+Applicable only for:
+
+* Cooking
+* Laundry
+
+Provider should complete:
+
+* Uniform confirmation
+* Gloves confirmation
+* Hygiene checklist
+
+Store checklist for audit purposes.
+
+==================================================
+
+# ANALYTICS
+
+Generate statistics for:
+
+Customer:
+
+* Total bookings
+* Money spent
+* Favourite category
+
+Shopkeeper:
+
+* Total bookings
+* Acceptance rate
+* Completion rate
+* Revenue
+* Average rating
+
+Admin:
+
+* Category popularity
+* Daily bookings
+* Monthly bookings
+* Cancellation percentage
+* Provider performance
+
+==================================================
+
+# DATABASE REQUIREMENTS
+
+Create booking-related entities for:
+
+* Booking
+* Booking Status
+* Booking Timeline
+* Time Slots
+* Provider Availability
+* OTP Verification
+* Booking History
+* Booking Notes
+* Booking Attachments
+* Reviews
+
+Maintain complete audit history.
+
+==================================================
+
+# BUSINESS RULES
+
+Delivery agents must never appear in service bookings.
+
+Service providers travel directly to customers.
+
+Service bookings use OTP verification only.
+
+Product delivery rules belong to the marketplace module and must not be mixed with service booking logic.
+
+==================================================
+
+# SECURITY
+
+Implement:
+
+* Booking ownership validation
+* OTP expiration
+* Duplicate booking prevention
+* Time slot validation
+* Input validation
+* Secure booking updates
+* Role-based booking permissions
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete booking architecture
+* Booking lifecycle
+* State management
+* Database relationships
+* API endpoints
+* Validation rules
+* Error handling
+* Notification flow
+* OTP verification flow
+* Analytics structure
+* Production-ready business logic
+
+Do not build marketplace, delivery, payment, or GPS product delivery modules in this prompt. Focus exclusively on the Service Booking System.
+
+
+# MASTER PROMPT 08
+
+## Product Marketplace & E-Commerce System
+
+You are an Expert Flutter Developer, Senior Mobile Application Architect, Backend Engineer, E-Commerce System Designer, Database Architect, Product Manager, UI/UX Specialist, Security Engineer, and Software Architect.
+
+Continue developing the existing **ServiceHub** project.
+
+Assume the following modules are already completed:
+
+* Master Prompt 01 – Project Foundation
+* Master Prompt 02 – Flutter Architecture & Development Standards
+* Master Prompt 03 – Customer Application
+* Master Prompt 04 – Partner Application
+* Master Prompt 05 – Admin Application
+* Master Prompt 06 – Authentication & RBAC
+* Master Prompt 07 – Service Booking System
+
+Do NOT recreate previous modules.
+
+Your task is to design and implement the complete **Product Marketplace & E-Commerce System** for the ServiceHub platform.
+
+This module is responsible only for product browsing, shopping, ordering, inventory, checkout, and order management.
+
+Do not implement service booking logic in this module.
+
+==================================================
+
+# OBJECTIVE
+
+Build a modern hyperlocal e-commerce marketplace where customers can purchase products that are directly related to the available service categories.
+
+The marketplace must support professional shopping experiences while maintaining high performance, scalability, and security.
+
+Products are delivered only within a **5 km radius** of the shop.
+
+==================================================
+
+# PRODUCT CATEGORIES
+
+Initially support:
+
+Hardware Products
+
+* AC Filters
+* AC Spare Parts
+* AC Cleaning Kits
+* RO Filters
+* RO Accessories
+* Washing Machine Parts
+* Refrigerator Parts
+* Mixer Grinder Parts
+* Microwave Parts
+* Small Appliance Accessories
+
+Plumbing Products
+
+* Pipes
+* Faucets
+* Connectors
+* Valves
+* Bathroom Accessories
+* Plumbing Repair Kits
+
+Cooking Products
+
+* Kitchen Equipment
+* Kitchen Tools
+* Utensils
+* Cooking Accessories
+
+Laundry Products
+
+* Detergents
+* Fabric Conditioner
+* Laundry Bags
+* Cleaning Accessories
+
+Car Service Products
+
+* Car Shampoo
+* Car Wax
+* Car Polish
+* Cleaning Kits
+* Car Accessories
+
+The admin should be able to add unlimited future product categories.
+
+==================================================
+
+# PRODUCT MARKETPLACE FLOW
+
+Customer
+
+↓
+
+Browse Categories
+
+↓
+
+Search Products
+
+↓
+
+Apply Filters
+
+↓
+
+View Product Details
+
+↓
+
+Add to Wishlist
+
+↓
+
+Add to Cart
+
+↓
+
+Checkout
+
+↓
+
+Login (If Required)
+
+↓
+
+Address Selection
+
+↓
+
+Payment
+
+↓
+
+Order Created
+
+↓
+
+Shopkeeper Accepts Order
+
+↓
+
+Delivery Agent Assigned (Future Module)
+
+↓
+
+Delivery
+
+↓
+
+Review Product
+
+==================================================
+
+# PRODUCT LISTING
+
+Display:
+
+* Product Image
+* Product Name
+* Brand
+* Price
+* Discount
+* Final Price
+* Stock Status
+* Average Rating
+* Number of Reviews
+* Shop Name
+* Distance from Shop
+* Delivery Availability
+
+Support:
+
+* Grid View
+* List View
+
+==================================================
+
+# PRODUCT DETAILS PAGE
+
+Display:
+
+* Multiple Images
+* Product Description
+* Specifications
+* Features
+* Brand
+* Category
+* Stock Availability
+* Estimated Delivery
+* Delivery Radius
+* Related Products
+* Frequently Bought Together
+* Customer Reviews
+* Rating Breakdown
+
+Actions:
+
+* Add to Cart
+* Buy Now
+* Wishlist
+* Favorite
+* Share Product
+
+==================================================
+
+# SEARCH SYSTEM
+
+Support:
+
+* Instant Search
+* Search Suggestions
+* Recent Searches
+* Trending Searches
+* Voice Search (Future Ready)
+
+Search products by:
+
+* Name
+* Category
+* Brand
+* Keyword
+
+==================================================
+
+# FILTER SYSTEM
+
+Allow filtering by:
+
+* Category
+* Brand
+* Price Range
+* Rating
+* Discount
+* Availability
+* Distance
+* Delivery Availability
+
+==================================================
+
+# SORTING
+
+Support:
+
+* Popularity
+* Newest
+* Price Low to High
+* Price High to Low
+* Highest Rated
+* Best Selling
+* Discount
+
+==================================================
+
+# WISHLIST
+
+Allow customers to:
+
+* Add products
+* Remove products
+* Move to cart
+* Share wishlist
+* View availability changes
+
+Wishlist should synchronize across devices.
+
+==================================================
+
+# SHOPPING CART
+
+Support:
+
+* Add product
+* Remove product
+* Update quantity
+* Save for later
+* View subtotal
+* Delivery estimate
+* Discount calculation
+* Tax calculation (if applicable)
+
+Prevent adding quantities beyond available stock.
+
+==================================================
+
+# BUY NOW
+
+Support direct checkout for a single product without adding it to the cart.
+
+==================================================
+
+# CHECKOUT FLOW
+
+Cart
+
+↓
+
+Address Selection
+
+↓
+
+Delivery Availability Check
+
+↓
+
+Order Summary
+
+↓
+
+Coupon Validation
+
+↓
+
+Payment
+
+↓
+
+Order Confirmation
+
+Display:
+
+* Product Total
+* Discount
+* Delivery Charge
+* Total Amount
+
+==================================================
+
+# DELIVERY ELIGIBILITY
+
+Before checkout:
+
+Check whether the customer's selected address is within **5 km** of the shop.
+
+If outside the radius:
+
+* Prevent checkout.
+* Explain why delivery is unavailable.
+
+==================================================
+
+# ORDER MANAGEMENT
+
+Order Status:
+
+* Pending
+* Accepted
+* Preparing
+* Ready for Pickup
+* Picked Up
+* Out for Delivery
+* Delivered
+* Cancelled
+* Returned
+
+Maintain a complete order timeline.
+
+==================================================
+
+# SHOPKEEPER PRODUCT MANAGEMENT
+
+Allow shopkeepers to:
+
+* Add products
+* Edit products
+* Delete products
+* Upload multiple images
+* Update stock
+* Set pricing
+* Configure discounts
+* Enable/Disable products
+
+==================================================
+
+# INVENTORY MANAGEMENT
+
+Track:
+
+* Stock Quantity
+* Low Stock Alerts
+* Out of Stock
+* Inventory Updates
+* Stock Movement History
+
+Prevent customers from ordering unavailable products.
+
+==================================================
+
+# COUPONS & OFFERS
+
+Support:
+
+* Percentage Discounts
+* Flat Discounts
+* Category Coupons
+* Shop Coupons
+* Minimum Order Value
+* Expiry Dates
+
+Validate coupons before payment.
+
+==================================================
+
+# PRODUCT REVIEWS
+
+Allow verified customers to:
+
+* Rate products
+* Write reviews
+* Upload images
+* Edit review (within allowed period)
+
+Only customers with completed deliveries can review products.
+
+==================================================
+
+# PRODUCT RECOMMENDATIONS
+
+Display:
+
+* Related Products
+* Similar Products
+* Best Sellers
+* Recently Viewed
+* Trending Products
+
+Future support:
+
+* AI-based recommendations
+
+==================================================
+
+# PRODUCT SHARING
+
+Allow users to:
+
+* Share product
+* Copy product link
+* Share through supported apps
+
+==================================================
+
+# NOTIFICATIONS
+
+Notify customer when:
+
+* Order placed
+* Order accepted
+* Order packed
+* Order shipped
+* Out for delivery
+* Delivered
+* Cancelled
+* Returned
+
+Notify shopkeeper when:
+
+* New order
+* Cancellation
+* Low stock
+* Product review received
+
+==================================================
+
+# RETURNS & REFUNDS
+
+Support:
+
+* Return request
+* Replacement request
+* Refund request
+
+Track:
+
+* Request status
+* Approval
+* Completion
+
+==================================================
+
+# ANALYTICS
+
+Customer:
+
+* Total Orders
+* Total Spending
+* Favourite Categories
+
+Shopkeeper:
+
+* Product Sales
+* Revenue
+* Best Selling Products
+* Low Stock Products
+
+Admin:
+
+* Marketplace Revenue
+* Category Performance
+* Order Volume
+* Top Selling Products
+
+==================================================
+
+# DATABASE REQUIREMENTS
+
+Create marketplace-related entities:
+
+* Products
+* Product Images
+* Product Categories
+* Inventory
+* Shopping Cart
+* Wishlist
+* Orders
+* Order Items
+* Coupons
+* Reviews
+* Ratings
+* Returns
+* Refunds
+
+Maintain proper relationships and audit history.
+
+==================================================
+
+# BUSINESS RULES
+
+Only products related to supported services can be listed.
+
+Products must belong to a valid category.
+
+Product purchases require authentication.
+
+Product delivery is limited to a **5 km radius**.
+
+Service booking logic must remain completely separate from marketplace logic.
+
+==================================================
+
+# SECURITY
+
+Implement:
+
+* Ownership validation
+* Secure cart updates
+* Stock validation
+* Price validation
+* Coupon validation
+* Duplicate order prevention
+* Role-based permissions
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete marketplace architecture
+* Product browsing flow
+* Search architecture
+* Filter system
+* Cart architecture
+* Checkout flow
+* Inventory management
+* Order lifecycle
+* Database relationships
+* API endpoints
+* Validation rules
+* Error handling
+* Notification flow
+* Analytics structure
+
+Do not implement delivery agent assignment, GPS verification, or encrypted PIN verification in this prompt. Those belong to the dedicated Delivery & Verification module.
+
+
+# MASTER PROMPT 09
+
+## Delivery Management System, GPS Navigation & Secure Verification
+
+You are an Expert Flutter Developer, Logistics System Architect, Backend Engineer, Database Architect, Cybersecurity Engineer, GIS (Location) Specialist, Product Manager, and Software Architect.
+
+Continue developing the existing **ServiceHub** project.
+
+Assume the following modules have already been completed:
+
+* Master Prompt 01 – Project Foundation
+* Master Prompt 02 – Flutter Architecture
+* Master Prompt 03 – Customer Application
+* Master Prompt 04 – Partner Application
+* Master Prompt 05 – Admin Application
+* Master Prompt 06 – Authentication & RBAC
+* Master Prompt 07 – Service Booking System
+* Master Prompt 08 – Product Marketplace & E-Commerce
+
+Do NOT recreate previous modules.
+
+Your task is to design and implement the complete **Delivery Management System** for product orders.
+
+**Important Business Rule:**
+
+Delivery Agents are used **only for product delivery**.
+
+Delivery Agents are **never** involved in service bookings.
+
+==================================================
+
+# OBJECTIVE
+
+Develop a secure and scalable delivery system that:
+
+* Assigns deliveries
+* Tracks delivery progress
+* Verifies pickup
+* Verifies delivery
+* Uses GPS validation
+* Protects against fake deliveries
+* Records complete delivery history
+
+==================================================
+
+# DELIVERY WORKFLOW
+
+Customer Places Order
+
+↓
+
+Shopkeeper Accepts Order
+
+↓
+
+Order Ready for Pickup
+
+↓
+
+Delivery Agent Assigned
+
+↓
+
+Agent Accepts Delivery
+
+↓
+
+Navigate to Shop
+
+↓
+
+GPS Validation
+
+↓
+
+Pickup Verification
+
+↓
+
+Pickup Confirmed
+
+↓
+
+Navigate to Customer
+
+↓
+
+GPS Validation
+
+↓
+
+Delivery Verification
+
+↓
+
+Delivery Completed
+
+↓
+
+Customer Rating
+
+==================================================
+
+# DELIVERY AGENT AVAILABILITY
+
+The system should manage:
+
+* Online
+* Offline
+* Busy
+* On Break
+* Available
+
+Only available agents should receive delivery requests.
+
+==================================================
+
+# DELIVERY ASSIGNMENT
+
+Select a delivery agent using:
+
+* Availability
+* Verification Status
+* Current Distance
+* Current Workload
+* Performance Score
+
+Future-ready support:
+
+* Automatic assignment
+* Intelligent dispatch algorithm
+
+==================================================
+
+# ORDER STATUS
+
+Support the following delivery statuses:
+
+* Waiting for Assignment
+* Assigned
+* Accepted
+* Rejected
+* Arrived at Shop
+* Pickup Completed
+* Out for Delivery
+* Arrived at Customer
+* Delivered
+* Delivery Failed
+* Cancelled
+
+Every status change must generate a notification.
+
+==================================================
+
+# GOOGLE MAPS INTEGRATION
+
+Integrate Google Maps.
+
+Provide:
+
+* Shop Location
+* Customer Location
+* Live Navigation
+* Distance
+* Estimated Arrival Time
+* Route Updates
+
+Future-ready:
+
+* Traffic-aware routing
+
+==================================================
+
+# LIVE LOCATION
+
+Support real-time location updates.
+
+Customer can view:
+
+* Delivery Agent Position
+* Estimated Arrival
+* Delivery Progress
+
+Shopkeeper can view:
+
+* Assigned Agent
+* Pickup Progress
+
+Admin can monitor:
+
+* Active Deliveries
+* Delivery Locations
+
+==================================================
+
+# PICKUP VERIFICATION
+
+When the delivery agent reaches the shop:
+
+Verify GPS.
+
+If the agent is within the configured verification distance:
+
+Allow pickup verification.
+
+Record:
+
+* Time
+* GPS Coordinates
+* Order ID
+* Agent ID
+
+==================================================
+
+# DELIVERY VERIFICATION
+
+When the delivery agent reaches the customer:
+
+Verify GPS.
+
+If the location is valid:
+
+Allow delivery confirmation.
+
+Record:
+
+* Time
+* GPS Coordinates
+* Customer Confirmation
+
+==================================================
+
+# GPS VALIDATION
+
+Validate:
+
+* Agent location
+* Shop location
+* Customer location
+
+Reject verification if GPS validation fails.
+
+Record failed attempts.
+
+==================================================
+
+# VERIFICATION DISTANCE
+
+Implement a configurable verification distance.
+
+Default:
+
+5 meters.
+
+If the agent is outside the verification distance:
+
+* Do not allow verification.
+* Display an informative message.
+* Continue navigation.
+
+The distance value should be configurable from the Admin application.
+
+==================================================
+
+# PICKUP SECURITY
+
+Before pickup:
+
+Validate:
+
+* Correct order
+* Correct shop
+* Correct agent
+* GPS location
+
+Prevent pickup if validation fails.
+
+==================================================
+
+# DELIVERY SECURITY
+
+Before delivery:
+
+Validate:
+
+* Correct order
+* Correct customer
+* Correct delivery agent
+* GPS location
+
+Prevent completion if validation fails.
+
+==================================================
+
+# DELIVERY TIMELINE
+
+Store every event.
+
+Examples:
+
+* Assignment
+* Acceptance
+* Navigation Started
+* Arrived at Shop
+* Pickup Completed
+* Arrived at Customer
+* Delivery Completed
+
+Each event should include:
+
+* Timestamp
+* User
+* Location
+* Status
+
+==================================================
+
+# DELIVERY HISTORY
+
+Allow delivery agents to view:
+
+* Completed Deliveries
+* Failed Deliveries
+* Cancelled Deliveries
+* Earnings
+* Delivery Duration
+* Customer Ratings
+
+==================================================
+
+# CUSTOMER TRACKING
+
+Customers should be able to:
+
+* View delivery status
+* Track delivery progress
+* See estimated arrival time
+* Contact the assigned delivery agent
+* Receive delivery notifications
+
+==================================================
+
+# SHOPKEEPER TRACKING
+
+Shopkeepers should be able to:
+
+* View assigned delivery agent
+* Monitor pickup progress
+* View delivery status
+* Contact delivery agent if required
+
+==================================================
+
+# DELIVERY AGENT DASHBOARD
+
+Display:
+
+* Active Deliveries
+* Completed Deliveries
+* Pending Deliveries
+* Daily Earnings
+* Weekly Earnings
+* Monthly Earnings
+* Average Rating
+* Delivery Success Rate
+* Performance Score
+
+==================================================
+
+# NAVIGATION FEATURES
+
+Support:
+
+* Turn-by-turn navigation
+* ETA
+* Distance remaining
+* Route recalculation
+* Manual map refresh
+
+==================================================
+
+# NOTIFICATIONS
+
+Customer receives:
+
+* Agent Assigned
+* Pickup Completed
+* Out for Delivery
+* Agent Arrived
+* Delivery Completed
+
+Shopkeeper receives:
+
+* Agent Assigned
+* Agent Arrived
+* Pickup Completed
+
+Delivery Agent receives:
+
+* New Assignment
+* Order Cancelled
+* Navigation Alerts
+
+==================================================
+
+# FAILED DELIVERY
+
+Support:
+
+* Customer unavailable
+* Incorrect address
+* Order cancelled
+* Unable to contact customer
+
+Record failure reason.
+
+Notify Admin and Shopkeeper.
+
+==================================================
+
+# DELIVERY ANALYTICS
+
+Generate analytics for:
+
+Delivery Agent:
+
+* Total Deliveries
+* Success Rate
+* Average Delivery Time
+* Earnings
+
+Shopkeeper:
+
+* Delivery Success Rate
+* Average Pickup Time
+
+Admin:
+
+* Total Deliveries
+* Failed Deliveries
+* Average Delivery Time
+* Delivery Performance
+
+==================================================
+
+# DATABASE REQUIREMENTS
+
+Create entities for:
+
+* Delivery Assignment
+* Delivery Status
+* Delivery Timeline
+* GPS Logs
+* Route History
+* Delivery Analytics
+* Delivery Failures
+* Delivery Ratings
+
+Maintain audit history.
+
+==================================================
+
+# SECURITY
+
+Implement:
+
+* Role-Based Access Control
+* GPS Validation
+* Ownership Validation
+* Secure Delivery Updates
+* Input Validation
+* Audit Logging
+* Session Validation
+
+==================================================
+
+# BUSINESS RULES
+
+* Delivery agents only deliver products.
+* Service bookings never require delivery agents.
+* Product delivery is limited to the configured service radius (default 5 km).
+* Delivery can only begin after shopkeeper acceptance.
+* Every delivery must have a complete audit trail.
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete delivery architecture
+* Delivery lifecycle
+* GPS integration strategy
+* Live tracking architecture
+* Database relationships
+* API endpoints
+* Validation rules
+* Error handling
+* Notification flow
+* Analytics architecture
+* Security architecture
+
+Do not implement payment processing, AI chatbot functionality, or administration features in this prompt. Focus exclusively on the product delivery management system and its integration with the existing ServiceHub architecture.
+
+
+# MASTER PROMPT 10
+
+## Supabase Backend, Database Architecture & API System
+
+You are an Expert Backend Engineer, Database Architect, Supabase Specialist, PostgreSQL Expert, API Architect, Security Engineer, and Software Architect.
+
+Continue developing the existing **ServiceHub** project.
+
+Assume the following modules are already completed:
+
+* Master Prompt 01 – Project Foundation
+* Master Prompt 02 – Flutter Architecture
+* Master Prompt 03 – Customer Application
+* Master Prompt 04 – Partner Application
+* Master Prompt 05 – Admin Application
+* Master Prompt 06 – Authentication & RBAC
+* Master Prompt 07 – Service Booking System
+* Master Prompt 08 – Product Marketplace
+* Master Prompt 09 – Delivery Management System
+
+Do NOT recreate previous modules.
+
+Your task is to build the complete backend infrastructure using **Supabase**.
+
+Use:
+
+* Supabase Authentication
+* PostgreSQL
+* Supabase Realtime
+* Supabase Storage
+* Supabase Edge Functions (where required)
+* Row Level Security (RLS)
+
+The backend must support a production-ready, scalable architecture capable of handling thousands of users.
+
+==================================================
+
+# OBJECTIVE
+
+Design the complete backend architecture for the ServiceHub ecosystem.
+
+The backend should be modular, secure, scalable, and optimized for future expansion without major database redesign.
+
+==================================================
+
+# DATABASE DESIGN
+
+Create a normalized PostgreSQL database.
+
+Use proper:
+
+* Primary Keys
+* Foreign Keys
+* Indexes
+* Constraints
+* Relationships
+* Soft Delete Strategy
+* Audit Fields
+
+Every table should contain:
+
+* id
+* created_at
+* updated_at
+* created_by (where applicable)
+* status
+* deleted_at (soft delete)
+
+==================================================
+
+# AUTHENTICATION TABLES
+
+Design structures for:
+
+* Users
+* User Profiles
+* Customer Profiles
+* Partner Profiles
+* Shopkeeper Profiles
+* Delivery Agent Profiles
+* Admin Profiles
+* User Sessions
+* Device Information
+
+==================================================
+
+# SERVICE TABLES
+
+Create:
+
+* Service Categories
+* Services
+* Provider Services
+* Service Pricing
+* Service Availability
+* Provider Working Hours
+* Service Radius
+* Visiting Charges
+
+==================================================
+
+# PRODUCT TABLES
+
+Create:
+
+* Product Categories
+* Products
+* Product Images
+* Product Variants (future-ready)
+* Brands
+* Inventory
+* Product Discounts
+
+==================================================
+
+# SHOP TABLES
+
+Create:
+
+* Shops
+* Shop Gallery
+* Shop Verification
+* Business Documents
+* Shop Ratings
+
+==================================================
+
+# ORDER TABLES
+
+Create:
+
+* Orders
+* Order Items
+* Order Status History
+* Delivery Assignment
+* Delivery Timeline
+* Delivery Logs
+
+==================================================
+
+# BOOKING TABLES
+
+Create:
+
+* Service Bookings
+* Booking Timeline
+* Booking Status
+* Booking Notes
+* Booking Attachments
+* OTP Verification
+
+==================================================
+
+# PAYMENT TABLES
+
+Create:
+
+* Payments
+* Payment Transactions
+* Refund Requests
+* Refund History
+* Invoices
+
+==================================================
+
+# REVIEW TABLES
+
+Create:
+
+* Product Reviews
+* Service Reviews
+* Shop Ratings
+* Delivery Ratings
+
+==================================================
+
+# CHAT TABLES
+
+Create:
+
+* Conversations
+* Messages
+* Attachments
+* Read Receipts
+
+Support:
+
+* Customer ↔ Shopkeeper
+* Customer ↔ Delivery Agent
+* Customer ↔ Support
+
+==================================================
+
+# AI SUPPORT TABLES
+
+Create:
+
+* AI Conversations
+* AI Messages
+* Complaint Tickets
+* Ticket Replies
+* Ticket Status
+
+==================================================
+
+# NOTIFICATION TABLES
+
+Create:
+
+* Notifications
+* Notification Preferences
+* Push Notification History
+
+==================================================
+
+# ADMIN TABLES
+
+Create:
+
+* Platform Settings
+* Commission Settings
+* Banner Management
+* Coupons
+* Reports
+* Audit Logs
+
+==================================================
+
+# DATABASE RELATIONSHIPS
+
+Design complete relationships.
+
+Examples:
+
+Customer
+
+↓
+
+Bookings
+
+↓
+
+Services
+
+↓
+
+Provider
+
+Orders
+
+↓
+
+Order Items
+
+↓
+
+Products
+
+↓
+
+Shops
+
+Every relationship should use proper foreign keys and cascading rules where appropriate.
+
+==================================================
+
+# SUPABASE STORAGE
+
+Create storage buckets for:
+
+* Profile Photos
+* Shop Images
+* Product Images
+* Service Images
+* Verification Documents
+* Chat Attachments
+* Complaint Attachments
+
+Implement secure access policies.
+
+==================================================
+
+# ROW LEVEL SECURITY (RLS)
+
+Create RLS policies for every table.
+
+Examples:
+
+Customer
+
+* Access only own profile
+* Own bookings
+* Own orders
+
+Shopkeeper
+
+* Own products
+* Own services
+* Own orders
+
+Delivery Agent
+
+* Assigned deliveries only
+
+Admin
+
+* Full access
+
+Default policy:
+
+Deny access unless explicitly allowed.
+
+==================================================
+
+# REALTIME FEATURES
+
+Use Supabase Realtime for:
+
+* Live Chat
+* Booking Status Updates
+* Order Status Updates
+* Delivery Tracking
+* Notifications
+* Dashboard Refresh
+
+==================================================
+
+# API DESIGN
+
+Design RESTful APIs (or Supabase RPC/Edge Functions where appropriate).
+
+Modules:
+
+Authentication
+
+Customer
+
+Partner
+
+Admin
+
+Bookings
+
+Products
+
+Orders
+
+Payments
+
+Reviews
+
+Chat
+
+Notifications
+
+Analytics
+
+Each endpoint should define:
+
+* Request
+* Response
+* Validation
+* Authorization
+* Error Codes
+
+==================================================
+
+# EDGE FUNCTIONS
+
+Use Edge Functions for operations such as:
+
+* Sending notifications
+* OTP generation
+* Commission calculation
+* Scheduled cleanup jobs
+* Report generation
+* External integrations
+
+==================================================
+
+# DATABASE INDEXING
+
+Optimize frequently queried fields.
+
+Examples:
+
+* Mobile Number
+* Email
+* Product Name
+* Category
+* Shop ID
+* Customer ID
+* Booking Status
+* Order Status
+
+==================================================
+
+# DATA VALIDATION
+
+Validate:
+
+* Required fields
+* Data types
+* Foreign keys
+* Duplicate entries
+* Stock availability
+* Service availability
+
+==================================================
+
+# BACKUP & RECOVERY
+
+Design:
+
+* Backup strategy
+* Restore strategy
+* Data retention policy
+* Disaster recovery approach
+
+==================================================
+
+# SECURITY
+
+Implement:
+
+* Row Level Security
+* JWT Validation
+* Secure Storage Access
+* Input Validation
+* SQL Injection Protection
+* Rate Limiting
+* Secure API Authorization
+* Audit Logging
+
+==================================================
+
+# PERFORMANCE
+
+Optimize:
+
+* Queries
+* Indexes
+* Pagination
+* Lazy Loading
+* Image Storage
+* Realtime Channels
+* Database Connections
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete PostgreSQL schema
+* Entity Relationship Diagram (ERD)
+* Table structures
+* Relationships
+* RLS policies
+* Storage bucket architecture
+* Realtime channel design
+* API specification
+* Edge Function architecture
+* Database optimization strategy
+* Backup and recovery plan
+* Security architecture
+
+Do not generate Flutter UI or feature screens in this prompt.
+
+Focus exclusively on designing a production-ready Supabase backend that supports the complete ServiceHub ecosystem.
+
+
+# MASTER PROMPT 11
+
+## AI Chatbot, Live Chat, Customer Support & Notification System
+
+You are an Expert Flutter Developer, AI Solution Architect, Backend Engineer, Realtime System Engineer, Product Manager, UX Specialist, Database Architect, and Software Architect.
+
+Continue developing the existing **ServiceHub** ecosystem.
+
+Assume Master Prompt 01 to Master Prompt 10 are fully completed.
+
+Do NOT recreate previous modules.
+
+Your task is to design and implement the complete AI Chatbot, Live Chat, Complaint Management, Customer Support, and Notification System.
+
+Use:
+
+* Flutter
+* Riverpod
+* Supabase Realtime
+* PostgreSQL
+* Firebase Cloud Messaging (FCM)
+* Supabase Edge Functions (where appropriate)
+
+The system must support real-time communication and production-level scalability.
+
+==================================================
+
+# OBJECTIVE
+
+Build a smart communication system that allows:
+
+* AI-assisted customer support
+* Real-time chat
+* Complaint registration
+* Support ticket management
+* Push notifications
+* In-app notifications
+* Business communication
+
+==================================================
+
+# COMMUNICATION MODULES
+
+Create four communication modules:
+
+1. AI Chatbot
+
+2. Live Chat
+
+3. Complaint Management
+
+4. Notification Center
+
+Each module should work independently while sharing common user authentication and notification services.
+
+==================================================
+
+# AI CHATBOT
+
+The AI Chatbot should help users perform common tasks without requiring human support.
+
+Capabilities:
+
+* Answer FAQs
+* Explain available services
+* Explain products
+* Recommend relevant services
+* Recommend related products
+* Guide new users through the application
+* Help users understand booking and ordering processes
+* Provide order status
+* Provide booking status
+* Register complaints
+* Create support tickets
+* Redirect users to human support when necessary
+
+Future-ready:
+
+* Multilingual support
+* Voice interaction
+* Personalized recommendations
+
+==================================================
+
+# AI CONVERSATION FLOW
+
+Customer Opens Chat
+
+↓
+
+AI Greeting
+
+↓
+
+Detect User Intent
+
+↓
+
+Provide Answer
+
+↓
+
+Ask Follow-up Question
+
+↓
+
+Resolve Query
+
+OR
+
+↓
+
+Create Support Ticket
+
+OR
+
+↓
+
+Transfer to Live Support
+
+==================================================
+
+# LIVE CHAT
+
+Support real-time messaging between:
+
+Customer ↔ Shopkeeper
+
+Customer ↔ Delivery Agent
+
+Customer ↔ Support Team
+
+Admin ↔ Shopkeeper
+
+Admin ↔ Delivery Agent
+
+Support features:
+
+* Instant messaging
+* Typing indicator
+* Read receipts
+* Delivery status
+* Image sharing
+* Document sharing
+* Voice notes (future-ready)
+* Message timestamps
+* Online/Offline status
+
+==================================================
+
+# CHAT SECURITY
+
+Implement:
+
+* Authentication validation
+* Conversation ownership validation
+* Message authorization
+* Secure media uploads
+* Message deletion policy
+* Abuse prevention
+* Spam protection
+
+==================================================
+
+# CHAT HISTORY
+
+Store:
+
+* Conversation ID
+* Participants
+* Messages
+* Attachments
+* Read Status
+* Created Time
+* Last Activity
+
+Support:
+
+* Search messages
+* Filter conversations
+* Archive conversations
+
+==================================================
+
+# COMPLAINT MANAGEMENT
+
+Allow customers to submit complaints regarding:
+
+* Service quality
+* Product quality
+* Delivery
+* Payment
+* Technical issues
+* Behaviour of service provider
+* Behaviour of delivery agent
+* Other platform issues
+
+==================================================
+
+# COMPLAINT FLOW
+
+Customer
+
+↓
+
+Select Complaint Category
+
+↓
+
+Describe Issue
+
+↓
+
+Upload Images (Optional)
+
+↓
+
+Submit Complaint
+
+↓
+
+Generate Ticket ID
+
+↓
+
+Admin Review
+
+↓
+
+Investigation
+
+↓
+
+Resolution
+
+↓
+
+Customer Feedback
+
+==================================================
+
+# SUPPORT TICKET SYSTEM
+
+Each ticket should contain:
+
+* Ticket ID
+* Customer ID
+* Category
+* Priority
+* Status
+* Assigned Staff
+* Conversation History
+* Resolution Notes
+* Closing Time
+
+Statuses:
+
+* Open
+* In Review
+* Waiting for Customer
+* Resolved
+* Closed
+
+==================================================
+
+# PRIORITY LEVELS
+
+Support:
+
+* Low
+* Medium
+* High
+* Critical
+
+Allow Admin to modify priority.
+
+==================================================
+
+# PUSH NOTIFICATIONS
+
+Customer Notifications:
+
+* Booking Confirmed
+* Booking Accepted
+* Booking Cancelled
+* Provider On The Way
+* Order Confirmed
+* Order Shipped
+* Delivery Assigned
+* Out for Delivery
+* Delivered
+* Payment Successful
+* Complaint Updated
+* Promotional Offers
+
+Partner Notifications:
+
+* New Booking
+* New Product Order
+* Cancellation
+* Payment Received
+* Low Stock Alert
+* New Review
+
+Delivery Agent Notifications:
+
+* New Assignment
+* Pickup Reminder
+* Delivery Reminder
+* Route Updates
+
+Admin Notifications:
+
+* Verification Requests
+* Critical Complaints
+* System Alerts
+
+==================================================
+
+# IN-APP NOTIFICATION CENTER
+
+Create a dedicated notification center.
+
+Features:
+
+* Read/Unread
+* Mark All Read
+* Delete Notification
+* Notification Categories
+* Notification Search
+* Notification History
+
+==================================================
+
+# REALTIME SYSTEM
+
+Use Supabase Realtime for:
+
+* Live Chat
+* Booking Updates
+* Order Updates
+* Ticket Updates
+* Notification Delivery
+* Dashboard Refresh
+
+==================================================
+
+# MESSAGE ATTACHMENTS
+
+Support:
+
+* Images
+* PDF Documents
+* Screenshots
+
+Validate:
+
+* File size
+* File type
+* Virus scanning (future-ready)
+
+==================================================
+
+# MODERATION
+
+Implement:
+
+* Spam detection
+* Message rate limiting
+* Offensive content reporting
+* User blocking (admin-controlled)
+
+==================================================
+
+# ANALYTICS
+
+Generate statistics:
+
+Customer:
+
+* Total Chats
+* AI Usage
+* Complaint Count
+* Average Response Time
+
+Shopkeeper:
+
+* Customer Conversations
+* Complaint Ratio
+
+Delivery Agent:
+
+* Chat Count
+* Delivery Support Requests
+
+Admin:
+
+* Total Tickets
+* Resolution Time
+* AI Resolution Rate
+* Human Resolution Rate
+* Customer Satisfaction Score
+
+==================================================
+
+# DATABASE REQUIREMENTS
+
+Create entities for:
+
+* Conversations
+* Messages
+* Attachments
+* Notification Templates
+* Notifications
+* Notification Preferences
+* Complaint Categories
+* Complaints
+* Support Tickets
+* Ticket Replies
+* AI Sessions
+* AI Conversation Logs
+
+==================================================
+
+# SECURITY
+
+Implement:
+
+* Role-Based Access Control
+* Secure Realtime Channels
+* Conversation Ownership
+* Attachment Validation
+* Input Validation
+* Rate Limiting
+* Audit Logging
+
+==================================================
+
+# PERFORMANCE
+
+Optimize:
+
+* Realtime connections
+* Notification delivery
+* Chat synchronization
+* Attachment loading
+* Message pagination
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete AI Chatbot architecture
+* Live Chat architecture
+* Complaint Management workflow
+* Support Ticket system
+* Push Notification architecture
+* In-App Notification Center
+* Database relationships
+* Realtime channel design
+* API integration points
+* Validation rules
+* Security strategy
+* Performance optimization plan
+
+Do not implement payment processing, deployment, or analytics dashboards in this prompt. Focus exclusively on communication, AI assistance, support, and notification systems.
+
+
+# MASTER PROMPT 12
+
+## Payment System, Billing, Commission, Refund & Financial Management
+
+You are an Expert Flutter Developer, FinTech Solution Architect, Payment Integration Specialist, Backend Engineer, Database Architect, Security Engineer, Product Manager, and Software Architect.
+
+Continue developing the existing **ServiceHub** ecosystem.
+
+Assume that Master Prompt 01 through Master Prompt 11 have already been completed.
+
+Do NOT recreate previous modules.
+
+Your task is to design and implement the complete financial system for ServiceHub.
+
+Use:
+
+* Flutter
+* Riverpod
+* Supabase
+* PostgreSQL
+* Juspay Payment Gateway
+* Firebase Cloud Messaging
+
+The payment system must be secure, scalable, production-ready, and capable of handling commercial transactions.
+
+==================================================
+
+# OBJECTIVE
+
+Build a complete payment ecosystem supporting:
+
+* Product payments
+* Service payments
+* Visiting charges
+* Platform commissions
+* Shopkeeper settlements
+* Refunds
+* Billing
+* Invoices
+* Financial reports
+
+==================================================
+
+# PAYMENT METHODS
+
+Support:
+
+* UPI
+* Debit Card
+* Credit Card
+* Net Banking
+* Wallets (supported by payment provider)
+
+Future Ready:
+
+* EMI
+* Buy Now Pay Later (BNPL)
+* International Payments
+
+==================================================
+
+# PAYMENT FLOW (SERVICE BOOKING)
+
+Customer
+
+↓
+
+Book Service
+
+↓
+
+View Cost Breakdown
+
+↓
+
+Payment Method
+
+↓
+
+Payment Authorization
+
+↓
+
+Payment Success
+
+↓
+
+Booking Confirmation
+
+↓
+
+Service Completion
+
+↓
+
+Invoice Generated
+
+↓
+
+Settlement
+
+==================================================
+
+# PAYMENT FLOW (PRODUCT ORDER)
+
+Customer
+
+↓
+
+Checkout
+
+↓
+
+Delivery Charge Calculation
+
+↓
+
+Coupon Validation
+
+↓
+
+Final Amount
+
+↓
+
+Payment
+
+↓
+
+Order Confirmation
+
+↓
+
+Delivery
+
+↓
+
+Invoice
+
+↓
+
+Settlement
+
+==================================================
+
+# COST BREAKDOWN
+
+Display clearly:
+
+* Product Price
+* Service Price
+* Visiting Charge
+* Delivery Charge
+* Discount
+* Coupon Discount
+* Platform Charges (if applicable)
+* Tax (future-ready)
+* Final Amount
+
+==================================================
+
+# PAYMENT STATUS
+
+Support:
+
+* Pending
+* Authorized
+* Successful
+* Failed
+* Cancelled
+* Refunded
+* Partially Refunded
+
+Maintain complete payment history.
+
+==================================================
+
+# PAYMENT VALIDATION
+
+Before processing payment:
+
+Validate:
+
+* User authentication
+* Product availability
+* Booking availability
+* Order ownership
+* Coupon validity
+* Final amount calculation
+
+Prevent duplicate payments.
+
+==================================================
+
+# COMMISSION ENGINE
+
+The platform earns revenue through configurable commissions.
+
+Support:
+
+Service Commission
+
+Product Commission
+
+Delivery Commission (future)
+
+Featured Business Fees
+
+Advertisement Charges
+
+Commission must be configurable from the Admin application.
+
+Support:
+
+* Global Commission
+* Category-wise Commission
+* Shop-specific Commission (future)
+
+==================================================
+
+# SETTLEMENT MANAGEMENT
+
+Automatically calculate settlement amounts.
+
+Shopkeeper receives:
+
+Order Amount
+
+− Platform Commission
+
+− Applicable Charges
+
+=
+
+Settlement Amount
+
+Track:
+
+* Pending Settlements
+* Completed Settlements
+* Settlement History
+
+==================================================
+
+# DELIVERY PAYOUT (FUTURE READY)
+
+Prepare architecture for:
+
+* Per Delivery Earnings
+* Incentives
+* Bonus Programs
+* Weekly Payouts
+
+Do not implement payroll processing yet.
+
+==================================================
+
+# INVOICE SYSTEM
+
+Generate professional invoices.
+
+Include:
+
+* Invoice Number
+* Customer Details
+* Shop Details
+* Ordered Items
+* Service Details
+* Charges
+* Discounts
+* Payment Method
+* Transaction ID
+* Date & Time
+
+Support:
+
+* Download PDF
+* Share Invoice
+* View Invoice History
+
+==================================================
+
+# REFUND MANAGEMENT
+
+Support:
+
+* Full Refund
+* Partial Refund
+
+Reasons:
+
+* Order Cancelled
+* Service Cancelled
+* Product Not Available
+* Failed Delivery
+* Admin Approved Refund
+
+Track:
+
+* Refund Request
+* Refund Approval
+* Refund Processing
+* Refund Completed
+
+==================================================
+
+# PAYMENT FAILURE HANDLING
+
+Handle:
+
+* Network Failure
+* Gateway Timeout
+* User Cancellation
+* Duplicate Payment
+* Invalid Payment Response
+
+Allow safe retry without creating duplicate transactions.
+
+==================================================
+
+# PAYMENT HISTORY
+
+Customer:
+
+* Service Payments
+* Product Payments
+* Refund History
+
+Shopkeeper:
+
+* Revenue
+* Settlements
+* Pending Payments
+
+Admin:
+
+* Platform Revenue
+* Commission Revenue
+* Refund Statistics
+
+==================================================
+
+# COUPON VALIDATION
+
+Validate:
+
+* Expiry Date
+* Usage Limit
+* Customer Eligibility
+* Category Restrictions
+* Minimum Order Value
+
+Prevent misuse.
+
+==================================================
+
+# PROMOTIONAL OFFERS
+
+Support:
+
+* Percentage Discounts
+* Flat Discounts
+* Seasonal Offers
+* Festival Campaigns
+* Category Offers
+
+==================================================
+
+# NOTIFICATIONS
+
+Customer:
+
+* Payment Successful
+* Payment Failed
+* Refund Initiated
+* Refund Completed
+* Invoice Available
+
+Shopkeeper:
+
+* Payment Received
+* Settlement Processed
+
+Admin:
+
+* Failed Transactions
+* High Value Transactions
+* Refund Requests
+
+==================================================
+
+# FINANCIAL ANALYTICS
+
+Generate reports for:
+
+Customer:
+
+* Total Spending
+* Monthly Spending
+* Payment Methods Used
+
+Shopkeeper:
+
+* Revenue
+* Profit
+* Commission Paid
+* Settlement History
+
+Admin:
+
+* Daily Revenue
+* Monthly Revenue
+* Annual Revenue
+* Commission Revenue
+* Refund Statistics
+* Payment Success Rate
+
+==================================================
+
+# DATABASE REQUIREMENTS
+
+Create entities for:
+
+* Payments
+* Transactions
+* Payment Methods
+* Settlement Records
+* Commission Records
+* Refund Requests
+* Refund History
+* Coupons
+* Promotional Campaigns
+* Invoices
+
+Maintain proper relationships and audit history.
+
+==================================================
+
+# SECURITY
+
+Implement:
+
+* Secure Payment Authorization
+* JWT Validation
+* Transaction Validation
+* Duplicate Transaction Prevention
+* Input Validation
+* Audit Logs
+* Fraud Detection Hooks (future-ready)
+
+Never store sensitive payment information inside the application database.
+
+==================================================
+
+# PERFORMANCE
+
+Optimize:
+
+* Payment Processing
+* Invoice Generation
+* Settlement Calculation
+* Financial Reports
+* Transaction Queries
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete payment architecture
+* Billing workflow
+* Settlement workflow
+* Commission engine
+* Refund management system
+* Invoice generation system
+* Database schema
+* API integration strategy
+* Validation rules
+* Error handling
+* Notification flow
+* Security architecture
+
+Do not build AI features, deployment infrastructure, or testing systems in this prompt. Focus exclusively on the financial ecosystem of ServiceHub.
+
+
+# MASTER PROMPT 13
+
+## Analytics, Reports & Business Intelligence (BI)
+
+You are an Expert Flutter Developer, Business Intelligence Architect, Data Analyst, Product Manager, Backend Engineer, Database Architect, Reporting Specialist, and Software Architect.
+
+Continue developing the existing **ServiceHub** ecosystem.
+
+Assume that Master Prompt 01 through Master Prompt 12 have already been completed.
+
+Do NOT recreate previous modules.
+
+Your task is to design and implement the complete Analytics, Reporting, KPI Monitoring, and Business Intelligence system.
+
+The system must provide actionable insights for Customers, Shopkeepers, Delivery Agents, and Administrators.
+
+Use:
+
+* Flutter
+* Riverpod
+* Supabase
+* PostgreSQL
+* fl_chart
+* Supabase Realtime
+
+==================================================
+
+# OBJECTIVE
+
+Build a professional Business Intelligence system capable of monitoring business performance, customer engagement, financial growth, operational efficiency, and platform health.
+
+Analytics should support real-time dashboards as well as historical reports.
+
+==================================================
+
+# ANALYTICS MODULES
+
+Create dedicated analytics for:
+
+* Customer
+* Shopkeeper
+* Delivery Agent
+* Admin
+* Platform
+* Marketplace
+* Service Booking
+* Finance
+* Customer Support
+
+Each module should be independent and reusable.
+
+==================================================
+
+# CUSTOMER ANALYTICS
+
+Display:
+
+* Total Orders
+* Total Service Bookings
+* Monthly Spending
+* Yearly Spending
+* Favourite Service Category
+* Favourite Product Category
+* Recently Purchased Products
+* Booking Frequency
+* Saved Money from Discounts
+* Total Reviews Submitted
+
+Graphs:
+
+* Monthly Spending Trend
+* Order History
+* Booking History
+* Category Usage
+
+==================================================
+
+# SHOPKEEPER ANALYTICS
+
+Dashboard Cards:
+
+* Today's Revenue
+* Monthly Revenue
+* Total Revenue
+* Total Orders
+* Total Service Bookings
+* Pending Orders
+* Active Services
+* Completed Services
+* Customer Rating
+* Repeat Customer Percentage
+
+Graphs:
+
+* Daily Sales
+* Weekly Sales
+* Monthly Sales
+* Product Performance
+* Service Performance
+* Revenue Trend
+
+Tables:
+
+* Top Products
+* Top Services
+* Low Stock Products
+* Cancelled Orders
+* Customer Reviews
+
+==================================================
+
+# DELIVERY AGENT ANALYTICS
+
+Dashboard Cards:
+
+* Assigned Deliveries
+* Completed Deliveries
+* Failed Deliveries
+* Daily Earnings
+* Weekly Earnings
+* Monthly Earnings
+* Success Rate
+* Average Rating
+* Average Delivery Time
+
+Graphs:
+
+* Delivery Trend
+* Earnings Trend
+* Performance Trend
+* Rating Trend
+
+==================================================
+
+# ADMIN ANALYTICS
+
+Dashboard Cards:
+
+* Total Customers
+* Total Shopkeepers
+* Total Delivery Agents
+* Active Users
+* Total Orders
+* Total Bookings
+* Total Revenue
+* Platform Profit
+* Pending Verifications
+* Pending Complaints
+
+Graphs:
+
+* Revenue Growth
+* User Growth
+* Daily Active Users
+* Monthly Active Users
+* Marketplace Growth
+* Booking Trend
+* Delivery Trend
+* Complaint Trend
+
+==================================================
+
+# MARKETPLACE ANALYTICS
+
+Display:
+
+* Best Selling Products
+* Lowest Selling Products
+* Product Categories Performance
+* Average Order Value
+* Cart Abandonment Rate
+* Inventory Status
+* Product Returns
+* Refund Ratio
+
+==================================================
+
+# SERVICE ANALYTICS
+
+Track:
+
+* Most Booked Services
+* Least Booked Services
+* Average Service Duration
+* Booking Acceptance Rate
+* Booking Cancellation Rate
+* Provider Performance
+* Customer Satisfaction
+
+==================================================
+
+# FINANCIAL ANALYTICS
+
+Display:
+
+* Gross Revenue
+* Net Revenue
+* Platform Commission
+* Visiting Charges Collected
+* Refund Amount
+* Settlement Amount
+* Daily Income
+* Weekly Income
+* Monthly Income
+* Annual Income
+
+Graphs:
+
+* Revenue Trend
+* Profit Trend
+* Commission Trend
+* Refund Trend
+
+==================================================
+
+# CUSTOMER SUPPORT ANALYTICS
+
+Track:
+
+* AI Chat Usage
+* Live Chat Sessions
+* Complaint Count
+* Ticket Resolution Time
+* Resolution Rate
+* Customer Satisfaction Score
+
+==================================================
+
+# SEARCHABLE REPORTS
+
+Allow reports to be filtered by:
+
+* Date
+* Category
+* Shop
+* Customer
+* Delivery Agent
+* Status
+* Payment Method
+* Service Type
+
+==================================================
+
+# REPORT EXPORT
+
+Support exporting reports as:
+
+* PDF
+* Excel (.xlsx)
+* CSV
+
+Reports should include:
+
+* Filters Applied
+* Generated Date
+* Generated By
+* Summary
+* Detailed Records
+
+==================================================
+
+# KPI MONITORING
+
+Track Key Performance Indicators:
+
+Business KPIs:
+
+* Revenue Growth
+* Customer Growth
+* Retention Rate
+* Conversion Rate
+* Repeat Customer Rate
+
+Operational KPIs:
+
+* Average Response Time
+* Average Delivery Time
+* Average Service Completion Time
+* Order Fulfillment Rate
+
+Quality KPIs:
+
+* Customer Ratings
+* Complaint Rate
+* Resolution Time
+* Cancellation Rate
+
+==================================================
+
+# REALTIME DASHBOARDS
+
+Use Supabase Realtime to update:
+
+* Orders
+* Bookings
+* Revenue
+* Deliveries
+* Notifications
+* Active Users
+
+Dashboards should refresh automatically without requiring manual reload.
+
+==================================================
+
+# TREND ANALYSIS
+
+Generate:
+
+* Daily Trends
+* Weekly Trends
+* Monthly Trends
+* Quarterly Trends
+* Yearly Trends
+
+Identify:
+
+* Peak Business Hours
+* Peak Booking Days
+* High Demand Services
+* Seasonal Product Demand
+
+==================================================
+
+# ALERT SYSTEM
+
+Generate alerts for:
+
+* Low Stock
+* Revenue Drop
+* High Complaint Rate
+* Failed Deliveries
+* Payment Failures
+* Suspicious Activity
+* Inactive Partners
+
+==================================================
+
+# DATABASE REQUIREMENTS
+
+Create structures for:
+
+* Analytics Snapshots
+* KPI Records
+* Dashboard Widgets
+* Report Templates
+* Report History
+* Trend Data
+* Alert Logs
+
+Support historical data retention.
+
+==================================================
+
+# SECURITY
+
+Implement:
+
+* Role-Based Report Access
+* Secure Report Downloads
+* Audit Logs
+* Report Access History
+
+Customers should only view their own analytics.
+
+Shopkeepers should only view their own business analytics.
+
+Delivery Agents should only view their own performance.
+
+Admins should have full access.
+
+==================================================
+
+# PERFORMANCE
+
+Optimize:
+
+* Large Report Queries
+* Chart Rendering
+* Dashboard Refresh
+* Historical Data Retrieval
+* Report Export Performance
+
+Use pagination, indexing, and caching where appropriate.
+
+==================================================
+
+# FUTURE READY FEATURES
+
+Design the architecture to support:
+
+* AI-powered business insights
+* Revenue forecasting
+* Demand prediction
+* Customer segmentation
+* Dynamic pricing suggestions
+* Inventory forecasting
+* Personalized dashboards
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete analytics architecture
+* Dashboard structures
+* KPI definitions
+* Reporting engine
+* Database schema
+* API integration points
+* Realtime dashboard updates
+* Report export system
+* Validation rules
+* Security strategy
+* Performance optimization plan
+
+Do not implement deployment, infrastructure, or testing systems in this prompt.
+
+Focus exclusively on building a complete Business Intelligence and Analytics ecosystem for the ServiceHub platform.
+
+# MASTER PROMPT 14
+
+## Security, Performance, Testing, Monitoring & Quality Assurance
+
+You are an Expert Cybersecurity Engineer, Flutter Security Specialist, Software Architect, DevSecOps Engineer, QA Engineer, Performance Engineer, Backend Engineer, Database Architect, and Mobile Application Security Consultant.
+
+Continue developing the existing **ServiceHub** ecosystem.
+
+Assume that Master Prompt 01 through Master Prompt 13 have already been completed.
+
+Do NOT recreate previous modules.
+
+Your task is to design and implement the complete Security, Performance, Quality Assurance, Monitoring, and Testing framework for the ServiceHub platform.
+
+The goal is to ensure that every module is secure, reliable, scalable, maintainable, and production-ready.
+
+Use:
+
+* Flutter
+* Riverpod
+* Supabase
+* PostgreSQL
+* Firebase Cloud Messaging
+* Google Maps SDK
+* Hive
+* Dio
+
+==================================================
+
+# OBJECTIVE
+
+Build a complete security and quality framework that protects customer data, prevents unauthorized access, ensures reliable application performance, and provides continuous monitoring for the entire platform.
+
+==================================================
+
+# SECURITY ARCHITECTURE
+
+Implement a layered security model.
+
+Layers:
+
+* Client Security
+* API Security
+* Authentication Security
+* Authorization
+* Database Security
+* Storage Security
+* Network Security
+* Monitoring
+* Audit Logging
+
+Every request must be validated.
+
+==================================================
+
+# AUTHENTICATION SECURITY
+
+Implement:
+
+* JWT validation
+* Session validation
+* Secure login
+* Token refresh
+* Automatic logout for expired sessions
+* Device validation
+* Password policy
+* OTP expiration
+* OTP retry limits
+
+Prevent:
+
+* Session hijacking
+* Token reuse
+* Unauthorized access
+
+==================================================
+
+# AUTHORIZATION
+
+Implement strict Role-Based Access Control (RBAC).
+
+Customer
+
+* Customer permissions only
+
+Shopkeeper
+
+* Business permissions only
+
+Delivery Agent
+
+* Delivery permissions only
+
+Admin
+
+* Administrative permissions only
+
+Every API endpoint must validate permissions before execution.
+
+==================================================
+
+# SUPABASE SECURITY
+
+Implement:
+
+* Row Level Security (RLS)
+* Secure Storage Policies
+* Bucket Access Rules
+* Database Policies
+* Function Authorization
+
+Default policy:
+
+Deny access unless explicitly allowed.
+
+==================================================
+
+# INPUT VALIDATION
+
+Validate all user input.
+
+Examples:
+
+* Names
+* Email
+* Mobile Number
+* Product Data
+* Service Data
+* Booking Forms
+* Payments
+* Reviews
+* Chat Messages
+
+Prevent:
+
+* Invalid input
+* Duplicate submissions
+* Malformed requests
+
+==================================================
+
+# API SECURITY
+
+Secure every API by implementing:
+
+* JWT verification
+* Role verification
+* Input validation
+* Request validation
+* Error handling
+* Rate limiting
+* Timeout handling
+
+Return standardized error responses.
+
+==================================================
+
+# FILE SECURITY
+
+Secure uploaded files.
+
+Validate:
+
+* File type
+* File size
+* Image dimensions (where applicable)
+* Allowed formats
+
+Reject unsupported or oversized uploads.
+
+Future-ready:
+
+* Malware scanning
+* Content moderation
+
+==================================================
+
+# DATA PRIVACY
+
+Protect customer information.
+
+Sensitive data should never be exposed unnecessarily.
+
+Examples:
+
+* Mobile numbers
+* Email addresses
+* Verification documents
+* Addresses
+* Payment references
+
+Follow the principle of least privilege.
+
+==================================================
+
+# NETWORK SECURITY
+
+Require:
+
+* HTTPS
+* Secure API communication
+* TLS encryption
+* Certificate validation
+
+Handle:
+
+* Connection timeout
+* Retry strategy
+* Offline mode
+
+==================================================
+
+# AUDIT LOGGING
+
+Record important actions.
+
+Examples:
+
+* Login
+* Logout
+* Registration
+* Profile update
+* Booking creation
+* Order creation
+* Payment status update
+* Verification approval
+* Admin actions
+
+Store:
+
+* Timestamp
+* User
+* Role
+* Action
+* Device (where available)
+
+==================================================
+
+# ERROR HANDLING
+
+Create a centralized error handling system.
+
+Handle:
+
+* Authentication errors
+* Authorization errors
+* Network failures
+* Database errors
+* Validation failures
+* Payment failures
+* GPS failures
+* Storage failures
+
+Provide user-friendly messages while logging technical details internally.
+
+==================================================
+
+# PERFORMANCE OPTIMIZATION
+
+Optimize:
+
+* Application startup time
+* API response time
+* Database queries
+* Image loading
+* Memory usage
+* Network usage
+* Realtime subscriptions
+
+Use:
+
+* Pagination
+* Lazy loading
+* Efficient caching
+* Background processing where appropriate
+
+==================================================
+
+# OFFLINE SUPPORT
+
+Support limited offline functionality.
+
+Allow:
+
+* Viewing cached data
+* Reading previous orders
+* Viewing previous bookings
+
+Synchronize local changes when connectivity returns, where appropriate.
+
+==================================================
+
+# CACHE MANAGEMENT
+
+Implement caching for:
+
+* Categories
+* Products
+* Services
+* User profile
+* Images
+* Settings
+
+Support cache invalidation when fresh data is available.
+
+==================================================
+
+# TESTING STRATEGY
+
+Create a complete testing plan.
+
+Unit Testing
+
+Test:
+
+* Business logic
+* Use cases
+* Repositories
+* Utility functions
+
+Widget Testing
+
+Test:
+
+* Buttons
+* Forms
+* Navigation
+* Dialogs
+* Validation
+
+Integration Testing
+
+Test:
+
+* Authentication
+* Booking
+* Marketplace
+* Delivery
+* Payments
+* Notifications
+
+End-to-End Testing
+
+Validate complete user journeys across all applications.
+
+==================================================
+
+# QUALITY ASSURANCE
+
+Perform:
+
+* Functional testing
+* Regression testing
+* Usability testing
+* Accessibility testing
+* Performance testing
+* Compatibility testing
+
+Verify behavior on different Android and iOS devices.
+
+==================================================
+
+# SECURITY TESTING
+
+Conduct:
+
+* Authentication testing
+* Authorization testing
+* Input validation testing
+* Session testing
+* File upload testing
+* API security testing
+* RLS policy verification
+
+Document findings and corrective actions.
+
+==================================================
+
+# PERFORMANCE TESTING
+
+Measure:
+
+* App launch time
+* Screen transition speed
+* API latency
+* Database query performance
+* Image loading time
+* Realtime update latency
+
+Identify bottlenecks and recommend optimizations.
+
+==================================================
+
+# MONITORING
+
+Implement monitoring for:
+
+* API failures
+* Authentication failures
+* Payment failures
+* Delivery failures
+* Booking failures
+* Crash reports
+* Performance metrics
+
+Provide an administrative overview of system health.
+
+==================================================
+
+# LOGGING
+
+Separate logs into:
+
+* Application logs
+* API logs
+* Database logs
+* Authentication logs
+* Error logs
+* Security logs
+* Audit logs
+
+Use structured logging for easier troubleshooting.
+
+==================================================
+
+# BACKUP & RECOVERY
+
+Define:
+
+* Database backup schedule
+* Storage backup strategy
+* Recovery procedures
+* Disaster recovery objectives
+
+Test backup restoration periodically.
+
+==================================================
+
+# COMPLIANCE
+
+Design the system with support for:
+
+* User consent
+* Privacy policy acceptance
+* Terms and Conditions acceptance
+* Account deletion requests
+* Data export requests (future-ready)
+
+==================================================
+
+# DOCUMENTATION
+
+Generate technical documentation covering:
+
+* Security architecture
+* Testing strategy
+* Monitoring plan
+* Logging strategy
+* Backup plan
+* Performance optimization guidelines
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete security architecture
+* Testing strategy
+* QA checklist
+* Monitoring architecture
+* Logging framework
+* Performance optimization plan
+* Backup and recovery strategy
+* Compliance checklist
+* API security standards
+* Validation standards
+* Error handling framework
+
+Do not modify application features or business logic in this prompt.
+
+Focus exclusively on ensuring the entire ServiceHub ecosystem is secure, reliable, thoroughly tested, high-performing, and ready for production deployment.
+
+# MASTER PROMPT 15
+
+## Deployment, DevOps, Production Infrastructure & Release Management
+
+You are an Expert DevOps Engineer, Cloud Architect, Flutter Release Engineer, Backend Engineer, Supabase Specialist, Security Engineer, Mobile Application Deployment Specialist, Infrastructure Architect, and Software Architect.
+
+Continue developing the existing **ServiceHub** ecosystem.
+
+Assume that Master Prompt 01 through Master Prompt 14 have already been completed.
+
+Do NOT recreate previous modules.
+
+Your task is to prepare the entire ServiceHub platform for production deployment.
+
+This module focuses on infrastructure, deployment, release management, monitoring, maintenance, disaster recovery, scalability, and operational excellence.
+
+Use:
+
+* Flutter
+* Supabase
+* PostgreSQL
+* Firebase Cloud Messaging
+* Google Maps Platform
+* Git
+* GitHub
+* GitHub Actions (or equivalent CI/CD platform)
+
+The deployment architecture must support commercial use and future expansion.
+
+==================================================
+
+# OBJECTIVE
+
+Build a complete production deployment strategy that ensures the ServiceHub ecosystem is reliable, secure, scalable, maintainable, and easy to operate.
+
+The deployment process should minimize downtime and support continuous improvement.
+
+==================================================
+
+# DEPLOYMENT ARCHITECTURE
+
+Prepare deployment for:
+
+Application 1
+
+ServiceHub Customer
+
+Application 2
+
+ServiceHub Partner
+
+Application 3
+
+ServiceHub Admin
+
+Backend
+
+Supabase Project
+
+Database
+
+PostgreSQL
+
+Cloud Storage
+
+Supabase Storage
+
+Push Notifications
+
+Firebase Cloud Messaging
+
+Maps
+
+Google Maps Platform
+
+==================================================
+
+# ENVIRONMENTS
+
+Create separate environments.
+
+Development
+
+Purpose:
+
+Daily development and testing.
+
+Staging
+
+Purpose:
+
+Pre-production testing.
+
+Production
+
+Purpose:
+
+Live customer usage.
+
+Each environment must have separate:
+
+* API Keys
+* Environment Variables
+* Database Configuration
+* Storage Configuration
+* Notification Configuration
+
+==================================================
+
+# ENVIRONMENT CONFIGURATION
+
+Create secure configuration management.
+
+Use environment variables for:
+
+* Supabase URL
+* Supabase API Keys
+* Google Maps API Key
+* Firebase Configuration
+* Payment Gateway Keys
+* AI Service Keys (Future)
+
+Never hardcode secrets into source code.
+
+==================================================
+
+# VERSION MANAGEMENT
+
+Implement semantic versioning.
+
+Example:
+
+Major.Minor.Patch
+
+Support:
+
+* Internal Builds
+* Beta Releases
+* Stable Releases
+* Hotfix Releases
+
+Maintain release history.
+
+==================================================
+
+# SOURCE CODE MANAGEMENT
+
+Use Git.
+
+Branch Strategy:
+
+* main
+* develop
+* feature/*
+* bugfix/*
+* hotfix/*
+* release/*
+
+Require pull requests and code review before merging into the main branch.
+
+==================================================
+
+# CI/CD PIPELINE
+
+Automate:
+
+* Code Analysis
+* Dependency Installation
+* Unit Tests
+* Widget Tests
+* Build Generation
+* Version Validation
+* Artifact Generation
+
+Prepare release artifacts for Android and iOS.
+
+==================================================
+
+# BUILD CONFIGURATION
+
+Android
+
+Generate:
+
+* Debug Build
+* Release APK
+* Android App Bundle (AAB)
+
+iOS
+
+Generate:
+
+* Debug Build
+* Release Build
+
+Enable code signing using secure credentials.
+
+==================================================
+
+# RELEASE MANAGEMENT
+
+Define release process.
+
+Development
+
+↓
+
+Internal Testing
+
+↓
+
+Staging
+
+↓
+
+User Acceptance Testing
+
+↓
+
+Production
+
+↓
+
+Monitoring
+
+↓
+
+Maintenance
+
+Maintain release notes for every version.
+
+==================================================
+
+# DATABASE MIGRATIONS
+
+Implement migration strategy.
+
+Requirements:
+
+* Versioned migrations
+* Rollback support
+* Migration history
+* Validation before execution
+
+Never modify production tables manually.
+
+==================================================
+
+# BACKUP STRATEGY
+
+Create automated backups for:
+
+* PostgreSQL Database
+* Storage Files
+* Configuration
+
+Define:
+
+* Backup Frequency
+* Retention Policy
+* Recovery Process
+
+Test restoration procedures regularly.
+
+==================================================
+
+# DISASTER RECOVERY
+
+Prepare procedures for:
+
+* Database Failure
+* Storage Failure
+* API Failure
+* Notification Failure
+* Network Failure
+
+Document:
+
+* Recovery Steps
+* Recovery Time Objective (RTO)
+* Recovery Point Objective (RPO)
+
+==================================================
+
+# MONITORING
+
+Monitor:
+
+* API Response Time
+* Database Performance
+* Error Rate
+* Crash Rate
+* Active Users
+* Storage Usage
+* Realtime Connections
+* Authentication Failures
+
+Generate alerts for abnormal behavior.
+
+==================================================
+
+# LOG MANAGEMENT
+
+Maintain separate logs for:
+
+* Application
+* API
+* Database
+* Authentication
+* Payments
+* Deliveries
+* Bookings
+* Security
+* Audit
+
+Support structured log analysis.
+
+==================================================
+
+# SCALABILITY
+
+Design infrastructure to support:
+
+* Multiple Cities
+* Multiple States
+* Large User Base
+* Increased Product Catalog
+* Additional Service Categories
+
+Allow future scaling without redesigning the architecture.
+
+==================================================
+
+# MAINTENANCE MODE
+
+Allow administrators to:
+
+* Enable maintenance mode
+* Disable maintenance mode
+* Display maintenance message
+* Allow administrator bypass
+
+==================================================
+
+# APP CONFIGURATION
+
+Provide centralized configuration for:
+
+* Delivery Radius
+* Default Service Radius
+* Commission Rates
+* Notification Settings
+* Feature Flags
+* AI Feature Toggle
+* Maintenance Mode
+
+Configuration changes should not require a new application release.
+
+==================================================
+
+# SECURITY DURING DEPLOYMENT
+
+Ensure:
+
+* Secure API Keys
+* Encrypted Secrets
+* Secure Build Pipeline
+* Access Control
+* Signed Releases
+* Secure Configuration Files
+
+Restrict deployment access to authorized personnel.
+
+==================================================
+
+# QUALITY GATES
+
+Before production deployment verify:
+
+* All Tests Passed
+* No Critical Bugs
+* No High Severity Security Issues
+* Performance Benchmarks Met
+* Database Migration Successful
+* Backup Completed
+
+Deployment should stop automatically if any critical validation fails.
+
+==================================================
+
+# RELEASE CHECKLIST
+
+Verify:
+
+* Authentication
+* Service Booking
+* Marketplace
+* Payments
+* Notifications
+* Chat
+* GPS
+* Delivery
+* Reports
+* Analytics
+
+Ensure all critical workflows operate correctly.
+
+==================================================
+
+# APP STORE PREPARATION
+
+Prepare:
+
+Android
+
+* Application Name
+* Package Name
+* Icons
+* Splash Screen
+* Screenshots
+* Privacy Policy
+* Store Description
+
+iOS
+
+* Bundle Identifier
+* App Icons
+* Launch Screen
+* Screenshots
+* Privacy Information
+
+==================================================
+
+# DOCUMENTATION
+
+Generate deployment documentation.
+
+Include:
+
+* Infrastructure Diagram
+* Deployment Guide
+* Environment Setup
+* Build Process
+* Release Process
+* Rollback Procedure
+* Monitoring Guide
+* Maintenance Guide
+
+==================================================
+
+# FUTURE INFRASTRUCTURE
+
+Prepare architecture for:
+
+* CDN Integration
+* Object Storage Expansion
+* AI Services
+* Background Jobs
+* Queue Processing
+* Microservices (Future)
+* Multi-region Deployment
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* Complete deployment architecture
+* CI/CD workflow
+* Environment strategy
+* Version management plan
+* Release management process
+* Infrastructure documentation
+* Monitoring architecture
+* Backup strategy
+* Disaster recovery plan
+* Production readiness checklist
+* Operational maintenance guide
+
+Do not redesign application features or business workflows.
+
+Focus exclusively on production deployment, operational excellence, DevOps practices, and infrastructure required to successfully launch and maintain the complete ServiceHub ecosystem.
+
+
+# MASTER PROMPT 16
+
+## Future Expansion, AI Roadmap, SSIP Documentation, Startup Strategy & Final Project Completion Guide
+
+You are an Expert Startup Consultant, Software Architect, Flutter Solution Architect, Product Manager, Business Analyst, Investor Pitch Consultant, AI Solution Architect, Cybersecurity Engineer, DevOps Engineer, and SSIP Innovation Mentor.
+
+Continue developing the existing **ServiceHub** ecosystem.
+
+Assume that **Master Prompt 01 through Master Prompt 15** have already been fully completed.
+
+Do NOT recreate previous modules.
+
+Your responsibility is to finalize the complete ServiceHub ecosystem as a production-ready startup platform and an SSIP-level innovation project.
+
+The final output should prepare the project for:
+
+* SSIP Evaluation
+* College Final Year Project
+* Startup Incubation
+* Investor Demonstration
+* Commercial Launch
+* Future National Expansion
+
+==================================================
+
+# PROJECT VISION
+
+ServiceHub is a hyperlocal service and commerce ecosystem that digitally connects customers, verified service providers, delivery agents, and administrators through one intelligent platform.
+
+The platform combines:
+
+* Doorstep Home Services
+* Hyperlocal Product Marketplace
+* AI-powered Customer Assistance
+* Business Management
+* Delivery Management
+* Secure Authentication
+* Real-time Communication
+* Business Intelligence
+
+The project should evolve into a trusted digital ecosystem for household services.
+
+==================================================
+
+# MISSION
+
+Create a reliable, transparent, secure, and technology-driven platform that helps:
+
+Customers receive trusted services.
+
+Local businesses grow digitally.
+
+Delivery agents earn efficiently.
+
+Administrators manage the platform intelligently.
+
+==================================================
+
+# LONG-TERM GOALS
+
+The architecture should support expansion to:
+
+* Multiple Cities
+* Multiple Districts
+* Multiple States
+* Nationwide Operations
+
+No major architectural redesign should be required.
+
+==================================================
+
+# FUTURE SERVICE CATEGORIES
+
+Future support should include:
+
+* Electrical Services
+* Home Cleaning
+* Painting
+* Carpenter Services
+* Pest Control
+* CCTV Installation
+* Solar Panel Services
+* Gardening
+* Appliance Installation
+* Interior Design
+* Smart Home Services
+
+Categories must be configurable through the Admin application.
+
+==================================================
+
+# FUTURE MARKETPLACE EXPANSION
+
+Expand marketplace with:
+
+* Certified Brands
+* Spare Parts Marketplace
+* Warranty Products
+* Subscription Products
+* Business Supplies
+* Home Maintenance Kits
+
+==================================================
+
+# AI ROADMAP
+
+Future AI capabilities should include:
+
+* Personalized service recommendations
+* Personalized product recommendations
+* Smart maintenance reminders
+* Predictive maintenance suggestions
+* Customer behavior analysis
+* Fraud detection assistance
+* Intelligent search
+* AI-powered support automation
+* Demand forecasting
+* Business insights
+
+The architecture should remain flexible enough to integrate new AI models without restructuring the application.
+
+==================================================
+
+# FUTURE DELIVERY FEATURES
+
+Prepare the system for:
+
+* Smart delivery routing
+* Batch deliveries
+* Route optimization
+* Dynamic delivery assignment
+* Live ETA prediction
+* Delivery heat maps
+* Delivery incentive engine
+
+==================================================
+
+# FUTURE BUSINESS FEATURES
+
+Support future additions such as:
+
+* Membership Plans
+* Loyalty Rewards
+* Referral Program
+* Franchise Management
+* Premium Partner Accounts
+* Business Certifications
+* Digital Marketing Tools
+* Advertisement Marketplace
+
+==================================================
+
+# SCALABILITY STRATEGY
+
+The complete platform must support:
+
+* Horizontal scaling
+* Database optimization
+* Additional services
+* Additional user roles
+* Increased traffic
+* Additional integrations
+
+The architecture should remain modular and maintainable.
+
+==================================================
+
+# BUSINESS MODEL
+
+Revenue Sources:
+
+* Service Commission
+* Product Commission
+* Visiting Charges
+* Featured Listings
+* Sponsored Promotions
+* Future Membership Plans
+* Future Advertisement Revenue
+* Future Franchise Revenue
+
+==================================================
+
+# ESTIMATED STARTUP PHASE
+
+Phase 1
+
+Single City Launch
+
+Phase 2
+
+Multiple Cities
+
+Phase 3
+
+State Expansion
+
+Phase 4
+
+National Expansion
+
+==================================================
+
+# PROJECT BUDGET
+
+Prepare a professional budget estimate covering:
+
+Development
+
+Infrastructure
+
+Cloud Services
+
+Maps
+
+Notifications
+
+Payment Gateway
+
+Testing
+
+Marketing
+
+Operations
+
+Support
+
+Future Expansion
+
+Separate:
+
+Initial Investment
+
+Monthly Operational Cost
+
+Future Scaling Cost
+
+==================================================
+
+# PROJECT TIMELINE
+
+Prepare a realistic implementation roadmap.
+
+Planning
+
+Architecture
+
+Database
+
+Backend
+
+Flutter Development
+
+Testing
+
+Deployment
+
+Pilot Launch
+
+Commercial Launch
+
+Post Launch Improvements
+
+==================================================
+
+# RISK ANALYSIS
+
+Identify possible risks.
+
+Examples:
+
+Low Provider Adoption
+
+Low Customer Adoption
+
+Payment Failures
+
+Server Downtime
+
+GPS Issues
+
+Fraud
+
+Fake Reviews
+
+High Operational Cost
+
+Create mitigation strategies for every identified risk.
+
+==================================================
+
+# SSIP DOCUMENTATION
+
+Generate documentation covering:
+
+Problem Statement
+
+Existing Problems
+
+Existing Solutions
+
+Limitations of Existing Solutions
+
+Proposed Solution
+
+Objectives
+
+Innovation
+
+Technology Stack
+
+Methodology
+
+Architecture
+
+Advantages
+
+Business Model
+
+Future Scope
+
+Expected Outcomes
+
+==================================================
+
+# INNOVATION HIGHLIGHTS
+
+Clearly explain why ServiceHub is innovative.
+
+Examples include:
+
+* Unified services and marketplace platform
+* Hyperlocal product delivery
+* AI-assisted customer support
+* Secure GPS-based delivery verification
+* Configurable service radius
+* Modular architecture
+* Real-time dashboards
+* Business analytics
+* Scalable cloud architecture
+
+Describe each innovation in terms of user value and business value.
+
+==================================================
+
+# PRESENTATION MATERIAL
+
+Prepare content for:
+
+* Executive Summary
+* Elevator Pitch
+* Technical Overview
+* Feature Highlights
+* Innovation Highlights
+* Business Model
+* Revenue Model
+* Future Roadmap
+* Live Demonstration Plan
+
+==================================================
+
+# PROJECT DOCUMENTATION
+
+Generate:
+
+* Software Requirement Specification (SRS)
+* High-Level Design (HLD)
+* Low-Level Design (LLD)
+* Database Documentation
+* API Documentation
+* User Manual
+* Admin Manual
+* Partner Manual
+* Deployment Guide
+* Maintenance Guide
+
+==================================================
+
+# FINAL VALIDATION
+
+Review the complete project and verify:
+
+* Architecture consistency
+* Feature completeness
+* Database integrity
+* Security implementation
+* User workflows
+* Business workflows
+* Error handling
+* Performance goals
+* Scalability
+* Maintainability
+
+Provide recommendations for improvements where necessary.
+
+==================================================
+
+# FINAL OUTPUT REQUIREMENTS
+
+Prepare a complete startup-ready project including:
+
+* Consolidated architecture
+* Technical documentation
+* Business documentation
+* SSIP documentation
+* Future roadmap
+* Commercial strategy
+* Deployment readiness
+* Maintenance strategy
+* Scalability plan
+* Risk management plan
+* Innovation summary
+* Investor presentation outline
+
+Ensure the final project represents a production-ready, commercial-quality, Flutter-based hyperlocal services ecosystem that can be demonstrated for SSIP, further developed into a startup, and expanded into a nationwide platform over time.
+
+
+# MASTER PROMPT 17
+
+## Final Integration, Production Readiness, Advanced Business Rules & Missing Features
+
+You are an Expert Flutter Developer, Software Architect, Backend Engineer, Product Manager, QA Engineer, DevOps Engineer, Database Architect, Cybersecurity Engineer, Business Analyst, and Startup Consultant.
+
+Continue developing the existing **ServiceHub** ecosystem.
+
+Assume that Master Prompt 01 through Master Prompt 16 have already been fully completed.
+
+Do NOT recreate previous modules.
+
+Your responsibility is to perform the final integration of the complete platform, validate every workflow, implement all remaining production-ready improvements, optimize the architecture, and ensure that the application is ready for SSIP presentation and future commercial deployment.
+
+==================================================
+
+# OBJECTIVE
+
+Review the complete ServiceHub ecosystem.
+
+Find every missing feature.
+
+Find every missing validation.
+
+Find every missing workflow.
+
+Find every missing business rule.
+
+Find every missing database relationship.
+
+Find every missing API.
+
+Find every missing permission.
+
+Optimize the complete project without changing the overall business model.
+
+==================================================
+
+# COMPLETE SYSTEM VALIDATION
+
+Verify every module works together correctly.
+
+Customer
+
+↓
+
+Authentication
+
+↓
+
+Browse Services
+
+↓
+
+Book Service
+
+↓
+
+Shopkeeper Accepts
+
+↓
+
+Provider Visits
+
+↓
+
+OTP Verification
+
+↓
+
+Payment
+
+↓
+
+Invoice
+
+↓
+
+Review
+
+Verify Product Flow
+
+Customer
+
+↓
+
+Browse Products
+
+↓
+
+Cart
+
+↓
+
+Checkout
+
+↓
+
+Payment
+
+↓
+
+Shopkeeper Accepts
+
+↓
+
+Delivery Agent
+
+↓
+
+GPS Verification
+
+↓
+
+Delivery
+
+↓
+
+Review
+
+Ensure every workflow connects correctly.
+
+==================================================
+
+# BUSINESS RULE VALIDATION
+
+Verify:
+
+• Product delivery radius is exactly 5 KM.
+
+• Service radius is configurable by provider.
+
+• Delivery Agent only handles products.
+
+• Service Providers directly visit customers.
+
+• GPS verification is mandatory before delivery completion.
+
+• Visiting charges are applied correctly.
+
+• Commission calculations are correct.
+
+• Reviews are allowed only after successful completion.
+
+==================================================
+
+# ROLE PERMISSION MATRIX
+
+Generate a complete permission matrix.
+
+Customer
+
+• Allowed Screens
+
+• Allowed APIs
+
+• Restricted Actions
+
+Shopkeeper
+
+• Allowed Screens
+
+• Allowed APIs
+
+• Business Permissions
+
+Delivery Agent
+
+• Allowed Screens
+
+• Delivery Permissions
+
+Admin
+
+• Full Administrative Control
+
+Verify every permission before allowing access.
+
+==================================================
+
+# COMPLETE NOTIFICATION MATRIX
+
+Generate every notification.
+
+Customer
+
+• Booking Accepted
+
+• Booking Cancelled
+
+• Order Confirmed
+
+• Delivery Assigned
+
+• Delivery Completed
+
+• Payment Success
+
+• Complaint Updates
+
+Shopkeeper
+
+• New Booking
+
+• New Product Order
+
+• Cancellation
+
+• Low Stock
+
+• New Review
+
+Delivery Agent
+
+• Delivery Assigned
+
+• Pickup Reminder
+
+• Customer Arrived
+
+Admin
+
+• Verification Pending
+
+• Complaint Raised
+
+• Security Alerts
+
+==================================================
+
+# EDGE CASE HANDLING
+
+Handle:
+
+• Network Disconnect
+
+• GPS Disabled
+
+• GPS Permission Revoked
+
+• Customer Changes Address
+
+• Shop Closes During Active Order
+
+• Provider Cancels Booking
+
+• Delivery Agent Cancels Delivery
+
+• Duplicate Payment
+
+• Duplicate Booking
+
+• Product Goes Out Of Stock
+
+• App Closed During Checkout
+
+• Session Expired
+
+• Internet Lost During Payment
+
+• Internet Lost During Delivery
+
+• Invalid OTP
+
+• Expired OTP
+
+Every edge case should have recovery logic.
+
+==================================================
+
+# ACCESSIBILITY
+
+Support:
+
+• Large Text
+
+• High Contrast
+
+• Screen Reader Compatibility
+
+• Accessible Buttons
+
+• Color-Blind Friendly UI
+
+• Proper Touch Target Sizes
+
+==================================================
+
+# LOCALIZATION
+
+Prepare architecture for:
+
+English
+
+Hindi
+
+Gujarati
+
+All user-facing strings must be externalized for easy translation.
+
+==================================================
+
+# ADVANCED SEARCH
+
+Support:
+
+• Typo Tolerance
+
+• Search Suggestions
+
+• Popular Searches
+
+• Recent Searches
+
+• Category Search
+
+• Product Search
+
+• Provider Search
+
+==================================================
+
+# IMAGE OPTIMIZATION
+
+Implement:
+
+• Image Compression
+
+• Lazy Loading
+
+• Cached Images
+
+• Placeholder Loading
+
+• Multiple Image Resolutions
+
+Prepare architecture for CDN integration.
+
+==================================================
+
+# FRAUD PREVENTION
+
+Protect against:
+
+• Fake Orders
+
+• Fake Bookings
+
+• Fake Reviews
+
+• Coupon Abuse
+
+• Spam Messages
+
+• Multiple Fake Accounts
+
+• Excessive Cancellations
+
+Log suspicious activities for Admin review.
+
+==================================================
+
+# ADVANCED PARTNER VERIFICATION
+
+Support verification of:
+
+• Aadhaar
+
+• Driving Licence
+
+• Vehicle Registration
+
+• Business Address
+
+• Shop Verification
+
+• Business Documents
+
+Maintain complete verification history.
+
+==================================================
+
+# CUSTOMER TRUST FEATURES
+
+Display:
+
+• Verified Shop Badge
+
+• Verified Delivery Agent Badge
+
+• Average Response Time
+
+• Completion Rate
+
+• Cancellation Rate
+
+• Customer Rating
+
+• Years on Platform
+
+• Number of Completed Orders
+
+• Number of Completed Services
+
+==================================================
+
+# PROVIDER AVAILABILITY CALENDAR
+
+Allow providers to manage:
+
+• Working Days
+
+• Working Hours
+
+• Holidays
+
+• Vacation Mode
+
+• Blocked Dates
+
+• Slot Availability
+
+Prevent bookings during unavailable periods.
+
+==================================================
+
+# WARRANTY MANAGEMENT
+
+For eligible products and hardware services:
+
+Generate:
+
+• Warranty Certificate
+
+• Warranty Start Date
+
+• Warranty Expiry Date
+
+• Warranty History
+
+Allow customers to view warranty details from their account.
+
+==================================================
+
+# DIGITAL SERVICE HISTORY
+
+Maintain a complete history including:
+
+• Completed Services
+
+• Replaced Parts
+
+• Technician Notes
+
+• Before Photos
+
+• After Photos
+
+• Invoice
+
+• Warranty Information
+
+Allow customers to download service history.
+
+==================================================
+
+# HOME MAINTENANCE REMINDERS
+
+Generate reminders for recurring maintenance.
+
+Examples:
+
+• AC Service
+
+• RO Filter Replacement
+
+• Washing Machine Maintenance
+
+• Water Purifier Service
+
+• Refrigerator Checkup
+
+Customers can enable or disable reminders.
+
+==================================================
+
+# EMERGENCY SERVICE MODE
+
+Support urgent service requests.
+
+Features:
+
+• Emergency Booking
+
+• Priority Queue
+
+• Estimated Arrival Time
+
+• Transparent Emergency Charges
+
+• Provider Availability Check
+
+==================================================
+
+# DIGITAL JOB SHEET
+
+Generate a professional digital job sheet after every completed service.
+
+Include:
+
+• Service Details
+
+• Work Performed
+
+• Parts Replaced
+
+• Technician Notes
+
+• Before & After Images
+
+• Customer Confirmation
+
+• Invoice Reference
+
+==================================================
+
+# PLATFORM HEALTH DASHBOARD
+
+Create an administrative system health dashboard displaying:
+
+• Active Users
+
+• Active Sessions
+
+• API Status
+
+• Database Status
+
+• Storage Usage
+
+• Realtime Connections
+
+• Failed Payments
+
+• Failed Deliveries
+
+• Failed Bookings
+
+• Notification Queue
+
+• System Errors
+
+==================================================
+
+# FINAL PROJECT AUDIT
+
+Review:
+
+• Flutter Architecture
+
+• Clean Architecture
+
+• Database Design
+
+• API Design
+
+• Security
+
+• Performance
+
+• Authentication
+
+• Marketplace
+
+• Booking System
+
+• Delivery System
+
+• Admin Features
+
+• Analytics
+
+• Payments
+
+• Notifications
+
+• AI Chatbot
+
+Identify any missing implementation and recommend improvements.
+
+==================================================
+
+# FINAL OUTPUT REQUIREMENTS
+
+Generate:
+
+• Complete integration report
+
+• Missing feature report
+
+• Production readiness checklist
+
+• Business rule validation report
+
+• Permission matrix
+
+• Notification matrix
+
+• Edge case handling document
+
+• Warranty system design
+
+• Emergency service design
+
+• Provider calendar architecture
+
+• Digital job sheet architecture
+
+• Service history architecture
+
+• Home maintenance reminder architecture
+
+• Platform health dashboard architecture
+
+• Final optimization recommendations
+
+The completed output must ensure that ServiceHub is fully integrated, production-ready, commercially scalable, technically robust, and suitable for SSIP evaluation without introducing subscription plans or membership features.
+
+
+# MASTER PROMPT 18
+
+## API Integration, Third-Party Services & Complete System Integration
+
+You are an Expert Software Integration Architect, Backend Engineer, Flutter Developer, API Architect, DevOps Engineer, and Cloud Solution Architect.
+
+Continue developing the existing ServiceHub ecosystem.
+
+Assume Master Prompt 01 through Master Prompt 17 have already been completed.
+
+Do NOT recreate previous modules.
+
+Your responsibility is to integrate every internal module and every external service into one production-ready ecosystem.
+
+==================================================
+
+# OBJECTIVE
+
+Create the complete integration layer.
+
+Verify every application communicates correctly with:
+
+* Supabase
+* Google Maps
+* Firebase Cloud Messaging
+* Juspay Payment Gateway
+* AI Service
+* Storage
+* Authentication
+* Notifications
+
+==================================================
+
+# INTERNAL MODULE INTEGRATION
+
+Connect:
+
+Customer App
+
+↓
+
+Partner App
+
+↓
+
+Admin App
+
+↓
+
+Supabase
+
+↓
+
+Realtime
+
+↓
+
+Payments
+
+↓
+
+Analytics
+
+↓
+
+Notifications
+
+Verify complete data flow.
+
+==================================================
+
+# API STANDARDS
+
+Generate standards for:
+
+* REST Architecture
+* API Versioning
+* Request Validation
+* Response Format
+* Error Codes
+* Pagination
+* Filtering
+* Sorting
+
+==================================================
+
+# THIRD PARTY SERVICES
+
+Integrate:
+
+Supabase
+
+Google Maps
+
+Firebase Cloud Messaging
+
+Juspay
+
+Future AI APIs
+
+Future SMS Gateway
+
+Future Email Service
+
+==================================================
+
+# API DOCUMENTATION
+
+Generate complete documentation.
+
+For every API define:
+
+* Endpoint
+* Method
+* Authentication
+* Request
+* Response
+* Validation
+* Error Codes
+
+==================================================
+
+# REALTIME EVENTS
+
+Design realtime events for:
+
+* Booking Updates
+* Order Updates
+* Delivery Updates
+* Notifications
+* Chat
+* Dashboard
+
+==================================================
+
+# WEBHOOKS
+
+Prepare webhook architecture for:
+
+* Payment Success
+* Payment Failure
+* Refund
+* Notification Delivery
+
+==================================================
+
+# ERROR RECOVERY
+
+Handle:
+
+* API Timeout
+* Invalid Response
+* Duplicate Request
+* Lost Connection
+* Partial Failure
+
+==================================================
+
+# SYSTEM VALIDATION
+
+Verify every module communicates correctly.
+
+No broken integrations.
+
+No circular dependencies.
+
+==================================================
+
+# OUTPUT REQUIREMENTS
+
+Generate:
+
+* API Documentation
+* Integration Diagram
+* External Service Architecture
+* Realtime Architecture
+* Webhook Design
+* Error Recovery Strategy
+* Production Integration Guide
+
+Do not redesign application features.
+
+Focus only on complete system integration.
+
+
+# MASTER PROMPT 19
+
+## Final Code Review, Refactoring, Production Audit & Project Certification
+
+You are an Expert Flutter Architect, Senior Code Reviewer, Cybersecurity Engineer, QA Lead, Performance Engineer, DevOps Engineer, Database Architect, and Startup Technical Reviewer.
+
+Continue developing the existing ServiceHub ecosystem.
+
+Assume Master Prompt 01 through Master Prompt 18 have already been completed.
+
+This is the FINAL audit.
+
+Do NOT create new features.
+
+Do NOT redesign the application.
+
+Your responsibility is to inspect the entire project as if reviewing it before commercial release.
+
+==================================================
+
+# OBJECTIVE
+
+Perform a complete technical audit.
+
+Find every weakness.
+
+Find duplicated code.
+
+Find poor architecture.
+
+Find security risks.
+
+Find performance bottlenecks.
+
+Find database issues.
+
+Find UI inconsistencies.
+
+Find business logic issues.
+
+==================================================
+
+# FLUTTER AUDIT
+
+Verify:
+
+* Clean Architecture
+* MVVM
+* Riverpod Usage
+* Widget Reusability
+* Folder Structure
+* Navigation
+* Memory Usage
+
+==================================================
+
+# DATABASE AUDIT
+
+Review:
+
+* Table Design
+* Relationships
+* Foreign Keys
+* Indexes
+* Constraints
+* RLS Policies
+
+==================================================
+
+# SECURITY AUDIT
+
+Review:
+
+* Authentication
+* Authorization
+* Session Management
+* JWT
+* Storage
+* API Security
+* File Upload Security
+
+==================================================
+
+# PERFORMANCE AUDIT
+
+Review:
+
+* Startup Time
+* API Speed
+* Image Loading
+* Database Queries
+* Realtime Performance
+* Memory Usage
+* Battery Usage
+
+==================================================
+
+# UI/UX AUDIT
+
+Verify:
+
+* Responsive Design
+* Accessibility
+* Navigation
+* Loading States
+* Empty States
+* Error States
+* Consistent Components
+
+==================================================
+
+# BUSINESS LOGIC AUDIT
+
+Review:
+
+* Service Booking
+* Marketplace
+* Delivery
+* Payments
+* Notifications
+* AI Chat
+* Analytics
+
+==================================================
+
+# CODE QUALITY
+
+Review:
+
+* SOLID Principles
+* DRY
+* KISS
+* Naming Standards
+* Documentation
+* Comments
+* Reusability
+
+==================================================
+
+# TEST COVERAGE
+
+Verify:
+
+* Unit Tests
+* Widget Tests
+* Integration Tests
+* End-to-End Tests
+
+Identify missing test coverage.
+
+==================================================
+
+# PRODUCTION READINESS SCORE
+
+Evaluate:
+
+* Architecture
+* Security
+* Scalability
+* Maintainability
+* Performance
+* Reliability
+* User Experience
+
+Provide a score for each area and explain improvements.
+
+==================================================
+
+# FINAL CHECKLIST
+
+Verify:
+
+✓ Authentication
+
+✓ Booking
+
+✓ Marketplace
+
+✓ Delivery
+
+✓ Payments
+
+✓ Notifications
+
+✓ AI Chatbot
+
+✓ Reports
+
+✓ Analytics
+
+✓ Security
+
+✓ Deployment
+
+✓ Documentation
+
+==================================================
+
+# FINAL OUTPUT
+
+Generate:
+
+* Complete Audit Report
+* Code Improvement Report
+* Refactoring Recommendations
+* Performance Report
+* Security Report
+* Production Readiness Report
+* Final Launch Checklist
+* Remaining Risks
+* Technical Debt List
+* Future Improvement Suggestions
+
+The output should certify whether the project is ready for commercial deployment and identify any remaining issues before launch.
+
+
+this all are the prompts of my idea and yes still u do not do anything i will tell u to start step by step for creating and i also ask advice to u from where i should start it and yes keep this all things into memort for this chat we will do whole work in this chat and i want to complete this project into 2 months and i will also tell u to add more features in it so be prepare for it add keep all things into chat and memory 
