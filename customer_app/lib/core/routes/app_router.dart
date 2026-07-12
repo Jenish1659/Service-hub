@@ -10,6 +10,7 @@ import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/bookings/presentation/track_booking_screen.dart';
 import '../../features/orders/presentation/track_order_screen.dart';
+import '../../features/orders/presentation/orders_screen.dart';
 import '../../shared/layouts/root_navigation_layout.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -55,6 +56,10 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/products',
           builder: (BuildContext context, GoRouterState state) => const ProductsScreen(),
+        ),
+        GoRoute(
+          path: '/orders',
+          builder: (BuildContext context, GoRouterState state) => const OrdersScreen(),
         ),
         GoRoute(
           path: '/profile',

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
 
 class RootNavigationLayout extends StatelessWidget {
   final Widget child;
@@ -10,9 +10,10 @@ class RootNavigationLayout extends StatelessWidget {
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).matchedLocation;
     if (location == '/') return 0;
-    if (location.startsWith('/discover')) return 1;
+    if (location.startsWith('/discover') || location.startsWith('/services')) return 1;
     if (location.startsWith('/products')) return 2;
-    if (location.startsWith('/profile')) return 3;
+    if (location.startsWith('/orders')) return 3;
+    if (location.startsWith('/profile')) return 4;
     return 0;
   }
 
@@ -28,6 +29,9 @@ class RootNavigationLayout extends StatelessWidget {
         context.go('/products');
         break;
       case 3:
+        context.go('/orders');
+        break;
+      case 4:
         context.go('/profile');
         break;
     }
@@ -52,24 +56,29 @@ class RootNavigationLayout extends StatelessWidget {
         child: BottomNavigationBar(
           currentIndex: selectedIndex,
           onTap: (index) => _onItemTapped(index, context),
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
+              icon: const Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home, color: AppTheme.primaryColor),
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.search_outlined),
-              activeIcon: Icon(Icons.search, color: AppTheme.primaryColor),
-              label: 'Discover',
+              icon: const Icon(Icons.build_outlined),
+              activeIcon: Icon(Icons.build, color: AppTheme.primaryColor),
+              label: 'Services',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_bag_outlined),
+              icon: const Icon(Icons.shopping_bag_outlined),
               activeIcon: Icon(Icons.shopping_bag, color: AppTheme.primaryColor),
               label: 'Products',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
+              icon: const Icon(Icons.receipt_long_outlined),
+              activeIcon: Icon(Icons.receipt_long, color: AppTheme.primaryColor),
+              label: 'Orders',
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.person_outline),
               activeIcon: Icon(Icons.person, color: AppTheme.primaryColor),
               label: 'Profile',
             ),

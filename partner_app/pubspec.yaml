@@ -27,9 +27,6 @@ dependencies:
   geolocator: ^10.1.0
   geocoding: ^2.1.1
 
-  # Push Notifications
-  firebase_core: ^2.24.2
-  firebase_messaging: ^14.7.10
 
   # Data Visualization (For Partner Dashboards)
   fl_chart: ^0.66.0

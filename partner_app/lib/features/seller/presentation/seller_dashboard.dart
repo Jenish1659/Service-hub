@@ -37,156 +37,161 @@ class _SellerDashboardState extends State<SellerDashboard> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          // 1. SHOP NAME HEADER
-          Row(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: const BoxDecoration(color: Color(0xfff5f3ff), shape: BoxShape.circle),
-                child: const Icon(Icons.storefront, color: AppTheme.primaryColor),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Anita\'s Laundry Supplies',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
-                  ),
-                  Text(
-                    'Merchant Partner · HSR Layout',
-                    style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // 2. QUICK BUSINESS KPI ROW (RUPEES)
-          Row(
-            children: [
-              Expanded(
-                child: _buildKpiCard('Today\'s Orders', '12', Icons.receipt_long, Colors.blue),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildKpiCard('Daily Sales (₹)', '₹4,890', Icons.payments, Colors.green),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildKpiCard('Low Stock Alerts', '1 Item', Icons.warning_amber, Colors.red),
-              ),
-            ],
-          ),
-          const SizedBox(height: 28),
-
-          // 3. ACTIVE ORDER DISPATCH QUEUE
-          const Text(
-            'Active Orders Queue',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // 1. SHOP NAME HEADER
+              Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text('Order #ORD-2842', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                      Text('₹698', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w800)),
-                    ],
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: const BoxDecoration(color: Color(0xfff5f3ff), shape: BoxShape.circle),
+                    child: const Icon(Icons.storefront, color: AppTheme.primaryColor),
                   ),
-                  const SizedBox(height: 8),
-                  const Text('Items: AC Dust Filter x2', style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13)),
-                  const Text('Delivery Zone: HSR Layout Sector 1 (2.4 km)', style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13)),
-                  const Divider(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Status: PACKING',
-                        style: TextStyle(color: AppTheme.warningColor, fontWeight: FontWeight.bold, fontSize: 13),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        'Anita\'s Laundry Supplies',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
                       ),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.check_circle_outline, size: 16),
-                        label: const Text('Mark Ready'),
-                        onPressed: () => _dispatchOrder('#ORD-2842'),
+                      Text(
+                        'Merchant Partner · HSR Layout',
+                        style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
                       ),
                     ],
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
-          // 4. INVENTORY MANAGEMENT LIST
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+              // 2. QUICK BUSINESS KPI ROW (RUPEES)
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildKpiCard('Today\'s Orders', '12', Icons.receipt_long, Colors.blue),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildKpiCard('Daily Sales (₹)', '₹4,890', Icons.payments, Colors.green),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildKpiCard('Low Stock Alerts', '1 Item', Icons.warning_amber, Colors.red),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+
+              // 3. ACTIVE ORDER DISPATCH QUEUE
               const Text(
-                'Inventory Management',
+                'Active Orders Queue',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
               ),
-              TextButton.icon(
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Product'),
-                onPressed: () {},
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _inventory.length,
-            itemBuilder: (context, index) {
-              final item = _inventory[index];
-              final isLowStock = item['stock'] <= 5;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: Row(
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Stock: ${item['stock']}',
-                          style: TextStyle(
-                            color: isLowStock ? AppTheme.dangerColor : AppTheme.textSecondaryColor,
-                            fontWeight: isLowStock ? FontWeight.bold : FontWeight.normal,
-                          )),
-                      const SizedBox(width: 12),
-                      Text('Price: ₹${item['price']}', style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Switch(
-                        value: item['avail'],
-                        onChanged: (val) {
-                          setState(() {
-                            item['avail'] = val;
-                          });
-                        },
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: const [
+                          Text('Order #ORD-2842', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          Text('₹698', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w800)),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_note, color: AppTheme.textSecondaryColor),
-                        onPressed: () {},
+                      const SizedBox(height: 8),
+                      const Text('Items: AC Dust Filter x2', style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13)),
+                      const Text('Delivery Zone: HSR Layout Sector 1 (2.4 km)', style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13)),
+                      const Divider(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Status: PACKING',
+                            style: TextStyle(color: AppTheme.warningColor, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.check_circle_outline, size: 16),
+                            label: const Text('Mark Ready'),
+                            onPressed: () => _dispatchOrder('#ORD-2842'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-              );
-            },
+              ),
+              const SizedBox(height: 28),
+
+              // 4. INVENTORY MANAGEMENT LIST
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Inventory Management',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
+                  ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add Product'),
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _inventory.length,
+                itemBuilder: (context, index) {
+                  final item = _inventory[index];
+                  final isLowStock = item['stock'] <= 5;
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: Row(
+                        children: [
+                          Text('Stock: ${item['stock']}',
+                              style: TextStyle(
+                                color: isLowStock ? AppTheme.dangerColor : AppTheme.textSecondaryColor,
+                                fontWeight: isLowStock ? FontWeight.bold : FontWeight.normal,
+                              )),
+                          const SizedBox(width: 12),
+                          Text('Price: ₹${item['price']}', style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Switch(
+                            value: item['avail'],
+                            onChanged: (val) {
+                              setState(() {
+                                item['avail'] = val;
+                              });
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit_note, color: AppTheme.textSecondaryColor),
+                            onPressed: () {},
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

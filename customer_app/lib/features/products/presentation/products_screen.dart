@@ -72,7 +72,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       });
                     },
                     selectedColor: AppTheme.primaryColor,
-                    textColor: isSelected ? Colors.white : AppTheme.textPrimaryColor,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : AppTheme.textPrimaryColor,
+                    ),
                     backgroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
@@ -94,12 +96,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
               mainAxisSpacing: 12,
               childAspectRatio: 0.78,
               children: [
-                _buildGridProductCard(context, 'AC Dust Filter', '₹349', '₹499', '30% OFF'),
-                _buildGridProductCard(context, 'Plumbing Washers', '₹120', '₹150', '20% OFF'),
-                _buildGridProductCard(context, 'Washing Refill Liquid', '₹280', '₹350', '20% OFF'),
-                _buildGridProductCard(context, 'Microfiber Cloths', '₹150', '₹200', '25% OFF'),
-                _buildGridProductCard(context, 'Kitchen Cleaner Spray', '₹199', '₹250', '20% OFF'),
-                _buildGridProductCard(context, 'Car Wash Shampoo', '₹249', '₹300', '17% OFF'),
+                _buildGridProductCard(context, 'AC Dust Filter (Universal)', '₹349', '₹499', '30% OFF'),
+                _buildGridProductCard(context, 'Pipe Repair Tape 5m', '₹89', '₹120', '26% OFF'),
+                _buildGridProductCard(context, 'Car Shampoo 500ml', '₹199', '₹299', '33% OFF'),
+                _buildGridProductCard(context, '3-Tier Tiffin Box', '₹449', '₹599', '25% OFF'),
+                _buildGridProductCard(context, 'Laundry Detergent 1kg', '₹249', '₹349', '29% OFF'),
+                _buildGridProductCard(context, 'Microfiber Cloths (5pc)', '₹299', '₹399', '25% OFF'),
+                _buildGridProductCard(context, 'Drain Cleaner 500ml', '₹149', '₹199', '25% OFF'),
+                _buildGridProductCard(context, 'Mesh Laundry Bag Set', '₹179', '₹249', '28% OFF'),
               ],
             ),
           ),

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../shared/providers/location_provider.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locationState = ref.watch(locationProvider);
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -31,27 +35,38 @@ class HomeScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: const [
-                            Icon(Icons.location_on, color: Colors.white, size: 20),
-                            SizedBox(width: 6),
-                            Text(
-                              'Koramangala, Bengaluru >',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              ref.read(locationProvider.notifier).fetchLocation();
+                            },
+                            child: Row(
+                              children: [
+                                const Icon(Icons.location_on, color: Colors.white, size: 20),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    locationState.isLoading 
+                                        ? 'Fetching Location...' 
+                                        : '${locationState.address} >',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                         Row(
                           children: [
                             IconButton(
                               icon: const Icon(Icons.notifications_none, color: Colors.white),
-                              onPressed: () {
-                                // Notification channel triggers
-                              },
+                              onPressed: () {},
                             ),
                             Stack(
                               children: [
@@ -69,7 +84,7 @@ class HomeScreen extends StatelessWidget {
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Text(
-                                      '2',
+                                      '1',
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 8,
@@ -87,7 +102,7 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     // Greeting text
                     const Text(
-                      'Hello, Guest!',
+                      'Welcome to ServiceHub!',
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 14,
@@ -146,12 +161,14 @@ class HomeScreen extends StatelessWidget {
                                 color: Colors.white24,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                              child: const Text(
+                                'PROMO',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                              child: const Text('SUPER DEAL'),
                             ),
                             const SizedBox(height: 8),
                             const Text(
@@ -163,7 +180,7 @@ class HomeScreen extends StatelessWidget {
                               ),
                             ),
                             const Text(
-                              'Flat 30% Off on primary bookings',
+                              'Flat 30% Off on AC Filter cleaning',
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 13,
@@ -188,7 +205,6 @@ class HomeScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-                      // Decorative Icon space
                       const Icon(
                         Icons.ac_unit,
                         size: 80,
@@ -199,14 +215,14 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
 
-              // 3. SERVICES SECTION (GRID CAPTURED IN MEMORY: FULLY FITS THE WIDTH, NO CUTOFF)
+              // 3. SERVICES SECTION (GRID)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Services',
+                      'Services near you',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -221,7 +237,7 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              // Grid displaying all 5 categories perfectly fitting the screen boundaries
+              // Grid displaying the 5 services
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: GridView.count(
@@ -232,11 +248,11 @@ class HomeScreen extends StatelessWidget {
                   mainAxisSpacing: 12,
                   childAspectRatio: 0.85,
                   children: [
-                    _buildServiceCategoryCard(context, 'Hardware', Icons.build, const Color(0xffeff6ff), const Color(0xff2563eb)),
+                    _buildServiceCategoryCard(context, 'AC Repair', Icons.ac_unit, const Color(0xffeff6ff), const Color(0xff2563eb)),
                     _buildServiceCategoryCard(context, 'Plumbing', Icons.plumbing, const Color(0xfff0fdfa), const Color(0xff0d9488)),
+                    _buildServiceCategoryCard(context, 'Car Service', Icons.directions_car, const Color(0xfffff1f2), const Color(0xffe11d48)),
                     _buildServiceCategoryCard(context, 'Cooking', Icons.soup_kitchen, const Color(0xfffffbeb), const Color(0xffd97706)),
                     _buildServiceCategoryCard(context, 'Laundry', Icons.local_laundry_service, const Color(0xfffaf5ff), const Color(0xff7c3aed)),
-                    _buildServiceCategoryCard(context, 'Car Service', Icons.directions_car, const Color(0xfffff1f2), const Color(0xffe11d48)),
                   ],
                 ),
               ),
@@ -285,7 +301,7 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // 5. PRODUCTS NEAR YOU (STRICT 5 KM radius geofencing indication)
+              // 5. PRODUCTS SECTION (STRICT 5 KM radius geofencing indication)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
@@ -326,11 +342,13 @@ class HomeScreen extends StatelessWidget {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
-                    _buildProductCard(context, 'AC Dust Filter', '₹349', '₹499', '30% OFF'),
+                    _buildProductCard(context, 'AC Dust Filter (Universal)', '₹349', '₹499', '30% OFF'),
                     const SizedBox(width: 12),
-                    _buildProductCard(context, 'Plumbing Washers (Kit)', '₹120', '₹150', '20% OFF'),
+                    _buildProductCard(context, 'Pipe Repair Tape 5m', '₹89', '₹120', '26% OFF'),
                     const SizedBox(width: 12),
-                    _buildProductCard(context, 'Washing Liquid Refill', '₹280', '₹350', '20% OFF'),
+                    _buildProductCard(context, 'Car Shampoo 500ml', '₹199', '₹299', '33% OFF'),
+                    const SizedBox(width: 12),
+                    _buildProductCard(context, '3-Tier Tiffin Box', '₹449', '₹599', '25% OFF'),
                   ],
                 ),
               ),
@@ -392,7 +410,7 @@ class HomeScreen extends StatelessWidget {
     String discount,
   ) {
     return Container(
-      width: 150,
+      width: 160,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -426,7 +444,7 @@ class HomeScreen extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                    fontSize: 12,
                     color: AppTheme.textPrimaryColor,
                   ),
                 ),

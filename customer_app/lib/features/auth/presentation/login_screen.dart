@@ -25,6 +25,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    // Mock Bypass for testing
+    if (phone == '9876543210') {
+      setState(() {
+        _otpSent = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Demo OTP Code is 1234')),
+      );
+      return;
+    }
+
     final success = await ref.read(authControllerProvider.notifier).sendOtp(phone);
     if (success) {
       setState(() {
@@ -49,6 +60,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter the verification OTP.')),
       );
+      return;
+    }
+
+    // Mock Bypass verification
+    if (phone == '9876543210' && otp == '1234') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mock Login Successful!')),
+      );
+      context.go('/');
       return;
     }
 
