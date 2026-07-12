@@ -71,11 +71,11 @@ class ProfileScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textSecondaryColor),
               ),
               const SizedBox(height: 12),
-              _buildSettingsTile(Icons.history, 'Booking History', () {}),
-              _buildSettingsTile(Icons.shopping_bag_outlined, 'My Orders', () {}),
+              _buildSettingsTile(Icons.history, 'Booking History', () => context.go('/')),
+              _buildSettingsTile(Icons.shopping_bag_outlined, 'My Orders', () => context.go('/orders')),
               _buildSettingsTile(Icons.location_on_outlined, 'Saved Addresses', () {}),
               _buildSettingsTile(Icons.payment, 'Payment Methods', () {}),
-              _buildSettingsTile(Icons.help_outline, 'Help & Support', () {}),
+              _buildSettingsTile(Icons.help_outline, 'Help & Support', () => context.push('/support')),
               const Divider(height: 32),
 
               // 3. LOGOUT / SIGN OUT BUTTON

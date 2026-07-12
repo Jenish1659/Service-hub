@@ -125,6 +125,15 @@ class LocationNotifier extends StateNotifier<LocationState> {
       );
     }
   }
+
+  void updateCustomLocation(double lat, double lng, String address) {
+    state = LocationState(
+      latitude: lat,
+      longitude: lng,
+      address: address,
+      isLoading: false,
+    );
+  }
 }
 
 final locationProvider = StateNotifierProvider<LocationNotifier, LocationState>((ref) {

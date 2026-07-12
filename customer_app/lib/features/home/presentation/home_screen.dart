@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../shared/providers/location_provider.dart';
+import '../../../shared/providers/notification_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -10,6 +11,8 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locationState = ref.watch(locationProvider);
+    final notifications = ref.watch(notificationProvider);
+    final unreadCount = notifications.where((n) => !n.read).length;
 
     return Scaffold(
       body: SafeArea(
@@ -37,9 +40,7 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: InkWell(
-                            onTap: () {
-                              ref.read(locationProvider.notifier).fetchLocation();
-                            },
+                            onTap: () => _showLocationPicker(context, ref),
                             child: Row(
                               children: [
                                 const Icon(Icons.location_on, color: Colors.white, size: 20),
@@ -64,9 +65,26 @@ class HomeScreen extends ConsumerWidget {
                         ),
                         Row(
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.notifications_none, color: Colors.white),
-                              onPressed: () {},
+                            Stack(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.notifications_none, color: Colors.white),
+                                  onPressed: () => _showNotificationsSheet(context, ref, notifications),
+                                ),
+                                if (unreadCount > 0)
+                                  Positioned(
+                                    right: 8,
+                                    top: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                      child: Text(
+                                        '$unreadCount',
+                                        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                             Stack(
                               children: [
@@ -507,6 +525,188 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showLocationPicker(BuildContext context, WidgetRef ref) {
+    final List<Map<String, dynamic>> presets = [
+      {'name': 'HSR Layout Sector 3', 'lat': 12.9103, 'lng': 77.6433},
+      {'name': 'Koramangala 4th Block', 'lat': 12.9352, 'lng': 77.6245},
+      {'name': 'Indiranagar 100ft Road', 'lat': 12.9719, 'lng': 77.6412},
+      {'name': 'Whitefield ITPL', 'lat': 12.9698, 'lng': 77.7499},
+      {'name': 'Jayanagar 4th Block', 'lat': 12.9307, 'lng': 77.5847},
+      {'name': 'Malleshwaram 8th Cross', 'lat': 13.0031, 'lng': 77.5700},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final searchController = TextEditingController();
+        return Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Select Delivery Address',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search for address or area...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.arrow_forward),
+                    onPressed: () {
+                      final query = searchController.text.trim();
+                      if (query.isNotEmpty) {
+                        ref.read(locationProvider.notifier).updateCustomLocation(
+                          12.9716,
+                          77.5946,
+                          '$query, Bengaluru',
+                        );
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Location updated to: $query, Bengaluru')),
+                        );
+                      }
+                    },
+                  ),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Popular Preset Neighborhoods',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textSecondaryColor),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: presets.length,
+                  itemBuilder: (c, index) {
+                    final preset = presets[index];
+                    return ListTile(
+                      leading: const Icon(Icons.location_on_outlined, color: AppTheme.primaryColor),
+                      title: Text(preset['name']),
+                      subtitle: Text('Coordinates: ${preset['lat'].toStringAsFixed(4)}, ${preset['lng'].toStringAsFixed(4)}'),
+                      onTap: () {
+                        ref.read(locationProvider.notifier).updateCustomLocation(
+                          preset['lat'],
+                          preset['lng'],
+                          preset['name'],
+                        );
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Address updated to ${preset['name']}'),
+                            backgroundColor: AppTheme.successColor,
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showNotificationsSheet(BuildContext context, WidgetRef ref, List<AppNotification> list) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Notifications Feed',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      ref.read(notificationProvider.notifier).markAllAsRead();
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Mark all as read'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (list.isEmpty)
+                const Expanded(
+                  child: Center(
+                    child: Text(
+                      'No notifications yet.',
+                      style: TextStyle(color: AppTheme.textSecondaryColor),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: list.length,
+                    separatorBuilder: (c, idx) => const Divider(),
+                    itemBuilder: (c, index) {
+                      final item = list[index];
+                      return ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: item.read ? Colors.grey.shade100 : const Color(0xffeff6ff),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.notifications_active_outlined,
+                            color: item.read ? Colors.grey : AppTheme.primaryColor,
+                            size: 18,
+                          ),
+                        ),
+                        title: Text(
+                          item.title,
+                          style: TextStyle(
+                            fontWeight: item.read ? FontWeight.normal : FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        subtitle: Text(
+                          item.body,
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 11,
+                          ),
+                        ),
+                        trailing: Text(
+                          '${item.createdAt.hour.toString().padLeft(2, '0')}:${item.createdAt.minute.toString().padLeft(2, '0')}',
+                          style: const TextStyle(fontSize: 10, color: Colors.grey),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

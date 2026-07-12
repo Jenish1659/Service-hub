@@ -8,6 +8,7 @@ import '../../features/services/presentation/discover_screen.dart';
 import '../../features/products/presentation/products_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/profile/presentation/support_screen.dart';
 import '../../features/bookings/presentation/track_booking_screen.dart';
 import '../../features/orders/presentation/track_order_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
@@ -24,7 +25,7 @@ final GoRouter appRouter = GoRouter(
     final bool loggingIn = state.matchedLocation == '/login';
 
     // Route guards: Prompt login only for secure pages
-    final secureRoutes = ['/cart', '/profile', '/track-booking', '/track-order'];
+    final secureRoutes = ['/cart', '/profile', '/track-booking', '/track-order', '/support'];
     final isSecureRoute = secureRoutes.any((route) => state.matchedLocation.startsWith(route));
 
     if (session == null && isSecureRoute) {
@@ -98,6 +99,11 @@ final GoRouter appRouter = GoRouter(
         final orderId = state.pathParameters['id'] ?? '';
         return TrackOrderScreen(orderId: orderId);
       },
+    ),
+    GoRoute(
+      path: '/support',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) => const SupportScreen(),
     ),
   ],
 );
