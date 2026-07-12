@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class TrackBookingScreen extends StatefulWidget {
@@ -12,6 +13,10 @@ class TrackBookingScreen extends StatefulWidget {
 }
 
 class _TrackBookingScreenState extends State<TrackBookingScreen> {
+  Map<String, dynamic>? _bookingData;
+  bool _loading = true;
+  String _errorMessage = '';
+
   int _distance = 420;
   bool _providerArrived = false;
   bool _pinVerified = false;
@@ -21,11 +26,85 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
   final TextEditingController _pinController = TextEditingController();
   final String _correctPin = '7429';
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchBookingDetails();
+  }
+
+  Future<void> _fetchBookingDetails() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('bookings')
+          .select()
+          .eq('id', widget.bookingId)
+          .maybeSingle();
+
+      if (mounted) {
+        if (response != null) {
+          setState(() {
+            _bookingData = response;
+            _loading = false;
+            
+            // Map db status to tracking UI flags
+            final status = response['status'] ?? 'Pending';
+            if (status == 'En Route') {
+              _distance = 3;
+              _providerArrived = true;
+            } else if (status == 'Started') {
+              _distance = 3;
+              _providerArrived = true;
+              _pinVerified = true;
+              _workCommenced = true;
+            } else if (status == 'Completed') {
+              _distance = 3;
+              _providerArrived = true;
+              _pinVerified = true;
+              _workCommenced = true;
+              _serviceCompleted = true;
+            } else {
+              // Pending or Confirmed
+              _distance = 420;
+              _providerArrived = false;
+              _pinVerified = false;
+              _workCommenced = false;
+              _serviceCompleted = false;
+            }
+          });
+        } else {
+          setState(() {
+            _loading = false;
+            _errorMessage = 'Booking not found.';
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _errorMessage = 'Error loading booking: ${e.toString()}';
+        });
+      }
+    }
+  }
+
+  Future<void> _updateBookingStatus(String status) async {
+    try {
+      await Supabase.instance.client
+          .from('bookings')
+          .update({'status': status})
+          .eq('id', widget.bookingId);
+      
+      _fetchBookingDetails();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update status: ${e.toString()}'), backgroundColor: AppTheme.dangerColor),
+      );
+    }
+  }
+
   void _simulateArrival() {
-    setState(() {
-      _distance = 3;
-      _providerArrived = true;
-    });
+    _updateBookingStatus('En Route');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Simulation: Provider is now within 5m zone! Verification PIN active.'),
@@ -36,10 +115,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
 
   void _verifyPin() {
     if (_pinController.text == _correctPin) {
-      setState(() {
-        _pinVerified = true;
-        _workCommenced = true;
-      });
+      _updateBookingStatus('Started');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('PIN Verified ✓ Work commenced by provider!'),
@@ -57,9 +133,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
   }
 
   void _simulateCompletion() {
-    setState(() {
-      _serviceCompleted = true;
-    });
+    _updateBookingStatus('Completed');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Service Completed successfully! OTP verification complete.'),
@@ -76,6 +150,31 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Track Booking')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_errorMessage.isNotEmpty || _bookingData == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Track Booking')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Text(_errorMessage.isNotEmpty ? _errorMessage : 'Booking details missing.', style: const TextStyle(color: AppTheme.dangerColor)),
+          ),
+        ),
+      );
+    }
+
+    final serviceName = _bookingData!['service_name'] ?? 'Home Service';
+    final price = (_bookingData!['price'] as num?)?.toDouble() ?? 0.0;
+    final scheduledDate = _bookingData!['scheduled_date'] ?? '';
+    final scheduledTime = _bookingData!['scheduled_time'] ?? '';
+    final status = _bookingData!['status'] ?? 'Pending';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Track Booking'),
@@ -83,6 +182,12 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/'),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchBookingDetails,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -163,7 +268,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                             ),
                             child: const Center(
                               child: Text(
-                                'RE',
+                                'SP',
                                 style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -172,27 +277,18 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
+                              children: [
                                 Text(
-                                  'Rajesh Electricals',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  serviceName,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                 ),
-                                SizedBox(height: 4),
+                                const SizedBox(height: 4),
                                 Text(
-                                  'AC Service Expert · ★4.8',
-                                  style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
+                                  'Scheduled: $scheduledDate ($scheduledTime)',
+                                  style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
                                 ),
                               ],
                             ),
-                          ),
-                          // Actions
-                          IconButton(
-                            icon: const Icon(Icons.call, color: AppTheme.successColor),
-                            onPressed: () {},
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.chat_bubble_outline, color: AppTheme.primaryColor),
-                            onPressed: () {},
                           ),
                         ],
                       ),

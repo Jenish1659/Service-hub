@@ -1,64 +1,83 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'services_provider.dart';
 
-class DiscoverScreen extends StatefulWidget {
+class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
 
   @override
-  State<DiscoverScreen> createState() => _DiscoverScreenState();
+  ConsumerState<DiscoverScreen> createState() => _DiscoverScreenState();
 }
 
-class _DiscoverScreenState extends State<DiscoverScreen> {
-  final List<Map<String, dynamic>> _services = [
-    {
-      'name': 'AC Repair',
-      'providers': '24 providers near you',
-      'icon': Icons.ac_unit,
-      'bg': const Color(0xffeff6ff),
-      'iconColor': const Color(0xff2563eb),
-    },
-    {
-      'name': 'Plumbing',
-      'providers': '31 providers near you',
-      'icon': Icons.plumbing,
-      'bg': const Color(0xfff0fdfa),
-      'iconColor': const Color(0xff0d9488),
-    },
-    {
-      'name': 'Car Service',
-      'providers': '18 providers near you',
-      'icon': Icons.directions_car,
-      'bg': const Color(0xfffff1f2),
-      'iconColor': const Color(0xffe11d48),
-    },
-    {
-      'name': 'Cooking',
-      'providers': '42 hygiene certified',
-      'icon': Icons.soup_kitchen,
-      'bg': const Color(0xfffffbeb),
-      'iconColor': const Color(0xffd97706),
-    },
-    {
-      'name': 'Laundry',
-      'providers': '27 hygiene certified',
-      'icon': Icons.local_laundry_service,
-      'bg': const Color(0xfffaf5ff),
-      'iconColor': const Color(0xff7c3aed),
-    },
-  ];
+class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
+  // Helpers to get visual style based on service category
+  IconData _getIconForCategory(String category) {
+    switch (category) {
+      case 'AC':
+        return Icons.ac_unit;
+      case 'Plumbing':
+        return Icons.plumbing;
+      case 'Car':
+        return Icons.directions_car;
+      case 'Cooking':
+        return Icons.soup_kitchen;
+      case 'Laundry':
+        return Icons.local_laundry_service;
+      default:
+        return Icons.build;
+    }
+  }
 
-  void _startBookingFlow(BuildContext context, String serviceName) {
+  Color _getBgColorForCategory(String category) {
+    switch (category) {
+      case 'AC':
+        return const Color(0xffeff6ff);
+      case 'Plumbing':
+        return const Color(0xfff0fdfa);
+      case 'Car':
+        return const Color(0xfffff1f2);
+      case 'Cooking':
+        return const Color(0xfffffbeb);
+      case 'Laundry':
+        return const Color(0xfffaf5ff);
+      default:
+        return const Color(0xfff1f5f9);
+    }
+  }
+
+  Color _getIconColorForCategory(String category) {
+    switch (category) {
+      case 'AC':
+        return const Color(0xff2563eb);
+      case 'Plumbing':
+        return const Color(0xff0d9488);
+      case 'Car':
+        return const Color(0xffe11d48);
+      case 'Cooking':
+        return const Color(0xffd97706);
+      case 'Laundry':
+        return const Color(0xff7c3aed);
+      default:
+        return AppTheme.primaryColor;
+    }
+  }
+
+  void _startBookingFlow(BuildContext context, String serviceName, double servicePrice) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _BookingFlowWidget(serviceName: serviceName),
+      builder: (context) => _BookingFlowWidget(serviceName: serviceName, servicePrice: servicePrice),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final servicesAsync = ref.watch(servicesProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Local Services'),
@@ -89,65 +108,77 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: ListView.builder(
-                itemCount: _services.length,
-                itemBuilder: (context, index) {
-                  final service = _services[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: InkWell(
-                      onTap: () => _startBookingFlow(context, service['name']),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 54,
-                              height: 54,
-                              decoration: BoxDecoration(
-                                color: service['bg'],
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                service['icon'],
-                                size: 28,
-                                color: service['iconColor'],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    service['name'],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: AppTheme.textPrimaryColor,
-                                    ),
+              child: servicesAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) => Center(
+                  child: Text('Error loading services: ${err.toString()}', style: const TextStyle(color: AppTheme.dangerColor)),
+                ),
+                data: (servicesList) {
+                  return ListView.builder(
+                    itemCount: servicesList.length,
+                    itemBuilder: (context, index) {
+                      final service = servicesList[index];
+                      final category = service['category'] ?? '';
+                      final name = service['name'] ?? '';
+                      final price = (service['price'] as num?)?.toDouble() ?? 0.0;
+                      
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: InkWell(
+                          onTap: () => _startBookingFlow(context, name, price),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 54,
+                                  height: 54,
+                                  decoration: BoxDecoration(
+                                    color: _getBgColorForCategory(category),
+                                    shape: BoxShape.circle,
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    service['providers'],
-                                    style: const TextStyle(
-                                      color: AppTheme.textSecondaryColor,
-                                      fontSize: 12,
-                                    ),
+                                  child: Icon(
+                                    _getIconForCategory(category),
+                                    size: 28,
+                                    color: _getIconColorForCategory(category),
                                   ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: AppTheme.textPrimaryColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Starting from ₹${price.toStringAsFixed(0)} · 5 km coverage',
+                                        style: const TextStyle(
+                                          color: AppTheme.textSecondaryColor,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 16,
+                                  color: AppTheme.textSecondaryColor,
+                                ),
+                              ],
                             ),
-                            const Icon(
-                              Icons.arrow_forward_ios,
-                              size: 16,
-                              color: AppTheme.textSecondaryColor,
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   );
                 },
               ),
@@ -161,7 +192,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
 class _BookingFlowWidget extends StatefulWidget {
   final String serviceName;
-  const _BookingFlowWidget({required this.serviceName});
+  final double servicePrice;
+  const _BookingFlowWidget({required this.serviceName, required this.servicePrice});
 
   @override
   State<_BookingFlowWidget> createState() => _BookingFlowWidgetState();
@@ -170,13 +202,62 @@ class _BookingFlowWidget extends StatefulWidget {
 class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
   int _currentStep = 1; // 1: Describe, 2: Slot, 3: Confirm
   final TextEditingController _issueController = TextEditingController();
-  String _selectedDate = 'Today, July 11';
+  String _selectedDate = 'Today, July 12';
   String _selectedTime = '06:30 PM';
   String _selectedPayment = 'Cash on Service';
+  bool _isSubmitting = false;
+
+  Future<void> _createBooking() async {
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to confirm booking.'), backgroundColor: AppTheme.warningColor),
+      );
+      context.push('/login');
+      return;
+    }
+
+    try {
+      final response = await client.from('bookings').insert({
+        'customer_id': user.id,
+        'service_name': widget.serviceName,
+        'issue_description': _issueController.text.trim(),
+        'scheduled_date': _selectedDate,
+        'scheduled_time': _selectedTime,
+        'payment_method': _selectedPayment,
+        'price': widget.servicePrice,
+        'status': 'Pending',
+        'entrance_pin': '7429',
+        'completion_otp': '5892',
+      }).select().single();
+
+      if (mounted) {
+        Navigator.pop(context); // Close bottom sheet
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Booking request created successfully!'), backgroundColor: AppTheme.successColor),
+        );
+        final bookingId = response['id'];
+        context.push('/track-booking/$bookingId');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error booking service: ${e.toString()}'), backgroundColor: AppTheme.dangerColor),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Keyboard spacer
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
@@ -219,7 +300,7 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
           // Actions
           Row(
             children: [
-              if (_currentStep > 1) ...[
+              if (_currentStep > 1 && !_isSubmitting) ...[
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
@@ -235,8 +316,14 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
               Expanded(
                 flex: 2,
                 child: ElevatedButton(
-                  onPressed: _onNext,
-                  child: Text(_currentStep == 3 ? 'Confirm Booking' : 'Continue'),
+                  onPressed: _isSubmitting ? null : _onNext,
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : Text(_currentStep == 3 ? 'Confirm Booking' : 'Continue'),
                 ),
               ),
             ],
@@ -257,34 +344,9 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
         const SizedBox(height: 8),
         TextField(
           controller: _issueController,
-          maxLines: 4,
-          decoration: InputDecoration(
-            hintText: 'Describe what needs to be fixed (e.g. AC cooling problem, leaking pipe)...',
-            hintStyle: const TextStyle(fontSize: 13),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Attach Photo (Optional)',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Photo attachments are mock enabled for prototype.')),
-            );
-          },
-          child: Container(
-            height: 80,
-            width: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xffeff6ff),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
-            ),
-            child: const Icon(Icons.add_a_photo, color: AppTheme.primaryColor),
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'e.g., Water leaking from AC unit / Tap has very low pressure.',
           ),
         ),
       ],
@@ -292,52 +354,56 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
   }
 
   Widget _buildSlotStep() {
-    final dates = ['Today, July 11', 'Tomorrow, July 12', 'Monday, July 13'];
-    final times = ['10:00 AM', '02:00 PM', '06:30 PM', '08:00 PM'];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Select Schedule Date',
+          'Select Date Slot',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: dates.map((d) {
-            final isSelected = d == _selectedDate;
-            return ChoiceChip(
-              label: Text(d),
-              selected: isSelected,
-              selectedColor: AppTheme.primaryColor,
-              labelStyle: TextStyle(color: isSelected ? Colors.white : AppTheme.textPrimaryColor),
-              onSelected: (val) {
-                if (val) setState(() => _selectedDate = d);
-              },
-            );
-          }).toList(),
+        DropdownButtonFormField<String>(
+          value: _selectedDate,
+          decoration: const InputDecoration(
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'Today, July 12', child: Text('Today, July 12')),
+            DropdownMenuItem(value: 'Tomorrow, July 13', child: Text('Tomorrow, July 13')),
+            DropdownMenuItem(value: 'Tuesday, July 14', child: Text('Tuesday, July 14')),
+          ],
+          onChanged: (val) {
+            if (val != null) {
+              setState(() {
+                _selectedDate = val;
+              });
+            }
+          },
         ),
         const SizedBox(height: 16),
         const Text(
-          'Preferred Time Slot',
+          'Select Time Slot',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: times.map((t) {
-            final isSelected = t == _selectedTime;
-            return ChoiceChip(
-              label: Text(t),
-              selected: isSelected,
-              selectedColor: AppTheme.primaryColor,
-              labelStyle: TextStyle(color: isSelected ? Colors.white : AppTheme.textPrimaryColor),
-              onSelected: (val) {
-                if (val) setState(() => _selectedTime = t);
-              },
-            );
-          }).toList(),
+        DropdownButtonFormField<String>(
+          value: _selectedTime,
+          decoration: const InputDecoration(
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          items: const [
+            DropdownMenuItem(value: '09:00 AM - 12:00 PM', child: Text('09:00 AM - 12:00 PM (Morning)')),
+            DropdownMenuItem(value: '12:00 PM - 03:00 PM', child: Text('12:00 PM - 03:00 PM (Afternoon)')),
+            DropdownMenuItem(value: '03:00 PM - 06:00 PM', child: Text('03:00 PM - 06:00 PM (Evening)')),
+            DropdownMenuItem(value: '06:30 PM', child: Text('06:30 PM (Immediate)')),
+          ],
+          onChanged: (val) {
+            if (val != null) {
+              setState(() {
+                _selectedTime = val;
+              });
+            }
+          },
         ),
       ],
     );
@@ -365,7 +431,7 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
               const Divider(height: 20),
               _buildDetailRow('Schedule', '$_selectedDate at $_selectedTime'),
               const Divider(height: 20),
-              _buildDetailRow('Estimated Price', '₹1,200'),
+              _buildDetailRow('Estimated Price', '₹${widget.servicePrice.toStringAsFixed(0)}'),
             ],
           ),
         ),
@@ -413,12 +479,7 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
         _currentStep++;
       });
     } else {
-      // Completed, redirect to tracking!
-      Navigator.pop(context); // Close bottom sheet
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Booking request dispatched to nearby partners!')),
-      );
-      context.push('/track-booking/BOOK-5892');
+      _createBooking();
     }
   }
 }

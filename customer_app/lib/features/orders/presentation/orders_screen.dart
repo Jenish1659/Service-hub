@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'orders_provider.dart';
 
-class OrdersScreen extends StatefulWidget {
+class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
 
   @override
-  State<OrdersScreen> createState() => _OrdersScreenState();
+  ConsumerState<OrdersScreen> createState() => _OrdersScreenState();
 }
 
-class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderStateMixin {
+class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -24,11 +27,62 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
+  Future<void> _refreshData() async {
+    ref.invalidate(userBookingsProvider);
+    ref.invalidate(userOrdersProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('My Bookings & Orders'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.receipt_long, size: 64, color: AppTheme.textSecondaryColor),
+                const SizedBox(height: 16),
+                const Text(
+                  'Sign in to view your orders',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Access your active service bookings, product deliveries, and order history.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => context.push('/login'),
+                  child: const Text('Sign In / Register'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final bookingsAsync = ref.watch(userBookingsProvider);
+    final ordersAsync = ref.watch(userOrdersProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Bookings & Orders'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshData,
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -40,240 +94,275 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildActiveOrders(),
-          _buildPastOrders(),
-        ],
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildActiveTab(bookingsAsync, ordersAsync),
+            _buildPastTab(bookingsAsync, ordersAsync),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildActiveOrders() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Active Booking Card (AC Service)
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xffeff6ff),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'SERVICE BOOKING',
-                        style: TextStyle(
-                          color: AppTheme.primaryColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const Text(
-                      'Status: En Route',
-                      style: TextStyle(
-                        color: AppTheme.warningColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'AC Gas Refill & Filter Cleaning',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
-                ),
-                const Text(
-                  'Provider: Rajesh Electricals',
-                  style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: const [
-                    Icon(Icons.calendar_today, size: 14, color: AppTheme.textSecondaryColor),
-                    SizedBox(width: 6),
-                    Text('Today, 06:30 PM', style: TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor)),
-                  ],
-                ),
-                const Divider(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      '₹1,200',
-                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.primaryColor),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        minimumSize: Size.zero,
-                      ),
-                      onPressed: () => context.push('/track-booking/BOOK-5892'),
-                      child: const Text('Track Live', style: TextStyle(fontSize: 13)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
+  Widget _buildActiveTab(
+    AsyncValue<List<Map<String, dynamic>>> bookingsAsync,
+    AsyncValue<List<Map<String, dynamic>>> ordersAsync,
+  ) {
+    return bookingsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Error loading active bookings: ${e.toString()}')),
+      data: (bookings) {
+        return ordersAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, s) => Center(child: Text('Error loading active orders: ${e.toString()}')),
+          data: (orders) {
+            // Filter active
+            final activeBookings = bookings.where((b) => b['status'] != 'Completed').toList();
+            final activeOrders = orders.where((o) => o['status'] != 'Delivered').toList();
 
-        // Active Product Order Card
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            if (activeBookings.isEmpty && activeOrders.isEmpty) {
+              return const Center(
+                child: Text('No active jobs or deliveries.', style: TextStyle(color: AppTheme.textSecondaryColor)),
+              );
+            }
+
+            return ListView(
+              padding: const EdgeInsets.all(16),
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xfff5f3ff),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'PRODUCT ORDER',
-                        style: TextStyle(
-                          color: Color(0xff7c3aed),
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const Text(
-                      'Status: Packing',
-                      style: TextStyle(
-                        color: AppTheme.warningColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Order #ORD-2842',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
-                ),
-                const Text(
-                  'Items: AC Dust Filter x1',
-                  style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: const [
-                    Icon(Icons.pin_drop, size: 14, color: AppTheme.textSecondaryColor),
-                    SizedBox(width: 6),
-                    Text('Delivery Address: Koramangala Sector 4', style: TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor)),
-                  ],
-                ),
-                const Divider(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      '₹384',
-                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.primaryColor),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        minimumSize: Size.zero,
-                        backgroundColor: const Color(0xff7c3aed),
-                      ),
-                      onPressed: () => context.push('/track-order/ORD-2842'),
-                      child: const Text('Track Order', style: TextStyle(fontSize: 13)),
-                    ),
-                  ],
-                ),
+                ...activeBookings.map((b) => _buildBookingCard(b)),
+                ...activeOrders.map((o) => _buildOrderCard(o)),
               ],
-            ),
-          ),
-        ),
-      ],
+            );
+          },
+        );
+      },
     );
   }
 
-  Widget _buildPastOrders() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildPastTab(
+    AsyncValue<List<Map<String, dynamic>>> bookingsAsync,
+    AsyncValue<List<Map<String, dynamic>>> ordersAsync,
+  ) {
+    return bookingsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Error loading history: ${e.toString()}')),
+      data: (bookings) {
+        return ordersAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, s) => Center(child: Text('Error loading history: ${e.toString()}')),
+          data: (orders) {
+            // Filter past
+            final pastBookings = bookings.where((b) => b['status'] == 'Completed').toList();
+            final pastOrders = orders.where((o) => o['status'] == 'Delivered').toList();
+
+            if (pastBookings.isEmpty && pastOrders.isEmpty) {
+              return const Center(
+                child: Text('No order history available.', style: TextStyle(color: AppTheme.textSecondaryColor)),
+              );
+            }
+
+            return ListView(
+              padding: const EdgeInsets.all(16),
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xfff0fdf4),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'COMPLETED',
-                        style: TextStyle(
-                          color: AppTheme.successColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                ...pastBookings.map((b) => _buildBookingCard(b)),
+                ...pastOrders.map((o) => _buildOrderCard(o)),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBookingCard(Map<String, dynamic> booking) {
+    final id = booking['id'];
+    final name = booking['service_name'] ?? 'Home Service';
+    final issue = booking['issue_description'] ?? '';
+    final date = booking['scheduled_date'] ?? '';
+    final time = booking['scheduled_time'] ?? '';
+    final price = (booking['price'] as num?)?.toDouble() ?? 0.0;
+    final status = booking['status'] ?? 'Pending';
+
+    final isCompleted = status == 'Completed';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xffeff6ff),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'SERVICE BOOKING',
+                    style: TextStyle(
+                      color: AppTheme.primaryColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const Text(
-                      'July 10, 2026',
-                      style: TextStyle(
-                        color: AppTheme.textSecondaryColor,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Kitchen Sink Plumbing Repair',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textPrimaryColor),
-                ),
-                const Text(
-                  'Provider: Ramesh Electricals',
-                  style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
-                ),
-                const Divider(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Text(
-                      '₹600',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textPrimaryColor),
-                    ),
-                    Text(
-                      'Paid via Cash ✓',
-                      style: TextStyle(color: AppTheme.successColor, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                Text(
+                  'Status: $status',
+                  style: TextStyle(
+                    color: isCompleted ? AppTheme.successColor : AppTheme.warningColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 12),
+            Text(
+              name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
+            ),
+            if (issue.isNotEmpty)
+              Text(
+                issue,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
+              ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today, size: 14, color: AppTheme.textSecondaryColor),
+                const SizedBox(width: 6),
+                Text('$date · $time', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor)),
+              ],
+            ),
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '₹${price.toStringAsFixed(0)}',
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.primaryColor),
+                ),
+                if (!isCompleted)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      minimumSize: Size.zero,
+                    ),
+                    onPressed: () => context.push('/track-booking/$id'),
+                    child: const Text('Track Live', style: TextStyle(fontSize: 13)),
+                  ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildOrderCard(Map<String, dynamic> order) {
+    final id = order['id'];
+    final items = order['items_summary'] ?? 'Product Delivery';
+    final grandTotal = (order['grand_total'] as num?)?.toDouble() ?? 0.0;
+    final status = order['status'] ?? 'Placed';
+    final address = order['shipping_address'] ?? '';
+
+    final isDelivered = status == 'Delivered';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xfff5f3ff),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'PRODUCT ORDER',
+                    style: TextStyle(
+                      color: Color(0xff7c3aed),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Text(
+                  'Status: $status',
+                  style: TextStyle(
+                    color: isDelivered ? AppTheme.successColor : AppTheme.warningColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Order #${id.toString().substring(0, 8).toUpperCase()}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
+            ),
+            Text(
+              'Items: $items',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
+            ),
+            if (address.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.pin_drop, size: 14, color: AppTheme.textSecondaryColor),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Delivery to: $address',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '₹${grandTotal.toStringAsFixed(0)}',
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.primaryColor),
+                ),
+                if (!isDelivered)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      minimumSize: Size.zero,
+                      backgroundColor: const Color(0xff7c3aed),
+                    ),
+                    onPressed: () => context.push('/track-order/$id'),
+                    child: const Text('Track Order', style: TextStyle(fontSize: 13)),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -7,6 +7,9 @@ import '../../features/dashboard/presentation/admin_dashboard.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
+// Global flag to bypass Auth check for mock accounts & local testing
+bool adminBypassLoggedIn = false;
+
 final GoRouter appRouter = GoRouter(
   initialLocation: '/login',
   navigatorKey: _rootNavigatorKey,
@@ -14,11 +17,11 @@ final GoRouter appRouter = GoRouter(
     final session = Supabase.instance.client.auth.currentSession;
     final bool loggingIn = state.matchedLocation == '/login';
 
-    if (session == null && !loggingIn) {
+    if (session == null && !adminBypassLoggedIn && !loggingIn) {
       return '/login';
     }
 
-    if (session != null && loggingIn) {
+    if ((session != null || adminBypassLoggedIn) && loggingIn) {
       return '/';
     }
 

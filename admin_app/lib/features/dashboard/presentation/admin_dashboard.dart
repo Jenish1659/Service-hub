@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../auth/presentation/auth_controller.dart';
+import 'admin_provider.dart';
 
 class AdminDashboard extends ConsumerStatefulWidget {
   const AdminDashboard({super.key});
@@ -151,62 +152,74 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
   // TAB 1: Platform Console
   Widget _buildPlatformConsole() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'System Analytics Dashboard',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
-        ),
-        const SizedBox(height: 20),
-        Row(
+    final statsAsync = ref.watch(adminStatsProvider);
+
+    return statsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Error loading stats: ${e.toString()}')),
+      data: (stats) {
+        final revenue = stats['revenue'] as double;
+        final customers = stats['customersCount'] as int;
+        final partners = stats['partnersCount'] as int;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _buildConsoleCard('Platform Revenue', '₹1,24,500', Icons.account_balance_wallet, Colors.green),
+            const Text(
+              'System Analytics Dashboard',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildConsoleCard('Active Customers', '1,452', Icons.people, Colors.blue),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildConsoleCard('Active Partners', '$activePartnersCount', Icons.handshake, Colors.orange),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildConsoleCard('Active Agents', '$activeAgentsCount', Icons.directions_bike, Colors.purple),
-            ),
-          ],
-        ),
-        const SizedBox(height: 32),
-        const Text(
-          'Platform Overview',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 20),
+            Row(
               children: [
-                const Text(
-                  'Hyperlocal Operations Metrics',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                Expanded(
+                  child: _buildConsoleCard('Platform Revenue', '₹${revenue.toStringAsFixed(0)}', Icons.account_balance_wallet, Colors.green),
                 ),
-                const SizedBox(height: 16),
-                _buildMetricRow('Strict Geofencing Radius', '${geofenceRadius.toStringAsFixed(1)} km limit'),
-                const Divider(),
-                _buildMetricRow('Service Provider Commission Rate', '${serviceCommission.toStringAsFixed(0)}%'),
-                const Divider(),
-                _buildMetricRow('Delivery Partner Base Fee', '₹${deliveryBaseFee.toStringAsFixed(0)}'),
-                const Divider(),
-                _buildMetricRow('Pending KYC Verification Items', '${_verificationQueue.length} applicants waiting'),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildConsoleCard('Active Customers', '$customers', Icons.people, Colors.blue),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildConsoleCard('Active Partners', '$partners', Icons.handshake, Colors.orange),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildConsoleCard('Active Agents', '$activeAgentsCount', Icons.directions_bike, Colors.purple),
+                ),
               ],
             ),
-          ),
-        ),
-      ],
+            const SizedBox(height: 32),
+            const Text(
+              'Platform Overview',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Hyperlocal Operations Metrics',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildMetricRow('Strict Geofencing Radius', '${geofenceRadius.toStringAsFixed(1)} km limit'),
+                    const Divider(),
+                    _buildMetricRow('Service Provider Commission Rate', '${serviceCommission.toStringAsFixed(0)}%'),
+                    const Divider(),
+                    _buildMetricRow('Delivery Partner Base Fee', '₹${deliveryBaseFee.toStringAsFixed(0)}'),
+                    const Divider(),
+                    _buildMetricRow('Pending KYC Verification Items', '${_verificationQueue.length} applicants waiting'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

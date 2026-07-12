@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'products_provider.dart';
 
-class ProductsScreen extends StatefulWidget {
+class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
 
   @override
-  State<ProductsScreen> createState() => _ProductsScreenState();
+  ConsumerState<ProductsScreen> createState() => _ProductsScreenState();
 }
 
-class _ProductsScreenState extends State<ProductsScreen> {
+class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   String selectedCategory = 'All';
 
   final List<String> categories = ['All', 'AC', 'Plumbing', 'Car', 'Cooking', 'Laundry'];
 
   @override
   Widget build(BuildContext context) {
+    final productsAsync = ref.watch(productsProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Products'),
@@ -87,24 +91,46 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ),
           const SizedBox(height: 16),
 
-          // 3. PRODUCT GRID
+          // 3. PRODUCT GRID WITH SUPABASE FETCH
           Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.78,
-              children: [
-                _buildGridProductCard(context, 'AC Dust Filter (Universal)', '₹349', '₹499', '30% OFF'),
-                _buildGridProductCard(context, 'Pipe Repair Tape 5m', '₹89', '₹120', '26% OFF'),
-                _buildGridProductCard(context, 'Car Shampoo 500ml', '₹199', '₹299', '33% OFF'),
-                _buildGridProductCard(context, '3-Tier Tiffin Box', '₹449', '₹599', '25% OFF'),
-                _buildGridProductCard(context, 'Laundry Detergent 1kg', '₹249', '₹349', '29% OFF'),
-                _buildGridProductCard(context, 'Microfiber Cloths (5pc)', '₹299', '₹399', '25% OFF'),
-                _buildGridProductCard(context, 'Drain Cleaner 500ml', '₹149', '₹199', '25% OFF'),
-                _buildGridProductCard(context, 'Mesh Laundry Bag Set', '₹179', '₹249', '28% OFF'),
-              ],
+            child: productsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(
+                child: Text('Error loading products: ${err.toString()}', style: const TextStyle(color: AppTheme.dangerColor)),
+              ),
+              data: (products) {
+                // Filter locally by selected category pill
+                final filteredProducts = selectedCategory == 'All'
+                    ? products
+                    : products.where((p) => p['category'] == selectedCategory).toList();
+
+                if (filteredProducts.isEmpty) {
+                  return const Center(
+                    child: Text('No products available in your 5 km zone.', style: TextStyle(color: AppTheme.textSecondaryColor)),
+                  );
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.78,
+                  ),
+                  itemCount: filteredProducts.length,
+                  itemBuilder: (context, index) {
+                    final item = filteredProducts[index];
+                    return _buildGridProductCard(
+                      context,
+                      item['name'] ?? '',
+                      '₹${item['price'] ?? 0}',
+                      item['original_price'] != null ? '₹${item['original_price']}' : '',
+                      item['discount'] ?? '',
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],
@@ -168,36 +194,41 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         fontSize: 14,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      originalPrice,
-                      style: const TextStyle(
-                        decoration: TextDecoration.lineThrough,
-                        color: AppTheme.textSecondaryColor,
-                        fontSize: 11,
+                    if (originalPrice.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        originalPrice,
+                        style: const TextStyle(
+                          decoration: TextDecoration.lineThrough,
+                          color: AppTheme.textSecondaryColor,
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xfff0fdf4),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        discount,
-                        style: const TextStyle(
-                          color: Color(0xff16a34a),
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
+                    if (discount.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xfff0fdf4),
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                      ),
-                    ),
+                        child: Text(
+                          discount,
+                          style: const TextStyle(
+                            color: Color(0xff16a34a),
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox(),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

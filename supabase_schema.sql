@@ -1,472 +1,200 @@
--- ServiceHub Supabase Database Schema
--- Phase 2: Database Design & RLS Policies
--- Target: Supabase (PostgreSQL with PostGIS and Realtime)
+-- =======================================================
+-- SERVICEHUB DATABASE SCHEMA (SUPABASE POSTGRESQL + POSTGIS)
+-- =======================================================
 
--- =========================================================================
--- 1. EXTENSIONS & SCHEMA SETUP
--- =========================================================================
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "postgis"; -- Crucial for 5km geofencing and GPS radius checks
+-- Enable PostGIS extension for hyperlocal geofencing
+CREATE EXTENSION IF NOT EXISTS postgis;
 
--- =========================================================================
--- 2. CUSTOM TYPES AND ENUMS
--- =========================================================================
-CREATE TYPE user_role AS ENUM ('customer', 'partner', 'admin');
-CREATE TYPE partner_role AS ENUM ('shopkeeper', 'service_provider');
-CREATE TYPE booking_status AS ENUM ('created', 'accepted', 'en_route', 'active', 'completed', 'cancelled');
-CREATE TYPE order_status AS ENUM ('placed', 'accepted', 'ready_for_pickup', 'out_for_delivery', 'delivered', 'cancelled');
-CREATE TYPE payment_status AS ENUM ('pending', 'completed', 'failed', 'refunded');
-
--- =========================================================================
--- 3. CORE PLATFORM TABLES
--- =========================================================================
-
--- Central profiles table linked to Supabase Auth
-CREATE TABLE public.users (
-    id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-    phone_number TEXT UNIQUE NOT NULL,
-    full_name TEXT NOT NULL,
-    role user_role NOT NULL DEFAULT 'customer',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Customer Profiles
-CREATE TABLE public.customers (
-    id UUID REFERENCES public.users(id) ON DELETE CASCADE PRIMARY KEY,
+-- 1. PROFILES TABLE (Holds roles: customer, partner, admin)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT UNIQUE NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('customer', 'partner', 'admin')),
+    name TEXT,
+    phone TEXT,
     avatar_url TEXT,
-    default_address TEXT,
-    default_lat DECIMAL(9,6),
-    default_lon DECIMAL(9,6),
-    rating DECIMAL(2,1) DEFAULT 5.0,
-    total_bookings INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Partner / Business Profiles (Shopkeepers & Service Providers)
-CREATE TABLE public.partners (
-    id UUID REFERENCES public.users(id) ON DELETE CASCADE PRIMARY KEY,
-    business_name TEXT NOT NULL,
-    partner_type partner_role NOT NULL,
-    logo_url TEXT,
-    address TEXT,
-    latitude DECIMAL(9,6),
-    longitude DECIMAL(9,6),
-    is_online BOOLEAN DEFAULT false NOT NULL,
-    kyc_verified BOOLEAN DEFAULT false NOT NULL,
-    rating DECIMAL(3,2) DEFAULT 5.00,
-    total_jobs INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
+-- Enable RLS on profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Delivery Agent Profiles
-CREATE TABLE public.delivery_agents (
-    id UUID REFERENCES public.users(id) ON DELETE CASCADE PRIMARY KEY,
-    vehicle_number TEXT NOT NULL,
-    vehicle_type TEXT NOT NULL, -- bike, cycle, etc.
-    latitude DECIMAL(9,6),
-    longitude DECIMAL(9,6),
-    is_online BOOLEAN DEFAULT false NOT NULL,
-    kyc_verified BOOLEAN DEFAULT false NOT NULL,
-    rating DECIMAL(3,2) DEFAULT 5.00,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
+CREATE POLICY "Allow public read access to profiles" 
+    ON public.profiles FOR SELECT USING (true);
 
--- =========================================================================
--- 4. SERVICES & INVENTORY TABLES
--- =========================================================================
+CREATE POLICY "Allow users to update their own profile" 
+    ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
--- Service Categories (e.g. Hardware Services, Plumbing, Cooking, Laundry, Car Service)
-CREATE TABLE public.service_categories (
-    id BIGSERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    description TEXT,
-    icon_url TEXT,
-    is_active BOOLEAN DEFAULT true NOT NULL
-);
-
--- Product Categories (e.g. Supplies, Tools, Spare Parts)
-CREATE TABLE public.product_categories (
-    id BIGSERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    description TEXT,
-    icon_url TEXT,
-    is_active BOOLEAN DEFAULT true NOT NULL
-);
-
--- Services offered by Service Providers
-CREATE TABLE public.services (
-    id BIGSERIAL PRIMARY KEY,
-    provider_id UUID REFERENCES public.partners(id) ON DELETE CASCADE NOT NULL,
-    category_id BIGINT REFERENCES public.service_categories(id) NOT NULL,
+-- 2. SERVICES CATALOG TABLE
+CREATE TABLE IF NOT EXISTS public.services (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
+    category TEXT NOT NULL,
     description TEXT,
-    visiting_charge DECIMAL(10,2) NOT NULL,
-    price_range_min DECIMAL(10,2) NOT NULL,
-    price_range_max DECIMAL(10,2) NOT NULL,
-    is_available BOOLEAN DEFAULT true NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    price DOUBLE PRECISION NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Products offered by Shopkeepers
-CREATE TABLE public.products (
-    id BIGSERIAL PRIMARY KEY,
-    shop_id UUID REFERENCES public.partners(id) ON DELETE CASCADE NOT NULL,
-    category_id BIGINT REFERENCES public.product_categories(id) NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
-    price DECIMAL(10,2) NOT NULL,
-    compare_at_price DECIMAL(10,2), -- Strikethrough price
-    stock_quantity INTEGER NOT NULL DEFAULT 0,
-    image_url TEXT,
-    is_available BOOLEAN DEFAULT true NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- =========================================================================
--- 5. TRANSACTIONAL TABLES (BOOKINGS & ORDERS)
--- =========================================================================
-
--- Service Bookings
-CREATE TABLE public.bookings (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    customer_id UUID REFERENCES public.customers(id) NOT NULL,
-    provider_id UUID REFERENCES public.partners(id) NOT NULL,
-    service_id BIGINT REFERENCES public.services(id) NOT NULL,
-    status booking_status NOT NULL DEFAULT 'created',
-    scheduled_date DATE NOT NULL,
-    scheduled_time_slot TEXT NOT NULL,
-    description_issue TEXT,
-    photo_urls TEXT[] DEFAULT '{}',
-    visiting_charge DECIMAL(10,2) NOT NULL,
-    estimated_total DECIMAL(10,2) NOT NULL,
-    final_total DECIMAL(10,2),
-    completion_otp TEXT NOT NULL, -- Secure OTP sent to customer
-    customer_lat DECIMAL(9,6) NOT NULL,
-    customer_lon DECIMAL(9,6) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Product Orders
-CREATE TABLE public.orders (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    customer_id UUID REFERENCES public.customers(id) NOT NULL,
-    shop_id UUID REFERENCES public.partners(id) NOT NULL,
-    delivery_agent_id UUID REFERENCES public.delivery_agents(id),
-    status order_status NOT NULL DEFAULT 'placed',
-    subtotal DECIMAL(10,2) NOT NULL,
-    delivery_fee DECIMAL(10,2) NOT NULL,
-    total_price DECIMAL(10,2) NOT NULL,
-    customer_lat DECIMAL(9,6) NOT NULL,
-    customer_lon DECIMAL(9,6) NOT NULL,
-    pickup_pin VARCHAR(4) NOT NULL,      -- Unlocks at <= 5m from shop
-    delivery_pin VARCHAR(4) NOT NULL,    -- Unlocks at <= 5m from customer
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Product Order Items
-CREATE TABLE public.order_items (
-    id BIGSERIAL PRIMARY KEY,
-    order_id UUID REFERENCES public.orders(id) ON DELETE CASCADE NOT NULL,
-    product_id BIGINT REFERENCES public.products(id) NOT NULL,
-    quantity INTEGER NOT NULL CHECK (quantity > 0),
-    price_per_item DECIMAL(10,2) NOT NULL
-);
-
--- Payments Ledger
-CREATE TABLE public.payments (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    order_id UUID REFERENCES public.orders(id),
-    booking_id UUID REFERENCES public.bookings(id),
-    payment_method TEXT NOT NULL, -- cash_on_delivery, online
-    payment_status payment_status NOT NULL DEFAULT 'pending',
-    transaction_id TEXT,
-    amount DECIMAL(10,2) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    CONSTRAINT one_target CHECK (
-        (order_id IS NOT NULL AND booking_id IS NULL) OR 
-        (booking_id IS NOT NULL AND order_id IS NULL)
-    )
-);
-
--- =========================================================================
--- 6. DISPUTES, REVIEWS, & REALTIME CHATS
--- =========================================================================
-
--- Reviews & Ratings
-CREATE TABLE public.reviews (
-    id BIGSERIAL PRIMARY KEY,
-    customer_id UUID REFERENCES public.customers(id) NOT NULL,
-    provider_id UUID REFERENCES public.partners(id),
-    product_id BIGINT REFERENCES public.products(id),
-    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-    comment TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    CONSTRAINT one_subject CHECK (
-        (provider_id IS NOT NULL AND product_id IS NULL) OR 
-        (product_id IS NOT NULL AND provider_id IS NULL)
-    )
-);
-
--- Chat Channels (Direct user-to-user and customer-to-admin chats)
-CREATE TABLE public.chats (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    booking_id UUID REFERENCES public.bookings(id),
-    order_id UUID REFERENCES public.orders(id),
-    sender_id UUID REFERENCES public.users(id) NOT NULL,
-    receiver_id UUID REFERENCES public.users(id) NOT NULL,
-    message TEXT NOT NULL,
-    is_read BOOLEAN DEFAULT false NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Support Tickets / Complaints
-CREATE TABLE public.complaints (
-    id BIGSERIAL PRIMARY KEY,
-    user_id UUID REFERENCES public.users(id) NOT NULL,
-    booking_id UUID REFERENCES public.bookings(id),
-    order_id UUID REFERENCES public.orders(id),
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    status TEXT DEFAULT 'open' NOT NULL, -- open, investigating, resolved
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Earnings Ledger (Commission calculation)
-CREATE TABLE public.earnings (
-    id BIGSERIAL PRIMARY KEY,
-    partner_id UUID REFERENCES public.partners(id) ON DELETE CASCADE,
-    agent_id UUID REFERENCES public.delivery_agents(id) ON DELETE CASCADE,
-    booking_id UUID REFERENCES public.bookings(id),
-    order_id UUID REFERENCES public.orders(id),
-    gross_amount DECIMAL(10,2) NOT NULL,
-    commission_deducted DECIMAL(10,2) NOT NULL,
-    net_payout DECIMAL(10,2) NOT NULL,
-    is_settled BOOLEAN DEFAULT false NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    CONSTRAINT one_recipient CHECK (
-        (partner_id IS NOT NULL AND agent_id IS NULL) OR 
-        (agent_id IS NOT NULL AND partner_id IS NULL)
-    )
-);
-
--- Global System Configurations (Commissions, Service fees)
-CREATE TABLE public.commissions (
-    id SERIAL PRIMARY KEY,
-    service_commission_rate DECIMAL(4,2) DEFAULT 10.00 NOT NULL, -- e.g., 10%
-    product_commission_rate DECIMAL(4,2) DEFAULT 8.00 NOT NULL,   -- e.g., 8%
-    base_delivery_fee DECIMAL(10,2) DEFAULT 30.00 NOT NULL,
-    platform_fee DECIMAL(10,2) DEFAULT 5.00 NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- =========================================================================
--- 7. SECURITY & RLS POLICIES
--- =========================================================================
-
--- Enable RLS on all public tables
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.partners ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.delivery_agents ENABLE ROW LEVEL SECURITY;
+-- Enable RLS on services
 ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.complaints ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.earnings ENABLE ROW LEVEL SECURITY;
 
--- 7.1 Users Policies
-CREATE POLICY "Allow public read access to users" ON public.users 
-    FOR SELECT USING (true);
-CREATE POLICY "Allow users to update their own data" ON public.users 
-    FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Allow public read access to services" 
+    ON public.services FOR SELECT USING (true);
 
--- 7.2 Customer Policies
-CREATE POLICY "Allow public read access to customer profiles" ON public.customers 
-    FOR SELECT USING (true);
-CREATE POLICY "Allow customers to manage their own profile" ON public.customers 
-    FOR ALL USING (auth.uid() = id);
-
--- 7.3 Partner Policies
-CREATE POLICY "Allow public read access to partner profiles" ON public.partners 
-    FOR SELECT USING (true);
-CREATE POLICY "Allow partners to manage their own profile" ON public.partners 
-    FOR ALL USING (auth.uid() = id);
-
--- 7.4 Delivery Agent Policies
-CREATE POLICY "Allow public read access to active agents" ON public.delivery_agents 
-    FOR SELECT USING (true);
-CREATE POLICY "Allow agents to update their coordinates/status" ON public.delivery_agents 
-    FOR ALL USING (auth.uid() = id);
-
--- 7.5 Services & Products Policies (All can read, only partner owners can manage)
-CREATE POLICY "Allow anyone to read services" ON public.services FOR SELECT USING (true);
-CREATE POLICY "Allow partners to edit their own services" ON public.services 
-    FOR ALL USING (auth.uid() = provider_id);
-
-CREATE POLICY "Allow anyone to read products" ON public.products FOR SELECT USING (true);
-CREATE POLICY "Allow partners to edit their own products" ON public.products 
-    FOR ALL USING (auth.uid() = shop_id);
-
--- 7.6 Bookings Policies
-CREATE POLICY "Customers see their own bookings" ON public.bookings 
-    FOR SELECT USING (auth.uid() = customer_id);
-CREATE POLICY "Partners see their assigned bookings" ON public.bookings 
-    FOR SELECT USING (auth.uid() = provider_id);
-CREATE POLICY "Customers can create bookings" ON public.bookings 
-    FOR INSERT WITH CHECK (auth.uid() = customer_id);
-CREATE POLICY "Parties to booking can update booking state" ON public.bookings 
-    FOR UPDATE USING (auth.uid() = customer_id OR auth.uid() = provider_id);
-
--- 7.7 Orders & Order Items Policies
-CREATE POLICY "Customers see their own orders" ON public.orders 
-    FOR SELECT USING (auth.uid() = customer_id);
-CREATE POLICY "Shops see orders placed with them" ON public.orders 
-    FOR SELECT USING (auth.uid() = shop_id);
-CREATE POLICY "Delivery agents see orders assigned to them" ON public.orders 
-    FOR SELECT USING (auth.uid() = delivery_agent_id OR status = 'ready_for_pickup');
-CREATE POLICY "Customers can place orders" ON public.orders 
-    FOR INSERT WITH CHECK (auth.uid() = customer_id);
-CREATE POLICY "Parties to order can update order" ON public.orders 
-    FOR UPDATE USING (auth.uid() = customer_id OR auth.uid() = shop_id OR auth.uid() = delivery_agent_id);
-
-CREATE POLICY "Access order items via order ownership" ON public.order_items 
-    FOR SELECT USING (
+CREATE POLICY "Allow admin only edits to services" 
+    ON public.services FOR ALL USING (
         EXISTS (
-            SELECT 1 FROM public.orders 
-            WHERE public.orders.id = order_items.order_id AND (
-                orders.customer_id = auth.uid() OR 
-                orders.shop_id = auth.uid() OR 
-                orders.delivery_agent_id = auth.uid()
-            )
+            SELECT 1 FROM public.profiles 
+            WHERE id = auth.uid() AND role = 'admin'
         )
     );
 
--- 7.8 Chat Policies (Access only if sender or receiver)
-CREATE POLICY "Users can access their own chat threads" ON public.chats 
-    FOR ALL USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+-- 3. PRODUCTS CATALOG TABLE (With location coordinates for geofencing)
+CREATE TABLE IF NOT EXISTS public.products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    price DOUBLE PRECISION NOT NULL,
+    original_price DOUBLE PRECISION,
+    discount TEXT,
+    category TEXT NOT NULL,
+    stock INTEGER DEFAULT 10,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- =========================================================================
--- 8. DATABASE TRIGGERS & BUSINESS LOGIC FUNCTIONS
--- =========================================================================
+-- Enable RLS on products
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
--- Trigger to sync auth.users with public.users
+CREATE POLICY "Allow public read access to products" 
+    ON public.products FOR SELECT USING (true);
+
+CREATE POLICY "Allow seller to edit their own products" 
+    ON public.products FOR ALL USING (auth.uid() = seller_id);
+
+-- 4. BOOKINGS TABLE (Service bookings)
+CREATE TABLE IF NOT EXISTS public.bookings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    provider_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    service_name TEXT NOT NULL,
+    issue_description TEXT,
+    photo_url TEXT,
+    scheduled_date TEXT NOT NULL,
+    scheduled_time TEXT NOT NULL,
+    payment_method TEXT DEFAULT 'Cash on Service',
+    price DOUBLE PRECISION NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('Pending', 'Confirmed', 'En Route', 'Started', 'Completed')) DEFAULT 'Pending',
+    entrance_pin TEXT DEFAULT '7429',
+    completion_otp TEXT DEFAULT '5892',
+    customer_lat DOUBLE PRECISION,
+    customer_lng DOUBLE PRECISION,
+    provider_lat DOUBLE PRECISION,
+    provider_lng DOUBLE PRECISION,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on bookings
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Customers can view their own bookings" 
+    ON public.bookings FOR SELECT USING (auth.uid() = customer_id);
+
+CREATE POLICY "Providers can view assigned bookings" 
+    ON public.bookings FOR SELECT USING (auth.uid() = provider_id);
+
+CREATE POLICY "Customers can insert bookings" 
+    ON public.bookings FOR INSERT WITH CHECK (auth.uid() = customer_id);
+
+CREATE POLICY "Users can update their booking status" 
+    ON public.bookings FOR UPDATE USING (
+        auth.uid() = customer_id OR auth.uid() = provider_id
+    );
+
+-- 5. ORDERS TABLE (Product delivery orders)
+CREATE TABLE IF NOT EXISTS public.orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    agent_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    status TEXT NOT NULL CHECK (status IN ('Placed', 'Packing', 'Ready for Pickup', 'Out for Delivery', 'Delivered')) DEFAULT 'Placed',
+    items_summary TEXT,
+    subtotal DOUBLE PRECISION NOT NULL,
+    delivery_fee DOUBLE PRECISION NOT NULL,
+    grand_total DOUBLE PRECISION NOT NULL,
+    delivery_pin TEXT DEFAULT '2842',
+    shipping_address TEXT,
+    customer_lat DOUBLE PRECISION,
+    customer_lng DOUBLE PRECISION,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on orders
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Customers can view their own orders" 
+    ON public.orders FOR SELECT USING (auth.uid() = customer_id);
+
+CREATE POLICY "Agents can view assigned orders" 
+    ON public.orders FOR SELECT USING (auth.uid() = agent_id);
+
+CREATE POLICY "Customers can place orders" 
+    ON public.orders FOR INSERT WITH CHECK (auth.uid() = customer_id);
+
+CREATE POLICY "Users can update order status" 
+    ON public.orders FOR UPDATE USING (
+        auth.uid() = customer_id OR auth.uid() = agent_id
+    );
+
+-- =======================================================
+-- HYPERLOCAL GEOGRAPHIC QUERY FUNCTIONS (POSTGIS)
+-- =======================================================
+
+-- Function: Get products within range (default 5000 meters / 5 km)
+CREATE OR REPLACE FUNCTION get_products_in_range(
+    customer_lat DOUBLE PRECISION, 
+    customer_lng DOUBLE PRECISION, 
+    range_meters DOUBLE PRECISION DEFAULT 5000.0
+)
+RETURNS SETOF public.products AS $$
+BEGIN
+    RETURN QUERY
+    SELECT *
+    FROM public.products
+    WHERE ST_DWithin(
+        ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography,
+        ST_SetSRID(ST_MakePoint(customer_lng, customer_lat), 4326)::geography,
+        range_meters
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to create a public profile automatically when a user signs up via auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.users (id, phone_number, full_name, role)
-    VALUES (
-        new.id, 
-        new.phone, 
-        COALESCE(new.raw_user_meta_data->>'full_name', 'User'), 
-        COALESCE((new.raw_user_meta_data->>'role')::user_role, 'customer'::user_role)
-    );
-
-    -- Sync profile table based on user role
-    IF COALESCE(new.raw_user_meta_data->>'role', 'customer') = 'customer' THEN
-        INSERT INTO public.customers (id) VALUES (new.id);
-    ELSIF COALESCE(new.raw_user_meta_data->>'role', 'customer') = 'partner' THEN
-        INSERT INTO public.partners (id, business_name, partner_type) 
-        VALUES (
-            new.id, 
-            COALESCE(new.raw_user_meta_data->>'business_name', 'Business Profile'),
-            COALESCE((new.raw_user_meta_data->>'partner_type')::partner_role, 'service_provider'::partner_role)
-        );
-    ELSIF COALESCE(new.raw_user_meta_data->>'role', 'customer') = 'delivery_agent' THEN
-        INSERT INTO public.delivery_agents (id, vehicle_number, vehicle_type) 
-        VALUES (
-            new.id, 
-            COALESCE(new.raw_user_meta_data->>'vehicle_number', 'PENDING'),
-            COALESCE(new.raw_user_meta_data->>'vehicle_type', 'bike')
-        );
-    END IF;
-
-    RETURN new;
+  INSERT INTO public.profiles (id, email, role, name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'role', 'customer'),
+    COALESCE(NEW.raw_user_meta_data->>'name', NEW.email)
+  );
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+CREATE OR REPLACE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Geofencing Check: Distance calculation helper using PostGIS
-CREATE OR REPLACE FUNCTION public.check_geofence(
-    shop_lat DECIMAL(9,6), 
-    shop_lon DECIMAL(9,6), 
-    cust_lat DECIMAL(9,6), 
-    cust_lon DECIMAL(9,6),
-    max_distance_meters FLOAT DEFAULT 5000.0 -- Default strict 5 km radius
-)
-RETURNS BOOLEAN AS $$
-DECLARE
-    distance FLOAT;
-BEGIN
-    distance := ST_Distance(
-        ST_SetSRID(ST_MakePoint(shop_lon, shop_lat), 4326)::geography,
-        ST_SetSRID(ST_MakePoint(cust_lon, cust_lat), 4326)::geography
-    );
-    RETURN distance <= max_distance_meters;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- PIN Validation: Decrypts/Checks Delivery PIN only when distance <= 5m
-CREATE OR REPLACE FUNCTION public.verify_delivery_location_pin(
-    target_order_id UUID,
-    agent_lat DECIMAL(9,6),
-    agent_lon DECIMAL(9,6),
-    input_pin VARCHAR(4),
-    is_pickup_step BOOLEAN -- true if verifying at shop, false if verifying at customer
-)
-RETURNS BOOLEAN AS $$
-DECLARE
-    dest_lat DECIMAL(9,6);
-    dest_lon DECIMAL(9,6);
-    correct_pin VARCHAR(4);
-    distance FLOAT;
-BEGIN
-    -- 1. Fetch correct coordinates and PIN depending on verification step
-    IF is_pickup_step THEN
-        SELECT p.latitude, p.longitude, o.pickup_pin INTO dest_lat, dest_lon, correct_pin
-        FROM public.orders o
-        JOIN public.partners p ON o.shop_id = p.id
-        WHERE o.id = target_order_id;
-    ELSE
-        SELECT o.customer_lat, o.customer_lon, o.delivery_pin INTO dest_lat, dest_lon, correct_pin
-        FROM public.orders o
-        WHERE o.id = target_order_id;
-    END IF;
-
-    -- 2. Verify GPS proximity (must be <= 5 meters)
-    distance := ST_Distance(
-        ST_SetSRID(ST_MakePoint(agent_lon, agent_lat), 4326)::geography,
-        ST_SetSRID(ST_MakePoint(dest_lon, dest_lat), 4326)::geography
-    );
-
-    IF distance > 5.0 THEN
-        RAISE EXCEPTION 'Verification failed: Delivery Agent must be within 5 meters of target location. Current distance: % meters', ROUND(distance::numeric, 2);
-    END IF;
-
-    -- 3. Match PIN code
-    RETURN input_pin = correct_pin;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- =========================================================================
--- 9. OPTIMIZATION INDEXES
--- =========================================================================
-CREATE INDEX idx_users_phone ON public.users(phone_number);
-CREATE INDEX idx_services_provider ON public.services(provider_id);
-CREATE INDEX idx_products_shop ON public.products(shop_id);
-CREATE INDEX idx_bookings_customer ON public.bookings(customer_id);
-CREATE INDEX idx_bookings_provider ON public.bookings(provider_id);
-CREATE INDEX idx_orders_customer ON public.orders(customer_id);
-CREATE INDEX idx_orders_shop ON public.orders(shop_id);
-CREATE INDEX idx_orders_agent ON public.orders(delivery_agent_id);
-CREATE INDEX idx_chats_sender_receiver ON public.chats(sender_id, receiver_id);
+-- Seed data for testing products
+INSERT INTO public.products (name, description, price, original_price, discount, category, latitude, longitude)
+VALUES 
+('AC Dust Filter (Universal)', 'Universal high performance AC filter', 349, 499, '30% OFF', 'AC', 12.9103, 77.6433),
+('Pipe Repair Tape 5m', 'Waterproof heavy-duty repair tape', 89, 120, '26% OFF', 'Plumbing', 12.9110, 77.6420),
+('Car Shampoo 500ml', 'Premium wax-infused car cleaner', 199, 299, '33% OFF', 'Car', 12.9090, 77.6450),
+('3-Tier Tiffin Box', 'Stainless steel insulated lunch box', 449, 599, '25% OFF', 'Cooking', 12.9130, 77.6410);

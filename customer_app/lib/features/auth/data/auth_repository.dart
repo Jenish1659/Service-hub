@@ -30,6 +30,36 @@ class AuthRepository {
     }
   }
 
+  // Sign in using email & password
+  Future<AuthResponse> signInWithEmail(String email, String password) async {
+    try {
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      return response;
+    } catch (e) {
+      throw Exception('Email login failed: ${e.toString()}');
+    }
+  }
+
+  // Sign up using email & password
+  Future<AuthResponse> signUpWithEmail(String email, String password, String name, String role) async {
+    try {
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'name': name,
+          'role': role,
+        },
+      );
+      return response;
+    } catch (e) {
+      throw Exception('Email signup failed: ${e.toString()}');
+    }
+  }
+
   // Sign out user session
   Future<void> signOut() async {
     try {

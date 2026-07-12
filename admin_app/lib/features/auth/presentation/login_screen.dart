@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/routes/app_router.dart';
 import 'auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -28,6 +29,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     // Local Demo / Prototype Bypass
     if (email == 'admin@servicehub.com' && password == 'admin123') {
+      adminBypassLoggedIn = true;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Mock Admin Login Successful!')),
       );
@@ -37,6 +39,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final success = await ref.read(authControllerProvider.notifier).login(email, password);
     if (success) {
+      adminBypassLoggedIn = true;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Admin authenticated successfully!')),
       );

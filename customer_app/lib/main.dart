@@ -14,10 +14,9 @@ void main() async {
   await Hive.openBox('customer_cache');
 
   // Initialize Supabase Client
-  // Note: Replace these URL and Anon Key strings with your own Supabase project credentials.
   await Supabase.initialize(
-    url: 'https://placeholder-project-id.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholderAnonKeyTextHere',
+    url: 'https://qnmmonfzjsyeckaihqpg.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFubW1vbmZ6anN5ZWNrYWlocXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MjU2NzIsImV4cCI6MjA5OTQwMTY3Mn0.EnLGf4cutTcr8J44Ody5CDtbmL2V9UWOm_iboVFD83k',
   );
 
   runApp(

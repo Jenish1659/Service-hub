@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class CartScreen extends StatefulWidget {
@@ -13,6 +14,54 @@ class _CartScreenState extends State<CartScreen> {
   int quantity = 1;
   final int itemPrice = 349;
   final int deliveryFee = 35;
+  bool _isPlacingOrder = false;
+
+  Future<void> _placeOrder(int subtotal, int total) async {
+    setState(() {
+      _isPlacingOrder = true;
+    });
+
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to place an order.'), backgroundColor: AppTheme.warningColor),
+      );
+      context.push('/login');
+      return;
+    }
+
+    try {
+      final response = await client.from('orders').insert({
+        'customer_id': user.id,
+        'status': 'Placed',
+        'items_summary': 'AC Dust Filter (Universal) x$quantity',
+        'subtotal': subtotal.toDouble(),
+        'delivery_fee': deliveryFee.toDouble(),
+        'grand_total': total.toDouble(),
+        'delivery_pin': '2842',
+        'shipping_address': 'Koramangala Sector 4, Bangalore',
+      }).select().single();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order Placed Successfully!'), backgroundColor: AppTheme.successColor),
+        );
+        final orderId = response['id'];
+        context.go('/track-order/$orderId');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isPlacingOrder = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error placing order: ${e.toString()}'), backgroundColor: AppTheme.dangerColor),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -177,14 +226,14 @@ class _CartScreenState extends State<CartScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Order Placed Successfully!')),
-                        );
-                        // Navigate to tracking
-                        context.go('/track-order/ORD-2842');
-                      },
-                      child: Text('Place Order · ₹$total'),
+                      onPressed: _isPlacingOrder ? null : () => _placeOrder(subtotal, total),
+                      child: _isPlacingOrder
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : Text('Place Order · ₹$total'),
                     ),
                   ),
                 ],

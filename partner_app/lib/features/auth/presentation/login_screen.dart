@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/routes/app_router.dart';
 import 'auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -12,76 +13,65 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _otpController = TextEditingController();
-  bool _otpSent = false;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
 
-  Future<void> _handleSendOtp() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
+  bool _isSignUp = false;
+
+  Future<void> _handleAuth() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your phone number.')),
+        const SnackBar(content: Text('Please enter email and password.')),
       );
       return;
     }
 
-    // Mock Bypass for testing
-    if (phone == '9876543210') {
-      setState(() {
-        _otpSent = true;
-      });
+    if (_isSignUp && name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Demo OTP Code is 1234')),
+        const SnackBar(content: Text('Please enter your company/provider name.')),
       );
       return;
     }
 
-    final success = await ref.read(authControllerProvider.notifier).sendOtp(phone);
-    if (success) {
-      setState(() {
-        _otpSent = true;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification OTP code sent!')),
+    bool success = false;
+    if (_isSignUp) {
+      // Registering partner
+      success = await ref.read(authControllerProvider.notifier).signUpWithEmail(
+        email,
+        password,
+        name,
+        'partner',
       );
+      if (success) {
+        partnerBypassLoggedIn = true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Partner Account created! Select console to begin.'), backgroundColor: AppTheme.successColor),
+        );
+        context.go('/role-select');
+      }
     } else {
+      success = await ref.read(authControllerProvider.notifier).loginWithEmail(email, password);
+      if (success) {
+        partnerBypassLoggedIn = true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Partner authenticated successfully!'), backgroundColor: AppTheme.successColor),
+        );
+        context.go('/role-select');
+      }
+    }
+
+    if (!success) {
       final error = ref.read(authControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Failed to send OTP.')),
-      );
-    }
-  }
-
-  Future<void> _handleVerify() async {
-    final phone = _phoneController.text.trim();
-    final otp = _otpController.text.trim();
-
-    if (otp.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the verification OTP.')),
-      );
-      return;
-    }
-
-    // Mock Bypass verification
-    if (phone == '9876543210' && otp == '1234') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mock Login Successful!')),
-      );
-      context.go('/role-select');
-      return;
-    }
-
-    final success = await ref.read(authControllerProvider.notifier).verifyOtp(phone, otp);
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Successfully authenticated!')),
-      );
-      context.go('/role-select');
-    } else {
-      final error = ref.read(authControllerProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Invalid verification OTP.')),
+        SnackBar(
+          content: Text(error?.toString() ?? 'Partner login failed. Verify credentials.'),
+          backgroundColor: AppTheme.dangerColor,
+        ),
       );
     }
   }
@@ -92,65 +82,98 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isLoading = authState.isLoading;
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'ServiceHub Partner Workspace',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimaryColor,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _isSignUp ? 'Onboard as a Partner' : 'ServiceHub Partner Workspace',
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimaryColor,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Sign in to manage your services, store inventory, or delivery runs.',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondaryColor,
+              const SizedBox(height: 8),
+              Text(
+                _isSignUp 
+                    ? 'Register your company to offer services, sell items, or execute deliveries.' 
+                    : 'Sign in to access your merchant inventory, service schedules, or delivery routes.',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondaryColor,
+                ),
               ),
-            ),
-            const SizedBox(height: 32),
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              enabled: !_otpSent && !isLoading,
-              decoration: const InputDecoration(
-                hintText: 'Enter Phone Number',
-                prefixIcon: Icon(Icons.phone, color: AppTheme.textSecondaryColor),
-              ),
-            ),
-            if (_otpSent) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 32),
+              
+              if (_isSignUp) ...[
+                TextField(
+                  controller: _nameController,
+                  enabled: !isLoading,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter Company or Full Name',
+                    prefixIcon: Icon(Icons.business, color: AppTheme.textSecondaryColor),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              
               TextField(
-                controller: _otpController,
-                keyboardType: TextInputType.number,
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
                 enabled: !isLoading,
                 decoration: const InputDecoration(
-                  hintText: 'Enter Verification OTP',
-                  prefixIcon: Icon(Icons.lock_open, color: AppTheme.textSecondaryColor),
+                  hintText: 'Enter Email Address',
+                  prefixIcon: Icon(Icons.email, color: AppTheme.textSecondaryColor),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                enabled: !isLoading,
+                decoration: const InputDecoration(
+                  hintText: 'Enter Password',
+                  prefixIcon: Icon(Icons.lock, color: AppTheme.textSecondaryColor),
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : _handleAuth,
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : Text(_isSignUp ? 'Create Partner Profile' : 'Verify & Sign In'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isSignUp = !_isSignUp;
+                    });
+                  },
+                  child: Text(
+                    _isSignUp ? 'Already a partner? Sign In' : 'Offer your services on ServiceHub? Sign Up',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : (_otpSent ? _handleVerify : _handleSendOtp),
-                child: isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : Text(_otpSent ? 'Verify & Continue' : 'Send OTP'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -12,76 +12,62 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _otpController = TextEditingController();
-  bool _otpSent = false;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
 
-  Future<void> _handleSendOtp() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
+  bool _isSignUp = false;
+
+  Future<void> _handleAuth() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid phone number.')),
+        const SnackBar(content: Text('Please enter email and password.')),
       );
       return;
     }
 
-    // Mock Bypass for testing
-    if (phone == '9876543210') {
-      setState(() {
-        _otpSent = true;
-      });
+    if (_isSignUp && name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Demo OTP Code is 1234')),
+        const SnackBar(content: Text('Please enter your name for sign up.')),
       );
       return;
     }
 
-    final success = await ref.read(authControllerProvider.notifier).sendOtp(phone);
-    if (success) {
-      setState(() {
-        _otpSent = true;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP sent successfully!')),
+    bool success = false;
+    if (_isSignUp) {
+      success = await ref.read(authControllerProvider.notifier).signUpWithEmail(
+        email,
+        password,
+        name,
+        'customer',
       );
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created successfully! Welcome!'), backgroundColor: AppTheme.successColor),
+        );
+        context.go('/');
+      }
     } else {
+      success = await ref.read(authControllerProvider.notifier).loginWithEmail(email, password);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logged in successfully!'), backgroundColor: AppTheme.successColor),
+        );
+        context.go('/');
+      }
+    }
+
+    if (!success) {
       final error = ref.read(authControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Failed to send OTP. Try again.')),
-      );
-    }
-  }
-
-  Future<void> _handleVerify() async {
-    final phone = _phoneController.text.trim();
-    final otp = _otpController.text.trim();
-
-    if (otp.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the verification OTP.')),
-      );
-      return;
-    }
-
-    // Mock Bypass verification
-    if (phone == '9876543210' && otp == '1234') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mock Login Successful!')),
-      );
-      context.go('/');
-      return;
-    }
-
-    final success = await ref.read(authControllerProvider.notifier).verifyOtp(phone, otp);
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Successfully Logged In!')),
-      );
-      context.go('/');
-    } else {
-      final error = ref.read(authControllerProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Invalid verification OTP.')),
+        SnackBar(
+          content: Text(error?.toString() ?? 'Authentication failed. Please verify credentials.'),
+          backgroundColor: AppTheme.dangerColor,
+        ),
       );
     }
   }
@@ -93,71 +79,102 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Login'),
+        title: Text(_isSignUp ? 'Create Account' : 'Login'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/'),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Welcome to ServiceHub',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimaryColor,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _isSignUp ? 'Join ServiceHub' : 'Welcome back',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimaryColor,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Enter your mobile number to sign in or sign up.',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondaryColor,
+              const SizedBox(height: 8),
+              Text(
+                _isSignUp ? 'Register to start booking services near you.' : 'Log in to your hyperlocal service account.',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondaryColor,
+                ),
               ),
-            ),
-            const SizedBox(height: 32),
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              enabled: !_otpSent && !isLoading,
-              decoration: const InputDecoration(
-                hintText: 'Enter Phone Number',
-                prefixIcon: Icon(Icons.phone, color: AppTheme.textSecondaryColor),
-              ),
-            ),
-            if (_otpSent) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 32),
+              
+              if (_isSignUp) ...[
+                TextField(
+                  controller: _nameController,
+                  enabled: !isLoading,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter your Full Name',
+                    prefixIcon: Icon(Icons.person, color: AppTheme.textSecondaryColor),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              
               TextField(
-                controller: _otpController,
-                keyboardType: TextInputType.number,
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
                 enabled: !isLoading,
                 decoration: const InputDecoration(
-                  hintText: 'Enter Verification OTP',
-                  prefixIcon: Icon(Icons.lock_open, color: AppTheme.textSecondaryColor),
+                  hintText: 'Enter Email Address',
+                  prefixIcon: Icon(Icons.email, color: AppTheme.textSecondaryColor),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                enabled: !isLoading,
+                decoration: const InputDecoration(
+                  hintText: 'Enter Password',
+                  prefixIcon: Icon(Icons.lock, color: AppTheme.textSecondaryColor),
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : _handleAuth,
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : Text(_isSignUp ? 'Create Account' : 'Verify & Login'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isSignUp = !_isSignUp;
+                    });
+                  },
+                  child: Text(
+                    _isSignUp ? 'Already have an account? Sign In' : 'New to ServiceHub? Create Account',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : (_otpSent ? _handleVerify : _handleSendOtp),
-                child: isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : Text(_otpSent ? 'Verify & Login' : 'Send OTP'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

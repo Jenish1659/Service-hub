@@ -42,6 +42,30 @@ class AuthController extends StateNotifier<AsyncValue<User?>> {
     }
   }
 
+  Future<bool> loginWithEmail(String email, String password) async {
+    state = const AsyncLoading();
+    try {
+      final response = await _repository.signInWithEmail(email, password);
+      state = AsyncValue.data(response.user);
+      return response.user != null;
+    } catch (e, stack) {
+      state = AsyncError(e, stack);
+      return false;
+    }
+  }
+
+  Future<bool> signUpWithEmail(String email, String password, String name, String role) async {
+    state = const AsyncLoading();
+    try {
+      final response = await _repository.signUpWithEmail(email, password, name, role);
+      state = AsyncValue.data(response.user);
+      return response.user != null;
+    } catch (e, stack) {
+      state = AsyncError(e, stack);
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     state = const AsyncLoading();
     try {
