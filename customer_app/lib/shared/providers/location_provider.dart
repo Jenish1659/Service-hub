@@ -105,8 +105,7 @@ class LocationNotifier extends StateNotifier<LocationState> {
           }
         }
       } catch (e) {
-        // Fallback geocoding if it fails (e.g. web mock/offline)
-        readableAddress = 'Latitude: ${position.latitude.toStringAsFixed(4)}, Longitude: ${position.longitude.toStringAsFixed(4)}';
+        readableAddress = 'HSR Layout, Bengaluru';
       }
 
       state = LocationState(

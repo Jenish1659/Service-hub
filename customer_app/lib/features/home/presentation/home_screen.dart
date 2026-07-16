@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../shared/providers/location_provider.dart';
 import '../../../shared/providers/notification_provider.dart';
+import '../../auth/presentation/auth_controller.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -13,6 +14,11 @@ class HomeScreen extends ConsumerWidget {
     final locationState = ref.watch(locationProvider);
     final notifications = ref.watch(notificationProvider);
     final unreadCount = notifications.where((n) => !n.read).length;
+    
+    final authState = ref.watch(authControllerProvider);
+    final user = authState.value;
+    final String fullName = user?.userMetadata?['name'] as String? ?? user?.email?.split('@').first ?? 'Guest';
+    final String firstName = fullName.split(' ').first;
 
     return Scaffold(
       body: SafeArea(
@@ -119,9 +125,9 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 16),
                     // Greeting text
-                    const Text(
-                      'Welcome to ServiceHub!',
-                      style: TextStyle(
+                    Text(
+                      'Welcome to ServiceHub, $firstName!',
+                      style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 14,
                       ),

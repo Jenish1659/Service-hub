@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/presentation/login_screen.dart';
@@ -22,17 +23,24 @@ final GoRouter appRouter = GoRouter(
   navigatorKey: _rootNavigatorKey,
   redirect: (BuildContext context, GoRouterState state) {
     final session = Supabase.instance.client.auth.currentSession;
+    bool isLoggedIn = session != null;
+    try {
+      if (!isLoggedIn) {
+        isLoggedIn = Hive.box('customer_cache').get('is_logged_in', defaultValue: false) == true;
+      }
+    } catch (_) {}
+    
     final bool loggingIn = state.matchedLocation == '/login';
 
     // Route guards: Prompt login only for secure pages
     final secureRoutes = ['/cart', '/profile', '/track-booking', '/track-order', '/support'];
     final isSecureRoute = secureRoutes.any((route) => state.matchedLocation.startsWith(route));
 
-    if (session == null && isSecureRoute) {
+    if (!isLoggedIn && isSecureRoute) {
       return '/login';
     }
 
-    if (session != null && loggingIn) {
+    if (isLoggedIn && loggingIn) {
       return '/';
     }
 

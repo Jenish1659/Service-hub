@@ -281,7 +281,9 @@ class _SupportScreenState extends State<SupportScreen> with SingleTickerProvider
               return Align(
                 alignment: isAi ? Alignment.centerLeft : Alignment.centerRight,
                 child: Container(
-                  maxWidth: MediaQuery.of(context).size.width * 0.75,
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.75,
+                  ),
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(

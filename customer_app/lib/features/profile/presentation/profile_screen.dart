@@ -11,6 +11,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authControllerProvider);
     final user = authState.value;
+    final String fullName = user?.userMetadata?['name'] as String? ?? user?.email?.split('@').first ?? 'Guest';
 
     return Scaffold(
       appBar: AppBar(
@@ -37,7 +38,7 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                         child: Center(
                           child: Text(
-                            user != null ? (user.email ?? 'U').substring(0, 2).toUpperCase() : 'JD',
+                            fullName.substring(0, fullName.length >= 2 ? 2 : fullName.length).toUpperCase(),
                             style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -48,7 +49,7 @@ class ProfileScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              user != null ? 'Active Profile' : 'Jenish Bheda',
+                              fullName,
                               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
                             ),
                             const SizedBox(height: 4),
