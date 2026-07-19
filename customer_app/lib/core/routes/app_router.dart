@@ -11,6 +11,7 @@ import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/profile/presentation/support_screen.dart';
 import '../../features/bookings/presentation/track_booking_screen.dart';
+import '../../features/bookings/presentation/chat_screen.dart';
 import '../../features/orders/presentation/track_order_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
 import '../../shared/layouts/root_navigation_layout.dart';
@@ -112,6 +113,14 @@ final GoRouter appRouter = GoRouter(
       path: '/support',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (BuildContext context, GoRouterState state) => const SupportScreen(),
+    ),
+    GoRoute(
+      path: '/chat/:id',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final bookingId = state.pathParameters['id'] ?? '';
+        return ChatScreen(bookingId: bookingId);
+      },
     ),
   ],
 );

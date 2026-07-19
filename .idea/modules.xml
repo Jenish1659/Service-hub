@@ -3,6 +3,9 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Service hub.iml" filepath="$PROJECT_DIR$/.idea/Service hub.iml" />
+      <module fileurl="file://$PROJECT_DIR$/customer_app/service_hub_customer.iml" filepath="$PROJECT_DIR$/customer_app/service_hub_customer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/admin_app/service_hub_admin.iml" filepath="$PROJECT_DIR$/admin_app/service_hub_admin.iml" />
+      <module fileurl="file://$PROJECT_DIR$/partner_app/service_hub_partner.iml" filepath="$PROJECT_DIR$/partner_app/service_hub_partner.iml" />
     </modules>
   </component>
 </project>

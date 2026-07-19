@@ -266,6 +266,37 @@ class _DeliveryDashboardState extends ConsumerState<DeliveryDashboard> {
                               ],
                             ),
                             const Divider(height: 24),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryColor,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    icon: const Icon(Icons.map_outlined),
+                                    label: const Text('Navigate (Show Route Map)'),
+                                    onPressed: () {
+                                      context.push(
+                                        '/navigation',
+                                        extra: {
+                                          'taskId': jobId,
+                                          'customerName': 'Jenish Bheda',
+                                          'address': address,
+                                          'serviceName': items,
+                                          'price': '₹45.00 Payout',
+                                          'type': 'delivery',
+                                          'deliveryPin': customerPin,
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
 
                             // GPS-Fenced Secure PIN Verification
                             Container(

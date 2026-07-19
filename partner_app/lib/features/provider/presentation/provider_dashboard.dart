@@ -358,7 +358,19 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
                                       child: OutlinedButton.icon(
                                         icon: const Icon(Icons.navigation),
                                         label: const Text('Navigate'),
-                                        onPressed: () {},
+                                        onPressed: () {
+                                          context.push(
+                                            '/navigation',
+                                            extra: {
+                                              'taskId': id,
+                                              'customerName': 'Jenish Bheda',
+                                              'address': 'Digvijay Plot, Jamnagar',
+                                              'serviceName': service,
+                                              'price': '₹${(task['price'] as num?)?.toStringAsFixed(0) ?? '1,100'}',
+                                              'type': 'service',
+                                            },
+                                          );
+                                        },
                                       ),
                                     ),
                                     const SizedBox(width: 12),

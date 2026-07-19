@@ -55,6 +55,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context.go('/role-select');
       }
     } else {
+      // Local Demo / Prototype Bypass
+      if (email == 'partner@servicehub.com' && password == 'partner123') {
+        partnerBypassLoggedIn = true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mock Partner Login Successful!'), backgroundColor: AppTheme.successColor),
+        );
+        context.go('/role-select');
+        return;
+      }
+
       success = await ref.read(authControllerProvider.notifier).loginWithEmail(email, password);
       if (success) {
         partnerBypassLoggedIn = true;

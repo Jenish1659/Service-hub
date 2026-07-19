@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'services_provider.dart';
@@ -13,6 +14,19 @@ class DiscoverScreen extends ConsumerStatefulWidget {
 }
 
 class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
+  String? _initialCategory;
+  late String _selectedCategory;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialCategory == null) {
+      final queryCategory = GoRouterState.of(context).uri.queryParameters['category'];
+      _selectedCategory = queryCategory ?? 'All';
+      _initialCategory = _selectedCategory;
+    }
+  }
+
   // Helpers to get visual style based on service category
   IconData _getIconForCategory(String category) {
     switch (category) {
@@ -74,6 +88,30 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     );
   }
 
+  Widget _buildCategoryChip(String category) {
+    final isSelected = _selectedCategory == category;
+    String displayLabel = category;
+    if (category == 'AC') displayLabel = 'AC Repair';
+    if (category == 'Car') displayLabel = 'Car Service';
+
+    return ChoiceChip(
+      label: Text(displayLabel),
+      selected: isSelected,
+      onSelected: (val) {
+        if (val) {
+          setState(() {
+            _selectedCategory = category;
+          });
+        }
+      },
+      selectedColor: AppTheme.primaryColor.withOpacity(0.1),
+      labelStyle: TextStyle(
+        color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondaryColor,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final servicesAsync = ref.watch(servicesProvider);
@@ -106,7 +144,28 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 color: AppTheme.textSecondaryColor,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            // Horizontal list of Category Filter Chips
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _buildCategoryChip('All'),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip('AC'),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip('Plumbing'),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip('Car'),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip('Cooking'),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip('Laundry'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             Expanded(
               child: servicesAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -114,10 +173,20 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   child: Text('Error loading services: ${err.toString()}', style: const TextStyle(color: AppTheme.dangerColor)),
                 ),
                 data: (servicesList) {
+                  final filteredServices = _selectedCategory == 'All'
+                      ? servicesList
+                      : servicesList.where((s) => s['category'] == _selectedCategory).toList();
+
+                  if (filteredServices.isEmpty) {
+                    return const Center(
+                      child: Text('No services found in this category.', style: TextStyle(color: AppTheme.textSecondaryColor)),
+                    );
+                  }
+
                   return ListView.builder(
-                    itemCount: servicesList.length,
+                    itemCount: filteredServices.length,
                     itemBuilder: (context, index) {
-                      final service = servicesList[index];
+                      final service = filteredServices[index];
                       final category = service['category'] ?? '';
                       final name = service['name'] ?? '';
                       final price = (service['price'] as num?)?.toDouble() ?? 0.0;
@@ -202,10 +271,15 @@ class _BookingFlowWidget extends StatefulWidget {
 class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
   int _currentStep = 1; // 1: Describe, 2: Slot, 3: Confirm
   final TextEditingController _issueController = TextEditingController();
+  final TextEditingController _promoController = TextEditingController();
   String _selectedDate = 'Today, July 12';
   String _selectedTime = '06:30 PM';
   String _selectedPayment = 'Cash on Service';
   bool _isSubmitting = false;
+  bool _useWallet = false;
+
+  String? _appliedPromoCode;
+  double _promoDiscount = 0.0;
 
   Future<void> _createBooking() async {
     setState(() {
@@ -213,24 +287,61 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
     });
 
     final client = Supabase.instance.client;
-    final user = client.auth.currentUser;
-    if (user == null) {
+    final supabaseUser = client.auth.currentUser;
+    String userId = '';
+    
+    if (supabaseUser != null) {
+      userId = supabaseUser.id;
+    } else {
+      userId = Hive.box('customer_cache').get('user_id', defaultValue: '') as String;
+    }
+
+    if (userId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please sign in to confirm booking.'), backgroundColor: AppTheme.warningColor),
       );
-      context.push('/login');
+      context.go('/login');
+      return;
+    }
+
+    final box = Hive.box('customer_cache');
+    final double walletBalance = box.get('wallet_balance_inr', defaultValue: 50.0) as double;
+    double walletDeduction = 0.0;
+    if (_useWallet) {
+      final double subTotal = widget.servicePrice - _promoDiscount;
+      walletDeduction = walletBalance < subTotal ? walletBalance : subTotal;
+    }
+
+    final finalPrice = widget.servicePrice - _promoDiscount - walletDeduction;
+
+    // Update wallet and award coins
+    if (_useWallet) {
+      box.put('wallet_balance_inr', walletBalance - walletDeduction);
+    }
+    final int currentCoins = box.get('wallet_coins', defaultValue: 500) as int;
+    box.put('wallet_coins', currentCoins + 100); // Earn 100 coins for booking!
+
+    if (userId.startsWith('mock_')) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (mounted) {
+        Navigator.pop(context); // Close bottom sheet
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Booking request created successfully! You earned 100 coins!'), backgroundColor: AppTheme.successColor),
+        );
+        context.push('/track-booking/mock_booking_id');
+      }
       return;
     }
 
     try {
       final response = await client.from('bookings').insert({
-        'customer_id': user.id,
+        'customer_id': userId,
         'service_name': widget.serviceName,
         'issue_description': _issueController.text.trim(),
         'scheduled_date': _selectedDate,
         'scheduled_time': _selectedTime,
         'payment_method': _selectedPayment,
-        'price': widget.servicePrice,
+        'price': finalPrice,
         'status': 'Pending',
         'entrance_pin': '7429',
         'completion_otp': '5892',
@@ -239,7 +350,7 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
       if (mounted) {
         Navigator.pop(context); // Close bottom sheet
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Booking request created successfully!'), backgroundColor: AppTheme.successColor),
+          const SnackBar(content: Text('Booking request created successfully! You earned 100 coins!'), backgroundColor: AppTheme.successColor),
         );
         final bookingId = response['id'];
         context.push('/track-booking/$bookingId');
@@ -410,6 +521,17 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
   }
 
   Widget _buildConfirmStep() {
+    final box = Hive.box('customer_cache');
+    final double walletBalance = box.get('wallet_balance_inr', defaultValue: 50.0) as double;
+    
+    double walletDeduction = 0.0;
+    if (_useWallet) {
+      final double subTotal = widget.servicePrice - _promoDiscount;
+      walletDeduction = walletBalance < subTotal ? walletBalance : subTotal;
+    }
+
+    final double finalPrice = widget.servicePrice - _promoDiscount - walletDeduction;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -431,8 +553,114 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
               const Divider(height: 20),
               _buildDetailRow('Schedule', '$_selectedDate at $_selectedTime'),
               const Divider(height: 20),
-              _buildDetailRow('Estimated Price', '₹${widget.servicePrice.toStringAsFixed(0)}'),
+              _buildDetailRow('Original Price', '₹${widget.servicePrice.toStringAsFixed(0)}'),
+              if (_appliedPromoCode != null) ...[
+                const Divider(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Promo Code ($_appliedPromoCode)', style: const TextStyle(color: Color(0xff16a34a), fontSize: 13, fontWeight: FontWeight.bold)),
+                    Text('-₹${_promoDiscount.toStringAsFixed(0)}', style: const TextStyle(color: Color(0xff16a34a), fontWeight: FontWeight.bold, fontSize: 13)),
+                  ],
+                ),
+              ],
+              if (_useWallet && walletDeduction > 0) ...[
+                const Divider(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Wallet Deduction', style: TextStyle(color: AppTheme.primaryColor, fontSize: 13, fontWeight: FontWeight.bold)),
+                    Text('-₹${walletDeduction.toStringAsFixed(0)}', style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                  ],
+                ),
+              ],
+              const Divider(height: 20),
+              _buildDetailRow('Final Estimated Price', '₹${finalPrice.toStringAsFixed(0)}'),
             ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        CheckboxListTile(
+          title: Text('Use Wallet Balance (Available: ₹${walletBalance.toStringAsFixed(0)})', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+          subtitle: const Text('Convert your coins to INR in Profile to add balance', style: TextStyle(fontSize: 11)),
+          value: _useWallet,
+          activeColor: AppTheme.primaryColor,
+          onChanged: walletBalance > 0
+              ? (val) {
+                  setState(() {
+                    _useWallet = val ?? false;
+                  });
+                }
+              : null,
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Promo Code / Coupons',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _promoController,
+                decoration: InputDecoration(
+                  hintText: 'Enter code (e.g. FREEVISIT)...',
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                final code = _promoController.text.trim().toUpperCase();
+                if (code == 'FREEVISIT') {
+                  setState(() {
+                    _appliedPromoCode = 'FREEVISIT';
+                    _promoDiscount = 150.0;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('FREEVISIT applied! ₹150 discount applied.'), backgroundColor: AppTheme.successColor),
+                  );
+                } else if (code.isNotEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Invalid promo code.'), backgroundColor: AppTheme.dangerColor),
+                  );
+                }
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('FREEVISIT Terms & Conditions'),
+                content: const Text(
+                  '1. Applicable to the first booking of any service.\n'
+                  '2. The discount covers the visiting charge up to a maximum value of ₹150.\n'
+                  '3. Cannot be combined with any other offers or product discounts.\n'
+                  '4. Valid for residents inside Jamnagar city limits only.',
+                  style: const TextStyle(height: 1.4),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            );
+          },
+          child: const Text(
+            'View T&C for Promo Code "FREEVISIT"',
+            style: TextStyle(color: AppTheme.primaryColor, fontSize: 12, decoration: TextDecoration.underline),
           ),
         ),
         const SizedBox(height: 16),

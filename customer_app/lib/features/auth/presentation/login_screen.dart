@@ -133,30 +133,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
       return;
     }
 
-    final dummyEmail = 'phone_${phone}@servicehub.com';
-    const dummyPassword = 'servicehub123';
-
-    // Attempt login first
-    bool success = await ref.read(authControllerProvider.notifier).loginWithEmail(
-      dummyEmail,
-      dummyPassword,
-    );
-
-    // If login fails (new user), sign up
-    if (!success) {
-      success = await ref.read(authControllerProvider.notifier).signUpWithEmail(
-        dummyEmail,
-        dummyPassword,
-        name,
-        'customer',
-      );
-    }
-
-    // Fallback to offline mock session if rate limited or database unreachable
-    if (!success) {
-      ref.read(authControllerProvider.notifier).loginMockOffline(name, phone);
-      success = true;
-    }
+    final success = await ref.read(authControllerProvider.notifier).verifyPhoneOtpAndLogin(name, phone);
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(

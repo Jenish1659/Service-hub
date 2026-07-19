@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../auth/presentation/auth_controller.dart';
 import 'orders_provider.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
@@ -34,7 +35,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    final user = Supabase.instance.client.auth.currentUser;
+    final authState = ref.watch(authControllerProvider);
+    final user = authState.value;
 
     if (user == null) {
       return Scaffold(
@@ -61,7 +63,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () => context.push('/login'),
+                  onPressed: () => context.go('/login'),
                   child: const Text('Sign In / Register'),
                 ),
               ],
@@ -314,7 +316,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
             ),
             const SizedBox(height: 12),
             Text(
-              'Order #${id.toString().substring(0, 8).toUpperCase()}',
+              'Order #${id.toString().length >= 8 ? id.toString().substring(0, 8).toUpperCase() : id.toString().toUpperCase()}',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
             ),
             Text(

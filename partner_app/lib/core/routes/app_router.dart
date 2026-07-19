@@ -8,6 +8,7 @@ import '../../features/provider/presentation/provider_dashboard.dart';
 import '../../features/seller/presentation/seller_dashboard.dart';
 import '../../features/delivery/presentation/delivery_dashboard.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/shared/presentation/partner_map_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -55,6 +56,21 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/profile',
       builder: (BuildContext context, GoRouterState state) => const ProfileScreen(),
+    ),
+    GoRoute(
+      path: '/navigation',
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return PartnerMapScreen(
+          taskId: extra['taskId'] ?? 'mock_task_1',
+          customerName: extra['customerName'] ?? 'Jenish Bheda',
+          address: extra['address'] ?? 'Digvijay Plot, Jamnagar',
+          serviceName: extra['serviceName'] ?? 'AC Service & Repair',
+          price: extra['price'] ?? '₹1,100',
+          type: extra['type'] ?? 'service',
+          deliveryPin: extra['deliveryPin'] ?? '2842',
+        );
+      },
     ),
   ],
 );

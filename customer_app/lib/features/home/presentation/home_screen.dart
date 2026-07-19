@@ -6,11 +6,84 @@ import '../../../shared/providers/location_provider.dart';
 import '../../../shared/providers/notification_provider.dart';
 import '../../auth/presentation/auth_controller.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  String _selectedBudget = 'All Budgets';
+  bool _outsideRangeWarningShown = false;
+
+  Widget _buildBudgetFilterChip(String label) {
+    final isSelected = _selectedBudget == label;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedBudget = label;
+        });
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white, width: 1.2),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? AppTheme.primaryColor : Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showOutsideRangeDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              SizedBox(width: 8),
+              Text('Location Unavailable'),
+            ],
+          ),
+          content: const Text(
+            'Sorry, we are not available at your location. ServiceHub currently only operates within Jamnagar city limits.',
+            style: TextStyle(height: 1.4),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+              },
+              child: const Text('OK', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final locationState = ref.watch(locationProvider);
     final notifications = ref.watch(notificationProvider);
     final unreadCount = notifications.where((n) => !n.read).length;
@@ -19,6 +92,19 @@ class HomeScreen extends ConsumerWidget {
     final user = authState.value;
     final String fullName = user?.userMetadata?['name'] as String? ?? user?.email?.split('@').first ?? 'Guest';
     final String firstName = fullName.split(' ').first;
+
+    // Reset warning status if user changes location back into range
+    if (!locationState.isOutsideRange) {
+      _outsideRangeWarningShown = false;
+    }
+
+    // Check outside range on state changes
+    if (!locationState.isLoading && locationState.isOutsideRange && !_outsideRangeWarningShown) {
+      _outsideRangeWarningShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showOutsideRangeDialog(context);
+      });
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -40,13 +126,13 @@ class HomeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Location and Action Icons (Cart + Bell side-by-side in top-right)
+                    // Location and Action Icons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
                           child: InkWell(
-                            onTap: () => _showLocationPicker(context, ref),
+                            onTap: () => _showLocationPicker(context),
                             child: Row(
                               children: [
                                 const Icon(Icons.location_on, color: Colors.white, size: 20),
@@ -75,7 +161,7 @@ class HomeScreen extends ConsumerWidget {
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.notifications_none, color: Colors.white),
-                                  onPressed: () => _showNotificationsSheet(context, ref, notifications),
+                                  onPressed: () => _showNotificationsSheet(context, notifications),
                                 ),
                                 if (unreadCount > 0)
                                   Positioned(
@@ -97,25 +183,6 @@ class HomeScreen extends ConsumerWidget {
                                 IconButton(
                                   icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
                                   onPressed: () => context.push('/cart'),
-                                ),
-                                Positioned(
-                                  right: 6,
-                                  top: 6,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Text(
-                                      '1',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
                                 ),
                               ],
                             ),
@@ -141,11 +208,15 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Search bar
+                    // Search bar with Filter Suffix Icon
                     TextField(
                       decoration: InputDecoration(
                         hintText: 'Search for services or products...',
                         prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondaryColor),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.tune_rounded, color: AppTheme.primaryColor),
+                          onPressed: () => _showFilterDialog(context),
+                        ),
                         fillColor: Colors.white,
                         filled: true,
                         border: OutlineInputBorder(
@@ -153,6 +224,20 @@ class HomeScreen extends ConsumerWidget {
                           borderSide: BorderSide.none,
                         ),
                         contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Budget filters row directly under search bar
+                    SizedBox(
+                      height: 36,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          _buildBudgetFilterChip('All Budgets'),
+                          _buildBudgetFilterChip('Under ₹299'),
+                          _buildBudgetFilterChip('₹300-₹999'),
+                          _buildBudgetFilterChip('₹1000+'),
+                        ],
                       ),
                     ),
                   ],
@@ -200,9 +285,9 @@ class HomeScreen extends ConsumerWidget {
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
                             const Text(
                               'Flat 30% Off on AC Filter cleaning',
                               style: TextStyle(
@@ -239,7 +324,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
 
-              // 3. SERVICES SECTION (GRID)
+              // 3. SERVICES SECTION
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
@@ -261,22 +346,22 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              // Grid displaying the 5 services
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: GridView.count(
-                  crossAxisCount: 3,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.85,
+              // Single-line horizontal category selection
+              SizedBox(
+                height: 86,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   children: [
-                    _buildServiceCategoryCard(context, 'AC Repair', Icons.ac_unit, const Color(0xffeff6ff), const Color(0xff2563eb)),
-                    _buildServiceCategoryCard(context, 'Plumbing', Icons.plumbing, const Color(0xfff0fdfa), const Color(0xff0d9488)),
-                    _buildServiceCategoryCard(context, 'Car Service', Icons.directions_car, const Color(0xfffff1f2), const Color(0xffe11d48)),
-                    _buildServiceCategoryCard(context, 'Cooking', Icons.soup_kitchen, const Color(0xfffffbeb), const Color(0xffd97706)),
-                    _buildServiceCategoryCard(context, 'Laundry', Icons.local_laundry_service, const Color(0xfffaf5ff), const Color(0xff7c3aed)),
+                    _buildHorizontalServiceCard(context, 'AC Repair', Icons.ac_unit, const Color(0xffeff6ff), const Color(0xff2563eb)),
+                    const SizedBox(width: 12),
+                    _buildHorizontalServiceCard(context, 'Plumbing', Icons.plumbing, const Color(0xfff0fdfa), const Color(0xff0d9488)),
+                    const SizedBox(width: 12),
+                    _buildHorizontalServiceCard(context, 'Car Service', Icons.directions_car, const Color(0xfffff1f2), const Color(0xffe11d48)),
+                    const SizedBox(width: 12),
+                    _buildHorizontalServiceCard(context, 'Cooking', Icons.soup_kitchen, const Color(0xfffffbeb), const Color(0xffd97706)),
+                    const SizedBox(width: 12),
+                    _buildHorizontalServiceCard(context, 'Laundry', Icons.local_laundry_service, const Color(0xfffaf5ff), const Color(0xff7c3aed)),
                   ],
                 ),
               ),
@@ -359,24 +444,50 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              // Products list (Rupees ₹ currency symbol)
+              // Products list (Rupees ₹ currency symbol) filtered by Budget
               SizedBox(
                 height: 200,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: [
-                    _buildProductCard(context, 'AC Dust Filter (Universal)', '₹349', '₹499', '30% OFF'),
-                    const SizedBox(width: 12),
-                    _buildProductCard(context, 'Pipe Repair Tape 5m', '₹89', '₹120', '26% OFF'),
-                    const SizedBox(width: 12),
-                    _buildProductCard(context, 'Car Shampoo 500ml', '₹199', '₹299', '33% OFF'),
-                    const SizedBox(width: 12),
-                    _buildProductCard(context, '3-Tier Tiffin Box', '₹449', '₹599', '25% OFF'),
-                  ],
+                  children: _getFilteredProducts(),
                 ),
               ),
               const SizedBox(height: 32),
+
+              // 6. QUICK HELP / FAQ SECTION (STUNNING ACCORDION)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Frequently Asked Questions',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildFaqTile(
+                      'How does the 5 km hyperlocal delivery work?',
+                      'ServiceHub uses strict geofencing. Products and services are delivered from providers within a 5 km radius of your location to ensure fast delivery and booking verification.',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildFaqTile(
+                      'How do I complete a booking / order?',
+                      'Your service agent will ask for your unique Completion OTP at the end of the service, or your Delivery PIN at the time of delivery to securely mark it complete.',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildFaqTile(
+                      'Can I select a custom delivery address?',
+                      'Yes! Tap on the address bar at the top of the Home Screen to search for any neighborhood or choose from popular preset locations.',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -384,44 +495,127 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildServiceCategoryCard(
+  List<Widget> _getFilteredProducts() {
+    final List<Map<String, dynamic>> allProducts = [
+      {'name': 'AC Dust Filter (Universal)', 'price': 349, 'origPrice': 499, 'disc': '30% OFF'},
+      {'name': 'Pipe Repair Tape 5m', 'price': 89, 'origPrice': 120, 'disc': '26% OFF'},
+      {'name': 'Car Shampoo 500ml', 'price': 199, 'origPrice': 299, 'disc': '33% OFF'},
+      {'name': '3-Tier Tiffin Box', 'price': 449, 'origPrice': 599, 'disc': '25% OFF'},
+    ];
+
+    List<Map<String, dynamic>> filtered = [];
+
+    if (_selectedBudget == 'All Budgets') {
+      filtered = allProducts;
+    } else if (_selectedBudget == 'Under ₹299') {
+      filtered = allProducts.where((p) => p['price'] < 299).toList();
+    } else if (_selectedBudget == '₹300-₹999') {
+      filtered = allProducts.where((p) => p['price'] >= 300 && p['price'] <= 999).toList();
+    } else {
+      filtered = allProducts.where((p) => p['price'] >= 1000).toList();
+    }
+
+    if (filtered.isEmpty) {
+      return [
+        const SizedBox(
+          width: 250,
+          child: Center(child: Text('No products in this price range.', style: TextStyle(color: AppTheme.textSecondaryColor))),
+        )
+      ];
+    }
+
+    return filtered.map((p) => Row(
+      children: [
+        _buildProductCard(context, p['name'], '₹${p['price']}', '₹${p['origPrice']}', p['disc']),
+        const SizedBox(width: 12),
+      ],
+    )).toList();
+  }
+
+  Widget _buildHorizontalServiceCard(
     BuildContext context,
     String name,
     IconData icon,
     Color bg,
     Color iconColor,
   ) {
+    String dbCategory = name;
+    if (name == 'AC Repair') dbCategory = 'AC';
+    if (name == 'Car Service') dbCategory = 'Car';
+
     return InkWell(
-      onTap: () => context.go('/discover'),
+      onTap: () => context.go('/discover?category=$dbCategory'),
       borderRadius: BorderRadius.circular(16),
       child: Container(
+        width: 100,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppTheme.borderCol, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: bg,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: iconColor, size: 24),
+              child: Icon(icon, color: iconColor, size: 22),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimaryColor,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildFaqTile(String question, String answer) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.borderCol, width: 1),
+      ),
+      child: ExpansionTile(
+        title: Text(
+          question,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimaryColor,
+          ),
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        expandedAlignment: Alignment.topLeft,
+        children: [
+          Text(
+            answer,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.textSecondaryColor,
+              height: 1.4,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -534,14 +728,14 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  void _showLocationPicker(BuildContext context, WidgetRef ref) {
+  void _showLocationPicker(BuildContext context) {
     final List<Map<String, dynamic>> presets = [
-      {'name': 'HSR Layout Sector 3', 'lat': 12.9103, 'lng': 77.6433},
-      {'name': 'Koramangala 4th Block', 'lat': 12.9352, 'lng': 77.6245},
-      {'name': 'Indiranagar 100ft Road', 'lat': 12.9719, 'lng': 77.6412},
-      {'name': 'Whitefield ITPL', 'lat': 12.9698, 'lng': 77.7499},
-      {'name': 'Jayanagar 4th Block', 'lat': 12.9307, 'lng': 77.5847},
-      {'name': 'Malleshwaram 8th Cross', 'lat': 13.0031, 'lng': 77.5700},
+      {'name': 'Digvijay Plot, Jamnagar', 'lat': 22.4725, 'lng': 70.0610},
+      {'name': 'Park Colony, Jamnagar', 'lat': 22.4635, 'lng': 70.0768},
+      {'name': 'Patel Colony, Jamnagar', 'lat': 22.4795, 'lng': 70.0815},
+      {'name': 'Samarpan, Jamnagar', 'lat': 22.4502, 'lng': 70.0505},
+      {'name': 'Khodiyar Colony, Jamnagar', 'lat': 22.4831, 'lng': 70.0461},
+      {'name': 'Windmill Road, Jamnagar', 'lat': 22.4792, 'lng': 70.0913},
     ];
 
     showModalBottomSheet(
@@ -573,13 +767,13 @@ class HomeScreen extends ConsumerWidget {
                       final query = searchController.text.trim();
                       if (query.isNotEmpty) {
                         ref.read(locationProvider.notifier).updateCustomLocation(
-                          12.9716,
-                          77.5946,
-                          '$query, Bengaluru',
+                          22.4707,
+                          70.0577,
+                          '$query, Jamnagar',
                         );
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Location updated to: $query, Bengaluru')),
+                          SnackBar(content: Text('Location updated to: $query, Jamnagar')),
                         );
                       }
                     },
@@ -587,9 +781,23 @@ class HomeScreen extends ConsumerWidget {
                   border: const OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
+              ListTile(
+                leading: const Icon(Icons.my_location, color: AppTheme.primaryColor),
+                title: const Text('Detect My Location', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                subtitle: const Text('Automatically detect your location via GPS'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Detecting your location...')),
+                  );
+                  await ref.read(locationProvider.notifier).fetchLocation();
+                },
+              ),
+              const Divider(),
+              const SizedBox(height: 10),
               const Text(
-                'Popular Preset Neighborhoods',
+                'Popular Jamnagar Neighborhoods',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textSecondaryColor),
               ),
               const SizedBox(height: 12),
@@ -602,7 +810,7 @@ class HomeScreen extends ConsumerWidget {
                     return ListTile(
                       leading: const Icon(Icons.location_on_outlined, color: AppTheme.primaryColor),
                       title: Text(preset['name']),
-                      subtitle: Text('Coordinates: ${preset['lat'].toStringAsFixed(4)}, ${preset['lng'].toStringAsFixed(4)}'),
+                      subtitle: const Text('Popular Area, Jamnagar'),
                       onTap: () {
                         ref.read(locationProvider.notifier).updateCustomLocation(
                           preset['lat'],
@@ -628,7 +836,176 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  void _showNotificationsSheet(BuildContext context, WidgetRef ref, List<AppNotification> list) {
+  void _showFilterDialog(BuildContext context) {
+    double budgetValue = 450.0;
+    int selectedSortIndex = 0; // 0: Rating, 1: Price, 2: Popularity
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 24,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filter Services',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppTheme.textPrimaryColor),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Budget Range',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textPrimaryColor),
+                      ),
+                      Text(
+                        '₹${budgetValue.round()}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primaryColor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text('₹100', style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12)),
+                      Text('₹1,500', style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12)),
+                    ],
+                  ),
+                  Slider(
+                    value: budgetValue,
+                    min: 100,
+                    max: 1500,
+                    divisions: 14,
+                    label: '₹${budgetValue.round()}',
+                    activeColor: AppTheme.primaryColor,
+                    inactiveColor: Colors.grey.shade200,
+                    onChanged: (val) {
+                      setModalState(() {
+                        budgetValue = val;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Sort By',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.textPrimaryColor),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Rating (High to Low)'),
+                        selected: selectedSortIndex == 0,
+                        selectedColor: AppTheme.primaryColor.withOpacity(0.1),
+                        labelStyle: TextStyle(
+                          color: selectedSortIndex == 0 ? AppTheme.primaryColor : AppTheme.textSecondaryColor,
+                          fontWeight: selectedSortIndex == 0 ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        onSelected: (selected) {
+                          if (selected) {
+                            setModalState(() {
+                              selectedSortIndex = 0;
+                            });
+                          }
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('Price (Low to High)'),
+                        selected: selectedSortIndex == 1,
+                        selectedColor: AppTheme.primaryColor.withOpacity(0.1),
+                        labelStyle: TextStyle(
+                          color: selectedSortIndex == 1 ? AppTheme.primaryColor : AppTheme.textSecondaryColor,
+                          fontWeight: selectedSortIndex == 1 ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        onSelected: (selected) {
+                          if (selected) {
+                            setModalState(() {
+                              selectedSortIndex = 1;
+                            });
+                          }
+                        },
+                      ),
+                      ChoiceChip(
+                        label: const Text('Popularity'),
+                        selected: selectedSortIndex == 2,
+                        selectedColor: AppTheme.primaryColor.withOpacity(0.1),
+                        labelStyle: TextStyle(
+                          color: selectedSortIndex == 2 ? AppTheme.primaryColor : AppTheme.textSecondaryColor,
+                          fontWeight: selectedSortIndex == 2 ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        onSelected: (selected) {
+                          if (selected) {
+                            setModalState(() {
+                              selectedSortIndex = 2;
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        final sortText = selectedSortIndex == 0 
+                            ? 'Rating' 
+                            : selectedSortIndex == 1 
+                                ? 'Price' 
+                                : 'Popularity';
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Applied Filters: Budget <= ₹${budgetValue.round()}, Sorted by $sortText'),
+                            backgroundColor: AppTheme.successColor,
+                          ),
+                        );
+                      },
+                      child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showNotificationsSheet(BuildContext context, List<AppNotification> list) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -669,12 +1046,12 @@ class HomeScreen extends ConsumerWidget {
                 )
               else
                 Expanded(
-                  child: ListView.separated(
+                  child: ListView.builder(
                     itemCount: list.length,
-                    separatorBuilder: (c, idx) => const Divider(),
                     itemBuilder: (c, index) {
                       final item = list[index];
                       return ListTile(
+                        contentPadding: EdgeInsets.zero,
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
