@@ -30,11 +30,13 @@ class _SellerDashboardState extends ConsumerState<SellerDashboard> {
           .update({'status': newStatus})
           .eq('id', orderId);
       
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Order status updated to $newStatus!'), backgroundColor: AppTheme.successColor),
       );
       _refreshAll();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating status: ${e.toString()}'), backgroundColor: AppTheme.dangerColor),
       );
@@ -121,11 +123,13 @@ class _SellerDashboardState extends ConsumerState<SellerDashboard> {
         }
       ]);
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sample inventory seeded!'), backgroundColor: AppTheme.successColor),
       );
       _refreshAll();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error seeding: ${e.toString()}'), backgroundColor: AppTheme.dangerColor),
       );
@@ -162,7 +166,7 @@ class _SellerDashboardState extends ConsumerState<SellerDashboard> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: _selectedCategory,
+                      initialValue: _selectedCategory,
                       decoration: const InputDecoration(labelText: 'Category'),
                       items: const [
                         DropdownMenuItem(value: 'AC', child: Text('AC Service')),
@@ -245,9 +249,9 @@ class _SellerDashboardState extends ConsumerState<SellerDashboard> {
                       child: const Icon(Icons.storefront, color: AppTheme.primaryColor),
                     ),
                     const SizedBox(width: 12),
-                    Column(
+                    const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'Anita\'s Laundry & Supplies',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),

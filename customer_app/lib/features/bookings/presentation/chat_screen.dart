@@ -103,7 +103,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(top: BorderSide(color: AppTheme.borderCol)),
             ),

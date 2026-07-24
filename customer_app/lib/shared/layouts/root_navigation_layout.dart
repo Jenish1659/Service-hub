@@ -99,14 +99,14 @@ class _RootNavigationLayoutState extends ConsumerState<RootNavigationLayout> {
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.15),
+                            color: Colors.amber.withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.notifications_active, color: Colors.amber, size: 20),
@@ -163,31 +163,32 @@ class _RootNavigationLayoutState extends ConsumerState<RootNavigationLayout> {
           ],
         ),
         child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
           currentIndex: selectedIndex,
           onTap: (index) => _onItemTapped(index, context),
-          items: [
+          items: const [
             BottomNavigationBarItem(
-              icon: const Icon(Icons.home_outlined),
+              icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home, color: AppTheme.primaryColor),
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: const Icon(Icons.build_outlined),
+              icon: Icon(Icons.build_outlined),
               activeIcon: Icon(Icons.build, color: AppTheme.primaryColor),
               label: 'Services',
             ),
             BottomNavigationBarItem(
-              icon: const Icon(Icons.shopping_bag_outlined),
+              icon: Icon(Icons.shopping_bag_outlined),
               activeIcon: Icon(Icons.shopping_bag, color: AppTheme.primaryColor),
               label: 'Products',
             ),
             BottomNavigationBarItem(
-              icon: const Icon(Icons.receipt_long_outlined),
+              icon: Icon(Icons.receipt_long_outlined),
               activeIcon: Icon(Icons.receipt_long, color: AppTheme.primaryColor),
               label: 'Orders',
             ),
             BottomNavigationBarItem(
-              icon: const Icon(Icons.person_outline),
+              icon: Icon(Icons.person_outline),
               activeIcon: Icon(Icons.person, color: AppTheme.primaryColor),
               label: 'Profile',
             ),

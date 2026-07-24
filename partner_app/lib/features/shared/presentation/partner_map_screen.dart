@@ -162,15 +162,6 @@ class _PartnerMapScreenState extends State<PartnerMapScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    Color mapBgColor;
-    if (_mapStyle == 'satellite') {
-      mapBgColor = const Color(0xff1b261e);
-    } else if (_mapStyle == 'dark') {
-      mapBgColor = const Color(0xff121212);
-    } else {
-      mapBgColor = const Color(0xfff1f5f9);
-    }
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -208,11 +199,11 @@ class _PartnerMapScreenState extends State<PartnerMapScreen> with SingleTickerPr
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.95),
+                color: Colors.white.withValues(alpha: 0.95),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
+                    color: Colors.black.withValues(alpha: 0.15),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -238,11 +229,11 @@ class _PartnerMapScreenState extends State<PartnerMapScreen> with SingleTickerPr
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.95),
+                color: AppTheme.primaryColor.withValues(alpha: 0.95),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -298,7 +289,7 @@ class _PartnerMapScreenState extends State<PartnerMapScreen> with SingleTickerPr
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
+                    color: Colors.black.withValues(alpha: 0.12),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),
@@ -456,7 +447,6 @@ class PartnerMapPainter extends CustomPainter {
     Color greenArea;
     Color waterArea;
     Color pathColor;
-    Color textCol;
 
     if (style == 'satellite') {
       bg = const Color(0xff1b261e);
@@ -465,7 +455,6 @@ class PartnerMapPainter extends CustomPainter {
       greenArea = const Color(0xff142016);
       waterArea = const Color(0xff0b182b);
       pathColor = Colors.amber;
-      textCol = Colors.white70;
     } else if (style == 'dark') {
       bg = const Color(0xff121212);
       streetColor = const Color(0xff2c2c2c);
@@ -473,7 +462,6 @@ class PartnerMapPainter extends CustomPainter {
       greenArea = const Color(0xff18221c);
       waterArea = const Color(0xff0d1f2d);
       pathColor = Colors.orangeAccent;
-      textCol = Colors.white60;
     } else {
       // Standard
       bg = const Color(0xfff1f5f9);
@@ -482,7 +470,6 @@ class PartnerMapPainter extends CustomPainter {
       greenArea = const Color(0xffdcfce7);
       waterArea = const Color(0xffe0f2fe);
       pathColor = AppTheme.primaryColor;
-      textCol = AppTheme.textSecondaryColor;
     }
 
     // Paint Map Background
@@ -491,7 +478,7 @@ class PartnerMapPainter extends CustomPainter {
 
     // Draw gridlines to look like map lines
     final gridPaint = Paint()
-      ..color = streetBorder.withOpacity(0.2)
+      ..color = streetBorder.withValues(alpha: 0.2)
       ..strokeWidth = 1.0;
     for (double i = 0; i < size.width; i += 40) {
       canvas.drawLine(Offset(i, 0), Offset(i, size.height), gridPaint);
@@ -565,7 +552,7 @@ class PartnerMapPainter extends CustomPainter {
       ..cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, endPoint.dx, endPoint.dy);
 
     final routePaint = Paint()
-      ..color = pathColor.withOpacity(0.25)
+      ..color = pathColor.withValues(alpha: 0.25)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6.0
       ..strokeCap = StrokeCap.round;
@@ -592,7 +579,7 @@ class PartnerMapPainter extends CustomPainter {
 
         // Pulsing radar wave
         final pulsePaint = Paint()
-          ..color = pathColor.withOpacity(0.15)
+          ..color = pathColor.withValues(alpha: 0.15)
           ..style = PaintingStyle.fill;
         canvas.drawCircle(currentPos, 14 + 8 * (animationProgress % 0.25 * 4), pulsePaint);
 

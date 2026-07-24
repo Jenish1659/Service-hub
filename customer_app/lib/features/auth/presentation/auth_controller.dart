@@ -135,7 +135,7 @@ class AuthController extends StateNotifier<AsyncValue<User?>> {
   // Unified phone OTP login to prevent multiple loading/redirect glitches
   Future<bool> verifyPhoneOtpAndLogin(String name, String phone) async {
     state = const AsyncLoading();
-    final dummyEmail = 'phone_${phone}@servicehub.com';
+    final dummyEmail = 'phone_$phone@servicehub.com';
     const dummyPassword = 'servicehub123';
 
     // 1. Try to login

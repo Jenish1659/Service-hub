@@ -38,8 +38,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             color: const Color(0xffeff6ff),
-            child: Row(
-              children: const [
+            child: const Row(
+              children: [
                 Icon(Icons.info_outline, color: AppTheme.primaryColor, size: 18),
                 SizedBox(width: 8),
                 Text(

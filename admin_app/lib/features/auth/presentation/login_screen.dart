@@ -38,6 +38,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     final success = await ref.read(authControllerProvider.notifier).login(email, password);
+    if (!mounted) return;
     if (success) {
       adminBypassLoggedIn = true;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -52,6 +53,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _showAdminTermsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.admin_panel_settings_outlined, color: AppTheme.primaryColor),
+              SizedBox(width: 8),
+              Text('Admin Terms & Security Compliance', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: const SingleChildScrollView(
+            child: Text(
+              '1. Authorized Access Only: Admin portal access is strictly restricted to designated platform administrators.\n\n'
+              '2. Data Governance & Privacy: Customer, provider, and transaction logs must be kept confidential.\n\n'
+              '3. Audit Logging: All admin actions, approvals, and dispute resolutions are logged for security auditing.\n\n'
+              '4. System Integrity: Unauthorized credential sharing or automated data scraping is strictly prohibited.',
+              style: TextStyle(fontSize: 13, height: 1.4, color: Color(0xff334155)),
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Understand & Close', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
@@ -59,6 +97,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       body: Center(
+        child: SingleChildScrollView(
         child: Container(
           width: 450,
           padding: const EdgeInsets.all(32.0),
@@ -115,10 +154,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       : const Text('Access Dashboard'),
                 ),
               ),
+              const SizedBox(height: 16),
+              Center(
+                child: InkWell(
+                  onTap: () => _showAdminTermsDialog(context),
+                  child: const Text.rich(
+                    TextSpan(
+                      text: 'Protected Administrative System · ',
+                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondaryColor),
+                      children: [
+                        TextSpan(
+                          text: 'Admin Terms & Compliance',
+                          style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ),
+    ),
     );
   }
 }

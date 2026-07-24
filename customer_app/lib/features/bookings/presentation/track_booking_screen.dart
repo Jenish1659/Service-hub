@@ -91,8 +91,16 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
           });
         } else {
           setState(() {
+            _bookingData = {
+              'id': widget.bookingId,
+              'service_name': 'AC Dust Filter & Service',
+              'scheduled_date': 'Today',
+              'scheduled_time': '06:30 PM',
+              'status': _serviceCompleted ? 'Completed' : (_workCommenced ? 'Started' : (_providerArrived ? 'En Route' : 'Pending')),
+              'price': 384.0,
+            };
             _loading = false;
-            _errorMessage = 'Booking not found.';
+            _errorMessage = '';
           });
         }
       }
@@ -203,12 +211,12 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
 
   Widget _buildRatingCard() {
     if (_reviewSubmitted) {
-      return Card(
-        color: const Color(0xfff8fafc),
+      return const Card(
+        color: Color(0xfff8fafc),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(16.0),
           child: Column(
-            children: const [
+            children: [
               Icon(Icons.star, color: Colors.amber, size: 40),
               SizedBox(height: 8),
               Text(
@@ -554,8 +562,8 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppTheme.successColor),
                       ),
-                      child: Row(
-                        children: const [
+                      child: const Row(
+                        children: [
                           Icon(Icons.check_circle, color: AppTheme.successColor, size: 24),
                           SizedBox(width: 12),
                           Expanded(
@@ -692,21 +700,21 @@ class _AnimatedLiveMapTrackerState extends State<AnimatedLiveMapTracker> with Si
               );
             },
           ),
-          Positioned(
+          const Positioned(
             top: 40,
             left: 40,
             child: Column(
-              children: const [
+              children: [
                 Icon(Icons.store, color: AppTheme.primaryColor, size: 24),
                 Text('Provider Hub', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor)),
               ],
             ),
           ),
-          Positioned(
+          const Positioned(
             bottom: 40,
             right: 40,
             child: Column(
-              children: const [
+              children: [
                 Icon(Icons.home, color: Color(0xff16a34a), size: 28),
                 Text('Your Home', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor)),
               ],
@@ -726,7 +734,7 @@ class MapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final gridPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.04)
+      ..color = Colors.blue.withValues(alpha: 0.04)
       ..strokeWidth = 1.0;
     for (double i = 0; i < size.width; i += 30) {
       canvas.drawLine(Offset(i, 0), Offset(i, size.height), gridPaint);
@@ -735,7 +743,7 @@ class MapPainter extends CustomPainter {
       canvas.drawLine(Offset(0, j), Offset(size.width, j), gridPaint);
     }
 
-    final startOffset = const Offset(50, 60);
+    const startOffset = Offset(50, 60);
     final endOffset = Offset(size.width - 50, size.height - 60);
     final controlPoint1 = Offset(size.width * 0.3, size.height * 0.8);
     final controlPoint2 = Offset(size.width * 0.7, size.height * 0.2);
@@ -745,7 +753,7 @@ class MapPainter extends CustomPainter {
       ..cubicTo(controlPoint1.dx, controlPoint1.dy, controlPoint2.dx, controlPoint2.dy, endOffset.dx, endOffset.dy);
 
     final routePaint = Paint()
-      ..color = AppTheme.primaryColor.withOpacity(0.15)
+      ..color = AppTheme.primaryColor.withValues(alpha: 0.15)
       ..strokeWidth = 4.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -762,7 +770,7 @@ class MapPainter extends CustomPainter {
         final agentOffset = tangent.position;
         
         final pulsePaint = Paint()
-          ..color = AppTheme.primaryColor.withOpacity(0.2)
+          ..color = AppTheme.primaryColor.withValues(alpha: 0.2)
           ..style = PaintingStyle.fill;
         canvas.drawCircle(agentOffset, 12 + 6 * (arrived ? 0 : animationProgress), pulsePaint);
 

@@ -28,19 +28,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       borderRadius: BorderRadius.circular(20),
       child: Container(
         margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? const Color(0xff0052cc) : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white, width: 1.2),
+          border: Border.all(
+            color: isSelected ? const Color(0xff0052cc) : const Color(0xffcbd5e1),
+            width: 1.2,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xff0052cc).withValues(alpha: 0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? AppTheme.primaryColor : Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
+            color: isSelected ? Colors.white : const Color(0xff334155),
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+            fontSize: 13,
           ),
         ),
       ),
@@ -54,8 +65,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       builder: (ctx) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: const [
+          title: const Row(
+            children: [
               Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
               SizedBox(width: 8),
               Text('Location Unavailable'),
@@ -87,10 +98,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final locationState = ref.watch(locationProvider);
     final notifications = ref.watch(notificationProvider);
     final unreadCount = notifications.where((n) => !n.read).length;
-    
+
     final authState = ref.watch(authControllerProvider);
     final user = authState.value;
-    final String fullName = user?.userMetadata?['name'] as String? ?? user?.email?.split('@').first ?? 'Guest';
+    final String fullName = user?.userMetadata?['name'] as String? ?? user?.email?.split('@').first ?? 'xyz';
     final String firstName = fullName.split(' ').first;
 
     // Reset warning status if user changes location back into range
@@ -107,129 +118,285 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xfff8fafc),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. CUSTOM HEADER WITH VIBRANT BLUE BACKGROUND
+              // 1. TOP HEADER & HERO SECTION WITH VIBRANT BLUE BACKGROUND
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 decoration: const BoxDecoration(
-                  color: AppTheme.primaryColor,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
+                  color: Color(0xff0052cc), // Vibrant deep blue
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Location and Action Icons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => _showLocationPicker(context),
-                            child: Row(
+                    // Location and Right Header Action Icons (Notifications & Cart)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _showLocationPicker(context),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.location_on, color: Colors.white, size: 20),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        locationState.isLoading
+                                            ? 'Fetching Location...'
+                                            : '${locationState.address.isEmpty ? "Digvijay Plot, Jamnagar" : locationState.address} >',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Stack(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 24),
+                                    onPressed: () => _showNotificationsSheet(context, notifications),
+                                  ),
+                                  if (unreadCount > 0)
+                                    Positioned(
+                                      right: 10,
+                                      top: 10,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(3),
+                                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                        child: Text(
+                                          '$unreadCount',
+                                          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    Positioned(
+                                      right: 12,
+                                      top: 10,
+                                      child: Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 24),
+                                onPressed: () => context.push('/cart'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Hero Banner Left (Text & Pill Button) + Right Graphic
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left side text and CTA
+                          Expanded(
+                            flex: 6,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.location_on, color: Colors.white, size: 20),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    locationState.isLoading 
-                                        ? 'Fetching Location...' 
-                                        : '${locationState.address} >',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
+                                Text(
+                                  'Welcome to ServiceHub, $firstName!',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                RichText(
+                                  text: const TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: 'One App, ',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: 'All Solutions',
+                                        style: TextStyle(
+                                          color: Color(0xffffab00), // Vibrant Orange/Yellow
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                RichText(
+                                  text: const TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: "We're here just open app\nand ",
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: 'book service',
+                                        style: TextStyle(
+                                          color: Color(0xffffab00),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                // Clickable Pill Button: Book Your Service
+                                InkWell(
+                                  onTap: () => context.go('/discover'),
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    decoration: BoxDecoration(
                                       color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.15),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.indeterminate_check_box_outlined, color: Color(0xff0052cc), size: 18),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'Book Your Service',
+                                          style: TextStyle(
+                                            color: Color(0xff0052cc),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        SizedBox(width: 4),
+                                        Icon(Icons.chevron_right_rounded, color: Color(0xff0052cc), size: 18),
+                                      ],
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                        Row(
-                          children: [
-                            Stack(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.notifications_none, color: Colors.white),
-                                  onPressed: () => _showNotificationsSheet(context, notifications),
-                                ),
-                                if (unreadCount > 0)
-                                  Positioned(
-                                    right: 8,
-                                    top: 8,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                      child: Text(
-                                        '$unreadCount',
-                                        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+
+                          // Right side: Hero Technician & ServiceHub Logo Graphic
+                          Expanded(
+                            flex: 6,
+                            child: SizedBox(
+                              height: 150,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.asset(
+                                  'assets/images/hero_technician.png',
+                                  fit: BoxFit.contain,
+                                  alignment: Alignment.centerRight,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Center(
+                                      child: Container(
+                                        width: 70,
+                                        height: 70,
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.engineering_rounded,
+                                          size: 45,
+                                          color: Color(0xff0052cc),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            Stack(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
-                                  onPressed: () => context.push('/cart'),
+                                    );
+                                  },
                                 ),
-                              ],
+                              ),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // Greeting text
-                    Text(
-                      'Welcome to ServiceHub, $firstName!',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
+                          ),
+                        ],
                       ),
                     ),
-                    const Text(
-                      'Find your service today',
-                      style: TextStyle(
+                  ],
+                ),
+              ),
+
+              // 2. FLOATING SEARCH BAR & BUDGET FILTERS
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: Column(
+                  children: [
+                    // Search Bar Card
+                    Container(
+                      decoration: BoxDecoration(
                         color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        onTap: () => _showFilterDialog(context),
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          hintText: 'Search for services or products...',
+                          hintStyle: const TextStyle(color: Color(0xff94a3b8), fontSize: 13),
+                          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xff64748b)),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.tune_rounded, color: Color(0xff0052cc)),
+                            onPressed: () => _showFilterDialog(context),
+                          ),
+                          fillColor: Colors.transparent,
+                          filled: true,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    // Search bar with Filter Suffix Icon
-                    TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search for services or products...',
-                        prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondaryColor),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.tune_rounded, color: AppTheme.primaryColor),
-                          onPressed: () => _showFilterDialog(context),
-                        ),
-                        fillColor: Colors.white,
-                        filled: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Budget filters row directly under search bar
+                    const SizedBox(height: 14),
+
+                    // Budget Filter Chips (Horizontally Scrollable & Selectable)
                     SizedBox(
-                      height: 36,
+                      height: 38,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         children: [
@@ -244,164 +411,394 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
 
-              // 2. PROMO SLIDER CARD (BLUE GRADIENT)
+              // 3. PROMO BANNER CARD (AC SERVICE & REPAIR)
               Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xff2563eb), Color(0xff1d4ed8)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white24,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'PROMO',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'AC Service & Repair',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            const Text(
-                              'Flat 30% Off on AC Filter cleaning',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: AppTheme.primaryColor,
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: () => context.go('/discover'),
-                              child: const Text(
-                                'Book Now',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
+                child: InkWell(
+                  onTap: () => context.go('/discover?category=AC'),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xff0039a6), Color(0xff00247d)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xff00247d).withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                      ),
-                      const Icon(
-                        Icons.ac_unit,
-                        size: 80,
-                        color: Colors.white24,
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(18.0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 6,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xffff6b00), // Promo badge orange
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Text(
+                                        'PROMO',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'AC Service & Repair',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Flat 30% Off on AC Filter cleaning',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    // Book Now Pill Button
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text(
+                                            'Book Now',
+                                            style: TextStyle(
+                                              color: Color(0xff0039a6),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.all(2),
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xff0039a6),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.arrow_forward_rounded,
+                                              color: Colors.white,
+                                              size: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // AC Repair Service Image Right (Exact Uploaded Graphic)
+                              Expanded(
+                                flex: 4,
+                                child: Container(
+                                  height: 110,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Image.asset(
+                                      'assets/images/ac_promo_banner.png',
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(
+                                              Icons.ac_unit_rounded,
+                                              color: Colors.white24,
+                                              size: 36,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: const Icon(
+                                                Icons.hvac_rounded,
+                                                color: Colors.white,
+                                                size: 30,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Bottom Feature Strip of Promo Card
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                          decoration: const BoxDecoration(
+                            color: Color(0xff001e6c), // Darker Navy
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(20),
+                              bottomRight: Radius.circular(20),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildPromoFeatureItem(Icons.verified_user_outlined, 'Trusted', 'Professionals'),
+                              _buildPromoFeatureItem(Icons.timer_outlined, 'Fast &', 'Reliable'),
+                              _buildPromoFeatureItem(Icons.verified_outlined, 'Quality', 'Service'),
+                              _buildPromoFeatureItem(Icons.monetization_on_outlined, 'Affordable', 'Prices'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
 
-              // 3. SERVICES SECTION
+              // 4. "SERVICES NEAR YOU" SECTION (EXACT AS IMAGE)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
                       'Services near you',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimaryColor,
+                        color: Color(0xff0f172a),
                       ),
                     ),
-                    TextButton(
-                      onPressed: () => context.go('/discover'),
-                      child: const Text('See all'),
+                    InkWell(
+                      onTap: () => context.go('/discover'),
+                      child: const Text(
+                        'See all',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xff0052cc),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              // Single-line horizontal category selection
+
+              // Single Row of Clickable Category Icons
               SizedBox(
-                height: 86,
+                height: 105,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
-                    _buildHorizontalServiceCard(context, 'AC Repair', Icons.ac_unit, const Color(0xffeff6ff), const Color(0xff2563eb)),
-                    const SizedBox(width: 12),
-                    _buildHorizontalServiceCard(context, 'Plumbing', Icons.plumbing, const Color(0xfff0fdfa), const Color(0xff0d9488)),
-                    const SizedBox(width: 12),
-                    _buildHorizontalServiceCard(context, 'Car Service', Icons.directions_car, const Color(0xfffff1f2), const Color(0xffe11d48)),
-                    const SizedBox(width: 12),
-                    _buildHorizontalServiceCard(context, 'Cooking', Icons.soup_kitchen, const Color(0xfffffbeb), const Color(0xffd97706)),
-                    const SizedBox(width: 12),
-                    _buildHorizontalServiceCard(context, 'Laundry', Icons.local_laundry_service, const Color(0xfffaf5ff), const Color(0xff7c3aed)),
+                    _buildExactServiceItem(
+                      context,
+                      'AC Repair',
+                      Icons.ac_unit_rounded,
+                      const Color(0xffebf5ff),
+                      const Color(0xff0066ff),
+                      'AC',
+                    ),
+                    _buildExactServiceItem(
+                      context,
+                      'Plumbing',
+                      Icons.plumbing_rounded,
+                      const Color(0xffe6f7f0),
+                      const Color(0xff00b074),
+                      'Plumbing',
+                    ),
+                    _buildExactServiceItem(
+                      context,
+                      'Car Service',
+                      Icons.directions_car_rounded,
+                      const Color(0xffffebeb),
+                      const Color(0xffff3b30),
+                      'Car',
+                    ),
+                    _buildExactServiceItem(
+                      context,
+                      'Cooking',
+                      Icons.soup_kitchen_rounded,
+                      const Color(0xfffff4e5),
+                      const Color(0xffff8800),
+                      'Cooking',
+                    ),
+                    _buildExactServiceItem(
+                      context,
+                      'More\nServices',
+                      Icons.more_horiz_rounded,
+                      const Color(0xfff1f5f9),
+                      const Color(0xff0066ff),
+                      'All',
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              // 4. HYGIENE GUARANTEED BANNER
+              // 5. VALUE PROPOSITION / TRUST GUARANTEED CONTAINER (LIGHT BLUE)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: InkWell(
+                  onTap: () => _showTrustInfoSheet(context),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfff0f6ff),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xffdbeafe)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildTrustGridItem(
+                            Icons.shield_outlined,
+                            const Color(0xff16a34a),
+                            'Hygiene\nGuaranteed',
+                            'Safe & clean\nservice',
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildTrustGridItem(
+                            Icons.verified_outlined,
+                            const Color(0xff2563eb),
+                            'Trusted\nProfessionals',
+                            'Verified & skilled\nexperts',
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildTrustGridItem(
+                            Icons.timer_outlined,
+                            const Color(0xffea580c),
+                            'Fast &\nReliable',
+                            'On-time service\nassured',
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildTrustGridItem(
+                            Icons.account_balance_wallet_outlined,
+                            const Color(0xff7c3aed),
+                            'Secure\nPayments',
+                            '100% safe\ntransactions',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 6. BOTTOM CALLOUT / HELP STRIP (2 CLICKABLE HALVES)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xfff0fdf4),
+                    color: const Color(0xffebf3ff),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xffbbf7d0), width: 1),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.shield_outlined, color: Color(0xff16a34a), size: 28),
-                      const SizedBox(width: 12),
+                      // Left Half Callout
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'Hygiene Guaranteed',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xff16a34a),
-                                fontSize: 15,
+                        child: InkWell(
+                          onTap: () => context.go('/discover'),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xff0052cc),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.call_rounded, color: Colors.white, size: 16),
                               ),
-                            ),
-                            Text(
-                              'Every provider carries sanitized tools and complies with safety standards.',
-                              style: TextStyle(
-                                color: Color(0xff15803d),
-                                fontSize: 12,
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  "We're here just open app and book service",
+                                  style: TextStyle(
+                                    color: Color(0xff1e293b),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.2,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(height: 24, width: 1, color: const Color(0xffcbd5e1)),
+                      const SizedBox(width: 8),
+                      // Right Half Callout
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => context.push('/profile'),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xff0052cc),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.headset_mic_rounded, color: Colors.white, size: 16),
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  "We're always here to help you",
+                                  style: TextStyle(
+                                    color: Color(0xff1e293b),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -410,41 +807,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 5. PRODUCTS SECTION (STRICT 5 KM radius geofencing indication)
+              // 7. PRODUCTS SECTION (STRICT 5 KM radius geofencing indication)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
+                    const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'Products Near You',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 17,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimaryColor,
+                            color: Color(0xff0f172a),
                           ),
                         ),
                         Text(
                           'Strict 5 km zone delivery · 30-45 mins',
                           style: TextStyle(
                             fontSize: 11,
-                            color: AppTheme.textSecondaryColor,
+                            color: Color(0xff64748b),
                           ),
                         ),
                       ],
                     ),
                     TextButton(
                       onPressed: () => context.go('/products'),
-                      child: const Text('See all'),
+                      child: const Text('See all', style: TextStyle(color: Color(0xff0052cc), fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              // Products list (Rupees ₹ currency symbol) filtered by Budget
+              const SizedBox(height: 8),
               SizedBox(
                 height: 200,
                 child: ListView(
@@ -453,45 +849,172 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: _getFilteredProducts(),
                 ),
               ),
-              const SizedBox(height: 32),
-
-              // 6. QUICK HELP / FAQ SECTION (STUNNING ACCORDION)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Frequently Asked Questions',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildFaqTile(
-                      'How does the 5 km hyperlocal delivery work?',
-                      'ServiceHub uses strict geofencing. Products and services are delivered from providers within a 5 km radius of your location to ensure fast delivery and booking verification.',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildFaqTile(
-                      'How do I complete a booking / order?',
-                      'Your service agent will ask for your unique Completion OTP at the end of the service, or your Delivery PIN at the time of delivery to securely mark it complete.',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildFaqTile(
-                      'Can I select a custom delivery address?',
-                      'Yes! Tap on the address bar at the top of the Home Screen to search for any neighborhood or choose from popular preset locations.',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 30),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPromoFeatureItem(IconData icon, String line1, String line2) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: Colors.white, size: 14),
+        const SizedBox(width: 4),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(line1, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+            Text(line2, style: const TextStyle(color: Colors.white70, fontSize: 8)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExactServiceItem(
+    BuildContext context,
+    String label,
+    IconData icon,
+    Color circleBg,
+    Color iconColor,
+    String categoryCode,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: InkWell(
+        onTap: () {
+          if (categoryCode == 'All') {
+            context.go('/discover');
+          } else {
+            context.go('/discover?category=$categoryCode');
+          }
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 72,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xfff1f5f9)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: circleBg,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xff1e293b),
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrustGridItem(IconData icon, Color iconColor, String title, String sub) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: iconColor, size: 22),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: iconColor,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            sub,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 8,
+              color: Color(0xff64748b),
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTrustInfoSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return const Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ServiceHub Safety & Quality Standards',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xff0f172a)),
+              ),
+              SizedBox(height: 12),
+              ListTile(
+                leading: Icon(Icons.shield_outlined, color: Colors.green),
+                title: Text('Hygiene Guaranteed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: Text('Sanitized tools and standard protective gear used during every service call.', style: TextStyle(fontSize: 11)),
+              ),
+              ListTile(
+                leading: Icon(Icons.verified_outlined, color: Colors.blue),
+                title: Text('Trusted & Verified Professionals', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: Text('Background checked, skilled local technicians with identity verification.', style: TextStyle(fontSize: 11)),
+              ),
+              ListTile(
+                leading: Icon(Icons.timer_outlined, color: Colors.orange),
+                title: Text('Fast & Reliable Service', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: Text('On-time arrival guarantee within Jamnagar city limits.', style: TextStyle(fontSize: 11)),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -532,94 +1055,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     )).toList();
   }
 
-  Widget _buildHorizontalServiceCard(
-    BuildContext context,
-    String name,
-    IconData icon,
-    Color bg,
-    Color iconColor,
-  ) {
-    String dbCategory = name;
-    if (name == 'AC Repair') dbCategory = 'AC';
-    if (name == 'Car Service') dbCategory = 'Car';
-
-    return InkWell(
-      onTap: () => context.go('/discover?category=$dbCategory'),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 100,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.borderCol, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: bg,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: iconColor, size: 22),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimaryColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFaqTile(String question, String answer) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderCol, width: 1),
-      ),
-      child: ExpansionTile(
-        title: Text(
-          question,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimaryColor,
-          ),
-        ),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        expandedAlignment: Alignment.topLeft,
-        children: [
-          Text(
-            answer,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppTheme.textSecondaryColor,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildProductCard(
     BuildContext context,
     String name,
@@ -632,12 +1067,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderCol, width: 1),
+        border: Border.all(color: const Color(0xfff1f5f9), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Product image placeholder
           Container(
             height: 100,
             decoration: const BoxDecoration(
@@ -673,7 +1107,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       price,
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
-                        color: AppTheme.primaryColor,
+                        color: Color(0xff0052cc),
                         fontSize: 13,
                       ),
                     ),
@@ -709,6 +1143,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xff0052cc),
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         minimumSize: Size.zero,
                         shape: RoundedRectangleBorder(
@@ -783,8 +1219,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 10),
               ListTile(
-                leading: const Icon(Icons.my_location, color: AppTheme.primaryColor),
-                title: const Text('Detect My Location', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                leading: const Icon(Icons.my_location, color: Color(0xff0052cc)),
+                title: const Text('Detect My Location', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xff0052cc))),
                 subtitle: const Text('Automatically detect your location via GPS'),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -808,7 +1244,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   itemBuilder: (c, index) {
                     final preset = presets[index];
                     return ListTile(
-                      leading: const Icon(Icons.location_on_outlined, color: AppTheme.primaryColor),
+                      leading: const Icon(Icons.location_on_outlined, color: Color(0xff0052cc)),
                       title: Text(preset['name']),
                       subtitle: const Text('Popular Area, Jamnagar'),
                       onTap: () {
@@ -838,7 +1274,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _showFilterDialog(BuildContext context) {
     double budgetValue = 450.0;
-    int selectedSortIndex = 0; // 0: Rating, 1: Price, 2: Popularity
+    int selectedSortIndex = 0;
 
     showModalBottomSheet(
       context: context,
@@ -883,14 +1319,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       Text(
                         '₹${budgetValue.round()}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primaryColor),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xff0052cc)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Row(
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
+                    children: [
                       Text('₹100', style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12)),
                       Text('₹1,500', style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12)),
                     ],
@@ -901,7 +1337,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     max: 1500,
                     divisions: 14,
                     label: '₹${budgetValue.round()}',
-                    activeColor: AppTheme.primaryColor,
+                    activeColor: const Color(0xff0052cc),
                     inactiveColor: Colors.grey.shade200,
                     onChanged: (val) {
                       setModalState(() {
@@ -921,9 +1357,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ChoiceChip(
                         label: const Text('Rating (High to Low)'),
                         selected: selectedSortIndex == 0,
-                        selectedColor: AppTheme.primaryColor.withOpacity(0.1),
+                        selectedColor: const Color(0xff0052cc).withValues(alpha: 0.1),
                         labelStyle: TextStyle(
-                          color: selectedSortIndex == 0 ? AppTheme.primaryColor : AppTheme.textSecondaryColor,
+                          color: selectedSortIndex == 0 ? const Color(0xff0052cc) : AppTheme.textSecondaryColor,
                           fontWeight: selectedSortIndex == 0 ? FontWeight.bold : FontWeight.normal,
                         ),
                         onSelected: (selected) {
@@ -937,9 +1373,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ChoiceChip(
                         label: const Text('Price (Low to High)'),
                         selected: selectedSortIndex == 1,
-                        selectedColor: AppTheme.primaryColor.withOpacity(0.1),
+                        selectedColor: const Color(0xff0052cc).withValues(alpha: 0.1),
                         labelStyle: TextStyle(
-                          color: selectedSortIndex == 1 ? AppTheme.primaryColor : AppTheme.textSecondaryColor,
+                          color: selectedSortIndex == 1 ? const Color(0xff0052cc) : AppTheme.textSecondaryColor,
                           fontWeight: selectedSortIndex == 1 ? FontWeight.bold : FontWeight.normal,
                         ),
                         onSelected: (selected) {
@@ -953,9 +1389,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ChoiceChip(
                         label: const Text('Popularity'),
                         selected: selectedSortIndex == 2,
-                        selectedColor: AppTheme.primaryColor.withOpacity(0.1),
+                        selectedColor: const Color(0xff0052cc).withValues(alpha: 0.1),
                         labelStyle: TextStyle(
-                          color: selectedSortIndex == 2 ? AppTheme.primaryColor : AppTheme.textSecondaryColor,
+                          color: selectedSortIndex == 2 ? const Color(0xff0052cc) : AppTheme.textSecondaryColor,
                           fontWeight: selectedSortIndex == 2 ? FontWeight.bold : FontWeight.normal,
                         ),
                         onSelected: (selected) {
@@ -974,17 +1410,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     height: 50,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
+                        backgroundColor: const Color(0xff0052cc),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        final sortText = selectedSortIndex == 0 
-                            ? 'Rating' 
-                            : selectedSortIndex == 1 
-                                ? 'Price' 
+                        final sortText = selectedSortIndex == 0
+                            ? 'Rating'
+                            : selectedSortIndex == 1
+                                ? 'Price'
                                 : 'Popularity';
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -1060,7 +1496,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           child: Icon(
                             Icons.notifications_active_outlined,
-                            color: item.read ? Colors.grey : AppTheme.primaryColor,
+                            color: item.read ? Colors.grey : const Color(0xff0052cc),
                             size: 18,
                           ),
                         ),

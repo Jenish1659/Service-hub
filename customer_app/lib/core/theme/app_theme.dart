@@ -23,8 +23,7 @@ class AppTheme {
       colorScheme: const ColorScheme.light(
         primary: primaryColor,
         secondary: primaryColor,
-        background: backgroundColor,
-        surface: cardColor,
+        surface: backgroundColor,
         error: dangerColor,
       ),
       fontFamily: 'Inter',

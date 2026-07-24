@@ -48,11 +48,13 @@ class _DeliveryDashboardState extends ConsumerState<DeliveryDashboard> {
           })
           .eq('id', orderId);
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Delivery Job Accepted! En route to pickup.'), backgroundColor: AppTheme.successColor),
       );
       _refreshAll();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error accepting job: ${e.toString()}'), backgroundColor: AppTheme.dangerColor),
       );
@@ -75,11 +77,13 @@ class _DeliveryDashboardState extends ConsumerState<DeliveryDashboard> {
           _pinController.clear();
         });
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Verification Successful! Order Marked as Delivered.'), backgroundColor: AppTheme.successColor),
         );
         _refreshAll();
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error completing delivery: ${e.toString()}'), backgroundColor: AppTheme.dangerColor),
         );
@@ -138,9 +142,9 @@ class _DeliveryDashboardState extends ConsumerState<DeliveryDashboard> {
                           child: const Icon(Icons.directions_bike, color: AppTheme.primaryColor),
                         ),
                         const SizedBox(width: 12),
-                        Column(
+                        const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               'Ravi Kumar',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),

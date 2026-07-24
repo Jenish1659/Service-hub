@@ -15,10 +15,8 @@ class ProviderDashboard extends ConsumerStatefulWidget {
 class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
   bool isOnline = true;
   final TextEditingController _otpController = TextEditingController();
-  String? _selectedBookingIdToComplete;
 
   void _showOtpDialog(String bookingId) {
-    _selectedBookingIdToComplete = bookingId;
     showDialog(
       context: context,
       builder: (context) {
@@ -62,12 +60,14 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
             .update({'status': 'Completed'})
             .eq('id', bookingId);
         
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Service Completed! Payout added to wallet.'), backgroundColor: AppTheme.successColor),
         );
         _otpController.clear();
         _refreshAll();
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update status: ${e.toString()}'), backgroundColor: AppTheme.dangerColor),
         );
@@ -86,11 +86,13 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
           .update({'status': 'En Route'})
           .eq('id', bookingId);
       
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Booking request accepted! Driving to customer.'), backgroundColor: AppTheme.successColor),
       );
       _refreshAll();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to accept: ${e.toString()}'), backgroundColor: AppTheme.dangerColor),
       );
@@ -104,11 +106,13 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
           .update({'status': 'Declined'})
           .eq('id', bookingId);
       
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Booking request declined.'), backgroundColor: AppTheme.warningColor),
       );
       _refreshAll();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to decline: ${e.toString()}'), backgroundColor: AppTheme.dangerColor),
       );
@@ -167,9 +171,9 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
                           child: const Icon(Icons.build, color: AppTheme.primaryColor),
                         ),
                         const SizedBox(width: 12),
-                        Column(
+                        const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               'Rajesh Electricals',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
@@ -194,7 +198,7 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
                         ),
                         Switch(
                           value: isOnline,
-                          activeColor: AppTheme.successColor,
+                          activeThumbColor: AppTheme.successColor,
                           onChanged: (val) {
                             setState(() {
                               isOnline = val;

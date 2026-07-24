@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../auth/presentation/auth_controller.dart';
 import 'orders_provider.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
@@ -35,44 +33,6 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
-    final user = authState.value;
-
-    if (user == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('My Bookings & Orders'),
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.receipt_long, size: 64, color: AppTheme.textSecondaryColor),
-                const SizedBox(height: 16),
-                const Text(
-                  'Sign in to view your orders',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Access your active service bookings, product deliveries, and order history.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => context.go('/login'),
-                  child: const Text('Sign In / Register'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     final bookingsAsync = ref.watch(userBookingsProvider);
     final ordersAsync = ref.watch(userOrdersProvider);
 

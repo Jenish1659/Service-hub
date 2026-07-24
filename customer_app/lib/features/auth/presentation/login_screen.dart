@@ -135,6 +135,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
 
     final success = await ref.read(authControllerProvider.notifier).verifyPhoneOtpAndLogin(name, phone);
 
+    if (!mounted) return;
+
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -142,9 +144,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
           backgroundColor: AppTheme.successColor,
         ),
       );
-      if (context.mounted) {
-        context.go('/');
-      }
+      context.go('/');
     } else {
       final error = ref.read(authControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -154,6 +154,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
         ),
       );
     }
+  }
+
+  void _showTermsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.gavel_rounded, color: AppTheme.primaryColor),
+              SizedBox(width: 8),
+              Text('Terms & Conditions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: const SingleChildScrollView(
+            child: Text(
+              '1. Service Scope: ServiceHub operates hyperlocally within designated 5 km service zones in Jamnagar.\n\n'
+              '2. Identity & PIN Verification: All service completions and product deliveries require validation via secure OTP or encrypted 4-digit PIN.\n\n'
+              '3. User Conduct & Safety: Users must provide accurate address details and safe working environments for service providers.\n\n'
+              '4. Cancellation Policy: Free cancellations allowed prior to provider dispatch. Standard fee applies after dispatch.\n\n'
+              '5. Privacy & Data Handling: Personal data is securely processed in accordance with strict data protection guidelines.',
+              style: TextStyle(fontSize: 13, height: 1.4, color: Color(0xff334155)),
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('I Understand', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -178,7 +216,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Card(
                 elevation: 12,
-                color: Colors.white.withOpacity(0.95),
+                color: Colors.white.withValues(alpha: 0.95),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
@@ -194,7 +232,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.1),
+                              color: AppTheme.primaryColor.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -340,6 +378,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                 SizedBox(width: 8),
                                 Icon(Icons.arrow_forward_rounded, size: 18),
                               ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Terms & Conditions Notice
+                        Center(
+                          child: InkWell(
+                            onTap: () => _showTermsDialog(context),
+                            child: const Text.rich(
+                              TextSpan(
+                                text: 'By continuing, you agree to ServiceHub\'s ',
+                                style: TextStyle(fontSize: 11, color: Color(0xff64748b)),
+                                children: [
+                                  TextSpan(
+                                    text: 'Terms & Conditions',
+                                    style: TextStyle(
+                                      color: AppTheme.primaryColor,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
                         ),

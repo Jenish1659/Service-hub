@@ -36,12 +36,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     {'name': 'Amit Patel (Delivery)', 'role': 'Delivery Agent', 'doc': 'Driving License · Aadhaar Card', 'status': 'Pending Verification'},
   ];
 
-  // Settlements state
-  final List<Map<String, dynamic>> _settlements = [
-    {'partner': 'Rajesh Electricals', 'amount': 1200, 'commission': 120, 'status': 'Settled', 'date': 'Today, 06:42 PM'},
-    {'partner': 'Anita\'s Kitchen', 'amount': 449, 'commission': 36, 'status': 'Pending Settlement', 'date': 'Today, 05:10 PM'},
-    {'partner': 'Metro Plumbers Ltd', 'amount': 600, 'commission': 60, 'status': 'Settled', 'date': 'Yesterday'},
-  ];
+
 
   Future<void> _approvePartnerProfile(String profileId, String name) async {
     try {
@@ -53,6 +48,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           .update({'is_verified': true})
           .eq('id', profileId);
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Partner "$name" approved successfully!'),
@@ -63,6 +59,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       ref.invalidate(adminStatsProvider);
     } catch (e) {
       // Demo fallback
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Partner "$name" approved successfully! (Offline Demo Mode)'),
@@ -82,6 +79,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           .delete()
           .eq('id', profileId);
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Partner "$name" application rejected and profile cleared.'),
@@ -92,6 +90,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       ref.invalidate(adminStatsProvider);
     } catch (e) {
       // Demo fallback
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Partner "$name" application rejected. (Offline Demo Mode)'),
@@ -112,6 +111,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           .update({'is_settled': true})
           .eq('id', id);
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Payout for "$partnerName" successfully processed via instant bank settlement!'),
@@ -121,6 +121,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       ref.invalidate(adminSettlementsProvider);
     } catch (e) {
       // Demo fallback
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Payout for "$partnerName" successfully processed via instant bank settlement! (Offline Demo Mode)'),
@@ -141,7 +142,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
             onPressed: () async {
               adminBypassLoggedIn = false;
               await ref.read(authControllerProvider.notifier).logout();
-              if (mounted) {
+              if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Logged out of Admin Portal.')),
                 );
@@ -661,7 +662,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
               child: Icon(icon, color: color, size: 28),
             ),
             const SizedBox(width: 16),
@@ -699,6 +700,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           .update({'status': 'Resolved'})
           .eq('id', id);
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Support ticket marked as Resolved successfully!'),
@@ -707,6 +709,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       );
       ref.invalidate(adminSupportTicketsProvider);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error resolving ticket: ${e.toString()}'),

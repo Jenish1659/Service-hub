@@ -49,6 +49,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
       if (success) {
         partnerBypassLoggedIn = true;
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Partner Account created! Select console to begin.'), backgroundColor: AppTheme.successColor),
         );
@@ -68,6 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       success = await ref.read(authControllerProvider.notifier).loginWithEmail(email, password);
       if (success) {
         partnerBypassLoggedIn = true;
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Partner authenticated successfully!'), backgroundColor: AppTheme.successColor),
         );
@@ -77,6 +79,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (!success) {
       final error = ref.read(authControllerProvider).error;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error?.toString() ?? 'Partner login failed. Verify credentials.'),
@@ -84,6 +87,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       );
     }
+  }
+
+  void _showPartnerTermsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.handshake_outlined, color: AppTheme.primaryColor),
+              SizedBox(width: 8),
+              Text('Partner Terms & SLAs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: const SingleChildScrollView(
+            child: Text(
+              '1. Service Level Agreement (SLA): Service providers and delivery partners must maintain prompt response times within assigned 5 km zones.\n\n'
+              '2. Identity & Verification: All partners must undergo background checks and identity verification before order acceptance.\n\n'
+              '3. Commission & Payouts: Weekly automated settlements. ServiceHub retains statutory platform commission fees.\n\n'
+              '4. Customer Data Confidentiality: Customer contact details and exact addresses must strictly be used for service execution.',
+              style: TextStyle(fontSize: 13, height: 1.4, color: Color(0xff334155)),
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Agree & Close', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -179,6 +219,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Text(
                     _isSignUp ? 'Already a partner? Sign In' : 'Offer your services on ServiceHub? Sign Up',
                     style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              Center(
+                child: InkWell(
+                  onTap: () => _showPartnerTermsDialog(context),
+                  child: const Text.rich(
+                    TextSpan(
+                      text: 'By accessing ServiceHub Partner Workspace, you accept our ',
+                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondaryColor),
+                      children: [
+                        TextSpan(
+                          text: 'Partner Terms & Service SLAs',
+                          style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
