@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../profile/presentation/profile_provider.dart';
 import 'delivery_provider.dart';
 
 class DeliveryDashboard extends ConsumerStatefulWidget {
@@ -106,6 +107,8 @@ class _DeliveryDashboardState extends ConsumerState<DeliveryDashboard> {
     final pendingJobsAsync = ref.watch(deliveryPendingJobsProvider);
     final assignedJobAsync = ref.watch(deliveryAssignedJobProvider);
 
+    final partnerName = ref.watch(loggedInPartnerNameProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Delivery Dashboard'),
@@ -142,14 +145,14 @@ class _DeliveryDashboardState extends ConsumerState<DeliveryDashboard> {
                           child: const Icon(Icons.directions_bike, color: AppTheme.primaryColor),
                         ),
                         const SizedBox(width: 12),
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Ravi Kumar',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
+                              partnerName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
                             ),
-                            Text(
+                            const Text(
                               'Delivery Executive · Active',
                               style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
                             ),

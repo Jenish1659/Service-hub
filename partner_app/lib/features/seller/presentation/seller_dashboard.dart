@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../profile/presentation/profile_provider.dart';
 import 'seller_provider.dart';
 
 class SellerDashboard extends ConsumerStatefulWidget {
@@ -215,6 +216,7 @@ class _SellerDashboardState extends ConsumerState<SellerDashboard> {
   Widget build(BuildContext context) {
     final productsAsync = ref.watch(sellerProductsProvider);
     final ordersAsync = ref.watch(sellerActiveOrdersProvider);
+    final partnerName = ref.watch(loggedInPartnerNameProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -249,15 +251,15 @@ class _SellerDashboardState extends ConsumerState<SellerDashboard> {
                       child: const Icon(Icons.storefront, color: AppTheme.primaryColor),
                     ),
                     const SizedBox(width: 12),
-                    const Column(
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Anita\'s Laundry & Supplies',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
+                          partnerName,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
                         ),
-                        Text(
-                          'Merchant Partner · HSR Layout',
+                        const Text(
+                          'Merchant Partner · Active',
                           style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
                         ),
                       ],

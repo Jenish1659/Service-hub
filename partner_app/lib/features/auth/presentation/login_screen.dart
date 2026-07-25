@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/routes/app_router.dart';
+import '../../profile/presentation/profile_provider.dart';
 import 'auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -40,6 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     bool success = false;
     if (_isSignUp) {
+      ref.read(loggedInPartnerNameProvider.notifier).state = name;
       // Registering partner
       success = await ref.read(authControllerProvider.notifier).signUpWithEmail(
         email,
@@ -56,6 +58,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context.go('/role-select');
       }
     } else {
+      final rawUsername = email.contains('@') ? email.split('@').first : email;
+      final displayName = rawUsername.isNotEmpty
+          ? '${rawUsername[0].toUpperCase()}${rawUsername.substring(1)}'
+          : 'ServiceHub Partner';
+      ref.read(loggedInPartnerNameProvider.notifier).state = displayName;
+
       // Local Demo / Prototype Bypass
       if (email == 'partner@servicehub.com' && password == 'partner123') {
         partnerBypassLoggedIn = true;

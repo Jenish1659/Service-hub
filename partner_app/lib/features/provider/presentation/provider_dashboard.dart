@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../profile/presentation/profile_provider.dart';
 import 'provider_provider.dart';
 
 class ProviderDashboard extends ConsumerStatefulWidget {
@@ -134,6 +135,7 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
   Widget build(BuildContext context) {
     final pendingAsync = ref.watch(providerPendingBookingsProvider);
     final activeTasksAsync = ref.watch(providerActiveTasksProvider);
+    final partnerName = ref.watch(loggedInPartnerNameProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -171,15 +173,15 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
                           child: const Icon(Icons.build, color: AppTheme.primaryColor),
                         ),
                         const SizedBox(width: 12),
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Rajesh Electricals',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
+                              partnerName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
                             ),
-                            Text(
-                              'Electrician & AC Expert',
+                            const Text(
+                              'Service Partner · Active',
                               style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
                             ),
                           ],
