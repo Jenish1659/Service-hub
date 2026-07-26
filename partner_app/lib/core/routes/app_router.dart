@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/role_selection_screen.dart';
+import '../../features/onboarding/presentation/partner_onboarding_screen.dart';
 import '../../features/provider/presentation/provider_dashboard.dart';
 import '../../features/seller/presentation/seller_dashboard.dart';
 import '../../features/delivery/presentation/delivery_dashboard.dart';
@@ -40,6 +41,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/role-select',
       builder: (BuildContext context, GoRouterState state) => const RoleSelectionScreen(),
+    ),
+    GoRoute(
+      path: '/onboarding',
+      builder: (BuildContext context, GoRouterState state) => const PartnerOnboardingScreen(),
     ),
     GoRoute(
       path: '/provider-dashboard',

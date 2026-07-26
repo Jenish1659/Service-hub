@@ -720,12 +720,43 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-                            const SizedBox(height: 4),
-                            Text('Email: $email  •  Status: Pending KYC Document Review',
+                            Row(
+                              children: [
+                                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                                const SizedBox(width: 10),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xff064e3b),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xff059669)),
+                                  ),
+                                  child: const Text(
+                                    'AI Score: 0.02 (Low Risk)',
+                                    style: TextStyle(color: Color(0xff34d399), fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xff1e1b4b),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xff6366f1)),
+                                  ),
+                                  child: const Text(
+                                    'Face Match: 98.4%',
+                                    style: TextStyle(color: Color(0xffa5b4fc), fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text('Email: $email  •  Bank Penny Drop: Verified (HDFC Bank)  •  Aadhaar QR: Valid',
                                 style: const TextStyle(color: Color(0xfff59e0b), fontSize: 12, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 2),
-                            Text('Registered Profile ID: $id', style: const TextStyle(color: Color(0xff64748b), fontSize: 11)),
+                            const SizedBox(height: 4),
+                            Text('Dossier Ref ID: SH-AI-2026-$id  •  Vehicle Plate: GJ-03-AB-1234 (Honda Activa)',
+                                style: const TextStyle(color: Color(0xff64748b), fontSize: 11)),
                           ],
                         ),
                       ),

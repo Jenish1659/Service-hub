@@ -55,6 +55,18 @@ class RoleSelectionScreen extends StatelessWidget {
               Icons.directions_bike,
               '/delivery-dashboard',
             ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/onboarding'),
+              icon: const Icon(Icons.verified_user_rounded, color: Colors.white, size: 20),
+              label: const Text('✨ New Partner? Start AI Onboarding (12 Steps)', style: TextStyle(fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
           ],
         ),
       ),
