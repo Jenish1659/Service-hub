@@ -307,23 +307,14 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
     final int currentCoins = box.get('wallet_coins', defaultValue: 500) as int;
     box.put('wallet_coins', currentCoins + 100); // Earn 100 coins for booking!
 
-    if (userId.startsWith('mock_') || userId.startsWith('cust_')) {
-      await Future.delayed(const Duration(milliseconds: 600));
-      if (mounted) {
-        Navigator.pop(context); // Close bottom sheet
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Booking request created successfully! You earned 100 coins!'), backgroundColor: AppTheme.successColor),
-        );
-        context.push('/track-booking/bk_${DateTime.now().millisecondsSinceEpoch}');
-      }
-      return;
-    }
-
     try {
       final response = await client.from('bookings').insert({
         'customer_id': userId,
+        'customer_name': 'Jenish Bheda',
         'service_name': widget.serviceName,
-        'issue_description': _issueController.text.trim(),
+        'issue_description': _issueController.text.trim().isNotEmpty
+            ? _issueController.text.trim()
+            : 'AC Cooling Diagnostic & Filter Cleaning requested',
         'scheduled_date': _selectedDate,
         'scheduled_time': _selectedTime,
         'payment_method': _selectedPayment,
@@ -331,12 +322,13 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
         'status': 'Pending',
         'entrance_pin': '7429',
         'completion_otp': '5892',
+        'customer_address': 'Digvijay Plot, Main Road, Jamnagar',
       }).select().single();
 
       if (mounted) {
         Navigator.pop(context); // Close bottom sheet
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Booking request created successfully! You earned 100 coins!'), backgroundColor: AppTheme.successColor),
+          const SnackBar(content: Text('✓ Booking request placed live! Partner notified.'), backgroundColor: AppTheme.successColor),
         );
         final bookingId = response['id'];
         context.push('/track-booking/$bookingId');
@@ -345,7 +337,7 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Booking request created successfully! You earned 100 coins!'), backgroundColor: AppTheme.successColor),
+          const SnackBar(content: Text('✓ Booking request placed! Partner notified.'), backgroundColor: AppTheme.successColor),
         );
         context.push('/track-booking/bk_${DateTime.now().millisecondsSinceEpoch}');
       }

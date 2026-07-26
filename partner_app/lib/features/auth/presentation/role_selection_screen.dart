@@ -59,7 +59,7 @@ class RoleSelectionScreen extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: () => context.push('/onboarding'),
               icon: const Icon(Icons.verified_user_rounded, color: Colors.white, size: 20),
-              label: const Text('✨ New Partner? Start AI Onboarding (12 Steps)', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text('✨ Register as New Partner', style: TextStyle(fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,

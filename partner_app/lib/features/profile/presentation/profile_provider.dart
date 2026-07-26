@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final loggedInPartnerNameProvider = StateProvider<String>((ref) => 'ServiceHub Partner');
+final loggedInPartnerRoleProvider = StateProvider<String>((ref) => 'provider');
 
 // Stream/Fetch profile details for the logged-in partner
 final partnerProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
@@ -15,8 +16,13 @@ final partnerProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async
         .eq('id', user.id)
         .maybeSingle();
 
-    if (response != null && response['name'] != null && (response['name'] as String).isNotEmpty) {
-      ref.read(loggedInPartnerNameProvider.notifier).state = response['name'];
+    if (response != null) {
+      if (response['name'] != null && (response['name'] as String).isNotEmpty) {
+        ref.read(loggedInPartnerNameProvider.notifier).state = response['name'];
+      }
+      if (response['role'] != null && (response['role'] as String).isNotEmpty) {
+        ref.read(loggedInPartnerRoleProvider.notifier).state = response['role'];
+      }
     }
         
     return response;
