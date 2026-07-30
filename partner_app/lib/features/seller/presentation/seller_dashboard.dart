@@ -175,6 +175,7 @@ class _SellerDashboardState extends ConsumerState<SellerDashboard> {
                         DropdownMenuItem(value: 'Laundry', child: Text('Laundry')),
                         DropdownMenuItem(value: 'Car', child: Text('Car Service')),
                         DropdownMenuItem(value: 'Cooking', child: Text('Cooking')),
+                        DropdownMenuItem(value: 'Care Taker', child: Text('Care Taker')),
                       ],
                       onChanged: (val) {
                         if (val != null) {
