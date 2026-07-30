@@ -36,6 +36,7 @@ class _PartnerOnboardingScreenState extends ConsumerState<PartnerOnboardingScree
     'Car Repair (Complete knowledge of auto repair & diagnostics)',
     'Cooking Chef (Pure Vegetarian food only & daily household routine meals)',
     'Laundry Service (All laundry knowledge & professional tools)',
+    'Care Taker (Senior citizen care, medical assistance & patient support)',
   ];
 
   @override

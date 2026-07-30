@@ -40,6 +40,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         return Icons.soup_kitchen;
       case 'Laundry':
         return Icons.local_laundry_service;
+      case 'Care Taker':
+        return Icons.health_and_safety;
       default:
         return Icons.build;
     }
@@ -57,6 +59,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         return const Color(0xfffffbeb);
       case 'Laundry':
         return const Color(0xfffaf5ff);
+      case 'Care Taker':
+        return const Color(0xfff0fdf4);
       default:
         return const Color(0xfff1f5f9);
     }
@@ -74,6 +78,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         return const Color(0xffd97706);
       case 'Laundry':
         return const Color(0xff7c3aed);
+      case 'Care Taker':
+        return const Color(0xff16a34a);
       default:
         return AppTheme.primaryColor;
     }
@@ -162,6 +168,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   _buildCategoryChip('Cooking'),
                   const SizedBox(width: 8),
                   _buildCategoryChip('Laundry'),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip('Care Taker'),
                 ],
               ),
             ),
