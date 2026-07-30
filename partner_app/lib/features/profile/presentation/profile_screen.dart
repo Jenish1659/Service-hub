@@ -104,6 +104,23 @@ class ProfileScreen extends ConsumerWidget {
 
                     // 2. SWITCH WORKSPACE OPTIONS (Role Selection)
                     const Text(
+                      'Financial & Payout Ledger',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textSecondaryColor),
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: const Icon(Icons.account_balance_wallet, color: AppTheme.primaryColor),
+                        title: const Text('Partner Earnings & Escrow Ledger', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        subtitle: const Text('View daily payouts, platform commission (10%) & bank settlement', style: TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor)),
+                        trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondaryColor),
+                        onTap: () => _showPartnerPayoutSheet(context),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    const Text(
                       'Switch Workspace Role',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textSecondaryColor),
                     ),
@@ -188,6 +205,124 @@ class ProfileScreen extends ConsumerWidget {
           }
         },
       ),
+    );
+  }
+
+  void _showPartnerPayoutSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Partner Escrow & Earnings',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.textPrimaryColor),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xfff0fdf4),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xffbbf7d0)),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Available Balance', style: TextStyle(color: Color(0xff15803d), fontSize: 12, fontWeight: FontWeight.bold)),
+                          SizedBox(height: 4),
+                          Text('₹4,890.00', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: Color(0xff166534))),
+                          SizedBox(height: 4),
+                          Text('Net 90% Partner Share', style: TextStyle(color: Color(0xff15803d), fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xffeff6ff),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xffdbeafe)),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Escrow Holding', style: TextStyle(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                          SizedBox(height: 4),
+                          Text('₹1,200.00', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: AppTheme.primaryColor)),
+                          SizedBox(height: 4),
+                          Text('Disbursed on OTP/PIN', style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Text('Recent Earnings Ledger', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 8),
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.check_circle, color: AppTheme.successColor),
+                title: Text('AC Deep Service Job', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: Text('Completion OTP Validated • Net: ₹1,080 (Fee 10%: ₹120)', style: TextStyle(fontSize: 11)),
+                trailing: Text('+₹1,080', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.successColor)),
+              ),
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.delivery_dining, color: AppTheme.primaryColor),
+                title: Text('E-Commerce Delivery Trip', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: Text('Delivery PIN Validated • Flat Rate', style: TextStyle(fontSize: 11)),
+                trailing: Text('+₹45', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.account_balance),
+                  label: const Text('Request Instant Bank Settlement'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Bank Settlement Request Submitted! Funds dispatched to UPI/Bank account.'),
+                        backgroundColor: AppTheme.successColor,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -70,6 +70,28 @@ class _SupportScreenState extends State<SupportScreen> with SingleTickerProvider
 
   String _getAiResponse(String query) {
     final cleanQuery = query.toLowerCase();
+
+    // 1. Service Diagnostics & Recommendations across 6 Categories
+    if (cleanQuery.contains('ac') || cleanQuery.contains('cooling') || cleanQuery.contains('filter')) {
+      return '❄️ AC Diagnostic: For inadequate cooling or filter dust, we recommend our "AC Deep Cleaning & Gas Check" service. You can also order a Universal AC Dust Filter from our Marketplace!';
+    }
+    if (cleanQuery.contains('plumb') || cleanQuery.contains('leak') || cleanQuery.contains('tap') || cleanQuery.contains('pipe')) {
+      return '🔧 Plumbing Diagnostic: Pipe leaks or faulty taps can be fixed immediately! Book our verified Plumber service or buy a Stainless Steel Tap Valve directly from the Marketplace with 5 km express delivery.';
+    }
+    if (cleanQuery.contains('car') || cleanQuery.contains('engine') || cleanQuery.contains('oil') || cleanQuery.contains('wiper')) {
+      return '🚗 Car Care Recommendation: Engine noise or worn wipers? Book a Car Maintenance Inspector or get Synthetic 1L Engine Oil delivered to your doorstep in 30 mins!';
+    }
+    if (cleanQuery.contains('cook') || cleanQuery.contains('food') || cleanQuery.contains('meal') || cleanQuery.contains('veg')) {
+      return '🍳 Cooking Service: Our certified Cooking Chefs specialize in Pure Vegetarian household routine meals prepared under strict hygienic conditions. Select Cooking from the Discover tab!';
+    }
+    if (cleanQuery.contains('laundry') || cleanQuery.contains('wash') || cleanQuery.contains('cloth') || cleanQuery.contains('dry clean')) {
+      return '🧺 Laundry Care: Need steam pressing or dry cleaning? Book our Laundry Service partner or buy Concentrated Fabric Softener from the Marketplace!';
+    }
+    if (cleanQuery.contains('care') || cleanQuery.contains('elder') || cleanQuery.contains('patient') || cleanQuery.contains('health')) {
+      return '🩺 Care Taker Support: Specialized senior citizen care, post-surgery assistance, and daily health monitoring. Book a verified Care Taker partner or order Digital Pulse Oximeters from our store.';
+    }
+
+    // 2. Platform Policies & Operations
     if (cleanQuery.contains('geofence') || cleanQuery.contains('radius') || cleanQuery.contains('km') || cleanQuery.contains('distance')) {
       return 'ServiceHub strictly enforces a 5 km geofence radius from the provider or seller\'s location. This ensures rapid hyperlocal delivery and high service quality.';
     }
@@ -83,9 +105,9 @@ class _SupportScreenState extends State<SupportScreen> with SingleTickerProvider
       return 'Payments are processed securely via our gateway. For cancellations, refunds are automatically processed back to your original payment method within 3-5 business days.';
     }
     if (cleanQuery.contains('hello') || cleanQuery.contains('hi') || cleanQuery.contains('hey')) {
-      return 'Hello there! How can I help you today? You can ask me about delivery zones, verification PINs, service OTPs, or how to submit a support ticket!';
+      return 'Hello there! I am your ServiceHub AI Diagnostic Assistant. Ask me about AC repair, plumbing leaks, car care, cooking chefs, laundry, caretaker assistance, or delivery PIN verification!';
     }
-    return 'I hear you! If you have a specific issue or need help from our support team, please click on the "Submit Ticket" tab to open a official ticket. Our admins will resolve it immediately.';
+    return 'I hear you! If you have a specific issue or need help from our support team, please click on the "Support Tickets" tab to submit an official ticket. Our admins will resolve it immediately.';
   }
 
   void _scrollToBottom() {
