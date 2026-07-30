@@ -14,6 +14,7 @@ class DeliveryDashboard extends ConsumerStatefulWidget {
 }
 
 class _DeliveryDashboardState extends ConsumerState<DeliveryDashboard> {
+  bool _isOnline = true;
   double currentDistance = 125.0; // Distance in meters from shop/customer
   bool pinLocked = true;
   final TextEditingController _pinController = TextEditingController();
@@ -152,26 +153,65 @@ class _DeliveryDashboardState extends ConsumerState<DeliveryDashboard> {
                               partnerName,
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
                             ),
-                            const Text(
-                              'Delivery Executive · Active',
-                              style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: _isOnline ? const Color(0xff16a34a) : Colors.grey,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _isOnline ? 'ON DUTY (Online)' : 'OFF DUTY (Offline)',
+                                  style: TextStyle(
+                                    color: _isOnline ? const Color(0xff16a34a) : AppTheme.textSecondaryColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ],
                     ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xfffffbeb),
-                        foregroundColor: const Color(0xffd97706),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        minimumSize: Size.zero,
-                      ),
-                      onPressed: _simulateApproach,
-                      child: Text(
-                        currentDistance > 5.0 ? 'Simulate Arrive (<=5m)' : 'Reset Distance',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
+                    Row(
+                      children: [
+                        Switch(
+                          value: _isOnline,
+                          activeThumbColor: const Color(0xff16a34a),
+                          onChanged: (val) {
+                            setState(() {
+                              _isOnline = val;
+                            });
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(val ? 'Duty Status: ONLINE (Receiving Dispatches)' : 'Duty Status: OFFLINE'),
+                                backgroundColor: val ? AppTheme.successColor : AppTheme.warningColor,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 4),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xfffffbeb),
+                            foregroundColor: const Color(0xffd97706),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            minimumSize: Size.zero,
+                          ),
+                          onPressed: _simulateApproach,
+                          child: Text(
+                            currentDistance > 5.0 ? 'Arrive (<=5m)' : 'Reset Dist',
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
