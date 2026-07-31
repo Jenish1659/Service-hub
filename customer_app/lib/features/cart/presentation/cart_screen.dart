@@ -175,7 +175,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final discountAmount = promoState.discountAmount;
     final total = cartItems.isNotEmpty ? (subtotal + deliveryFee - discountAmount).clamp(0, 999999) : 0;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        context.go('/');
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Your Cart'),
         leading: IconButton(
@@ -523,6 +529,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 ],
               ),
             ),
+      ),
     );
   }
 }
