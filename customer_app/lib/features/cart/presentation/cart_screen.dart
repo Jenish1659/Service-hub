@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'cart_provider.dart';
+import 'promo_code_provider.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -16,10 +17,32 @@ class CartScreen extends ConsumerStatefulWidget {
 class _CartScreenState extends ConsumerState<CartScreen> {
   final int deliveryFee = 35;
   bool _isPlacingOrder = false;
+  final TextEditingController _promoController = TextEditingController();
+
+  @override
+  void dispose() {
+    _promoController.dispose();
+    super.dispose();
+  }
 
   String _generateOtpPin() {
     final random = Random();
     return (1000 + random.nextInt(9000)).toString();
+  }
+
+  Future<void> _applyPromoCode(int subtotal) async {
+    final result = await ref.read(promoProvider.notifier).applyPromoCode(_promoController.text, subtotal);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor: result.isSuccess ? AppTheme.successColor : AppTheme.dangerColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   Future<void> _placeOrder(int subtotal, int total) async {
@@ -78,6 +101,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           };
         }
       }
+
+      // Mark applied promo code as used permanently for this user account
+      await ref.read(promoProvider.notifier).markActiveCodeAsUsed();
 
       ref.read(cartProvider.notifier).clearCart();
 
@@ -145,7 +171,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
     final subtotal = ref.watch(cartSubtotalProvider);
-    final total = cartItems.isNotEmpty ? subtotal + deliveryFee : 0;
+    final promoState = ref.watch(promoProvider);
+    final discountAmount = promoState.discountAmount;
+    final total = cartItems.isNotEmpty ? (subtotal + deliveryFee - discountAmount).clamp(0, 999999) : 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -236,7 +264,122 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 2. BILL SUMMARY CARD
+                  // 2. PROMO CODE / COUPON CARD
+                  Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.local_offer_outlined, color: AppTheme.primaryColor, size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'Coupons & Offers',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (promoState.activeCode != null) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xfff0fdf4),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xff86efac)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.check_circle_rounded, color: Color(0xff16a34a), size: 20),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Code "${promoState.activeCode!.code}" Applied!',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xff15803d), fontSize: 13),
+                                        ),
+                                        Text(
+                                          'Saving ₹$discountAmount on this order',
+                                          style: const TextStyle(color: Color(0xff166534), fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      ref.read(promoProvider.notifier).removePromoCode();
+                                      _promoController.clear();
+                                    },
+                                    child: const Text('REMOVE', style: TextStyle(color: AppTheme.dangerColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: SizedBox(
+                                    height: 44,
+                                    child: TextField(
+                                      controller: _promoController,
+                                      textCapitalization: TextCapitalization.characters,
+                                      decoration: InputDecoration(
+                                        hintText: 'Enter Promo Code (e.g. WELCOME50)',
+                                        hintStyle: const TextStyle(fontSize: 12, color: Color(0xff94a3b8)),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                                        filled: true,
+                                        fillColor: const Color(0xfff8fafc),
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffcbd5e1))),
+                                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffcbd5e1))),
+                                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.primaryColor)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                SizedBox(
+                                  height: 44,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryColor,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    onPressed: () => _applyPromoCode(subtotal),
+                                    child: const Text('APPLY', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              children: availablePromoCodes.map((promo) {
+                                return ActionChip(
+                                  avatar: const Icon(Icons.local_offer_outlined, size: 14, color: AppTheme.primaryColor),
+                                  label: Text(promo.code, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                                  backgroundColor: const Color(0xffeff6ff),
+                                  side: const BorderSide(color: Color(0xffbfdbfe)),
+                                  onPressed: () {
+                                    _promoController.text = promo.code;
+                                    _applyPromoCode(subtotal);
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 3. BILL SUMMARY CARD
                   Card(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     child: Padding(
@@ -264,6 +407,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               Text('₹$deliveryFee', style: const TextStyle(fontWeight: FontWeight.bold)),
                             ],
                           ),
+                          if (discountAmount > 0) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Promo Discount', style: TextStyle(color: Color(0xff16a34a), fontWeight: FontWeight.w600)),
+                                Text('-₹$discountAmount', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xff16a34a))),
+                              ],
+                            ),
+                          ],
                           const Divider(height: 24),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -1,0 +1,280 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+
+import '../providers/location_provider.dart';
+import '../services/map_service.dart';
+import '../widgets/map_search_bar.dart';
+import '../widgets/center_location_marker.dart';
+import '../widgets/location_card.dart';
+import '../widgets/current_location_button.dart';
+import '../widgets/map_zoom_controls.dart';
+import '../widgets/nearby_provider_marker.dart';
+import '../widgets/availability_popup.dart';
+import '../widgets/book_for_someone_else_sheet.dart';
+import 'location_search_screen.dart';
+
+class MapScreen extends ConsumerStatefulWidget {
+  const MapScreen({super.key});
+
+  @override
+  ConsumerState<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends ConsumerState<MapScreen> {
+  final MapController _mapController = MapController();
+  Timer? _dragDebounceTimer;
+  bool _isMapDragging = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = ref.read(locationProvider);
+      if (state.currentLocation == null) {
+        ref.read(locationProvider.notifier).fetchCurrentGpsLocation();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _dragDebounceTimer?.cancel();
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  void _onMapPositionChanged(MapCamera camera, bool hasGesture) {
+    if (hasGesture) {
+      if (!_isMapDragging) {
+        setState(() {
+          _isMapDragging = true;
+        });
+      }
+      _dragDebounceTimer?.cancel();
+      _dragDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+        setState(() {
+          _isMapDragging = false;
+        });
+        final center = camera.center;
+        ref.read(locationProvider.notifier).updateSelectedLocationFromCoordinates(
+              center.latitude,
+              center.longitude,
+            );
+      });
+    }
+  }
+
+  void _zoomIn() {
+    final currentZoom = _mapController.camera.zoom;
+    if (currentZoom < MapService.maxZoom) {
+      _mapController.move(_mapController.camera.center, currentZoom + 1.0);
+    }
+  }
+
+  void _zoomOut() {
+    final currentZoom = _mapController.camera.zoom;
+    if (currentZoom > MapService.minZoom) {
+      _mapController.move(_mapController.camera.center, currentZoom - 1.0);
+    }
+  }
+
+  List<Marker> _generateNearbyProviderMarkers(double centerLat, double centerLng) {
+    return [
+      Marker(
+        point: LatLng(centerLat + 0.003, centerLng + 0.004),
+        width: 110,
+        height: 36,
+        child: const NearbyProviderMarker(providerName: 'Ramesh K.', category: 'Electrician'),
+      ),
+      Marker(
+        point: LatLng(centerLat - 0.004, centerLng + 0.002),
+        width: 110,
+        height: 36,
+        child: const NearbyProviderMarker(providerName: 'Sunil V.', category: 'Plumber'),
+      ),
+      Marker(
+        point: LatLng(centerLat + 0.002, centerLng - 0.005),
+        width: 110,
+        height: 36,
+        child: const NearbyProviderMarker(providerName: 'Anita P.', category: 'Cleaning'),
+      ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locationState = ref.watch(locationProvider);
+    final locationNotifier = ref.read(locationProvider.notifier);
+    final serviceAreaService = ref.read(serviceAreaServiceProvider);
+
+    final selectedLoc = locationState.selectedLocation ?? locationState.currentLocation;
+    final initialLat = selectedLoc?.latitude ?? MapService.defaultLatitude;
+    final initialLng = selectedLoc?.longitude ?? MapService.defaultLongitude;
+
+    final providerMarkers = _generateNearbyProviderMarkers(initialLat, initialLng);
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          // 1. Interactive OpenStreetMap Engine
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: LatLng(initialLat, initialLng),
+              initialZoom: MapService.defaultZoom,
+              minZoom: MapService.minZoom,
+              maxZoom: MapService.maxZoom,
+              onPositionChanged: _onMapPositionChanged,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: MapService.osmTileUrl,
+                userAgentPackageName: MapService.userAgentPackageName,
+              ),
+              MarkerLayer(markers: providerMarkers),
+            ],
+          ),
+
+          // 2. Center Drag-to-Pin Marker
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 35.0),
+              child: CenterLocationMarker(isMoving: _isMapDragging),
+            ),
+          ),
+
+          // 3. Top Floating Search Bar
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              child: MapSearchBar(
+                currentSearchText: selectedLoc?.area,
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LocationSearchScreen()),
+                  );
+                  final updatedLoc = ref.read(locationProvider).selectedLocation;
+                  if (updatedLoc != null) {
+                    _mapController.move(
+                      LatLng(updatedLoc.latitude, updatedLoc.longitude),
+                      MapService.defaultZoom,
+                    );
+                  }
+                },
+              ),
+            ),
+          ),
+
+          // 4. Zoom Controls (+ / -)
+          Positioned(
+            right: 16,
+            bottom: 290,
+            child: MapZoomControls(
+              onZoomIn: _zoomIn,
+              onZoomOut: _zoomOut,
+            ),
+          ),
+
+          // 5. Floating GPS Re-Center Button
+          Positioned(
+            right: 16,
+            bottom: 230,
+            child: CurrentLocationButton(
+              onPressed: () async {
+                await locationNotifier.fetchCurrentGpsLocation();
+                final cur = ref.read(locationProvider).currentLocation;
+                if (cur != null) {
+                  _mapController.move(
+                    LatLng(cur.latitude, cur.longitude),
+                    MapService.defaultZoom,
+                  );
+                }
+              },
+            ),
+          ),
+
+          // 6. Bottom Address Confirmation Sheet
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: LocationCard(
+              location: selectedLoc,
+              isLoading: _isMapDragging || locationState.isSaving,
+              onChangeTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LocationSearchScreen()),
+                );
+              },
+              onBookForSomeoneElseTap: selectedLoc == null
+                  ? null
+                  : () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => BookForSomeoneElseSheet(
+                          location: selectedLoc,
+                          onSave: (recipientLoc) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Booking address saved for ${recipientLoc.recipientName ?? "recipient"}'),
+                                backgroundColor: const Color(0xff15803d),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            Navigator.pop(context, selectedLoc);
+                          },
+                        ),
+                      );
+                    },
+              onConfirm: () async {
+                if (selectedLoc == null) return;
+
+                final isAvailable = await serviceAreaService.isServiceAvailable(
+                  selectedLoc.city,
+                  selectedLoc.latitude,
+                  selectedLoc.longitude,
+                );
+
+                if (!isAvailable && context.mounted) {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AvailabilityPopup(
+                      cityName: selectedLoc.city,
+                      onSelectOtherCity: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LocationSearchScreen()),
+                        );
+                      },
+                    ),
+                  );
+                  return;
+                }
+
+                final success = await locationNotifier.confirmAndSaveCurrentSelection();
+                if (success && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Service location set to ${selectedLoc.area}, ${selectedLoc.city}'),
+                      backgroundColor: const Color(0xff15803d),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  Navigator.pop(context, selectedLoc);
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
