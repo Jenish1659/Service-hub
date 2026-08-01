@@ -11,6 +11,8 @@ import '../../features/delivery/presentation/delivery_dashboard.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/shared/presentation/partner_map_screen.dart';
 
+import '../../features/security/presentation/system_permissions_screen.dart';
+
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 // Global flag to bypass Auth check for mock accounts & local testing
@@ -76,6 +78,10 @@ final GoRouter appRouter = GoRouter(
           deliveryPin: extra['deliveryPin'] ?? '2842',
         );
       },
+    ),
+    GoRoute(
+      path: '/system-permissions',
+      builder: (BuildContext context, GoRouterState state) => const SystemPermissionsScreen(),
     ),
   ],
 );

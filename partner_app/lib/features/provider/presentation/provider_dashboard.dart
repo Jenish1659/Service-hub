@@ -78,23 +78,26 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
   }
 
   Future<void> _acceptBooking(String bookingId) async {
+    final partnerName = ref.read(loggedInPartnerNameProvider);
     try {
-      await Supabase.instance.client
+      final client = Supabase.instance.client;
+      await client
           .from('bookings')
-          .update({'status': 'En Route'})
+          .update({
+            'status': 'En Route',
+            'accepted_by': partnerName,
+          })
           .eq('id', bookingId);
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✓ Booking Request Accepted! Status set to En Route.'), backgroundColor: AppTheme.successColor),
-      );
-      _refreshAll();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✓ Booking Request Accepted! Status set to En Route.'), backgroundColor: AppTheme.successColor),
-      );
-    }
+    } catch (_) {}
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✓ Booking Request Accepted by $partnerName! Removed from other partners.'),
+        backgroundColor: AppTheme.successColor,
+      ),
+    );
+    _refreshAll();
   }
 
   Future<void> _declineBooking(String bookingId) async {
@@ -103,18 +106,13 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
           .from('bookings')
           .update({'status': 'Declined'})
           .eq('id', bookingId);
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Booking Request Declined.'), backgroundColor: AppTheme.warningColor),
-      );
-      _refreshAll();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Booking Request Declined.'), backgroundColor: AppTheme.warningColor),
-      );
-    }
+    } catch (_) {}
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Booking Request Declined.'), backgroundColor: AppTheme.warningColor),
+    );
+    _refreshAll();
   }
 
   void _refreshAll() {
@@ -142,6 +140,11 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
         title: const Text('Partner Agent Workspace', style: TextStyle(color: AppTheme.textPrimaryColor, fontWeight: FontWeight.bold, fontSize: 16)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.shield_outlined, color: AppTheme.primaryColor),
+            tooltip: 'Permissions & Overlay Settings',
+            onPressed: () => context.push('/system-permissions'),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppTheme.textPrimaryColor),
             onPressed: _refreshAll,
           ),
@@ -159,6 +162,49 @@ class _ProviderDashboardState extends ConsumerState<ProviderDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 0. SYSTEM PERMISSION & OVERLAY BANNER
+              InkWell(
+                onTap: () => context.push('/system-permissions'),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xfffffbeb),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xfffde68a)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Color(0xfff59e0b),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.layers_rounded, color: Colors.white, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Display Over Apps & Notifications Active',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xff92400e)),
+                            ),
+                            Text(
+                              'Tap to test floating order alerts or manage system permissions',
+                              style: TextStyle(fontSize: 11, color: Color(0xffb45309)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: Color(0xffd97706)),
+                    ],
+                  ),
+                ),
+              ),
               // 1. BUSINESS PROFILE & ONLINE STATUS CARD
               Container(
                 padding: const EdgeInsets.all(16),

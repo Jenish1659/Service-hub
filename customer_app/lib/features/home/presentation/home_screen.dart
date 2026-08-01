@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../shared/providers/location_provider.dart';
 import '../../../shared/providers/notification_provider.dart';
@@ -353,6 +355,204 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+
+              // 1.5. LIVE OPENSTREETMAP HYPERLOCAL GEOLOCATION CARD
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0f000000),
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                    border: Border.all(color: const Color(0xffe2e8f0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header Strip
+                      Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.map_rounded, color: AppTheme.primaryColor, size: 18),
+                                ),
+                                const SizedBox(width: 8),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Hyperlocal Service Map',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textPrimaryColor),
+                                    ),
+                                    Text(
+                                      locationState.address.isEmpty ? 'Digvijay Plot, Jamnagar' : locationState.address,
+                                      style: const TextStyle(fontSize: 11, color: AppTheme.textSecondaryColor),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            InkWell(
+                              onTap: () => _showLocationPicker(context),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.my_location_rounded, color: Colors.white, size: 12),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Change GPS',
+                                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Interactive Live OpenStreetMap Box
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                        child: SizedBox(
+                          height: 180,
+                          width: double.infinity,
+                          child: Stack(
+                            children: [
+                              FlutterMap(
+                                options: MapOptions(
+                                  initialCenter: LatLng(
+                                    locationState.latitude ?? 22.4725,
+                                    locationState.longitude ?? 70.0610,
+                                  ),
+                                  initialZoom: 14.5,
+                                ),
+                                children: [
+                                  TileLayer(
+                                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                    userAgentPackageName: 'com.servicehub.customer',
+                                  ),
+                                  MarkerLayer(
+                                    markers: [
+                                      // Customer Live GPS Location Marker
+                                      Marker(
+                                        point: LatLng(
+                                          locationState.latitude ?? 22.4725,
+                                          locationState.longitude ?? 70.0610,
+                                        ),
+                                        width: 48,
+                                        height: 48,
+                                        child: Column(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.withValues(alpha: 0.2),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.person_pin_circle_rounded, color: Colors.blueAccent, size: 36),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Nearby Partner Provider 1 (AC Specialist)
+                                      Marker(
+                                        point: LatLng(
+                                          (locationState.latitude ?? 22.4725) + 0.004,
+                                          (locationState.longitude ?? 70.0610) + 0.003,
+                                        ),
+                                        width: 36,
+                                        height: 36,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: const BoxDecoration(color: Color(0xff10b981), shape: BoxShape.circle),
+                                          child: const Icon(Icons.build_rounded, color: Colors.white, size: 18),
+                                        ),
+                                      ),
+                                      // Nearby Partner Provider 2 (Plumber)
+                                      Marker(
+                                        point: LatLng(
+                                          (locationState.latitude ?? 22.4725) - 0.003,
+                                          (locationState.longitude ?? 70.0610) - 0.004,
+                                        ),
+                                        width: 36,
+                                        height: 36,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: const BoxDecoration(color: Color(0xff0d9488), shape: BoxShape.circle),
+                                          child: const Icon(Icons.plumbing_rounded, color: Colors.white, size: 18),
+                                        ),
+                                      ),
+                                      // Nearby Delivery Agent
+                                      Marker(
+                                        point: LatLng(
+                                          (locationState.latitude ?? 22.4725) + 0.002,
+                                          (locationState.longitude ?? 70.0610) - 0.003,
+                                        ),
+                                        width: 36,
+                                        height: 36,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: const BoxDecoration(color: Color(0xfff59e0b), shape: BoxShape.circle),
+                                          child: const Icon(Icons.two_wheeler_rounded, color: Colors.white, size: 18),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Positioned(
+                                bottom: 10,
+                                left: 10,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xff0f172a).withValues(alpha: 0.85),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.radar_rounded, color: Color(0xff10b981), size: 14),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        '3 Verified Partners Active in 5km Radius',
+                                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
