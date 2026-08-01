@@ -774,16 +774,6 @@
       ]
     },
     {
-      "name": "permission_handler_html",
-      "version": "0.1.4+0",
-      "dependencies": [
-        "flutter",
-        "flutter_web_plugins",
-        "permission_handler_platform_interface",
-        "web"
-      ]
-    },
-    {
       "name": "path_provider_foundation",
       "version": "2.6.0",
       "dependencies": [
@@ -888,6 +878,16 @@
         "shelf",
         "stream_channel",
         "web_socket_channel"
+      ]
+    },
+    {
+      "name": "permission_handler_html",
+      "version": "0.1.4+1",
+      "dependencies": [
+        "flutter",
+        "flutter_web_plugins",
+        "permission_handler_platform_interface",
+        "web"
       ]
     },
     {
@@ -1023,7 +1023,7 @@
     },
     {
       "name": "vector_graphics",
-      "version": "1.2.2",
+      "version": "1.2.3",
       "dependencies": [
         "flutter",
         "http",

@@ -153,8 +153,8 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: const [
+                    const Row(
+                      children: [
                         Icon(Icons.storefront, color: AppColors.primaryNavy, size: 18),
                         SizedBox(width: 8),
                         Text(
@@ -164,8 +164,8 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Row(
-                      children: const [
+                    const Row(
+                      children: [
                         Icon(Icons.location_on, color: AppThemeColors.errorRed, size: 18),
                         SizedBox(width: 8),
                         Text(

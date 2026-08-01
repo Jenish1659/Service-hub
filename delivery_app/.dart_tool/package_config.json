@@ -603,7 +603,7 @@
     },
     {
       "name": "permission_handler_html",
-      "rootUri": "file:///C:/Users/Bheda%20Jenish/AppData/Local/Pub/Cache/hosted/pub.dev/permission_handler_html-0.1.4+0",
+      "rootUri": "file:///C:/Users/Bheda%20Jenish/AppData/Local/Pub/Cache/hosted/pub.dev/permission_handler_html-0.1.4+1",
       "packageUri": "lib/",
       "languageVersion": "3.5"
     },
@@ -939,9 +939,9 @@
     },
     {
       "name": "vector_graphics",
-      "rootUri": "file:///C:/Users/Bheda%20Jenish/AppData/Local/Pub/Cache/hosted/pub.dev/vector_graphics-1.2.2",
+      "rootUri": "file:///C:/Users/Bheda%20Jenish/AppData/Local/Pub/Cache/hosted/pub.dev/vector_graphics-1.2.3",
       "packageUri": "lib/",
-      "languageVersion": "3.9"
+      "languageVersion": "3.10"
     },
     {
       "name": "vector_graphics_codec",
