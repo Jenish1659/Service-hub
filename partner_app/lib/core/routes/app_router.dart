@@ -1,87 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../../features/auth/presentation/login_screen.dart';
+import '../../features/onboarding/presentation/storyboard_animation_screen.dart';
 import '../../features/auth/presentation/role_selection_screen.dart';
-import '../../features/onboarding/presentation/partner_onboarding_screen.dart';
-import '../../features/provider/presentation/provider_dashboard.dart';
-import '../../features/seller/presentation/seller_dashboard.dart';
-import '../../features/delivery/presentation/delivery_dashboard.dart';
-import '../../features/profile/presentation/profile_screen.dart';
-import '../../features/shared/presentation/partner_map_screen.dart';
+import '../../features/auth/presentation/service_provider_login_screen.dart';
+import '../../features/auth/presentation/shopkeeper_login_screen.dart';
+import '../../features/auth/presentation/delivery_agent_login_screen.dart';
+import '../../features/registration/presentation/screens/provider_basic_info_registration_screen.dart';
 
-import '../../features/security/presentation/system_permissions_screen.dart';
-
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
-
-// Global flag to bypass Auth check for mock accounts & local testing
-bool partnerBypassLoggedIn = false;
-
-final GoRouter appRouter = GoRouter(
-  initialLocation: '/login',
-  navigatorKey: _rootNavigatorKey,
-  redirect: (BuildContext context, GoRouterState state) {
-    final session = Supabase.instance.client.auth.currentSession;
-    final bool loggingIn = state.matchedLocation == '/login';
-
-    if (session == null && !partnerBypassLoggedIn && !loggingIn) {
-      return '/login';
-    }
-
-    if ((session != null || partnerBypassLoggedIn) && loggingIn) {
-      return '/role-select';
-    }
-
-    return null;
-  },
-  routes: <RouteBase>[
+final appRouter = GoRouter(
+  initialLocation: '/',
+  routes: [
     GoRoute(
-      path: '/login',
-      builder: (BuildContext context, GoRouterState state) => const LoginScreen(),
+      path: '/',
+      builder: (context, state) => const StoryboardAnimationScreen(),
     ),
     GoRoute(
-      path: '/role-select',
-      builder: (BuildContext context, GoRouterState state) => const RoleSelectionScreen(),
+      path: '/role-selection',
+      builder: (context, state) => const RoleSelectionScreen(),
     ),
     GoRoute(
-      path: '/onboarding',
-      builder: (BuildContext context, GoRouterState state) => const PartnerOnboardingScreen(),
+      path: '/login/service-provider',
+      builder: (context, state) => const ServiceProviderLoginScreen(),
     ),
     GoRoute(
-      path: '/provider-dashboard',
-      builder: (BuildContext context, GoRouterState state) => const ProviderDashboard(),
+      path: '/login/shopkeeper',
+      builder: (context, state) => const ShopkeeperLoginScreen(),
     ),
     GoRoute(
-      path: '/seller-dashboard',
-      builder: (BuildContext context, GoRouterState state) => const SellerDashboard(),
+      path: '/login/delivery-agent',
+      builder: (context, state) => const DeliveryAgentLoginScreen(),
     ),
     GoRoute(
-      path: '/delivery-dashboard',
-      builder: (BuildContext context, GoRouterState state) => const DeliveryDashboard(),
-    ),
-    GoRoute(
-      path: '/profile',
-      builder: (BuildContext context, GoRouterState state) => const ProfileScreen(),
-    ),
-    GoRoute(
-      path: '/navigation',
-      builder: (BuildContext context, GoRouterState state) {
-        final extra = state.extra as Map<String, dynamic>? ?? {};
-        return PartnerMapScreen(
-          taskId: extra['taskId'] ?? 'mock_task_1',
-          customerName: extra['customerName'] ?? 'Jenish Bheda',
-          address: extra['address'] ?? 'Digvijay Plot, Jamnagar',
-          serviceName: extra['serviceName'] ?? 'AC Service & Repair',
-          price: extra['price'] ?? '₹1,100',
-          type: extra['type'] ?? 'service',
-          deliveryPin: extra['deliveryPin'] ?? '2842',
-        );
-      },
-    ),
-    GoRoute(
-      path: '/system-permissions',
-      builder: (BuildContext context, GoRouterState state) => const SystemPermissionsScreen(),
+      path: '/register',
+      builder: (context, state) => const ProviderBasicInfoRegistrationScreen(),
     ),
   ],
 );
