@@ -6,6 +6,7 @@ import '../../features/auth/presentation/service_provider_login_screen.dart';
 import '../../features/auth/presentation/shopkeeper_login_screen.dart';
 import '../../features/auth/presentation/delivery_agent_login_screen.dart';
 import '../../features/registration/presentation/screens/provider_basic_info_registration_screen.dart';
+import '../../features/registration/presentation/screens/provider_category_selection_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -33,6 +34,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/register',
       builder: (context, state) => const ProviderBasicInfoRegistrationScreen(),
+    ),
+    GoRoute(
+      path: '/register/service-category',
+      builder: (context, state) => const ProviderCategorySelectionScreen(),
     ),
   ],
 );

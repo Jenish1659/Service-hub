@@ -438,14 +438,17 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
                           onPressed: _controller.isFormValid
                               ? () async {
                                   final messenger = ScaffoldMessenger.of(context);
+                                  final router = GoRouter.of(context);
                                   final ok = await _controller.submitBasicInformation();
                                   if (ok && mounted) {
                                     messenger.showSnackBar(
                                       const SnackBar(
-                                        content: Text('Basic Information Saved Successfully! Draft Created in Database.'),
+                                        content: Text('Basic Information Saved Successfully! Next: Select Service Category.'),
                                         backgroundColor: AppColors.shopkeeperGreenPrimary,
+                                        duration: Duration(seconds: 2),
                                       ),
                                     );
+                                    router.push('/register/service-category');
                                   }
                                 }
                               : null,

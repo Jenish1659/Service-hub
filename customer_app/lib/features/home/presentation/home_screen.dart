@@ -1042,7 +1042,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 8),
               SizedBox(
-                height: 200,
+                height: 220,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1271,9 +1271,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            height: 100,
+            height: 90,
             decoration: const BoxDecoration(
               color: Color(0xfff1f5f9),
               borderRadius: BorderRadius.only(
@@ -1286,9 +1287,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   name,
@@ -1345,8 +1347,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xff0052cc),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        minimumSize: Size.zero,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                        minimumSize: const Size(40, 26),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
