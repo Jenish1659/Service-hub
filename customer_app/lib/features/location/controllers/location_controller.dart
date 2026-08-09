@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
 import '../models/location_model.dart';
 import '../services/location_service.dart';
 import '../services/geocoding_service.dart';
@@ -59,9 +60,39 @@ class LocationController extends StateNotifier<LocationState> {
   final LocationPermissionService _permissionService = LocationPermissionService();
   final LocationSaveService _saveService = LocationSaveService();
 
-  LocationController() : super(const LocationState());
+  LocationController() : super(const LocationState()) {
+    _loadSavedLocationFromCache();
+  }
+
+  void _loadSavedLocationFromCache() {
+    try {
+      final box = Hive.box('customer_cache');
+      final address = box.get('location_address') as String?;
+      final lat = box.get('location_latitude') as double?;
+      final lng = box.get('location_longitude') as double?;
+
+      if (lat != null && lng != null) {
+        final cachedModel = LocationModel(
+          latitude: lat,
+          longitude: lng,
+          address: address ?? 'Kaushal Nagar, Jamnagar',
+          area: address?.split(',').first ?? 'Kaushal Nagar',
+          city: 'Jamnagar',
+          state: 'Gujarat',
+          country: 'India',
+        );
+        state = state.copyWith(
+          status: LocationStatus.success,
+          currentLocation: cachedModel,
+          selectedLocation: cachedModel,
+        );
+      }
+    } catch (_) {}
+  }
 
   Future<void> initializeAndDetectLocation() async {
+    if (state.selectedLocation != null) return; // Use fast cached location first!
+
     state = state.copyWith(status: LocationStatus.checkingPermission);
     
     final permStatus = await _permissionService.checkPermission();
@@ -87,6 +118,8 @@ class LocationController extends StateNotifier<LocationState> {
       final pos = await _locationService.getCurrentLocation();
       final locationModel = await _geocodingService.getLocationFromCoordinates(pos.latitude, pos.longitude);
       
+      _saveLocationToCache(locationModel);
+
       state = state.copyWith(
         status: LocationStatus.success,
         currentLocation: locationModel,
@@ -111,6 +144,7 @@ class LocationController extends StateNotifier<LocationState> {
   }
 
   void setSelectedLocation(LocationModel location) {
+    _saveLocationToCache(location);
     state = state.copyWith(
       selectedLocation: location,
       isFollowingLocation: false,
@@ -121,12 +155,23 @@ class LocationController extends StateNotifier<LocationState> {
     state = state.copyWith(isFollowingLocation: following);
   }
 
+  void _saveLocationToCache(LocationModel location) {
+    try {
+      final box = Hive.box('customer_cache');
+      final String fullAddr = '${location.area}, ${location.city}';
+      box.put('location_address', fullAddr);
+      box.put('location_latitude', location.latitude);
+      box.put('location_longitude', location.longitude);
+    } catch (_) {}
+  }
+
   Future<bool> confirmAndSaveCurrentSelection() async {
     final locationToSave = state.selectedLocation ?? state.currentLocation;
     if (locationToSave == null) return false;
 
     state = state.copyWith(isSaving: true);
     try {
+      _saveLocationToCache(locationToSave);
       await _saveService.confirmAndSaveLocation(locationToSave);
       state = state.copyWith(isSaving: false);
       return true;

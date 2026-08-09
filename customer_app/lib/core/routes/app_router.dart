@@ -14,6 +14,7 @@ import '../../features/bookings/presentation/track_booking_screen.dart';
 import '../../features/bookings/presentation/chat_screen.dart';
 import '../../features/orders/presentation/track_order_screen.dart';
 import '../../features/orders/presentation/orders_screen.dart';
+import '../../features/location/screens/map_screen.dart';
 import '../../shared/layouts/root_navigation_layout.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -83,6 +84,13 @@ final GoRouter appRouter = GoRouter(
       path: '/login',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (BuildContext context, GoRouterState state) => const LoginScreen(),
+    ),
+
+    // Map route
+    GoRoute(
+      path: '/map',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) => const MapScreen(),
     ),
 
     // Cart route

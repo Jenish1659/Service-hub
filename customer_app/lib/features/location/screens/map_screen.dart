@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:go_router/go_router.dart';
 
 import '../providers/location_provider.dart';
 import '../services/map_service.dart';
@@ -27,14 +28,35 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   final MapController _mapController = MapController();
   Timer? _dragDebounceTimer;
   bool _isMapDragging = false;
+  bool _hasCenteredOnUserLocation = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final state = ref.read(locationProvider);
-      if (state.currentLocation == null) {
-        ref.read(locationProvider.notifier).fetchCurrentGpsLocation();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final locState = ref.read(locationProvider);
+      final locationNotifier = ref.read(locationProvider.notifier);
+
+      if (locState.selectedLocation != null) {
+        _mapController.move(
+          LatLng(locState.selectedLocation!.latitude, locState.selectedLocation!.longitude),
+          MapService.defaultZoom,
+        );
+        setState(() {
+          _hasCenteredOnUserLocation = true;
+        });
+      } else {
+        await locationNotifier.fetchCurrentGpsLocation();
+        final cur = ref.read(locationProvider).currentLocation;
+        if (cur != null && mounted) {
+          _mapController.move(
+            LatLng(cur.latitude, cur.longitude),
+            MapService.defaultZoom,
+          );
+          setState(() {
+            _hasCenteredOnUserLocation = true;
+          });
+        }
       }
     });
   }
@@ -54,15 +76,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         });
       }
       _dragDebounceTimer?.cancel();
-      _dragDebounceTimer = Timer(const Duration(milliseconds: 500), () {
-        setState(() {
-          _isMapDragging = false;
-        });
-        final center = camera.center;
-        ref.read(locationProvider.notifier).updateSelectedLocationFromCoordinates(
-              center.latitude,
-              center.longitude,
-            );
+      _dragDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          setState(() {
+            _isMapDragging = false;
+          });
+          final center = camera.center;
+          ref.read(locationProvider.notifier).updateSelectedLocationFromCoordinates(
+                center.latitude,
+                center.longitude,
+              );
+        }
       });
     }
   }
@@ -110,6 +134,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final locationNotifier = ref.read(locationProvider.notifier);
     final serviceAreaService = ref.read(serviceAreaServiceProvider);
 
+    // Auto-center map on customer's GPS location when permission/location becomes available
+    ref.listen(locationProvider, (previous, next) {
+      if (!_hasCenteredOnUserLocation && next.currentLocation != null) {
+        _hasCenteredOnUserLocation = true;
+        _mapController.move(
+          LatLng(next.currentLocation!.latitude, next.currentLocation!.longitude),
+          MapService.defaultZoom,
+        );
+      }
+    });
+
     final selectedLoc = locationState.selectedLocation ?? locationState.currentLocation;
     final initialLat = selectedLoc?.latitude ?? MapService.defaultLatitude;
     final initialLng = selectedLoc?.longitude ?? MapService.defaultLongitude;
@@ -146,25 +181,57 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           ),
 
-          // 3. Top Floating Search Bar
+          // 3. Top Floating Search Bar & Back Button
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: MapSearchBar(
-                currentSearchText: selectedLoc?.area,
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const LocationSearchScreen()),
-                  );
-                  final updatedLoc = ref.read(locationProvider).selectedLocation;
-                  if (updatedLoc != null) {
-                    _mapController.move(
-                      LatLng(updatedLoc.latitude, updatedLoc.longitude),
-                      MapService.defaultZoom,
-                    );
-                  }
-                },
+              child: Row(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/');
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.arrow_back_rounded, color: Color(0xff0052cc), size: 20),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: MapSearchBar(
+                      currentSearchText: selectedLoc?.area,
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LocationSearchScreen()),
+                        );
+                        final updatedLoc = ref.read(locationProvider).selectedLocation;
+                        if (updatedLoc != null) {
+                          _mapController.move(
+                            LatLng(updatedLoc.latitude, updatedLoc.longitude),
+                            MapService.defaultZoom,
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -228,7 +295,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
-                            Navigator.pop(context, selectedLoc);
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              context.go('/');
+                            }
                           },
                         ),
                       );
@@ -268,7 +339,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
-                  Navigator.pop(context, selectedLoc);
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/');
+                  }
                 }
               },
             ),
