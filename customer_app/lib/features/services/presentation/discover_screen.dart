@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
-import 'services_provider.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -14,77 +13,6 @@ class DiscoverScreen extends ConsumerStatefulWidget {
 }
 
 class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
-  String? _initialCategory;
-  late String _selectedCategory;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_initialCategory == null) {
-      final queryCategory = GoRouterState.of(context).uri.queryParameters['category'];
-      _selectedCategory = queryCategory ?? 'All';
-      _initialCategory = _selectedCategory;
-    }
-  }
-
-  // Helpers to get visual style based on service category
-  IconData _getIconForCategory(String category) {
-    switch (category) {
-      case 'AC':
-        return Icons.ac_unit;
-      case 'Plumbing':
-        return Icons.plumbing;
-      case 'Car':
-        return Icons.directions_car;
-      case 'Cooking':
-        return Icons.soup_kitchen;
-      case 'Laundry':
-        return Icons.local_laundry_service;
-      case 'Care Taker':
-        return Icons.health_and_safety;
-      default:
-        return Icons.build;
-    }
-  }
-
-  Color _getBgColorForCategory(String category) {
-    switch (category) {
-      case 'AC':
-        return const Color(0xffeff6ff);
-      case 'Plumbing':
-        return const Color(0xfff0fdfa);
-      case 'Car':
-        return const Color(0xfffff1f2);
-      case 'Cooking':
-        return const Color(0xfffffbeb);
-      case 'Laundry':
-        return const Color(0xfffaf5ff);
-      case 'Care Taker':
-        return const Color(0xfff0fdf4);
-      default:
-        return const Color(0xfff1f5f9);
-    }
-  }
-
-  Color _getIconColorForCategory(String category) {
-    switch (category) {
-      case 'AC':
-        return const Color(0xff2563eb);
-      case 'Plumbing':
-        return const Color(0xff0d9488);
-      case 'Car':
-        return const Color(0xffe11d48);
-      case 'Cooking':
-        return const Color(0xffd97706);
-      case 'Laundry':
-        return const Color(0xff7c3aed);
-      case 'Care Taker':
-        return const Color(0xff16a34a);
-      default:
-        return AppTheme.primaryColor;
-    }
-  }
-
   void _startBookingFlow(BuildContext context, String serviceName, double servicePrice) {
     showModalBottomSheet(
       context: context,
@@ -94,173 +22,233 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     );
   }
 
-  Widget _buildCategoryChip(String category) {
-    final isSelected = _selectedCategory == category;
-    String displayLabel = category;
-    if (category == 'AC') displayLabel = 'AC Repair';
-    if (category == 'Car') displayLabel = 'Car Service';
-
-    return ChoiceChip(
-      label: Text(displayLabel),
-      selected: isSelected,
-      onSelected: (val) {
-        if (val) {
-          setState(() {
-            _selectedCategory = category;
-          });
-        }
+  @override
+  Widget build(BuildContext context) {
+    // 6 Required Services with their photos & metadata
+    final leftColumnServices = [
+      {
+        'title': 'AC Services',
+        'image': 'assets/images/service_ac.png',
+        'price': 499.0,
+        'imageHeight': 190.0,
+        'sub': 'Diagnostic, repair & cleaning',
       },
-      selectedColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-      labelStyle: TextStyle(
-        color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondaryColor,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      {
+        'title': 'Care Taker',
+        'image': 'assets/images/service_caretaker.png',
+        'price': 599.0,
+        'imageHeight': 210.0,
+        'sub': 'Elderly & patient care specialist',
+      },
+      {
+        'title': 'Laundry',
+        'image': 'assets/images/service_laundry.png',
+        'price': 199.0,
+        'imageHeight': 185.0,
+        'sub': 'Wash, dry & steam iron',
+      },
+    ];
+
+    final rightColumnServices = [
+      {
+        'title': 'Car Service',
+        'image': 'assets/images/service_car.png',
+        'price': 799.0,
+        'imageHeight': 175.0,
+        'sub': 'Full auto checkup & detailing',
+      },
+      {
+        'title': 'Cooking',
+        'image': 'assets/images/service_cooking.png',
+        'price': 399.0,
+        'imageHeight': 210.0,
+        'sub': 'Personal chef & meal prep',
+      },
+      {
+        'title': 'Plumbing',
+        'image': 'assets/images/service_plumbing.png',
+        'price': 299.0,
+        'imageHeight': 200.0,
+        'sub': 'Leakage fix & pipe fitting',
+      },
+    ];
+
+    return Scaffold(
+      backgroundColor: const Color(0xfff8fafc),
+      appBar: AppBar(
+        backgroundColor: const Color(0xfff8fafc),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xff0f172a)),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
+          },
+        ),
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. GIANT ELEGANT HEADER TITLE
+            const Text(
+              'Discover',
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w900,
+                color: Color(0xff0f172a),
+                letterSpacing: -1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Choose from services for you\nand your home',
+              style: TextStyle(
+                fontSize: 17,
+                color: Color(0xff64748b),
+                fontWeight: FontWeight.w400,
+                height: 1.3,
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // 2. STAGGERED 2-COLUMN SERVICE CARDS (MATCHING EXACT SCREENSHOT STYLE)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left Column
+                Expanded(
+                  child: Column(
+                    children: leftColumnServices.map((service) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 18.0),
+                        child: _buildStaggeredServiceCard(
+                          context: context,
+                          title: service['title'] as String,
+                          image: service['image'] as String,
+                          price: service['price'] as double,
+                          sub: service['sub'] as String,
+                          imageHeight: service['imageHeight'] as double,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+                const SizedBox(width: 14),
+
+                // Right Column
+                Expanded(
+                  child: Column(
+                    children: rightColumnServices.map((service) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 18.0),
+                        child: _buildStaggeredServiceCard(
+                          context: context,
+                          title: service['title'] as String,
+                          image: service['image'] as String,
+                          price: service['price'] as double,
+                          sub: service['sub'] as String,
+                          imageHeight: service['imageHeight'] as double,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final servicesAsync = ref.watch(servicesProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Local Services'),
-        elevation: 0,
+  Widget _buildStaggeredServiceCard({
+    required BuildContext context,
+    required String title,
+    required String image,
+    required double price,
+    required String sub,
+    required double imageHeight,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            const Text(
-              'Home Services',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                color: AppTheme.textPrimaryColor,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Select a service category to find top rated professionals within 5 km.',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondaryColor,
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Horizontal list of Category Filter Chips
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _buildCategoryChip('All'),
-                  const SizedBox(width: 8),
-                  _buildCategoryChip('AC'),
-                  const SizedBox(width: 8),
-                  _buildCategoryChip('Plumbing'),
-                  const SizedBox(width: 8),
-                  _buildCategoryChip('Car'),
-                  const SizedBox(width: 8),
-                  _buildCategoryChip('Cooking'),
-                  const SizedBox(width: 8),
-                  _buildCategoryChip('Laundry'),
-                  const SizedBox(width: 8),
-                  _buildCategoryChip('Care Taker'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: servicesAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(
-                  child: Text('Error loading services: ${err.toString()}', style: const TextStyle(color: AppTheme.dangerColor)),
-                ),
-                data: (servicesList) {
-                  final filteredServices = _selectedCategory == 'All'
-                      ? servicesList
-                      : servicesList.where((s) => s['category'] == _selectedCategory).toList();
-
-                  if (filteredServices.isEmpty) {
-                    return const Center(
-                      child: Text('No services found in this category.', style: TextStyle(color: AppTheme.textSecondaryColor)),
-                    );
-                  }
-
-                  return ListView.builder(
-                    itemCount: filteredServices.length,
-                    itemBuilder: (context, index) {
-                      final service = filteredServices[index];
-                      final category = service['category'] ?? '';
-                      final name = service['name'] ?? '';
-                      final price = (service['price'] as num?)?.toDouble() ?? 0.0;
-                      
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: InkWell(
-                          onTap: () => _startBookingFlow(context, name, price),
-                          borderRadius: BorderRadius.circular(16),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 54,
-                                  height: 54,
-                                  decoration: BoxDecoration(
-                                    color: _getBgColorForCategory(category),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    _getIconForCategory(category),
-                                    size: 28,
-                                    color: _getIconColorForCategory(category),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: AppTheme.textPrimaryColor,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Starting from ₹${price.toStringAsFixed(0)} · 5 km coverage',
-                                        style: const TextStyle(
-                                          color: AppTheme.textSecondaryColor,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 16,
-                                  color: AppTheme.textSecondaryColor,
-                                ),
-                              ],
-                            ),
-                          ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: () => _startBookingFlow(context, title, price),
+          borderRadius: BorderRadius.circular(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Photo Header Container
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  height: imageHeight,
+                  width: double.infinity,
+                  color: const Color(0xfff1f5f9),
+                  child: Image.asset(
+                    image,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: const Color(0xffe2e8f0),
+                        child: const Center(
+                          child: Icon(Icons.cleaning_services_rounded, color: Color(0xff94a3b8), size: 40),
                         ),
                       );
                     },
-                  );
-                },
+                  ),
+                ),
               ),
-            ),
-          ],
+
+              // Title and Price Label Below Image
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xff0f172a),
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'From ₹${price.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xff0052cc),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -280,7 +268,7 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
   int _currentStep = 1; // 1: Describe, 2: Slot, 3: Confirm
   final TextEditingController _issueController = TextEditingController();
   final TextEditingController _promoController = TextEditingController();
-  String _selectedDate = 'Today, July 12';
+  String _selectedDate = 'Today, August 9';
   String _selectedTime = '06:30 PM';
   String _selectedPayment = 'Cash on Service';
   bool _isSubmitting = false;
@@ -308,12 +296,11 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
 
     final finalPrice = widget.servicePrice - _promoDiscount - walletDeduction;
 
-    // Update wallet and award coins
     if (_useWallet) {
       box.put('wallet_balance_inr', walletBalance - walletDeduction);
     }
     final int currentCoins = box.get('wallet_coins', defaultValue: 500) as int;
-    box.put('wallet_coins', currentCoins + 100); // Earn 100 coins for booking!
+    box.put('wallet_coins', currentCoins + 100);
 
     try {
       final response = await client.from('bookings').insert({
@@ -322,7 +309,7 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
         'service_name': widget.serviceName,
         'issue_description': _issueController.text.trim().isNotEmpty
             ? _issueController.text.trim()
-            : 'AC Cooling Diagnostic & Filter Cleaning requested',
+            : '${widget.serviceName} requested by customer',
         'scheduled_date': _selectedDate,
         'scheduled_time': _selectedTime,
         'payment_method': _selectedPayment,
@@ -330,11 +317,11 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
         'status': 'Pending',
         'entrance_pin': '7429',
         'completion_otp': '5892',
-        'customer_address': 'Digvijay Plot, Main Road, Jamnagar',
+        'customer_address': 'Kaushal Nagar, Jamnagar',
       }).select().single();
 
       if (mounted) {
-        Navigator.pop(context); // Close bottom sheet
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✓ Booking request placed live! Partner notified.'), backgroundColor: AppTheme.successColor),
         );
@@ -371,7 +358,6 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -387,14 +373,12 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
             ),
             const Divider(height: 20),
 
-            // Steps Content
             if (_currentStep == 1) _buildDescribeStep(),
             if (_currentStep == 2) _buildSlotStep(),
             if (_currentStep == 3) _buildConfirmStep(),
 
             const SizedBox(height: 24),
 
-            // Actions
             Row(
               children: [
                 if (_currentStep > 1 && !_isSubmitting) ...[
@@ -436,7 +420,7 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Describe the Issue',
+          'Describe the Issue / Requirements',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 8),
@@ -444,7 +428,7 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
           controller: _issueController,
           maxLines: 3,
           decoration: const InputDecoration(
-            hintText: 'e.g., Water leaking from AC unit / Tap has very low pressure.',
+            hintText: 'e.g., Water leaking from tap / Need full car cleaning & polish.',
           ),
         ),
       ],
@@ -466,9 +450,9 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
           items: const [
-            DropdownMenuItem(value: 'Today, July 12', child: Text('Today, July 12')),
-            DropdownMenuItem(value: 'Tomorrow, July 13', child: Text('Tomorrow, July 13')),
-            DropdownMenuItem(value: 'Tuesday, July 14', child: Text('Tuesday, July 14')),
+            DropdownMenuItem(value: 'Today, August 9', child: Text('Today, August 9')),
+            DropdownMenuItem(value: 'Tomorrow, August 10', child: Text('Tomorrow, August 10')),
+            DropdownMenuItem(value: 'Monday, August 11', child: Text('Monday, August 11')),
           ],
           onChanged: (val) {
             if (val != null) {
@@ -621,34 +605,6 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
               child: const Text('Apply'),
             ),
           ],
-        ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('FREEVISIT Terms & Conditions'),
-                content: const Text(
-                  '1. Applicable to the first booking of any service.\n'
-                  '2. The discount covers the visiting charge up to a maximum value of ₹150.\n'
-                  '3. Cannot be combined with any other offers or product discounts.\n'
-                  '4. Valid for residents inside Jamnagar city limits only.',
-                  style: TextStyle(height: 1.4),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Close'),
-                  ),
-                ],
-              ),
-            );
-          },
-          child: const Text(
-            'View T&C for Promo Code "FREEVISIT"',
-            style: TextStyle(color: AppTheme.primaryColor, fontSize: 12, decoration: TextDecoration.underline),
-          ),
         ),
         const SizedBox(height: 16),
         const Text(

@@ -335,45 +335,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 20),
 
               // 2. SERVICES NEAR YOU SECTION HEADER
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Services near you',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xff0f172a),
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () => context.go('/discover'),
-                      child: const Row(
-                        children: [
-                          Text(
-                            'See all',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xff0052cc),
-                            ),
-                          ),
-                          SizedBox(width: 2),
-                          Icon(Icons.chevron_right_rounded, color: Color(0xff0052cc), size: 18),
-                        ],
-                      ),
-                    ),
-                  ],
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  'Services near you',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xff0f172a),
+                  ),
                 ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-              // 3. EXACT 4 SERVICE CARDS + MORE OPTION TILE (AC REPAIR, CAR SERVICE, COOKING, CARE TAKER, MORE)
+              // 3. EXACT 4 SERVICE CARDS + MORE OPTION TILE (COMPACT & SLIGHTLY SMALLER)
               SizedBox(
-                height: 155,
+                height: 125,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -650,19 +628,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }) {
     return InkWell(
       onTap: () => context.go('/discover?category=$categoryCode'),
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        width: 110,
-        padding: const EdgeInsets.all(12),
+        width: 92,
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: const Color(0xffe2e8f0)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -670,14 +648,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: badgeBg,
                 shape: BoxShape.circle,
               ),
-              child: Icon(badgeIcon, color: badgeColor, size: 28),
+              child: Icon(badgeIcon, color: badgeColor, size: 22),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -685,7 +663,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 13,
+                fontSize: 11.5,
                 color: Color(0xff0f172a),
               ),
             ),
@@ -698,19 +676,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildPillMoreCard({required BuildContext context}) {
     return InkWell(
       onTap: () => context.go('/discover'),
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        width: 110,
-        padding: const EdgeInsets.all(12),
+        width: 92,
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: const Color(0xff0052cc), width: 1.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -718,20 +696,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(10),
               decoration: const BoxDecoration(
                 color: Color(0xffeff6ff),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.grid_view_rounded, color: Color(0xff0052cc), size: 28),
+              child: const Icon(Icons.grid_view_rounded, color: Color(0xff0052cc), size: 22),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             const Text(
               'More',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 13,
+                fontSize: 11.5,
                 color: Color(0xff0052cc),
               ),
             ),
