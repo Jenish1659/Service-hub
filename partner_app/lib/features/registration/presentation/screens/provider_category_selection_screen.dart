@@ -334,13 +334,7 @@ class _ProviderCategorySelectionScreenState extends State<ProviderCategorySelect
                       ),
                       onPressed: _selectedCategoryId != null
                           ? () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Category Selected: ${_selectedCategoryTitle()}'),
-                                  backgroundColor: AppColors.shopkeeperGreenPrimary,
-                                ),
-                              );
-                              // Next onboarding step hook (Document Upload / KYC)
+                              context.push('/register/service-options/$_selectedCategoryId');
                             }
                           : null,
                       child: const Row(
@@ -367,11 +361,6 @@ class _ProviderCategorySelectionScreenState extends State<ProviderCategorySelect
         ),
       ),
     );
-  }
-
-  String _selectedCategoryTitle() {
-    final cat = _categories.firstWhere((c) => c.id == _selectedCategoryId);
-    return cat.title;
   }
 
   // Pure Code Vector Illustration Thumbnail Box
