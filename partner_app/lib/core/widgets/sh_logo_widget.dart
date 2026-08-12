@@ -27,7 +27,7 @@ class ShLogoWidget extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.accentGold.withOpacity(0.25),
+                    AppColors.accentGold.withValues(alpha: 0.25),
                     Colors.transparent,
                   ],
                 ),
@@ -42,7 +42,7 @@ class ShLogoWidget extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryNavy.withOpacity(0.12),
+                    color: AppColors.primaryNavy.withValues(alpha: 0.12),
                     blurRadius: 16,
                     spreadRadius: 2,
                     offset: const Offset(0, 6),

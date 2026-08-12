@@ -23,7 +23,7 @@ class ServiceProviderAvatar extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.providerBluePrimary.withOpacity(0.2),
+            color: AppColors.providerBluePrimary.withValues(alpha: 0.2),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -37,7 +37,7 @@ class ServiceProviderAvatar extends StatelessWidget {
             child: Icon(
               Icons.location_city,
               size: size * 0.5,
-              color: AppColors.providerBluePrimary.withOpacity(0.15),
+              color: AppColors.providerBluePrimary.withValues(alpha: 0.15),
             ),
           ),
           Column(
@@ -128,7 +128,7 @@ class ShopkeeperAvatar extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shopkeeperGreenPrimary.withOpacity(0.2),
+            color: AppColors.shopkeeperGreenPrimary.withValues(alpha: 0.2),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -228,7 +228,7 @@ class DeliveryAgentAvatar extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.deliveryOrangePrimary.withOpacity(0.2),
+            color: AppColors.deliveryOrangePrimary.withValues(alpha: 0.2),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),

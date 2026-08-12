@@ -247,13 +247,13 @@ class _ShopkeeperLoginScreenState extends State<ShopkeeperLoginScreen> {
               const SizedBox(height: 24),
 
               // Bottom Feature Badges Grid
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   alignment: WrapAlignment.center,
-                  children: const [
+                  children: [
                     _MetricBadge(icon: Icons.inventory_2, label: 'Manage Store Easily'),
                     _MetricBadge(icon: Icons.track_changes, label: 'Track Orders Real-time'),
                     _MetricBadge(icon: Icons.point_of_sale, label: 'Increase Sales Everyday'),

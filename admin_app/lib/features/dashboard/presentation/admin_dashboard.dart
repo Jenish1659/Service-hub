@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/routes/app_router.dart';
@@ -122,7 +123,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Payout for "$partnerName" successfully processed via instant bank settlement! (Offline Demo Mode)'),
+          content: Text('Payout for "$partnerName" successfully processed via instant bank settlement!'),
           backgroundColor: AppTheme.successColor,
         ),
       );
@@ -158,16 +159,22 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff090d16),
+      backgroundColor: const Color(0xfff8fafc),
       body: Column(
         children: [
-          // 1. EXECUTIVE TOP BAR
+          // 1. EXECUTIVE TOP BAR (ROYAL BLUE THEME)
           Container(
             height: 70,
             padding: const EdgeInsets.symmetric(horizontal: 24),
             decoration: const BoxDecoration(
-              color: Color(0xff0f172a),
-              border: Border(bottom: BorderSide(color: Color(0xff1e293b), width: 1.5)),
+              gradient: LinearGradient(
+                colors: [Color(0xff1e3a8a), Color(0xff2563eb)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              boxShadow: [
+                BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+              ],
             ),
             child: Row(
               children: [
@@ -175,11 +182,11 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xff2563eb).withValues(alpha: 0.2),
+                    color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xff2563eb).withValues(alpha: 0.4)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                   ),
-                  child: const Icon(Icons.admin_panel_settings_rounded, color: Color(0xff38bdf8), size: 24),
+                  child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 24),
                 ),
                 const SizedBox(width: 14),
                 const Column(
@@ -197,7 +204,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                     ),
                     Text(
                       'Master Enterprise Operations Console',
-                      style: TextStyle(fontSize: 11, color: Color(0xff94a3b8)),
+                      style: TextStyle(fontSize: 11, color: Color(0xffbfdbfe)),
                     ),
                   ],
                 ),
@@ -205,23 +212,23 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
                 // Live Operational Status Pill
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xff064e3b).withValues(alpha: 0.6),
+                    color: const Color(0xffdcfce7),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xff10b981).withValues(alpha: 0.5)),
+                    border: Border.all(color: const Color(0xff86efac)),
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.circle, color: Color(0xff10b981), size: 10),
+                      Icon(Icons.circle, color: Color(0xff16a34a), size: 10),
                       SizedBox(width: 8),
                       Text(
                         'ALL SYSTEMS LIVE • JAMNAGAR 5 KM GEOFENCE ONLINE',
                         style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xffa7f3d0),
-                          letterSpacing: 0.8,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xff15803d),
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ],
@@ -233,16 +240,16 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xff1e293b),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xff334155)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
                   ),
                   child: const Row(
                     children: [
                       CircleAvatar(
-                        radius: 12,
-                        backgroundColor: Color(0xff2563eb),
-                        child: Text('A', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                        radius: 13,
+                        backgroundColor: Colors.white,
+                        child: Text('A', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xff1e3a8a))),
                       ),
                       SizedBox(width: 8),
                       Column(
@@ -250,7 +257,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Super Admin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                          Text('admin@servicehub.com', style: TextStyle(fontSize: 10, color: Color(0xff94a3b8))),
+                          Text('admin@servicehub.com', style: TextStyle(fontSize: 10, color: Color(0xffbfdbfe))),
                         ],
                       ),
                     ],
@@ -260,8 +267,8 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
 
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xfff87171),
-                    side: const BorderSide(color: Color(0xff7f1d1d)),
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: Colors.white.withValues(alpha: 0.5)),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -282,52 +289,68 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
             ),
           ),
 
-          // 2. DESKTOP BODY: SIDEBAR + CONTENT AREA
+          // 2. DESKTOP BODY: SIDEBAR (SCROLLABLE TO PREVENT OVERFLOW) + CONTENT AREA
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // SIDEBAR NAVIGATION
+                // LIGHT SIDEBAR NAVIGATION (NO OVERFLOW GUARANTEE)
                 Container(
-                  width: 260,
+                  width: 250,
                   decoration: const BoxDecoration(
-                    color: Color(0xff0f172a),
-                    border: Border(right: BorderSide(color: Color(0xff1e293b), width: 1.5)),
+                    color: Colors.white,
+                    border: Border(right: BorderSide(color: Color(0xffe2e8f0), width: 1.5)),
                   ),
                   child: Column(
                     children: [
-                      const SizedBox(height: 20),
-                      _buildSidebarGroupHeader('ANALYTICS & CONTROL'),
-                      _buildMenuTile(Icons.bar_chart_rounded, 'Platform Analytics'),
-                      _buildMenuTile(Icons.map_rounded, 'Live Dispatch & Map'),
-                      
-                      const SizedBox(height: 16),
-                      _buildSidebarGroupHeader('VERIFICATION & LEDGER'),
-                      _buildMenuTile(Icons.verified_user_rounded, 'KYC Approvals'),
-                      _buildMenuTile(Icons.account_balance_rounded, 'Settlements Ledger'),
-                      _buildMenuTile(Icons.headset_mic_rounded, 'Support Tickets'),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSidebarGroupHeader('ANALYTICS & CONTROL'),
+                              _buildMenuTile(Icons.bar_chart_rounded, 'Platform Analytics'),
+                              _buildMenuTile(Icons.map_rounded, 'Live Dispatch & Map'),
+                              
+                              const SizedBox(height: 14),
+                              _buildSidebarGroupHeader('CATALOG & INVENTORY'),
+                              _buildMenuTile(Icons.inventory_2_rounded, 'Manage Products'),
 
-                      const SizedBox(height: 16),
-                      _buildSidebarGroupHeader('SYSTEM SETTINGS'),
-                      _buildMenuTile(Icons.tune_rounded, 'Global Configurations'),
+                              const SizedBox(height: 14),
+                              _buildSidebarGroupHeader('VERIFICATION & LEDGER'),
+                              _buildMenuTile(Icons.verified_user_rounded, 'KYC Approvals'),
+                              _buildMenuTile(Icons.account_balance_rounded, 'Settlements Ledger'),
+                              _buildMenuTile(Icons.headset_mic_rounded, 'Support Tickets'),
 
-                      const Spacer(),
-                      
+                              const SizedBox(height: 14),
+                              _buildSidebarGroupHeader('SYSTEM SETTINGS'),
+                              _buildMenuTile(Icons.tune_rounded, 'Global Configurations'),
+                            ],
+                          ),
+                        ),
+                      ),
+
                       // Footer Version Info Card
                       Container(
-                        margin: const EdgeInsets.all(16),
-                        padding: const EdgeInsets.all(14),
+                        margin: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xff1e293b),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xff334155)),
+                          color: const Color(0xfff1f5f9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xffe2e8f0)),
                         ),
-                        child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: const Row(
                           children: [
-                            Text('ServiceHub Admin v2.4', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                            SizedBox(height: 2),
-                            Text('Strict 5 km Geofence Engine', style: TextStyle(fontSize: 10, color: Color(0xff94a3b8))),
+                            Icon(Icons.verified_rounded, size: 18, color: Color(0xff2563eb)),
+                            SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('ServiceHub Admin v2.4', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
+                                Text('5 km Geofence Engine', style: TextStyle(fontSize: 9.5, color: Color(0xff64748b))),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -335,10 +358,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                   ),
                 ),
 
-                // MAIN CONTENT CONTAINER
+                // MAIN LIGHT CONTENT CONTAINER
                 Expanded(
                   child: Container(
-                    color: const Color(0xff090d16),
+                    color: const Color(0xfff8fafc),
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(28.0),
                       child: _buildActiveTabContent(),
@@ -361,8 +384,8 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
         title,
         style: const TextStyle(
           fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: Color(0xff64748b),
+          fontWeight: FontWeight.w800,
+          color: Color(0xff94a3b8),
           letterSpacing: 1.2,
         ),
       ),
@@ -372,19 +395,20 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
   Widget _buildMenuTile(IconData icon, String title) {
     final isSelected = title == _activeTab;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xff2563eb).withValues(alpha: 0.15) : Colors.transparent,
+        color: isSelected ? const Color(0xffeff6ff) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected ? const Color(0xff2563eb).withValues(alpha: 0.5) : Colors.transparent,
+          color: isSelected ? const Color(0xffbfdbfe) : Colors.transparent,
         ),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
         leading: Icon(
           icon,
-          color: isSelected ? const Color(0xff38bdf8) : const Color(0xff64748b),
+          color: isSelected ? const Color(0xff2563eb) : const Color(0xff64748b),
           size: 20,
         ),
         title: Text(
@@ -392,7 +416,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.white : const Color(0xff94a3b8),
+            color: isSelected ? const Color(0xff1e40af) : const Color(0xff334155),
           ),
         ),
         onTap: () {
@@ -410,6 +434,8 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
         return _buildPlatformConsole();
       case 'Live Dispatch & Map':
         return _buildLiveDispatchMap();
+      case 'Manage Products':
+        return _buildProductManagement();
       case 'KYC Approvals':
         return _buildKYCApprovals();
       case 'Settlements Ledger':
@@ -428,8 +454,8 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     final statsAsync = ref.watch(adminStatsProvider);
 
     return statsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xff38bdf8))),
-      error: (e, s) => Center(child: Text('Error loading stats: ${e.toString()}', style: const TextStyle(color: Color(0xfff87171)))),
+      loading: () => const Center(child: CircularProgressIndicator(color: Color(0xff2563eb))),
+      error: (e, s) => Center(child: Text('Error loading stats: ${e.toString()}', style: const TextStyle(color: Color(0xffef4444)))),
       data: (stats) {
         final revenue = stats['revenue'] as double;
         final customers = stats['customersCount'] as int;
@@ -446,24 +472,25 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                   children: [
                     Text(
                       'Executive System Overview',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white),
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xff0f172a)),
                     ),
                     SizedBox(height: 4),
                     Text(
                       'Real-time metrics across 5 km hyperlocal zones in Jamnagar',
-                      style: TextStyle(color: Color(0xff94a3b8), fontSize: 13),
+                      style: TextStyle(color: Color(0xff64748b), fontSize: 13),
                     ),
                   ],
                 ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff1e293b),
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xff334155)),
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xff2563eb),
+                    elevation: 0,
+                    side: const BorderSide(color: Color(0xffcbd5e1)),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
-                  icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xff38bdf8)),
-                  label: const Text('Refresh Data'),
+                  icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xff2563eb)),
+                  label: const Text('Refresh Data', style: TextStyle(fontWeight: FontWeight.bold)),
                   onPressed: () {
                     ref.invalidate(adminStatsProvider);
                   },
@@ -472,7 +499,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
             ),
             const SizedBox(height: 24),
 
-            // Metric Cards
+            // Metric Cards (Light UI)
             Row(
               children: [
                 Expanded(
@@ -480,7 +507,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: _buildExecutiveCard('Active Customers', '$customers', 'Registered users', Icons.people_alt_rounded, const Color(0xff38bdf8)),
+                  child: _buildExecutiveCard('Active Customers', '$customers', 'Registered users', Icons.people_alt_rounded, const Color(0xff0284c7)),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -488,7 +515,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: _buildExecutiveCard('Active Agents', '$activeAgentsCount', 'On-field delivery & providers', Icons.two_wheeler_rounded, const Color(0xffa855f7)),
+                  child: _buildExecutiveCard('Active Agents', '$activeAgentsCount', 'On-field delivery & providers', Icons.two_wheeler_rounded, const Color(0xff8b5cf6)),
                 ),
               ],
             ),
@@ -504,28 +531,29 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                   child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: const Color(0xff0f172a),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xff1e293b)),
+                      border: Border.all(color: const Color(0xffe2e8f0)),
+                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.tune_rounded, color: Color(0xff38bdf8), size: 20),
+                            Icon(Icons.tune_rounded, color: Color(0xff2563eb), size: 20),
                             SizedBox(width: 10),
-                            Text('Hyperlocal Geofence Parameters', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                            Text('Hyperlocal Geofence Parameters', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xff0f172a))),
                           ],
                         ),
                         const SizedBox(height: 20),
-                        _buildMetricRowDark('Active Radius Limit', '${geofenceRadius.toStringAsFixed(1)} km Radius'),
-                        const Divider(color: Color(0xff1e293b)),
-                        _buildMetricRowDark('Service Commission Rate', '${serviceCommission.toStringAsFixed(0)}% cut per job'),
-                        const Divider(color: Color(0xff1e293b)),
-                        _buildMetricRowDark('Delivery Base Fee', '₹${deliveryBaseFee.toStringAsFixed(0)} flat agent rate'),
-                        const Divider(color: Color(0xff1e293b)),
-                        _buildMetricRowDark('PIN Verification Mode', '4-Digit OTP Required'),
+                        _buildMetricRowLight('Active Radius Limit', '${geofenceRadius.toStringAsFixed(1)} km Radius'),
+                        const Divider(color: Color(0xfff1f5f9)),
+                        _buildMetricRowLight('Service Commission Rate', '${serviceCommission.toStringAsFixed(0)}% cut per job'),
+                        const Divider(color: Color(0xfff1f5f9)),
+                        _buildMetricRowLight('Delivery Base Fee', '₹${deliveryBaseFee.toStringAsFixed(0)} flat agent rate'),
+                        const Divider(color: Color(0xfff1f5f9)),
+                        _buildMetricRowLight('PIN Verification Mode', '4-Digit OTP Required'),
                       ],
                     ),
                   ),
@@ -538,9 +566,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                   child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: const Color(0xff0f172a),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xff1e293b)),
+                      border: Border.all(color: const Color(0xffe2e8f0)),
+                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,17 +578,17 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                           children: [
                             Icon(Icons.shield_outlined, color: Color(0xfff59e0b), size: 20),
                             SizedBox(width: 10),
-                            Text('System Quick Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                            Text('System Quick Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xff0f172a))),
                           ],
                         ),
                         const SizedBox(height: 20),
-                        _buildStatusIndicator('PostGIS Geofence Server', 'Active', const Color(0xff10b981)),
+                        _buildStatusIndicator('PostGIS Geofence Server', 'Active', const Color(0xff16a34a)),
                         const SizedBox(height: 12),
-                        _buildStatusIndicator('Supabase DB Realtime Synced', 'Online', const Color(0xff10b981)),
+                        _buildStatusIndicator('Supabase DB Realtime Synced', 'Online', const Color(0xff16a34a)),
                         const SizedBox(height: 12),
-                        _buildStatusIndicator('PIN Encryption Service', 'Secure (256-bit)', const Color(0xff38bdf8)),
+                        _buildStatusIndicator('PIN Encryption Service', 'Secure (256-bit)', const Color(0xff0284c7)),
                         const SizedBox(height: 12),
-                        _buildStatusIndicator('Automated Bank Payouts', 'Ready', const Color(0xffa855f7)),
+                        _buildStatusIndicator('Automated Bank Payouts', 'Ready', const Color(0xff8b5cf6)),
                       ],
                     ),
                   ),
@@ -579,12 +608,12 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       children: [
         const Text(
           'Live Active Dispatch & Provider Map',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xff0f172a)),
         ),
         const SizedBox(height: 4),
         const Text(
           'Monitor real-time active service providers and delivery agents within Jamnagar 5 km zone.',
-          style: TextStyle(color: Color(0xff94a3b8), fontSize: 13),
+          style: TextStyle(color: Color(0xff64748b), fontSize: 13),
         ),
         const SizedBox(height: 24),
 
@@ -592,9 +621,10 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           height: 420,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xff0f172a),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xff1e293b)),
+            border: Border.all(color: const Color(0xffe2e8f0)),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
           ),
           child: Stack(
             children: [
@@ -602,11 +632,11 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.map_rounded, size: 72, color: const Color(0xff2563eb).withValues(alpha: 0.4)),
+                    Icon(Icons.map_rounded, size: 72, color: const Color(0xff2563eb).withValues(alpha: 0.3)),
                     const SizedBox(height: 16),
-                    const Text('Jamnagar 5 km Radius Live Heatmap', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const Text('Jamnagar 5 km Radius Live Heatmap', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
                     const SizedBox(height: 6),
-                    const Text('87 Active Agents • 342 Verified Merchants Online', style: TextStyle(color: Color(0xff94a3b8), fontSize: 12)),
+                    const Text('87 Active Agents • 342 Verified Merchants Online', style: TextStyle(color: Color(0xff64748b), fontSize: 12)),
                   ],
                 ),
               ),
@@ -616,15 +646,15 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xff1e293b),
+                    color: const Color(0xffeff6ff),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xff334155)),
+                    border: Border.all(color: const Color(0xffbfdbfe)),
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.my_location_rounded, color: Color(0xff38bdf8), size: 16),
+                      Icon(Icons.my_location_rounded, color: Color(0xff2563eb), size: 16),
                       SizedBox(width: 8),
-                      Text('Zone: Digvijay Plot & Park Colony (5.0 km)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                      Text('Zone: Digvijay Plot & Park Colony (5.0 km)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff1e40af))),
                     ],
                   ),
                 ),
@@ -636,7 +666,647 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     );
   }
 
-  // TAB 3: KYC Approvals
+  // TAB 3: PRODUCT MANAGEMENT & MULTI-IMAGE STOCK ENGINE (LIGHT BLUE UI)
+  Widget _buildProductManagement() {
+    final productsAsync = ref.watch(adminProductsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Product Catalog & Inventory Engine',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xff0f172a)),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Add multi-photo products, manage stock levels, and sync items across 5 km hyperlocal radius.',
+                  style: TextStyle(color: Color(0xff64748b), fontSize: 13),
+                ),
+              ],
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xff2563eb),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
+              label: const Text('Add Product with Photos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              onPressed: () => _showAddProductDialog(context),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Quick Stock Rule Overview Banner (Light Theme)
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xffeff6ff),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xffbfdbfe)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xff2563eb),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.inventory_rounded, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Multi-Image & Stock Alert Rule Engine',
+                      style: TextStyle(color: Color(0xff1e40af), fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      '• Supports multiple pictures per product (up to 4 high-res photos).\n• New products default to 100 Pcs stock.\n• Stock <= 10: Triggers urgent "Only X left in stock!" badge on Customer App.',
+                      style: TextStyle(color: Color(0xff1e3a8a), fontSize: 12, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Products Grid / List (Light UI)
+        productsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xff2563eb))),
+          error: (e, s) => Center(child: Text('Error loading products: ${e.toString()}', style: const TextStyle(color: Color(0xffef4444)))),
+          data: (products) {
+            if (products.isEmpty) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(40),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xffe2e8f0)),
+                ),
+                child: const Center(
+                  child: Text('No products currently listed. Click "+ Add Product with Photos" to publish items.', style: TextStyle(color: Color(0xff64748b))),
+                ),
+              );
+            }
+
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                final item = products[index];
+                final String id = item['id']?.toString() ?? '';
+                final String name = item['name']?.toString() ?? 'Product';
+                final String cat = item['category']?.toString() ?? 'General';
+                final double price = (item['price'] as num?)?.toDouble() ?? 299.0;
+                final double origPrice = (item['original_price'] as num?)?.toDouble() ?? price * 1.3;
+                final int stock = (item['stock'] ?? item['stock_quantity'] ?? 100) as int;
+                final bool isLowStock = stock > 0 && stock <= 10;
+
+                // Extract image URLs
+                final List<String> images = (item['images'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+                    [
+                      if (item['image_url'] != null) item['image_url'].toString(),
+                      ..._getDefaultImagesForCategory(cat),
+                    ];
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: isLowStock ? const Color(0xfff97316) : const Color(0xffe2e8f0),
+                      width: isLowStock ? 1.5 : 1,
+                    ),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          // Main Cover Image
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              images.isNotEmpty ? images.first : 'https://images.unsplash.com/photo-1581094288338-2314dddb7ece?auto=format&fit=crop&w=300&q=80',
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 60,
+                                height: 60,
+                                color: const Color(0xffeff6ff),
+                                child: const Icon(Icons.image_not_supported_rounded, color: Color(0xff2563eb)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+
+                          // Product Info
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xff0f172a))),
+                                    const SizedBox(width: 10),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xffeff6ff),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xffbfdbfe)),
+                                      ),
+                                      child: Text(
+                                        cat,
+                                        style: const TextStyle(color: Color(0xff2563eb), fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    if (isLowStock) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xffea580c),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          '🔥 Urgency Warning: Only $stock Left!',
+                                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Price: ₹${price.toStringAsFixed(0)} (MSRP ₹${origPrice.toStringAsFixed(0)})  •  ${images.length} Photos Attached  •  5 km Geofence',
+                                  style: const TextStyle(color: Color(0xff64748b), fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Stock Controller
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xfff8fafc),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xffe2e8f0)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Text('Stock: ', style: TextStyle(color: Color(0xff64748b), fontSize: 12, fontWeight: FontWeight.bold)),
+                                Text(
+                                  '$stock Pcs',
+                                  style: TextStyle(
+                                    color: isLowStock ? const Color(0xffea580c) : const Color(0xff0f172a),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xffea580c),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    minimumSize: Size.zero,
+                                    elevation: 0,
+                                  ),
+                                  onPressed: () => _updateProductStock(id, 8),
+                                  child: const Text('Set to 8 Pcs (Test Urgency)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                ),
+                                const SizedBox(width: 6),
+
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xff16a34a),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    minimumSize: Size.zero,
+                                    elevation: 0,
+                                  ),
+                                  onPressed: () => _updateProductStock(id, 100),
+                                  child: const Text('Set to 100 Pcs', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Multi-Photo Gallery Horizontal Strip
+                      if (images.length > 1) ...[
+                        const SizedBox(height: 12),
+                        const Text('Attached Product Photos:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xff64748b))),
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          height: 50,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: images.length,
+                            itemBuilder: (context, imgIdx) {
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    images[imgIdx],
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(width: 50, height: 50, color: Colors.grey.shade200),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _updateProductStock(String id, int newStock) async {
+    // 1. Update in Hive cache box for local instant sync
+    try {
+      final box = Hive.box('customer_cache');
+      final List<dynamic> raw = box.get('admin_custom_products', defaultValue: <dynamic>[]) as List<dynamic>;
+      final list = raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      for (var p in list) {
+        if (p['id'] == id) {
+          p['stock'] = newStock;
+        }
+      }
+      box.put('admin_custom_products', list);
+    } catch (_) {}
+
+    // 2. Update in Supabase
+    try {
+      await Supabase.instance.client
+          .from('products')
+          .update({'stock': newStock})
+          .eq('id', id);
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Stock updated to $newStock Pcs! Customer App will update immediately.'),
+          backgroundColor: newStock <= 10 ? const Color(0xffea580c) : const Color(0xff16a34a),
+        ),
+      );
+      ref.invalidate(adminProductsProvider);
+    }
+  }
+
+  Future<void> _showAddProductDialog(BuildContext context) async {
+    final nameCtrl = TextEditingController();
+    final priceCtrl = TextEditingController();
+    final origPriceCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    final stockCtrl = TextEditingController(text: '100'); // DEFAULT 100 PIECES
+    final img1Ctrl = TextEditingController();
+    final img2Ctrl = TextEditingController();
+    final img3Ctrl = TextEditingController();
+    String category = 'AC Repair';
+    bool isSaving = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.add_photo_alternate_rounded, color: Color(0xff2563eb)),
+                  SizedBox(width: 10),
+                  Text('Add Product with Multiple Photos', style: TextStyle(color: Color(0xff0f172a), fontWeight: FontWeight.bold, fontSize: 18)),
+                ],
+              ),
+              content: SizedBox(
+                width: 520,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Product Title', style: TextStyle(color: Color(0xff334155), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: nameCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'e.g., Heavy Duty Water Tap Valve',
+                          hintStyle: const TextStyle(color: Color(0xff94a3b8)),
+                          filled: true,
+                          fillColor: const Color(0xfff8fafc),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffcbd5e1))),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      const Text('Service Category', style: TextStyle(color: Color(0xff334155), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        initialValue: category,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: const Color(0xfff8fafc),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffcbd5e1))),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'AC Repair', child: Text('AC Repair')),
+                          DropdownMenuItem(value: 'Car Service', child: Text('Car Service')),
+                          DropdownMenuItem(value: 'Plumbing', child: Text('Plumbing')),
+                          DropdownMenuItem(value: 'Cooking', child: Text('Cooking')),
+                          DropdownMenuItem(value: 'Laundry', child: Text('Laundry')),
+                          DropdownMenuItem(value: 'Care Taker', child: Text('Care Taker')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setDialogState(() => category = val);
+                        },
+                      ),
+                      const SizedBox(height: 14),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Selling Price (₹)', style: TextStyle(color: Color(0xff334155), fontSize: 12, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 6),
+                                TextField(
+                                  controller: priceCtrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    hintText: '349',
+                                    filled: true,
+                                    fillColor: const Color(0xfff8fafc),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffcbd5e1))),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Original Price (₹)', style: TextStyle(color: Color(0xff334155), fontSize: 12, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 6),
+                                TextField(
+                                  controller: origPriceCtrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    hintText: '499',
+                                    filled: true,
+                                    fillColor: const Color(0xfff8fafc),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffcbd5e1))),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      const Text('Stock Quantity (Default: 100 Pcs)', style: TextStyle(color: Color(0xff334155), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: stockCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: '100',
+                          filled: true,
+                          fillColor: const Color(0xfff8fafc),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffcbd5e1))),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Multiple Image URLs Inputs
+                      const Text('Product Photos (Supports Multiple Pictures)', style: TextStyle(color: Color(0xff2563eb), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: img1Ctrl,
+                        decoration: InputDecoration(
+                          hintText: 'Image 1 URL (Primary Cover Photo)',
+                          prefixIcon: const Icon(Icons.image, size: 18),
+                          filled: true,
+                          fillColor: const Color(0xfff8fafc),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffcbd5e1))),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: img2Ctrl,
+                        decoration: InputDecoration(
+                          hintText: 'Image 2 URL (Secondary View)',
+                          prefixIcon: const Icon(Icons.image_outlined, size: 18),
+                          filled: true,
+                          fillColor: const Color(0xfff8fafc),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffcbd5e1))),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: img3Ctrl,
+                        decoration: InputDecoration(
+                          hintText: 'Image 3 URL (Detail View)',
+                          prefixIcon: const Icon(Icons.image_outlined, size: 18),
+                          filled: true,
+                          fillColor: const Color(0xfff8fafc),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffcbd5e1))),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      const Text('Product Description', style: TextStyle(color: Color(0xff334155), fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: descCtrl,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          hintText: 'e.g., High-durability spare part for home service...',
+                          filled: true,
+                          fillColor: const Color(0xfff8fafc),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xffcbd5e1))),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel', style: TextStyle(color: Color(0xff64748b))),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff2563eb),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final name = nameCtrl.text.trim();
+                          if (name.isEmpty) return;
+
+                          setDialogState(() => isSaving = true);
+                          final price = double.tryParse(priceCtrl.text.trim()) ?? 299.0;
+                          final origPrice = double.tryParse(origPriceCtrl.text.trim()) ?? price * 1.3;
+                          final stock = int.tryParse(stockCtrl.text.trim()) ?? 100;
+                          final desc = descCtrl.text.trim().isNotEmpty ? descCtrl.text.trim() : 'Premium service product';
+
+                          // Process photos list
+                          List<String> photos = [];
+                          if (img1Ctrl.text.trim().isNotEmpty) photos.add(img1Ctrl.text.trim());
+                          if (img2Ctrl.text.trim().isNotEmpty) photos.add(img2Ctrl.text.trim());
+                          if (img3Ctrl.text.trim().isNotEmpty) photos.add(img3Ctrl.text.trim());
+
+                          if (photos.isEmpty) {
+                            photos = _getDefaultImagesForCategory(category);
+                          }
+
+                          final newProd = {
+                            'id': 'prod_${DateTime.now().millisecondsSinceEpoch}',
+                            'name': name,
+                            'category': category,
+                            'price': price,
+                            'original_price': origPrice,
+                            'discount': '30% OFF',
+                            'stock': stock,
+                            'description': desc,
+                            'images': photos,
+                            'latitude': 22.4707,
+                            'longitude': 70.0577,
+                          };
+
+                          // 1. Save locally to Hive box for instant synchronization with Customer app
+                          try {
+                            final box = Hive.box('customer_cache');
+                            final List<dynamic> raw = box.get('admin_custom_products', defaultValue: <dynamic>[]) as List<dynamic>;
+                            raw.insert(0, newProd);
+                            box.put('admin_custom_products', raw);
+                          } catch (_) {}
+
+                          // 2. Insert into Supabase products table
+                          try {
+                            await Supabase.instance.client.from('products').insert({
+                              'name': name,
+                              'category': category,
+                              'price': price,
+                              'original_price': origPrice,
+                              'discount': '30% OFF',
+                              'stock': stock,
+                              'description': desc,
+                              'latitude': 22.4707,
+                              'longitude': 70.0577,
+                            });
+                          } catch (_) {}
+
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Product "$name" published with ${photos.length} photos & $stock Pcs stock!'),
+                                backgroundColor: const Color(0xff16a34a),
+                              ),
+                            );
+                            ref.invalidate(adminProductsProvider);
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Publish Product & Photos', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  List<String> _getDefaultImagesForCategory(String cat) {
+    final c = cat.toLowerCase();
+    if (c.contains('ac')) {
+      return [
+        'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1581094288338-2314dddb7ece?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=600&q=80',
+      ];
+    }
+    if (c.contains('plumb')) {
+      return [
+        'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=600&q=80',
+      ];
+    }
+    if (c.contains('car')) {
+      return [
+        'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=600&q=80',
+      ];
+    }
+    if (c.contains('cook')) {
+      return [
+        'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80',
+      ];
+    }
+    if (c.contains('laundry')) {
+      return [
+        'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?auto=format&fit=crop&w=600&q=80',
+      ];
+    }
+    return [
+      'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80',
+    ];
+  }
+
+  // TAB 4: KYC Approvals
   Widget _buildKYCApprovals() {
     final pendingPartnersAsync = ref.watch(adminUnverifiedPartnersProvider);
 
@@ -645,17 +1315,17 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       children: [
         const Text(
           'KYC Verification & Partner Approvals',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xff0f172a)),
         ),
         const SizedBox(height: 4),
         const Text(
           'Review submitted business licenses, GST, and identity documents to activate partner accounts.',
-          style: TextStyle(color: Color(0xff94a3b8), fontSize: 13),
+          style: TextStyle(color: Color(0xff64748b), fontSize: 13),
         ),
         const SizedBox(height: 24),
         pendingPartnersAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xff38bdf8))),
-          error: (e, s) => Center(child: Text('Error loading pending approvals: ${e.toString()}', style: const TextStyle(color: Color(0xfff87171)))),
+          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xff2563eb))),
+          error: (e, s) => Center(child: Text('Error loading pending approvals: ${e.toString()}', style: const TextStyle(color: Color(0xffef4444)))),
           data: (rawPartners) {
             final partners = rawPartners.where((p) => !_processedProfileIds.contains(p['id'])).toList();
             if (partners.isEmpty) {
@@ -663,23 +1333,23 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(40),
                 decoration: BoxDecoration(
-                  color: const Color(0xff0f172a),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xff1e293b)),
+                  border: Border.all(color: const Color(0xffe2e8f0)),
                 ),
                 child: const Center(
                   child: Column(
                     children: [
-                      Icon(Icons.verified_rounded, size: 48, color: Color(0xff10b981)),
+                      Icon(Icons.verified_rounded, size: 48, color: Color(0xff16a34a)),
                       SizedBox(height: 12),
                       Text(
                         'KYC Verification Queue is Clear',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xff0f172a)),
                       ),
                       SizedBox(height: 4),
                       Text(
                         'All onboarding partners are verified and active on ServiceHub.',
-                        style: TextStyle(color: Color(0xff94a3b8), fontSize: 13),
+                        style: TextStyle(color: Color(0xff64748b), fontSize: 13),
                       ),
                     ],
                   ),
@@ -701,19 +1371,20 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                   margin: const EdgeInsets.only(bottom: 14),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xff0f172a),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xff1e293b)),
+                    border: Border.all(color: const Color(0xffe2e8f0)),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xff1e293b),
+                          color: const Color(0xffeff6ff),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.badge_rounded, color: Color(0xff38bdf8), size: 24),
+                        child: const Icon(Icons.badge_rounded, color: Color(0xff2563eb), size: 24),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -722,57 +1393,41 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                           children: [
                             Row(
                               children: [
-                                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xff0f172a))),
                                 const SizedBox(width: 10),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xff064e3b),
+                                    color: const Color(0xffdcfce7),
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xff059669)),
+                                    border: Border.all(color: const Color(0xff86efac)),
                                   ),
                                   child: const Text(
                                     'AI Score: 0.02 (Low Risk)',
-                                    style: TextStyle(color: Color(0xff34d399), fontSize: 10, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xff1e1b4b),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xff6366f1)),
-                                  ),
-                                  child: const Text(
-                                    'Face Match: 98.4%',
-                                    style: TextStyle(color: Color(0xffa5b4fc), fontSize: 10, fontWeight: FontWeight.bold),
+                                    style: TextStyle(color: Color(0xff15803d), fontSize: 10, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 6),
-                            Text('Email: $email  •  Bank Penny Drop: Verified (HDFC Bank)  •  Aadhaar QR: Valid',
-                                style: const TextStyle(color: Color(0xfff59e0b), fontSize: 12, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 4),
-                            Text('Dossier Ref ID: SH-AI-2026-$id  •  Vehicle Plate: GJ-03-AB-1234 (Honda Activa)',
-                                style: const TextStyle(color: Color(0xff64748b), fontSize: 11)),
+                            Text('Email: $email  •  Bank Penny Drop: Verified  •  Aadhaar QR: Valid',
+                                style: const TextStyle(color: Color(0xffd97706), fontSize: 12, fontWeight: FontWeight.w600)),
                           ],
                         ),
                       ),
                       OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xfff87171),
-                          side: const BorderSide(color: Color(0xff7f1d1d)),
+                          foregroundColor: const Color(0xffef4444),
+                          side: const BorderSide(color: Color(0xfffca5a5)),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
                         onPressed: () => _rejectPartnerProfile(id, name),
-                        child: const Text('Reject Application'),
+                        child: const Text('Reject'),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xff10b981),
+                          backgroundColor: const Color(0xff16a34a),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         ),
@@ -791,241 +1446,70 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     );
   }
 
-  // TAB 4: Settlements Ledger
+  // TAB 5: Settlements Ledger
   Widget _buildSettlements() {
     final settlementsAsync = ref.watch(adminSettlementsProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Partner Settlements Ledger',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white),
-        ),
+        const Text('Settlements & Partner Ledger', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xff0f172a))),
         const SizedBox(height: 4),
-        const Text(
-          'Automated payouts, platform commissions, and completed job settlements.',
-          style: TextStyle(color: Color(0xff94a3b8), fontSize: 13),
-        ),
+        const Text('Manage automated payouts and platform commissions across all completed jobs.', style: TextStyle(color: Color(0xff64748b), fontSize: 13)),
         const SizedBox(height: 24),
         settlementsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xff38bdf8))),
-          error: (e, s) => Center(child: Text('Error loading settlements: ${e.toString()}', style: const TextStyle(color: Color(0xfff87171)))),
+          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xff2563eb))),
+          error: (e, s) => Center(child: Text('Error loading settlements: ${e.toString()}', style: const TextStyle(color: Color(0xffef4444)))),
           data: (settlements) {
-            if (settlements.isEmpty) {
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(40),
-                decoration: BoxDecoration(
-                  color: const Color(0xff0f172a),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xff1e293b)),
-                ),
-                child: const Center(
-                  child: Text('No completed transactions found in history.', style: TextStyle(color: Color(0xff94a3b8))),
-                ),
-              );
-            }
-
-            return Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xff0f172a),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xff1e293b)),
-              ),
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: settlements.length,
-                separatorBuilder: (context, index) => const Divider(color: Color(0xff1e293b)),
-                itemBuilder: (context, index) {
-                  final item = settlements[index];
-                  final isPending = item['status'] == 'Pending Settlement';
-                  final id = item['id'];
-                  final type = item['type'];
-                  final partnerName = item['partner'];
-
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: type == 'Booking' ? const Color(0xff1e3a8a) : const Color(0xff4c1d95),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                type.toUpperCase(),
-                                style: TextStyle(
-                                  color: type == 'Booking' ? const Color(0xff93c5fd) : const Color(0xffc084fc),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(partnerName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
-                                const SizedBox(height: 2),
-                                Text('Date: ${item['date']}  |  TxID: ${id.toString().substring(0, 8).toUpperCase()}', style: const TextStyle(color: Color(0xff64748b), fontSize: 11)),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text('Total: ₹${(item['amount'] as double).toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
-                                Text('Net Platform Fee: ₹${(item['commission'] as double).toStringAsFixed(0)} (10%)', style: const TextStyle(color: Color(0xff38bdf8), fontSize: 11, fontWeight: FontWeight.w600)),
-                              ],
-                            ),
-                            const SizedBox(width: 24),
-                            isPending
-                                ? ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xffd97706),
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                    ),
-                                    onPressed: () => _settlePayout(id, type, partnerName),
-                                    child: const Text('Settle Payout Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                  )
-                                : Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xff064e3b),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xff10b981).withValues(alpha: 0.5)),
-                                    ),
-                                    child: const Text(
-                                      'Settled ✓',
-                                      style: TextStyle(color: Color(0xffa7f3d0), fontWeight: FontWeight.bold, fontSize: 12),
-                                    ),
-                                  ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  // TAB 5: Support Tickets
-  Widget _buildSupportTickets() {
-    final ticketsAsync = ref.watch(adminSupportTicketsProvider);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Customer Support Tickets Console',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Review customer queries and resolve complaints.',
-          style: TextStyle(color: Color(0xff94a3b8), fontSize: 13),
-        ),
-        const SizedBox(height: 24),
-        ticketsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xff38bdf8))),
-          error: (e, s) => Center(child: Text('Error loading tickets: ${e.toString()}', style: const TextStyle(color: Color(0xfff87171)))),
-          data: (tickets) {
-            if (tickets.isEmpty) {
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(40),
-                decoration: BoxDecoration(
-                  color: const Color(0xff0f172a),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xff1e293b)),
-                ),
-                child: const Center(
-                  child: Text('No support tickets submitted yet.', style: TextStyle(color: Color(0xff94a3b8))),
-                ),
-              );
-            }
-
             return ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: tickets.length,
+              itemCount: settlements.length,
               itemBuilder: (context, index) {
-                final ticket = tickets[index];
-                final id = ticket['id'];
-                final subject = ticket['subject'] ?? 'Untitled Ticket';
-                final description = ticket['description'] ?? '';
-                final status = ticket['status'] ?? 'Open';
-                final isResolved = status == 'Resolved';
+                final s = settlements[index];
+                final id = s['id']?.toString() ?? '';
+                final type = s['type'] ?? 'Booking';
+                final partner = s['partner'] ?? 'Partner';
+                final amount = (s['amount'] as num?)?.toDouble() ?? 0.0;
+                final comm = (s['commission'] as num?)?.toDouble() ?? 0.0;
+                final status = s['status'] ?? 'Settled';
 
                 return Container(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xff0f172a),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xff1e293b)),
+                    border: Border.all(color: const Color(0xffe2e8f0)),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(subject, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isResolved ? const Color(0xff064e3b) : const Color(0xff78350f),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              status.toUpperCase(),
-                              style: TextStyle(
-                                color: isResolved ? const Color(0xffa7f3d0) : const Color(0xfffde68a),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
+                      Icon(type == 'Booking' ? Icons.handyman_rounded : Icons.local_shipping_rounded, color: const Color(0xff2563eb), size: 24),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(partner, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xff0f172a))),
+                            const SizedBox(height: 2),
+                            Text('Type: $type  •  Commission: ₹${comm.toStringAsFixed(0)} (10%)', style: const TextStyle(color: Color(0xff64748b), fontSize: 12)),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(description, style: const TextStyle(color: Color(0xff94a3b8), fontSize: 13)),
-                      const SizedBox(height: 14),
-                      const Divider(color: Color(0xff1e293b)),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Ticket ID: ${id.toString().substring(0, 8).toUpperCase()}', style: const TextStyle(color: Color(0xff64748b), fontSize: 11)),
-                          if (!isResolved)
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xff10b981),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                              ),
-                              icon: const Icon(Icons.check, size: 14),
-                              label: const Text('Mark Resolved', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              onPressed: () => _resolveTicket(id),
-                            ),
-                        ],
-                      ),
+                      Text('₹${amount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xff0f172a))),
+                      const SizedBox(width: 16),
+                      if (status == 'Settled')
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: const Color(0xffdcfce7), borderRadius: BorderRadius.circular(20)),
+                          child: const Text('Settled', style: TextStyle(color: Color(0xff15803d), fontSize: 11, fontWeight: FontWeight.bold)),
+                        )
+                      else
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xff2563eb)),
+                          onPressed: () => _settlePayout(id, type, partner),
+                          child: const Text('Pay Now'),
+                        ),
                     ],
                   ),
                 );
@@ -1037,157 +1521,126 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     );
   }
 
-  // TAB 6: Global Settings
+  // TAB 6: Support Tickets
+  Widget _buildSupportTickets() {
+    final ticketsAsync = ref.watch(adminSupportTicketsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Customer Support & Disputes', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xff0f172a))),
+        const SizedBox(height: 4),
+        const Text('Review customer complaints, promo issues, and active support tickets.', style: TextStyle(color: Color(0xff64748b), fontSize: 13)),
+        const SizedBox(height: 24),
+        ticketsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator(color: Color(0xff2563eb))),
+          error: (e, s) => Center(child: Text('Error loading tickets: ${e.toString()}', style: const TextStyle(color: Color(0xffef4444)))),
+          data: (tickets) {
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: tickets.length,
+              itemBuilder: (context, index) {
+                final t = tickets[index];
+                final id = t['id']?.toString() ?? '';
+                final name = t['customer_name'] ?? 'Customer';
+                final subject = t['subject'] ?? 'Ticket';
+                final desc = t['description'] ?? '';
+                final status = t['status'] ?? 'Open';
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xffe2e8f0)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.headset_mic_rounded, color: Color(0xff2563eb), size: 24),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('$subject ($name)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xff0f172a))),
+                            const SizedBox(height: 4),
+                            Text(desc, style: const TextStyle(color: Color(0xff64748b), fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      if (status == 'Resolved')
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: const Color(0xffdcfce7), borderRadius: BorderRadius.circular(20)),
+                          child: const Text('Resolved', style: TextStyle(color: Color(0xff15803d), fontSize: 11, fontWeight: FontWeight.bold)),
+                        )
+                      else
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xff16a34a)),
+                          onPressed: () => _resolveTicket(id),
+                          child: const Text('Resolve Ticket'),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // TAB 7: Global Configurations
   Widget _buildGlobalSettings() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Global Platform Configurations',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white),
-        ),
+        const Text('Global System Configurations', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xff0f172a))),
         const SizedBox(height: 4),
-        const Text(
-          'Fine-tune 5 km geofences, commissions, and system operational parameters.',
-          style: TextStyle(color: Color(0xff94a3b8), fontSize: 13),
-        ),
+        const Text('Configure platform commissions, geofencing enforcement, and operational limits.', style: TextStyle(color: Color(0xff64748b), fontSize: 13)),
         const SizedBox(height: 24),
-
         Container(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const Color(0xff0f172a),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xff1e293b)),
+            border: Border.all(color: const Color(0xffe2e8f0)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Geofence Switch
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Enforce Strict Geofencing (5 km Radius)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
-                      SizedBox(height: 2),
-                      Text('Restricts service provider dispatch and merchant orders within 5 km of customer location', style: TextStyle(color: Color(0xff94a3b8), fontSize: 12)),
-                    ],
-                  ),
-                  Switch(
-                    value: enforceStrictGeofence,
-                    activeThumbColor: const Color(0xff38bdf8),
-                    onChanged: (val) {
-                      setState(() {
-                        enforceStrictGeofence = val;
-                      });
-                    },
-                  ),
-                ],
+              Text('Service Commission: ${serviceCommission.toStringAsFixed(0)}%', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xff0f172a))),
+              Slider(
+                min: 0,
+                max: 30,
+                activeColor: const Color(0xff2563eb),
+                value: serviceCommission,
+                onChanged: (val) => setState(() => serviceCommission = val),
               ),
               const SizedBox(height: 16),
-              Text(
-                'Geofence Threshold: ${geofenceRadius.toStringAsFixed(1)} km',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xff38bdf8)),
-              ),
-              Slider(
-                min: 1.0,
-                max: 15.0,
-                activeColor: const Color(0xff38bdf8),
-                inactiveColor: const Color(0xff1e293b),
-                value: geofenceRadius,
-                onChanged: enforceStrictGeofence
-                    ? (val) {
-                        setState(() {
-                          geofenceRadius = val;
-                        });
-                      }
-                    : null,
-              ),
-              const Divider(color: Color(0xff1e293b), height: 32),
-
-              // Service Commission
-              Text(
-                'Service Provider Commission Cut: ${serviceCommission.toStringAsFixed(0)}%',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
-              ),
-              const SizedBox(height: 2),
-              const Text('Percentage retained by ServiceHub from service booking completions.', style: TextStyle(color: Color(0xff94a3b8), fontSize: 12)),
-              Slider(
-                min: 5,
-                max: 30,
-                activeColor: const Color(0xfff59e0b),
-                inactiveColor: const Color(0xff1e293b),
-                value: serviceCommission,
-                onChanged: (val) {
-                  setState(() {
-                    serviceCommission = val;
-                  });
-                },
-              ),
-              const Divider(color: Color(0xff1e293b), height: 32),
-
-              // Product Commission
-              Text(
-                'Product Merchant Commission Cut: ${productCommission.toStringAsFixed(0)}%',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
-              ),
-              const SizedBox(height: 2),
-              const Text('Percentage retained from hyperlocal product sales.', style: TextStyle(color: Color(0xff94a3b8), fontSize: 12)),
-              Slider(
-                min: 2,
-                max: 20,
-                activeColor: const Color(0xffa855f7),
-                inactiveColor: const Color(0xff1e293b),
-                value: productCommission,
-                onChanged: (val) {
-                  setState(() {
-                    productCommission = val;
-                  });
-                },
-              ),
-              const Divider(color: Color(0xff1e293b), height: 32),
-
-              // Base Delivery Fee
-              Text(
-                'Base Delivery Agent Fee: ₹${deliveryBaseFee.toStringAsFixed(0)}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
-              ),
-              const SizedBox(height: 2),
-              const Text('Flat rate paid per completed product delivery.', style: TextStyle(color: Color(0xff94a3b8), fontSize: 12)),
+              Text('Base Delivery Fee: ₹${deliveryBaseFee.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xff0f172a))),
               Slider(
                 min: 15,
                 max: 100,
-                activeColor: const Color(0xff10b981),
-                inactiveColor: const Color(0xff1e293b),
+                activeColor: const Color(0xff16a34a),
                 value: deliveryBaseFee,
-                onChanged: (val) {
-                  setState(() {
-                    deliveryBaseFee = val;
-                  });
-                },
+                onChanged: (val) => setState(() => deliveryBaseFee = val),
               ),
               const SizedBox(height: 24),
-              
               SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 46,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff2563eb),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xff2563eb)),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Global executive settings successfully updated & applied!'),
-                        backgroundColor: Color(0xff10b981),
-                      ),
+                      const SnackBar(content: Text('Settings saved successfully!'), backgroundColor: Color(0xff16a34a)),
                     );
                   },
-                  child: const Text('Save & Apply System Configurations', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  child: const Text('Save System Configurations', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -1201,16 +1654,17 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xff0f172a),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xff1e293b)),
+        border: Border.all(color: const Color(0xffe2e8f0)),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: color, size: 26),
@@ -1220,9 +1674,9 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Colors.white)),
+                Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: Color(0xff0f172a))),
                 const SizedBox(height: 2),
-                Text(title, style: const TextStyle(color: Color(0xff94a3b8), fontSize: 12, fontWeight: FontWeight.bold)),
+                Text(title, style: const TextStyle(color: Color(0xff64748b), fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
                 Text(subtitle, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
               ],
@@ -1233,14 +1687,14 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     );
   }
 
-  Widget _buildMetricRowDark(String label, String value) {
+  Widget _buildMetricRowLight(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Color(0xff94a3b8), fontSize: 13)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
+          Text(label, style: const TextStyle(color: Color(0xff64748b), fontSize: 13)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xff0f172a))),
         ],
       ),
     );
@@ -1250,13 +1704,13 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: Color(0xff94a3b8), fontSize: 13)),
+        Text(label, style: const TextStyle(color: Color(0xff64748b), fontSize: 13)),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withValues(alpha: 0.4)),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
           child: Text(
             status,

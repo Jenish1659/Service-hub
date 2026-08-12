@@ -164,7 +164,7 @@ class RoleSelectionScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.primaryNavy.withOpacity(0.8),
+                      color: AppColors.primaryNavy.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -197,7 +197,7 @@ class RoleSelectionScreen extends StatelessWidget {
           border: Border.all(color: borderColor, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: accentColor.withOpacity(0.08),
+              color: accentColor.withValues(alpha: 0.08),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -244,7 +244,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primaryNavy.withOpacity(0.2),
+                    color: AppColors.primaryNavy.withValues(alpha: 0.2),
                     blurRadius: 6,
                   ),
                 ],

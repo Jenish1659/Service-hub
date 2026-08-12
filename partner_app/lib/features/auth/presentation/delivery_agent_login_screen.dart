@@ -247,13 +247,13 @@ class _DeliveryAgentLoginScreenState extends State<DeliveryAgentLoginScreen> {
               const SizedBox(height: 24),
 
               // Bottom Feature Badges Grid
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   alignment: WrapAlignment.center,
-                  children: const [
+                  children: [
                     _MetricBadge(icon: Icons.access_time, label: 'Flexible Hours (Work Anytime)'),
                     _MetricBadge(icon: Icons.payments, label: 'Fast Payouts (Weekly)'),
                     _MetricBadge(icon: Icons.stars, label: 'Incentives & Bonuses'),

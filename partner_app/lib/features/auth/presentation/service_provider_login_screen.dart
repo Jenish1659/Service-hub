@@ -247,13 +247,13 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
               const SizedBox(height: 24),
 
               // Bottom Feature Badges Grid
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
                 child: Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   alignment: WrapAlignment.center,
-                  children: const [
+                  children: [
                     _MetricBadge(icon: Icons.verified, label: 'Verified & Trusted'),
                     _MetricBadge(icon: Icons.work, label: 'More Jobs Daily'),
                     _MetricBadge(icon: Icons.trending_up, label: 'Better Earnings Everyday'),

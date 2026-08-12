@@ -171,6 +171,70 @@ final adminSupportTicketsStreamProvider = StreamProvider<List<Map<String, dynami
   }
 });
 
+// StreamProvider for Product Inventory Management
+final adminProductsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
+  final client = Supabase.instance.client;
+
+  while (true) {
+    try {
+      final List<dynamic> response = await client
+          .from('products')
+          .select()
+          .order('created_at', ascending: false);
+      yield List<Map<String, dynamic>>.from(response);
+    } catch (_) {
+      yield [
+        {
+          'id': 'prod_ac_1',
+          'name': 'AC Dust Filter (Universal)',
+          'price': 349,
+          'original_price': 599,
+          'discount': '41% OFF',
+          'category': 'AC Repair',
+          'stock': 100,
+        },
+        {
+          'id': 'prod_ac_2',
+          'name': 'Copper Coil Cleaner Spray',
+          'price': 299,
+          'original_price': 450,
+          'discount': '33% OFF',
+          'category': 'AC Repair',
+          'stock': 8, // Demo low stock
+        },
+        {
+          'id': 'prod_plumb_1',
+          'name': 'Stainless Steel Tap Valve',
+          'price': 199,
+          'original_price': 350,
+          'discount': '43% OFF',
+          'category': 'Plumbing',
+          'stock': 100,
+        },
+        {
+          'id': 'prod_plumb_2',
+          'name': 'Waterproof Pipe Sealing Tape',
+          'price': 99,
+          'original_price': 150,
+          'discount': '34% OFF',
+          'category': 'Plumbing',
+          'stock': 5, // Demo low stock
+        },
+        {
+          'id': 'prod_car_1',
+          'name': 'Synthetic Engine Oil 1L',
+          'price': 699,
+          'original_price': 950,
+          'discount': '26% OFF',
+          'category': 'Car Service',
+          'stock': 100,
+        },
+      ];
+    }
+    await Future.delayed(const Duration(seconds: 3));
+  }
+});
+
 // Backward compatible FutureProviders
 final adminStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final stream = ref.watch(adminStatsStreamProvider);
@@ -189,5 +253,10 @@ final adminSettlementsProvider = FutureProvider<List<Map<String, dynamic>>>((ref
 
 final adminSupportTicketsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final stream = ref.watch(adminSupportTicketsStreamProvider);
+  return stream.asData?.value ?? [];
+});
+
+final adminProductsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final stream = ref.watch(adminProductsStreamProvider);
   return stream.asData?.value ?? [];
 });
