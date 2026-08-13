@@ -213,6 +213,7 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Service Provider Login Successful! Welcome Back.')),
                           );
+                          context.go('/dashboard');
                         },
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,

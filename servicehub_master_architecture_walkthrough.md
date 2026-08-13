@@ -1,273 +1,139 @@
-# 🚀 ServiceHub Enterprise Platform - Master Architecture & Production Blueprint
+# 🚀 ServiceHub — Master 3-App Interconnected System Architecture
 
-**Ecosystem Scope**: Customer Marketplace App, Partner Workspace App (Service Provider + Shopkeeper + Delivery Agent), Delivery Agent Logistics App, Admin Operations Console, Backend Database & AI Microservices.  
-**Engineering Quality Standards**: Clean Architecture, Feature-First Design, SOLID & DRY Principles, Riverpod State Management, GoRouter Guarded Shell Routing, OpenStreetMap Engine (`flutter_map` + Nominatim + OSRM), Zero-Error Overflow Policy, 60 FPS Target.
+## 📌 Executive Summary
 
----
+ServiceHub is built as **THREE SEPARATE APPLICATIONS** connected through **ONE CENTRAL BACKEND & DATABASE**:
 
-## 1. 🌐 Feature Overview
-
-ServiceHub is an enterprise-grade hyperlocal marketplace platform bridging four core ecosystem personas:
-1. **Customers**: Discover local services (AC Repair, Plumbing, Cleaning, Caretaking, Chef, Car Services) and order store products within a strict 5 km geofence radius with live interactive OpenStreetMap tracking.
-2. **Service Partners**: Multi-role workspace allowing service technicians, shopkeepers, and delivery agents to toggle online/offline availability, view incoming broadcasted requests, accept jobs on a race-free first-come basis, and receive instant payouts.
-3. **Delivery Agents**: Express order fulfillment with turn-by-turn navigation route maps, store pickup validation, and customer 4-digit PIN delivery verification.
-4. **Platform Admins**: Executive desktop/web operations console providing real-time fleet heatmaps, system status indicators, partner KYC document approvals, platform fee commission controls, and support ticket management.
+1. **CUSTOMER MOBILE APP** (`/customer_app`) — Hyperlocal service discovery, real-time booking request creation, live provider tracking map, PIN/OTP security layer, product store, and rating system.
+2. **SERVICE PROVIDER / PARTNER MOBILE APP** (`/partner_app`) — Partner onboarding/KYC registration pipeline, online/offline availability toggle, real-time incoming booking request bidding (`First-Accept-Wins`), and job lifecycle management.
+3. **ADMIN DESKTOP WEB APP** (`/admin_app`) — Master operational console, 5 km geofence configuration, real-time live dispatch monitoring, provider KYC verification & approval, product management, and settlements ledger.
 
 ---
 
-## 2. 🎨 UI Design System
-
-* **Branding & Palette**:
-  * **Primary Navy**: `#0F172A` / `#1E293B` (High Trust, Depth)
-  * **Accent Gold**: `#F59E0B` / `#D97706` (Luxury, Premium Quality)
-  * **Surface Light**: `#F8FAFC` (Soft Ivory White)
-  * **Success Green**: `#10B981` (Online/Completed)
-  * **Danger Red**: `#EF4444` (Emergency/Alerts)
-* **Typography**: Clean responsive system built on Inter / SF Pro displaying scaled Display, Headline, Title, Body, and Caption tokens with dynamic font scaling.
-* **Component Radius**: Standardized 16px (Cards), 24px (Modals), 12px (Buttons), 8px (Badges). Zero sharp edges.
-* **Elevation & Layering**: Layered card surfaces using soft ambient shadows (`BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12)`).
-
----
-
-## 3. 🔄 UX Flow Architecture
+## ⚡ Core Real-Time Booking Engine (First-Accept-Wins)
 
 ```mermaid
-graph TD
-    A[Customer App: Book Service / Order Product] -->|Broadcast Event| B[Supabase / Shared Realtime DB]
-    B -->|Notify Online Partners| C[Partner App: Floating Overlay Alert]
-    C -->|Partner A Clicks Accept| D[Atomic Row Lock: status='En Route']
-    B -->|Remove from Pending Stream| E[Other Partners: Request Removed Instantantly]
-    D -->|Navigate to Customer| F[OpenStreetMap Navigation]
-    F -->|Verify Entrance PIN| G[Status: Work Commenced]
-    G -->|Complete Job & Enter OTP| H[Status: Completed & Wallet Payout]
-    H -->|Customer Rate & Review| I[Admin Console Ledger & Analytics]
+sequenceDiagram
+    autonumber
+    actor Customer as Customer App
+    participant DB as Central Supabase DB (PostgreSQL + PostGIS)
+    actor ProviderA as Provider A (1.2 km)
+    actor ProviderB as Provider B (2.3 km)
+    actor Admin as Admin App
+
+    Customer->>DB: 1. Confirm Booking (AC Service)
+    Note over DB: Runs create_booking_request()<br/>Finds active & verified providers within 5 km<br/>Status = SEARCHING_PROVIDER
+    DB-->>ProviderA: 2. Real-time Offer Dispatched (booking_offers)
+    DB-->>ProviderB: 2. Real-time Offer Dispatched (booking_offers)
+    DB-->>Admin: 2. Real-time Live Feed Update
+    
+    Note over ProviderB: Clicks [ ACCEPT ] first
+    ProviderB->>DB: 3. Call accept_booking_offer(booking_id, provider_id)
+    Note over DB: BEGIN TRANSACTION<br/>SELECT status FROM bookings FOR UPDATE<br/>Assign Provider B & status = ACCEPTED
+    DB-->>ProviderB: 4. Returns {"success": true, "status": "ACCEPTED"}
+    
+    Note over ProviderA: Clicks [ ACCEPT ] 0.2s later
+    ProviderA->>DB: 5. Call accept_booking_offer(booking_id, provider_id)
+    Note over DB: Lock check: Already ACCEPTED
+    DB-->>ProviderA: 6. Returns {"success": false, "message": "Booking already accepted"}
+
+    DB-->>Customer: 7. Real-time Update: "Professional Found! Ramesh Solanki (2.3 km)"
+    DB-->>Admin: 7. Real-time Update: Booking #SHB1024 Assigned to Ramesh Solanki
 ```
 
 ---
 
-## 4. 🌳 Widget Tree Hierarchy (Clean Feature-First Architecture)
+## 🗄️ Master Database Schema (`supabase_schema.sql`)
 
-```text
-lib/
-├── core/
-│   ├── config/ (theme, AppColors, AppSpacing, AppRadius)
-│   ├── navigation/ (AppRouter, route guards, shell routes)
-│   ├── responsive/ (ResponsiveBuilder, Breakpoints)
-│   └── widgets/ (CustomButton, CustomCard, SkeletonLoader, MapCard)
-└── features/
-    ├── authentication/ (login, OTP, security pin)
-    ├── home/ (home_screen, hyperlocal_map_widget, category_chips)
-    ├── provider/ (provider_dashboard, system_permissions_screen)
-    ├── delivery/ (delivery_dashboard, route_map_screen)
-    └── admin/ (admin_dashboard, live_dispatch_map, kyc_approval_table)
-```
+### 1. `public.profiles`
+- Holds basic user details, roles (`customer`, `partner`, `admin`), contact info, and default coordinates.
 
----
+### 2. `public.providers`
+- Provider verification state (`PENDING`, `VERIFIED`, `REJECTED`, `SUSPENDED`).
+- `is_active` (boolean) & `is_available` (boolean).
+- Service radius (`service_radius_km` default `5.0`).
+- Rating, completed job count, current latitude & longitude.
 
-## 5. 🛣️ Navigation & Route Guard Architecture
+### 3. `public.bookings`
+- Status lifecycle: `PENDING` -> `SEARCHING_PROVIDER` -> `OFFERED_TO_PROVIDERS` -> `ACCEPTED` -> `ON_THE_WAY` -> `ARRIVED` -> `SERVICE_STARTED` -> `SERVICE_COMPLETED` -> `CLOSED`.
+- Entrance PIN (`7429`) & Completion OTP (`5892`).
+- Geofence coordinates (`customer_lat`, `customer_lng`, `provider_lat`, `provider_lng`).
 
-* **Router**: `GoRouter` with centralized route configuration and stateful nested shell routes.
-* **Guards**:
-  * `AuthGuard`: Redirects unauthenticated users to `/login`.
-  * `RoleGuard`: Restricts screens based on user role (`Customer`, `Partner`, `Agent`, `SuperAdmin`).
-  * `PopScope`: Standardized back gesture handling preventing accidental app exit by navigating to Home (`/`).
+### 4. `public.booking_offers`
+- Manages multi-provider bidding & dispatch.
+- Status: `PENDING`, `ACCEPTED`, `REJECTED`, `EXPIRED`, `ALREADY_ASSIGNED`.
 
 ---
 
-## 6. 🎬 Animations & 60 FPS Micro-Interactions
-
-* **Page Transitions**: Custom `SharedAxisTransition` and `FadeThroughTransition` (300ms duration).
-* **Card Interactions**: Subtle scaling (`0.98` on tap down) with smooth elevation spring curves.
-* **Live Radar**: Pulsing circle animation surrounding map markers indicating 5 km active radius.
-* **Status Badges**: Smooth color transitions when toggling Online / Offline modes.
-
----
-
-## 7. 📐 Responsive Engine & Breakpoints
-
-```dart
-class Breakpoints {
-  static const double mobile = 450;
-  static const double tablet = 800;
-  static const double desktop = 1200;
-}
-```
-* **Layout Adaptability**: All screens wrap scrollable content inside `SingleChildScrollView` or `LayoutBuilder` paired with `Flexible` / `Expanded` to achieve 0 RenderFlex overflow across phone, foldable, tablet, and desktop viewports.
-
----
-
-## 8. ⚡ State Management (Riverpod)
-
-* **Architecture**: Immutable state with `StateNotifier` and `StreamProvider` for real-time reactivity.
-* **Key Providers**:
-  * `locationNotifierProvider`: Reactive GPS updates and geofence tracking.
-  * `providerPendingBookingsProvider`: Real-time stream of available unassigned requests.
-  * `loggedInPartnerNameProvider`: Local session caching via Hive.
-
----
-
-## 9. 🔌 API Integration Specifications
-
-```http
-POST /rest/v1/bookings
-Content-Type: application/json
-Authorization: Bearer <JWT_TOKEN>
-
-{
-  "customer_id": "CUST-9812",
-  "service_type": "AC Service & Repair",
-  "latitude": 22.4707,
-  "longitude": 70.0577,
-  "amount": 750.00,
-  "entrance_pin": "7429",
-  "completion_otp": "5892",
-  "status": "Pending"
-}
-```
-
----
-
-## 10. 🗄️ Database Schema & Constraints
+## 🔒 Atomic First-Accept-Wins Backend Procedure
 
 ```sql
-CREATE TABLE bookings (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    customer_id TEXT NOT NULL,
-    service_type TEXT NOT NULL,
-    latitude DOUBLE PRECISION NOT NULL,
-    longitude DOUBLE PRECISION NOT NULL,
-    amount NUMERIC(10, 2) NOT NULL,
-    entrance_pin VARCHAR(4) NOT NULL,
-    completion_otp VARCHAR(4) NOT NULL,
-    status TEXT NOT NULL DEFAULT 'Pending',
-    accepted_by TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+CREATE OR REPLACE FUNCTION accept_booking_offer(
+    p_booking_id UUID,
+    p_provider_id UUID
+)
+RETURNS JSON AS $$
+DECLARE
+    v_current_status TEXT;
+    v_result JSON;
+BEGIN
+    -- Perform row-level locking on target booking record
+    SELECT status INTO v_current_status
+    FROM public.bookings
+    WHERE id = p_booking_id
+    FOR UPDATE;
 
-CREATE INDEX idx_bookings_status ON bookings(status);
+    IF v_current_status IN ('Pending', 'SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS') THEN
+        -- 1. Assign provider and set status to ACCEPTED
+        UPDATE public.bookings
+        SET provider_id = p_provider_id, status = 'ACCEPTED', accepted_at = NOW()
+        WHERE id = p_booking_id;
+
+        -- 2. Mark winning offer ACCEPTED
+        UPDATE public.booking_offers
+        SET status = 'ACCEPTED', responded_at = NOW()
+        WHERE booking_id = p_booking_id AND provider_id = p_provider_id;
+
+        -- 3. Mark competing offers ALREADY_ASSIGNED
+        UPDATE public.booking_offers
+        SET status = 'ALREADY_ASSIGNED', responded_at = NOW()
+        WHERE booking_id = p_booking_id AND provider_id != p_provider_id;
+
+        v_result := json_build_object('success', true, 'message', 'Booking assigned successfully', 'status', 'ACCEPTED');
+    ELSE
+        -- Booking was already claimed
+        UPDATE public.booking_offers
+        SET status = 'ALREADY_ASSIGNED', responded_at = NOW()
+        WHERE booking_id = p_booking_id AND provider_id = p_provider_id;
+
+        v_result := json_build_object('success', false, 'message', 'Booking already accepted by another professional.', 'status', v_current_status);
+    END IF;
+
+    RETURN v_result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
 ---
 
-## 11. 🛡️ Validation & Security Rules
+## 📲 Application Capabilities Summary
 
-* **Single-Use Promo Codes**: Enforced by binding account ID + promo code in local Hive storage (`${userId}_${promoCode}`).
-* **Secure Handover Verification**:
-  * **Entrance PIN**: Required by partner before starting service.
-  * **Completion OTP**: Delivered by customer to partner upon successful job completion.
-* **Storage Encryption**: Secure storage for user tokens (`flutter_secure_storage`).
-
----
-
-## 12. 💼 Business Rules & Geofencing Logic
-
-* **Geofence Enforcement**: Requests are restricted to a **5.0 km radius** relative to the user's selected address.
-* **Race-Free Exclusive Acceptance**: When a partner accepts a booking, the row status is updated atomically. Pending streams emit the update, removing the job from all other partners' devices instantly.
+| Feature / System Module | Customer App (`customer_app`) | Partner App (`partner_app`) | Admin Desktop App (`admin_app`) |
+| :--- | :--- | :--- | :--- |
+| **User Role** | `customer` | `partner` | `admin` |
+| **Authentication** | Mobile/Email Signup & Login | Provider Registration & Verification Login | Super Admin Executive Portal |
+| **Booking Creation** | Select Service, Date, Time, Location -> Request | N/A | Monitor incoming bookings live |
+| **Order Offer Bidding** | Waiting screen ("Finding nearby professionals...") | Real-time incoming request card with distance & price | Live audit of offer dispatches |
+| **First-Accept-Wins** | Recce status update: "Professional Found!" | Press `ACCEPT` -> Atomic lock check | View assignment timestamp & winner |
+| **Job Lifecycle** | Track live map & view provider profile | Update: `ON_THE_WAY` -> `ARRIVED` -> `STARTED` -> `DONE` | Monitor active jobs across 5 km zone |
+| **Security Layer** | View PIN `7429` & Share OTP `5892` | Enter PIN `7429` & OTP `5892` to start/complete job | Enforce strict 5 km PostGIS geofence |
+| **Ratings & Rewards** | Submit 1-5 Star Review & earn 50 coins | View rating & earnings | Monitor partner ratings & settlements |
 
 ---
 
-## 13. 🔑 System Permissions Engine
+## 🛠️ Verification & Analyzer Results
 
-* **Android / iOS System Alerts**: `permission_handler` integration managing `systemAlertWindow` (Display Over Other Apps) for floating job alerts when the partner app is minimized.
-* **Location & Push Notifications**: Request dialogs explaining precise usage before permission prompt.
-
----
-
-## 14. ⌛ Loading States & Shimmer Skeletons
-
-* Custom `SkeletonLoader` widgets replace default spinners, providing visual feedback matching card layouts while fetching remote data.
-
----
-
-## 15. 📭 Empty States
-
-* High-fidelity empty illustrations with actionable buttons (e.g., "No Pending Requests - You're All Caught Up!").
-
----
-
-## 16. ⚠️ Error State & Resilience
-
-* Graceful try-catch fallbacks across all network calls ensuring local cache fallback if offline or API returns an error.
-
----
-
-## 17. 📴 Offline Behaviour
-
-* Offline caching via `Hive` storing user profile, recent orders, and current location state for instant startup.
-
----
-
-## 18. 🔔 Notification System
-
-* Local floating window overlay alerts and simulated system notifications for instant booking updates.
-
----
-
-## 19. 🔒 Enterprise Security
-
-* Encrypted storage, JWT authorization headers, zero cleartext passwords, strict RBAC role segregation.
-
----
-
-## 20. 🤖 AI Integration Readiness
-
-* Schema prepared for AI demand forecasting, intelligent provider-customer matching, and automated fraud detection.
-
----
-
-## 21. 🚀 Performance Optimization
-
-* Repaint boundaries around map tiles and complex list items. Image caching via `cached_network_image`. Zero memory leaks.
-
----
-
-## 22. ♿ Accessibility (WCAG 2.1 AA)
-
-* Minimum touch target size of 48x48dp, high contrast text ratios, screen-reader semantic labels (`Semantics` widget).
-
----
-
-## 23. 🧪 Testing Strategy
-
-* **Unit & Integration Testing**: Clean business logic separated into Riverpod providers.
-* **Human QA & DOM Testing**: Web browser testing executed via browser agent with 100% verified interactive flow.
-
----
-
-## 24. ✅ Production Release Checklist
-
-- [x] All 4 apps pass `flutter analyze` with 0 issues.
-- [x] 0 RenderFlex overflow warnings on all viewports.
-- [x] OpenStreetMap live tile rendering verified.
-- [x] System permission & overlay window engine verified.
-- [x] Multi-app order broadcast & race-free accept logic verified.
-- [x] Comprehensive QA report written to `report.md`.
-
----
-
-## 📑 26. Complete 100-Batch Master Development Index
-
-The ServiceHub platform architecture has been fully structured, validated, and implemented across **100 Master Development Batches**:
-
-| Batch Range | Master Development Focus | Status |
-|---|---|---|
-| **Batches 1 - 5** | Project Architecture, Clean Setup, Design Tokens, Splash & Pixar Brand Identity | `COMPLETED ✓` |
-| **Batches 6 - 10** | Role Selection Experience, Profession Discovery, Detail Pages, Auth & Registration | `COMPLETED ✓` |
-| **Batches 11 - 15** | Personal Identity, Professional Details, Service Area, Document Scanner & Bank Setup | `COMPLETED ✓` |
-| **Batches 16 - 20** | Application Review Tracker, Welcome Onboarding, Command Center Dashboard & Job System | `COMPLETED ✓` |
-| **Batches 21 - 30** | Hyperlocal OpenStreetMap Engine, OSRM Routing, Geofence Bounds & Live Radar | `COMPLETED ✓` |
-| **Batches 31 - 40** | Multi-Role Partner Workspace (Technician, Shopkeeper, Delivery Agent) & Permission System | `COMPLETED ✓` |
-| **Batches 41 - 50** | Real-Time Broadcast Engine, Atomic Race-Free Request Lock & Instant Removal | `COMPLETED ✓` |
-| **Batches 51 - 60** | Single-Use Promo Code Protection, Hive Account Persistence & Wallet Coin Loyalty | `COMPLETED ✓` |
-| **Batches 61 - 70** | Entrance PIN & Completion OTP Secure Handover Handshake Protocol | `COMPLETED ✓` |
-| **Batches 71 - 80** | Executive Desktop Admin Operations Console, Fleet Heatmap & KYC Approval Desk | `COMPLETED ✓` |
-| **Batches 81 - 90** | Web DOM & Browser Automated Testing, Dynamic Viewport Scaling & Zero Overflow Audit | `COMPLETED ✓` |
-| **Batches 91 - 100** | Production Build Verification, Static Analysis Clean (0 Issues), CI/CD Readiness & Final Sign-Off | `COMPLETED ✓` |
-
----
-
-## 🔮 27. Final Enterprise Delivery Sign-Off
-
-The **ServiceHub Ecosystem** has passed all static analysis (`0 issues found`), zero-overflow UI validation, real-time broadcast locking, system permission overlay verification, and browser DOM QA. The complete platform is 100% ready for enterprise deployment.
-
+- `customer_app`: Clean build & zero analyzer errors.
+- `partner_app`: Clean build & zero analyzer errors.
+- `admin_app`: Clean build & zero analyzer errors.
+- `supabase_schema.sql`: Applied with PostGIS functions & atomic locks.

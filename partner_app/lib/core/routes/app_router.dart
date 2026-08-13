@@ -10,6 +10,11 @@ import '../../features/registration/presentation/screens/provider_service_option
 import '../../features/registration/presentation/screens/provider_experience_registration_screen.dart';
 import '../../features/registration/presentation/screens/provider_identity_verification_screen.dart';
 
+import '../../features/registration/presentation/screens/provider_review_application_screen.dart';
+import '../../features/registration/presentation/screens/provider_registration_success_screen.dart';
+import '../../features/registration/presentation/screens/provider_application_status_screen.dart';
+import '../../features/dashboard/presentation/provider_dashboard_screen.dart';
+
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
@@ -106,10 +111,35 @@ final appRouter = GoRouter(
       path: '/register/experience/plumber',
       builder: (context, state) => const ProviderExperienceRegistrationScreen(categoryId: 'plumber'),
     ),
-    // Step 4: Verify Your Identity Route
+
+    // Step 5: Verify Your Identity Route
     GoRoute(
       path: '/register/verify-identity',
       builder: (context, state) => const ProviderIdentityVerificationScreen(),
+    ),
+
+    // Step 6: Review & Final Submit Route
+    GoRoute(
+      path: '/register/review',
+      builder: (context, state) => const ProviderReviewApplicationScreen(),
+    ),
+
+    // Step 7: Submission Success Route
+    GoRoute(
+      path: '/register/success',
+      builder: (context, state) => const ProviderRegistrationSuccessScreen(),
+    ),
+
+    // Application Status Tracker Route
+    GoRoute(
+      path: '/register/status-tracker',
+      builder: (context, state) => const ProviderApplicationStatusScreen(),
+    ),
+
+    // Provider Main Dashboard Route
+    GoRoute(
+      path: '/dashboard',
+      builder: (context, state) => const ProviderDashboardScreen(),
     ),
   ],
 );

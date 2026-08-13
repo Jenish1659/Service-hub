@@ -1,0 +1,604 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/sh_logo_widget.dart';
+
+class ProviderReviewApplicationScreen extends StatefulWidget {
+  const ProviderReviewApplicationScreen({super.key});
+
+  @override
+  State<ProviderReviewApplicationScreen> createState() =>
+      _ProviderReviewApplicationScreenState();
+}
+
+class _ProviderReviewApplicationScreenState
+    extends State<ProviderReviewApplicationScreen> {
+  bool _declarationAccurate = true;
+  bool _declarationTerms = true;
+
+  void _handleSubmit() {
+    if (!_declarationAccurate || !_declarationTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please check both declaration boxes before submitting.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Navigate to Page 2: Success Screen
+    context.go('/register/success');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const primaryColor = Color(0xFF2563EB);
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leadingWidth: 48,
+        leading: IconButton(
+          padding: EdgeInsets.zero,
+          icon: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.bgLight,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.borderLight),
+            ),
+            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.primaryNavy, size: 14),
+          ),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/register/verify-identity');
+            }
+          },
+        ),
+        title: const ShLogoWidget(size: 26, showSubtitle: true),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Need Help?',
+            icon: const Icon(Icons.help_outline_rounded, size: 20, color: primaryColor),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Center(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Step Header
+                        const Text(
+                          'Step 6 of 6',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryColor),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Review Your Application',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Please review all information before submitting for verification.',
+                          style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Registration Progress Bar
+                        _buildProgressBar(),
+                        const SizedBox(height: 16),
+
+                        // Section 1: Personal Information
+                        _buildReviewCard(
+                          icon: Icons.person_outline_rounded,
+                          iconBg: const Color(0xFFF3E8FF),
+                          iconColor: const Color(0xFF9333EA),
+                          title: '1. Personal Information',
+                          onEdit: () => context.push('/register'),
+                          content: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _InfoRow(label: 'Name', value: 'Rahul Patel', extraLabel: 'Mobile', extraValue: '+91 98765 43210'),
+                              SizedBox(height: 4),
+                              _InfoRow(label: 'Email', value: 'rahulpatel@gmail.com', extraLabel: 'Location', extraValue: 'Rajkot, Gujarat'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Section 2: Selected Service
+                        _buildReviewCard(
+                          icon: Icons.content_cut_rounded,
+                          iconBg: const Color(0xFFFFEDD5),
+                          iconColor: const Color(0xFFEA580C),
+                          title: '2. Selected Service',
+                          onEdit: () => context.push('/register/service-category'),
+                          content: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _InfoRow(label: 'Service', value: 'AC Service Provider'),
+                              SizedBox(height: 4),
+                              _InfoRow(label: 'Specializations', value: 'Installation, Repair, Gas Refilling, Maintenance'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Section 3: Professional Information
+                        _buildReviewCard(
+                          icon: Icons.work_outline_rounded,
+                          iconBg: const Color(0xFFDBEAFE),
+                          iconColor: const Color(0xFF2563EB),
+                          title: '3. Professional Information',
+                          onEdit: () => context.push('/register/experience/ac_service'),
+                          content: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _InfoRow(label: 'Experience', value: '4 Years', extraLabel: 'Languages', extraValue: 'Hindi, Gujarati, English'),
+                              SizedBox(height: 4),
+                              _InfoRow(label: 'Working Days', value: 'Monday - Sunday', extraLabel: 'Hours', extraValue: '9:00 AM - 7:00 PM'),
+                              SizedBox(height: 4),
+                              _InfoRow(label: 'Emergency Service', value: 'Yes (24x7)'),
+                              SizedBox(height: 4),
+                              _InfoRow(label: 'About You', value: 'I provide reliable and quality service to customers.'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Section 4: Identity Verification
+                        _buildReviewCard(
+                          icon: Icons.shield_outlined,
+                          iconBg: const Color(0xFFDCFCE7),
+                          iconColor: const Color(0xFF16A34A),
+                          title: '4. Identity Verification',
+                          onEdit: () => context.push('/register/verify-identity'),
+                          content: const Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _DocBadge(label: 'Profile Photo', status: 'Uploaded', isSuccess: true),
+                              _DocBadge(label: 'Aadhaar Card', status: 'Verified', isSuccess: true),
+                              _DocBadge(label: 'Aadhaar Face Verification', status: 'Verified', isSuccess: true),
+                              _DocBadge(label: 'Experience Certificate', status: 'Uploaded', isSuccess: true),
+                              _DocBadge(label: 'Shop License', status: 'Not Required', isSuccess: false),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Section 5: AI Verification Notice
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3E8FF),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE9D5FF)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF9333EA),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.memory_rounded, color: Colors.white, size: 20),
+                              ),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '5. AI Verification (After Submission)',
+                                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF581C87)),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Our AI system will securely verify your documents and information for authenticity and safety.',
+                                      style: TextStyle(fontSize: 11, color: Color(0xFF6B21A8)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Status: Pending',
+                                  style: TextStyle(color: Color(0xFF9333EA), fontSize: 10.5, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Declaration
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Declaration', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                              const SizedBox(height: 6),
+                              InkWell(
+                                onTap: () => setState(() => _declarationAccurate = !_declarationAccurate),
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: _declarationAccurate,
+                                      activeColor: primaryColor,
+                                      onChanged: (val) => setState(() => _declarationAccurate = val ?? false),
+                                    ),
+                                    const Expanded(
+                                      child: Text(
+                                        'I confirm that all the information provided is true and accurate.',
+                                        style: TextStyle(fontSize: 11.5, color: Color(0xFF334155)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () => setState(() => _declarationTerms = !_declarationTerms),
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: _declarationTerms,
+                                      activeColor: primaryColor,
+                                      onChanged: (val) => setState(() => _declarationTerms = val ?? false),
+                                    ),
+                                    const Expanded(
+                                      child: Text(
+                                        'I agree to ServiceHub\'s Terms & Conditions and Privacy Policy.',
+                                        style: TextStyle(fontSize: 11.5, color: Color(0xFF334155)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Bottom Navigation Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Center(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: Row(
+                      children: [
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              context.go('/register/verify-identity');
+                            }
+                          },
+                          icon: const Icon(Icons.arrow_back, size: 16),
+                          label: const Text('Back', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryColor,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 2,
+                            ),
+                            onPressed: _handleSubmit,
+                            icon: const Icon(Icons.send_rounded, color: Colors.white, size: 16),
+                            label: const Text('Submit for Verification', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressBar() {
+    const steps = [
+      'Basic Info',
+      'Service',
+      'Specialization',
+      'Professional',
+      'Identity',
+      'Review',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: [
+          // Step indicators scrollable horizontally for zero overflow
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: List.generate(steps.length, (index) {
+                final isDone = index < 5;
+                final isCurrent = index == 5;
+
+                return Row(
+                  children: [
+                    Column(
+                      children: [
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDone
+                                ? const Color(0xFF10B981)
+                                : (isCurrent ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1)),
+                          ),
+                          child: Center(
+                            child: isDone
+                                ? const Icon(Icons.check, color: Colors.white, size: 16)
+                                : Text('${index + 1}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          steps[index],
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
+                            color: isCurrent ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (index < steps.length - 1)
+                      Container(
+                        width: 24,
+                        height: 2,
+                        margin: const EdgeInsets.only(bottom: 16, left: 4, right: 4),
+                        color: isDone ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+                      ),
+                  ],
+                );
+              }),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('100% Complete', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text('Ready for Submission', style: TextStyle(color: Color(0xFF166534), fontSize: 10.5, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewCard({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required VoidCallback onEdit,
+    required Widget content,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+                child: Icon(icon, color: iconColor, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined, size: 12, color: Color(0xFF475569)),
+                label: const Text('Edit', style: TextStyle(fontSize: 11, color: Color(0xFF475569), fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          content,
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? extraLabel;
+  final String? extraValue;
+
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    this.extraLabel,
+    this.extraValue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 4,
+      children: [
+        RichText(
+          text: TextSpan(
+            style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569)),
+            children: [
+              TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+              TextSpan(text: value),
+            ],
+          ),
+        ),
+        if (extraLabel != null && extraValue != null)
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 11.5, color: Color(0xFF475569)),
+              children: [
+                TextSpan(text: '$extraLabel: ', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                TextSpan(text: extraValue!),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _DocBadge extends StatelessWidget {
+  final String label;
+  final String status;
+  final bool isSuccess;
+
+  const _DocBadge({
+    required this.label,
+    required this.status,
+    required this.isSuccess,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSuccess ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isSuccess ? const Color(0xFFA7F3D0) : const Color(0xFFCBD5E1)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isSuccess ? Icons.check_circle_rounded : Icons.remove_circle_outline,
+            size: 13,
+            color: isSuccess ? const Color(0xFF10B981) : const Color(0xFF64748B),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '$label: $status',
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.bold,
+              color: isSuccess ? const Color(0xFF065F46) : const Color(0xFF475569),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

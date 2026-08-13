@@ -387,10 +387,13 @@ class _ProviderIdentityVerificationScreenState
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('🎉 Identity & Documents Successfully Verified! Application Submitted.'),
+        content: Text('Identity & Documents Verified! Moving to Final Application Review...'),
         backgroundColor: AppColors.shopkeeperGreenPrimary,
+        duration: Duration(seconds: 1),
       ),
     );
+
+    context.push('/register/review');
   }
 
   void _showErrorSnackBar(String msg) {
