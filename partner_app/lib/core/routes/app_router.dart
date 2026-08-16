@@ -13,7 +13,10 @@ import '../../features/registration/presentation/screens/provider_identity_verif
 import '../../features/registration/presentation/screens/provider_review_application_screen.dart';
 import '../../features/registration/presentation/screens/provider_registration_success_screen.dart';
 import '../../features/registration/presentation/screens/provider_application_status_screen.dart';
+import '../../features/registration/presentation/screens/shopkeeper_registration_flow_screen.dart';
 import '../../features/dashboard/presentation/provider_dashboard_screen.dart';
+
+import '../../features/registration/presentation/screens/delivery_partner_registration_flow_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -41,6 +44,22 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/register',
       builder: (context, state) => const ProviderBasicInfoRegistrationScreen(),
+    ),
+    GoRoute(
+      path: '/register/shopkeeper',
+      builder: (context, state) => const ShopkeeperRegistrationFlowScreen(),
+    ),
+    GoRoute(
+      path: '/register/delivery-partner',
+      builder: (context, state) => const DeliveryPartnerRegistrationFlowScreen(),
+    ),
+    GoRoute(
+      path: '/register/delivery-agent',
+      builder: (context, state) => const DeliveryPartnerRegistrationFlowScreen(),
+    ),
+    GoRoute(
+      path: '/register/delivery_agent',
+      builder: (context, state) => const DeliveryPartnerRegistrationFlowScreen(),
     ),
     GoRoute(
       path: '/register/service-category',

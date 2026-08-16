@@ -232,7 +232,7 @@ class _DeliveryAgentLoginScreenState extends State<DeliveryAgentLoginScreen> {
                       children: [
                         const Text("Don't have an account? ", style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
                         GestureDetector(
-                          onTap: () => context.push('/register'),
+                          onTap: () => context.push('/register/delivery-partner'),
                           child: const Text(
                             'Register here ->',
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.deliveryOrangePrimary),
