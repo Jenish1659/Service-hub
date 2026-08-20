@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/sh_logo_widget.dart';
 
+import '../../../../core/storage/local_registration_cache.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 class ProviderReviewApplicationScreen extends StatefulWidget {
   const ProviderReviewApplicationScreen({super.key});
 
@@ -15,8 +18,24 @@ class _ProviderReviewApplicationScreenState
     extends State<ProviderReviewApplicationScreen> {
   bool _declarationAccurate = true;
   bool _declarationTerms = true;
+  Map<String, dynamic>? _draftData;
 
-  void _handleSubmit() {
+  @override
+  void initState() {
+    super.initState();
+    _loadDraft();
+  }
+
+  Future<void> _loadDraft() async {
+    final draft = await LocalRegistrationCache.getDraft();
+    if (mounted) {
+      setState(() {
+        _draftData = draft;
+      });
+    }
+  }
+
+  Future<void> _handleSubmit() async {
     if (!_declarationAccurate || !_declarationTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -28,8 +47,51 @@ class _ProviderReviewApplicationScreenState
       return;
     }
 
-    // Navigate to Page 2: Success Screen
-    context.go('/register/success');
+    final draft = _draftData ?? {};
+    final firstName = draft['first_name'] ?? draft['firstName'] ?? 'Rajesh';
+    final lastName = draft['last_name'] ?? draft['lastName'] ?? '';
+    final fullName = '$firstName $lastName'.trim();
+    final phone = (draft['mobile_number'] ?? draft['mobile'] ?? draft['phone'] ?? '').toString().trim();
+    final email = (draft['email'] ?? '').toString().trim();
+    final password = (draft['password'] ?? '123456').toString().trim();
+    final city = (draft['city'] ?? 'Jamnagar').toString().trim();
+    final state = (draft['state'] ?? 'Gujarat').toString().trim();
+
+    final partnerRecord = {
+      'id': 'partner_${DateTime.now().millisecondsSinceEpoch}',
+      'name': fullName.isNotEmpty ? fullName : 'Rajesh',
+      'business_name': '${fullName.isNotEmpty ? fullName : "Rajesh"} AC Service Center',
+      'phone': phone.isNotEmpty ? phone : '+91 98765 43210',
+      'email': email.isNotEmpty ? email : 'partner@servicehub.com',
+      'password': password,
+      'category': 'ac_service',
+      'category_name': 'AC Service Provider',
+      'state': state,
+      'city': city,
+      'verification_status': 'VERIFIED',
+      'is_online': true,
+      'created_at': DateTime.now().toIso8601String(),
+    };
+
+    await LocalRegistrationCache.saveRegisteredPartner(partnerRecord);
+    await LocalRegistrationCache.clearDraft();
+
+    try {
+      final client = Supabase.instance.client;
+      await client.from('providers').upsert({
+        'id': partnerRecord['id'],
+        'service_category': 'ac_service',
+        'verification_status': 'VERIFIED',
+        'is_active': true,
+        'is_available': true,
+        'rating': 0.0,
+        'completed_jobs': 0,
+      });
+    } catch (_) {}
+
+    if (mounted) {
+      context.go('/register/success');
+    }
   }
 
   @override
@@ -112,20 +174,33 @@ class _ProviderReviewApplicationScreenState
                         const SizedBox(height: 16),
 
                         // Section 1: Personal Information
-                        _buildReviewCard(
-                          icon: Icons.person_outline_rounded,
-                          iconBg: const Color(0xFFF3E8FF),
-                          iconColor: const Color(0xFF9333EA),
-                          title: '1. Personal Information',
-                          onEdit: () => context.push('/register'),
-                          content: const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _InfoRow(label: 'Name', value: 'Rahul Patel', extraLabel: 'Mobile', extraValue: '+91 98765 43210'),
-                              SizedBox(height: 4),
-                              _InfoRow(label: 'Email', value: 'rahulpatel@gmail.com', extraLabel: 'Location', extraValue: 'Rajkot, Gujarat'),
-                            ],
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final draft = _draftData ?? {};
+                            final fName = draft['first_name'] ?? draft['firstName'] ?? 'Rajesh';
+                            final lName = draft['last_name'] ?? draft['lastName'] ?? '';
+                            final nameStr = '$fName $lName'.trim();
+                            final phoneStr = (draft['mobile_number'] ?? draft['mobile'] ?? draft['phone'] ?? '+91 98765 43210').toString();
+                            final emailStr = (draft['email'] ?? 'partner@servicehub.com').toString();
+                            final cityStr = (draft['city'] ?? 'Jamnagar').toString();
+                            final stateStr = (draft['state'] ?? 'Gujarat').toString();
+
+                            return _buildReviewCard(
+                              icon: Icons.person_outline_rounded,
+                              iconBg: const Color(0xFFF3E8FF),
+                              iconColor: const Color(0xFF9333EA),
+                              title: '1. Personal Information',
+                              onEdit: () => context.push('/register'),
+                              content: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _InfoRow(label: 'Name', value: nameStr.isNotEmpty ? nameStr : 'Rajesh', extraLabel: 'Mobile', extraValue: phoneStr),
+                                  const SizedBox(height: 4),
+                                  _InfoRow(label: 'Email', value: emailStr.isNotEmpty ? emailStr : 'partner@servicehub.com', extraLabel: 'Location', extraValue: '$cityStr, $stateStr'),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
 
