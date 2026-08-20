@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../location/providers/location_provider.dart';
+import '../../location/screens/map_screen.dart';
+import '../../location/screens/saved_locations_screen.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -255,16 +258,16 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   }
 }
 
-class _BookingFlowWidget extends StatefulWidget {
+class _BookingFlowWidget extends ConsumerStatefulWidget {
   final String serviceName;
   final double servicePrice;
   const _BookingFlowWidget({required this.serviceName, required this.servicePrice});
 
   @override
-  State<_BookingFlowWidget> createState() => _BookingFlowWidgetState();
+  ConsumerState<_BookingFlowWidget> createState() => _BookingFlowWidgetState();
 }
 
-class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
+class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
   int _currentStep = 1; // 1: Describe, 2: Slot, 3: Confirm
   final TextEditingController _issueController = TextEditingController();
   final TextEditingController _promoController = TextEditingController();
@@ -285,6 +288,12 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
     final client = Supabase.instance.client;
     final user = client.auth.currentUser;
     final userId = user?.id ?? 'cust_${DateTime.now().millisecondsSinceEpoch}';
+
+    final locState = ref.read(locationProvider);
+    final activeLocation = locState.selectedLocation ?? locState.currentLocation;
+    final serviceAddress = activeLocation?.address ?? 'Selected Service Location, Jamnagar';
+    final serviceLat = activeLocation?.latitude ?? 22.4707;
+    final serviceLng = activeLocation?.longitude ?? 70.0577;
 
     final box = Hive.box('customer_cache');
     final double walletBalance = box.get('wallet_balance_inr', defaultValue: 50.0) as double;
@@ -317,7 +326,9 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
         'status': 'Pending',
         'entrance_pin': '7429',
         'completion_otp': '5892',
-        'customer_address': 'Kaushal Nagar, Jamnagar',
+        'customer_address': serviceAddress,
+        'customer_lat': serviceLat,
+        'customer_lng': serviceLng,
       }).select().single();
 
       if (mounted) {
@@ -416,9 +427,104 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
   }
 
   Widget _buildDescribeStep() {
+    final locationState = ref.watch(locationProvider);
+    final location = locationState.selectedLocation ?? locationState.currentLocation;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 1. Service Location Section (OpenStreetMap / Locator based)
+        const Text(
+          'Service Location',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xfff8fafc),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.borderCol),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Color(0xffeff6ff),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.location_on_rounded, color: AppTheme.primaryColor, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          location?.area ?? 'Location Detected',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xff0f172a)),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          location?.address ?? 'OpenStreetMap Hyperlocal Address',
+                          style: const TextStyle(fontSize: 12, color: Color(0xff64748b), height: 1.3),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.map_outlined, size: 16),
+                      label: const Text('Open Map', style: TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        minimumSize: Size.zero,
+                      ),
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const MapScreen()),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.bookmark_outline, size: 16),
+                      label: const Text('Saved', style: TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        minimumSize: Size.zero,
+                      ),
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const SavedLocationsScreen()),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // 2. Issue Description
         const Text(
           'Describe the Issue / Requirements',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
@@ -428,7 +534,7 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
           controller: _issueController,
           maxLines: 3,
           decoration: const InputDecoration(
-            hintText: 'e.g., Water leaking from tap / Need full car cleaning & polish.',
+            hintText: 'e.g., Water leaking from tap / Need full AC cleaning & service.',
           ),
         ),
       ],
@@ -503,6 +609,9 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
 
     final double finalPrice = widget.servicePrice - _promoDiscount - walletDeduction;
 
+    final locationState = ref.watch(locationProvider);
+    final location = locationState.selectedLocation ?? locationState.currentLocation;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -521,6 +630,8 @@ class _BookingFlowWidgetState extends State<_BookingFlowWidget> {
           child: Column(
             children: [
               _buildDetailRow('Service Category', widget.serviceName),
+              const Divider(height: 20),
+              _buildDetailRow('Service Location', location?.address ?? 'Selected Hyperlocal Location'),
               const Divider(height: 20),
               _buildDetailRow('Schedule', '$_selectedDate at $_selectedTime'),
               const Divider(height: 20),

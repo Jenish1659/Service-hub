@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     agent_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    status TEXT NOT NULL CHECK (status IN ('Placed', 'Packing', 'Ready for Pickup', 'Out for Delivery', 'Delivered')) DEFAULT 'Placed',
+    status TEXT NOT NULL CHECK (status IN ('Placed', 'Packing', 'Ready for Pickup', 'Out for Delivery', 'Delivered', 'Cancelled', 'CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_PROVIDER')) DEFAULT 'Placed',
     items_summary TEXT,
     subtotal DOUBLE PRECISION NOT NULL,
     delivery_fee DOUBLE PRECISION NOT NULL,
@@ -193,6 +193,49 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public select on orders" ON public.orders FOR SELECT USING (true);
 CREATE POLICY "Allow public insert on orders" ON public.orders FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update on orders" ON public.orders FOR UPDATE USING (true);
+
+-- 8. CUSTOMER LOCATIONS / SAVED ADDRESSES TABLE
+CREATE TABLE IF NOT EXISTS public.customer_locations (
+    id TEXT PRIMARY KEY,
+    customer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    address TEXT NOT NULL,
+    area TEXT,
+    city TEXT,
+    state TEXT,
+    country TEXT DEFAULT 'India',
+    postal_code TEXT,
+    address_type TEXT DEFAULT 'home',
+    is_for_someone_else BOOLEAN DEFAULT false,
+    recipient_name TEXT,
+    recipient_phone TEXT,
+    house_number TEXT,
+    landmark TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on customer_locations
+ALTER TABLE public.customer_locations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public select on customer_locations" ON public.customer_locations FOR SELECT USING (true);
+CREATE POLICY "Allow public insert on customer_locations" ON public.customer_locations FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update on customer_locations" ON public.customer_locations FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete on customer_locations" ON public.customer_locations FOR DELETE USING (true);
+
+-- 9. SUPPORT TICKETS TABLE
+CREATE TABLE IF NOT EXISTS public.tickets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    subject TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Open',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public select on tickets" ON public.tickets FOR SELECT USING (true);
+CREATE POLICY "Allow public insert on tickets" ON public.tickets FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update on tickets" ON public.tickets FOR UPDATE USING (true);
 
 -- =======================================================
 -- ATOMIC FIRST-ACCEPT-WINS BACKEND TRANSACTION LOGIC

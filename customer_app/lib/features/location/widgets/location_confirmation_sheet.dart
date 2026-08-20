@@ -50,8 +50,12 @@ class LocationConfirmationSheet extends StatelessWidget {
               border: Border.all(color: const Color(0xffe2e8f0)),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.pin_drop_outlined, color: AppTheme.primaryColor),
+                const Padding(
+                  padding: EdgeInsets.only(top: 2.0),
+                  child: Icon(Icons.pin_drop_outlined, color: AppTheme.primaryColor),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(

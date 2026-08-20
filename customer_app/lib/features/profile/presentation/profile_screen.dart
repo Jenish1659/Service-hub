@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../location/screens/saved_locations_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -75,7 +76,12 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               _buildSettingsTile(Icons.history, 'Booking History', () => context.go('/orders')),
               _buildSettingsTile(Icons.shopping_bag_outlined, 'My Orders', () => context.go('/orders')),
-              _buildSettingsTile(Icons.location_on_outlined, 'Saved Addresses', () => _showSavedAddressesSheet(context, ref)),
+              _buildSettingsTile(Icons.location_on_outlined, 'Saved Addresses', () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SavedLocationsScreen()),
+                );
+              }),
               _buildSettingsTile(Icons.payment, 'Payment Methods', () => _showPaymentMethodsSheet(context)),
               _buildSettingsTile(Icons.account_balance_wallet_outlined, 'My Wallet (Coins)', () => _showWalletSheet(context)),
               _buildSettingsTile(Icons.help_outline, 'Help & Support', () => context.push('/support')),
@@ -124,99 +130,6 @@ class ProfileScreen extends ConsumerWidget {
         trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondaryColor),
         onTap: onTap,
       ),
-    );
-  }
-
-  void _showSavedAddressesSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        final box = Hive.box('customer_cache');
-        final List<dynamic> rawList = box.get('saved_addresses_list', defaultValue: [
-          'Digvijay Plot, Jamnagar',
-          'Park Colony, Jamnagar'
-        ]) as List<dynamic>;
-        final List<String> savedList = List<String>.from(rawList);
-        final newAddressController = TextEditingController();
-
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 24,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Saved Addresses',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.textPrimaryColor),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (savedList.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Text('No saved addresses yet.', style: TextStyle(color: AppTheme.textSecondaryColor)),
-                    )
-                  else
-                    ...savedList.map((addr) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.location_on, color: AppTheme.primaryColor),
-                      title: Text(addr),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: AppTheme.dangerColor),
-                        onPressed: () {
-                          setModalState(() {
-                            savedList.remove(addr);
-                            box.put('saved_addresses_list', savedList);
-                          });
-                        },
-                      ),
-                    )),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: newAddressController,
-                    decoration: InputDecoration(
-                      hintText: 'Add new address (e.g. Patel Colony, Jamnagar)...',
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.add, color: AppTheme.primaryColor),
-                        onPressed: () {
-                          final newAddr = newAddressController.text.trim();
-                          if (newAddr.isNotEmpty) {
-                            setModalState(() {
-                              savedList.add(newAddr);
-                              box.put('saved_addresses_list', savedList);
-                            });
-                            newAddressController.clear();
-                          }
-                        },
-                      ),
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
     );
   }
 

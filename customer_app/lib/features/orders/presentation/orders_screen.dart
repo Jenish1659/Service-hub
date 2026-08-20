@@ -81,9 +81,16 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, s) => Center(child: Text('Error loading active orders: ${e.toString()}')),
           data: (orders) {
-            // Filter active
-            final activeBookings = bookings.where((b) => b['status'] != 'Completed').toList();
-            final activeOrders = orders.where((o) => o['status'] != 'Delivered').toList();
+            // Filter active (exclude completed and cancelled)
+            final activeBookings = bookings.where((b) {
+              final s = (b['status'] ?? '').toString().toUpperCase();
+              return s != 'COMPLETED' && s != 'CLOSED' && !s.contains('CANCELLED') && s != 'REJECTED';
+            }).toList();
+
+            final activeOrders = orders.where((o) {
+              final s = (o['status'] ?? '').toString().toUpperCase();
+              return s != 'DELIVERED' && !s.contains('CANCELLED');
+            }).toList();
 
             if (activeBookings.isEmpty && activeOrders.isEmpty) {
               return const Center(
@@ -94,8 +101,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                ...activeBookings.map((b) => _buildBookingCard(b)),
-                ...activeOrders.map((o) => _buildOrderCard(o)),
+                ...activeBookings.map((b) => _buildBookingCard(b, isActive: true)),
+                ...activeOrders.map((o) => _buildOrderCard(o, isActive: true)),
               ],
             );
           },
@@ -116,9 +123,16 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, s) => Center(child: Text('Error loading history: ${e.toString()}')),
           data: (orders) {
-            // Filter past
-            final pastBookings = bookings.where((b) => b['status'] == 'Completed').toList();
-            final pastOrders = orders.where((o) => o['status'] == 'Delivered').toList();
+            // Filter past (include completed, closed, and cancelled)
+            final pastBookings = bookings.where((b) {
+              final s = (b['status'] ?? '').toString().toUpperCase();
+              return s == 'COMPLETED' || s == 'CLOSED' || s.contains('CANCELLED') || s == 'REJECTED';
+            }).toList();
+
+            final pastOrders = orders.where((o) {
+              final s = (o['status'] ?? '').toString().toUpperCase();
+              return s == 'DELIVERED' || s.contains('CANCELLED');
+            }).toList();
 
             if (pastBookings.isEmpty && pastOrders.isEmpty) {
               return const Center(
@@ -129,8 +143,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                ...pastBookings.map((b) => _buildBookingCard(b)),
-                ...pastOrders.map((o) => _buildOrderCard(o)),
+                ...pastBookings.map((b) => _buildBookingCard(b, isActive: false)),
+                ...pastOrders.map((o) => _buildOrderCard(o, isActive: false)),
               ],
             );
           },
@@ -139,16 +153,20 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildBookingCard(Map<String, dynamic> booking) {
+  Widget _buildBookingCard(Map<String, dynamic> booking, {required bool isActive}) {
     final id = booking['id'];
     final name = booking['service_name'] ?? 'Home Service';
     final issue = booking['issue_description'] ?? '';
     final date = booking['scheduled_date'] ?? '';
     final time = booking['scheduled_time'] ?? '';
     final price = (booking['price'] as num?)?.toDouble() ?? 0.0;
-    final status = booking['status'] ?? 'Pending';
+    final status = (booking['status'] ?? 'Pending').toString();
+    final isCancelled = status.toUpperCase().contains('CANCELLED');
+    final isCompleted = status.toUpperCase() == 'COMPLETED';
 
-    final isCompleted = status == 'Completed';
+    Color statusColor = AppTheme.warningColor;
+    if (isCompleted) statusColor = AppTheme.successColor;
+    if (isCancelled) statusColor = AppTheme.dangerColor;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -178,7 +196,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                 Text(
                   'Status: $status',
                   style: TextStyle(
-                    color: isCompleted ? AppTheme.successColor : AppTheme.warningColor,
+                    color: statusColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                   ),
@@ -213,7 +231,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                   '₹${price.toStringAsFixed(0)}',
                   style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.primaryColor),
                 ),
-                if (!isCompleted)
+                if (!isCompleted && !isCancelled)
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -230,14 +248,18 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildOrderCard(Map<String, dynamic> order) {
+  Widget _buildOrderCard(Map<String, dynamic> order, {required bool isActive}) {
     final id = order['id'];
     final items = order['items_summary'] ?? 'Product Delivery';
     final grandTotal = (order['grand_total'] as num?)?.toDouble() ?? 0.0;
-    final status = order['status'] ?? 'Placed';
+    final status = (order['status'] ?? 'Placed').toString();
     final address = order['shipping_address'] ?? '';
+    final isCancelled = status.toUpperCase().contains('CANCELLED');
+    final isDelivered = status.toUpperCase() == 'DELIVERED';
 
-    final isDelivered = status == 'Delivered';
+    Color statusColor = AppTheme.warningColor;
+    if (isDelivered) statusColor = AppTheme.successColor;
+    if (isCancelled) statusColor = AppTheme.dangerColor;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -267,7 +289,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                 Text(
                   'Status: $status',
                   style: TextStyle(
-                    color: isDelivered ? AppTheme.successColor : AppTheme.warningColor,
+                    color: statusColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                   ),
@@ -310,7 +332,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                   '₹${grandTotal.toStringAsFixed(0)}',
                   style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppTheme.primaryColor),
                 ),
-                if (!isDelivered)
+                if (!isDelivered && !isCancelled)
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -319,6 +341,15 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
                     ),
                     onPressed: () => context.push('/track-order/$id'),
                     child: const Text('Track Order', style: TextStyle(fontSize: 13)),
+                  )
+                else
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      minimumSize: Size.zero,
+                    ),
+                    onPressed: () => context.push('/track-order/$id'),
+                    child: const Text('View Details', style: TextStyle(fontSize: 12)),
                   ),
               ],
             ),

@@ -62,12 +62,16 @@ class LocationCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Text(
-                            location?.area.isNotEmpty == true ? location!.area : 'Select Location',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: AppTheme.textPrimaryColor,
+                          Flexible(
+                            child: Text(
+                              location?.area.isNotEmpty == true ? location!.area : 'Select Location',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: AppTheme.textPrimaryColor,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),

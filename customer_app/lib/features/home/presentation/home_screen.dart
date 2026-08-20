@@ -5,6 +5,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../shared/providers/location_provider.dart';
 import '../../../shared/providers/notification_provider.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../location/screens/saved_locations_screen.dart';
+import '../../location/screens/map_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -466,44 +468,65 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               // 5. HELP & SUPPORT STRIP
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xffeff6ff),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => context.push('/support'),
                     borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: const BoxDecoration(
-                          color: Color(0xff0052cc),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.phone_outlined, color: Colors.white, size: 20),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xffeff6ff),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xffdbeafe)),
                       ),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text(
-                          "We're here just open app and book service",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xff0f172a),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              color: Color(0xff0052cc),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.support_agent, color: Colors.white, size: 20),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "24/7 Help & AI Support",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xff0f172a),
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  "Instant AI diagnostics & ticket assistance",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xff64748b),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(height: 24, width: 1, color: const Color(0xffcbd5e1)),
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              color: Color(0xff0052cc),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 20),
+                          ),
+                        ],
                       ),
-                      Container(height: 24, width: 1, color: const Color(0xffcbd5e1)),
-                      const SizedBox(width: 10),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: const BoxDecoration(
-                          color: Color(0xff0052cc),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.headset_mic_outlined, color: Colors.white, size: 20),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -962,6 +985,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 onTap: () async {
                   Navigator.pop(ctx);
                   await ref.read(locationProvider.notifier).fetchLocation();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.map_outlined, color: Color(0xff0052cc)),
+                title: const Text('Pick on OpenStreetMap', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xff0052cc))),
+                subtitle: const Text('Select exact delivery pinpoint on map'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MapScreen()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.bookmark_outline, color: Color(0xff0052cc)),
+                title: const Text('Manage Saved Addresses', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xff0052cc))),
+                subtitle: const Text('Choose from your saved home, work, or recipient addresses'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SavedLocationsScreen()),
+                  );
                 },
               ),
               const Divider(),

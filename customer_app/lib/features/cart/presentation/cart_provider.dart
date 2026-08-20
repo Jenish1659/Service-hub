@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
 
 class CartItem {
   final String id;
@@ -14,19 +15,60 @@ class CartItem {
     required this.category,
     this.quantity = 1,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'price': price,
+      'category': category,
+      'quantity': quantity,
+    };
+  }
+
+  factory CartItem.fromJson(Map<String, dynamic> json) {
+    return CartItem(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      price: (json['price'] as num?)?.toInt() ?? 0,
+      category: json['category'] as String? ?? 'General',
+      quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+    );
+  }
 }
 
 class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier()
-      : super([
-          CartItem(
-            id: 'prod_ac_1',
-            name: 'AC Dust Filter (Universal)',
-            price: 349,
-            category: 'AC',
-            quantity: 1,
-          ),
-        ]);
+  static const String _cacheKey = 'saved_cart_items';
+
+  CartNotifier() : super([]) {
+    _loadCartFromCache();
+  }
+
+  void _loadCartFromCache() {
+    try {
+      if (Hive.isBoxOpen('customer_cache')) {
+        final box = Hive.box('customer_cache');
+        final raw = box.get(_cacheKey);
+        if (raw is List) {
+          final items = raw
+              .whereType<Map>()
+              .map((e) => CartItem.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+          state = items;
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _saveToCache(List<CartItem> items) {
+    try {
+      if (Hive.isBoxOpen('customer_cache')) {
+        final box = Hive.box('customer_cache');
+        final data = items.map((e) => e.toJson()).toList();
+        box.put(_cacheKey, data);
+      }
+    } catch (_) {}
+  }
 
   void addItem(Map<String, dynamic> product) {
     final name = product['name'] ?? 'ServiceHub Product';
@@ -36,8 +78,9 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     final id = product['id']?.toString() ?? name;
 
     final existingIndex = state.indexWhere((item) => item.name == name);
+    List<CartItem> updated;
     if (existingIndex >= 0) {
-      state = [
+      updated = [
         for (int i = 0; i < state.length; i++)
           if (i == existingIndex)
             CartItem(
@@ -51,11 +94,13 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
             state[i],
       ];
     } else {
-      state = [
+      updated = [
         ...state,
         CartItem(id: id, name: name, price: price, category: category, quantity: 1),
       ];
     }
+    state = updated;
+    _saveToCache(updated);
   }
 
   void updateQuantity(String name, int change) {
@@ -77,10 +122,18 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       }
     }
     state = updated;
+    _saveToCache(updated);
+  }
+
+  void removeItem(String name) {
+    final updated = state.where((item) => item.name != name).toList();
+    state = updated;
+    _saveToCache(updated);
   }
 
   void clearCart() {
     state = [];
+    _saveToCache([]);
   }
 }
 

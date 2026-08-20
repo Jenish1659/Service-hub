@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/location_provider.dart';
+import '../models/location_model.dart';
 import '../services/map_service.dart';
 import '../widgets/map_search_bar.dart';
 import '../widgets/center_location_marker.dart';
@@ -285,20 +286,38 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         context: context,
                         isScrollControlled: true,
                         backgroundColor: Colors.transparent,
-                        builder: (context) => BookForSomeoneElseSheet(
+                        builder: (sheetContext) => BookForSomeoneElseSheet(
                           location: selectedLoc,
-                          onSave: (recipientLoc) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Booking address saved for ${recipientLoc.recipientName ?? "recipient"}'),
-                                backgroundColor: const Color(0xff15803d),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                            if (context.canPop()) {
-                              context.pop();
-                            } else {
-                              context.go('/');
+                          onSave: (recipientLoc) async {
+                            try {
+                              await ref.read(locationApiServiceProvider).saveCustomerLocation(recipientLoc);
+                              final locationModel = LocationModel(
+                                latitude: recipientLoc.latitude,
+                                longitude: recipientLoc.longitude,
+                                address: recipientLoc.address,
+                                area: recipientLoc.area,
+                                city: recipientLoc.city,
+                                state: recipientLoc.state,
+                                country: recipientLoc.country,
+                                postalCode: recipientLoc.postalCode,
+                              );
+                              ref.read(locationProvider.notifier).setSelectedLocation(locationModel);
+                            } catch (_) {}
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Booking address saved for ${recipientLoc.recipientName ?? "recipient"}'),
+                                  backgroundColor: const Color(0xff15803d),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              if (context.canPop()) {
+                                context.pop();
+                              } else if (Navigator.canPop(context)) {
+                                Navigator.pop(context);
+                              } else {
+                                context.go('/');
+                              }
                             }
                           },
                         ),
@@ -341,6 +360,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   );
                   if (context.canPop()) {
                     context.pop();
+                  } else if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
                   } else {
                     context.go('/');
                   }

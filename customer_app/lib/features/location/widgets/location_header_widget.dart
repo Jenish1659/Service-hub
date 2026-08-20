@@ -42,33 +42,41 @@ class LocationHeaderWidget extends ConsumerWidget {
               child: const Icon(Icons.location_on, color: AppTheme.primaryColor, size: 18),
             ),
             const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      displayTitle,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xff0f172a),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          displayTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xff0f172a),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.keyboard_arrow_down, color: Color(0xff64748b), size: 18),
-                  ],
-                ),
-                Text(
-                  displaySubtitle,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xff64748b),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.keyboard_arrow_down, color: Color(0xff64748b), size: 18),
+                    ],
                   ),
-                ),
-              ],
+                  Text(
+                    displaySubtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xff64748b),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

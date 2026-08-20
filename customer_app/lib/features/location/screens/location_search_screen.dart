@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/location_provider.dart';
 import '../widgets/search_result_card.dart';
 import '../models/location_model.dart';
@@ -38,16 +39,36 @@ class _LocationSearchScreenState extends ConsumerState<LocationSearchScreen> {
 
     final bool isQueryEmpty = _searchController.text.trim().isEmpty;
 
-    return Scaffold(
-      backgroundColor: const Color(0xfff8fafc),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        shadowColor: Colors.black12,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xff0f172a)),
-          onPressed: () => Navigator.pop(context),
-        ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        } else {
+          context.go('/');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xfff8fafc),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 1,
+          shadowColor: Colors.black12,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Color(0xff0f172a)),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                context.go('/');
+              }
+            },
+          ),
         titleSpacing: 0,
         title: Padding(
           padding: const EdgeInsets.only(right: 16.0),
@@ -229,6 +250,7 @@ class _LocationSearchScreenState extends ConsumerState<LocationSearchScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

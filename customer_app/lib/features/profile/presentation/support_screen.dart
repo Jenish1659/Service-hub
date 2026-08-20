@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -261,26 +262,57 @@ class _SupportScreenState extends State<SupportScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Help & AI Support'),
-        bottom: TabBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.support_agent_rounded, color: Colors.white, size: 22),
+              SizedBox(width: 8),
+              Text('Help & AI Support'),
+            ],
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/');
+              }
+            },
+          ),
+          bottom: TabBar(
+            controller: _tabController,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            tabs: const [
+              Tab(icon: Icon(Icons.chat_bubble_outline), text: 'AI Chatbot'),
+              Tab(icon: Icon(Icons.support_agent), text: 'Support Tickets'),
+            ],
+          ),
+        ),
+        body: TabBarView(
           controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.chat_bubble_outline), text: 'AI Chatbot'),
-            Tab(icon: Icon(Icons.support_agent), text: 'Support Tickets'),
+          children: [
+            // TAB 1: AI CHATBOT SCREEN
+            _buildChatTab(),
+
+            // TAB 2: SUPPORT TICKETS LIST
+            _buildTicketsTab(),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // TAB 1: AI CHATBOT SCREEN
-          _buildChatTab(),
-
-          // TAB 2: SUPPORT TICKETS LIST
-          _buildTicketsTab(),
-        ],
       ),
     );
   }
@@ -288,6 +320,59 @@ class _SupportScreenState extends State<SupportScreen> with SingleTickerProvider
   Widget _buildChatTab() {
     return Column(
       children: [
+        // Persistent AI Header Banner with Support Logo
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xffeff6ff),
+            border: Border(bottom: BorderSide(color: Colors.blue.shade100)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ServiceHub AI Assistant',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xff0f172a)),
+                    ),
+                    Text(
+                      'Online · Instant diagnostic & ticket support',
+                      style: TextStyle(fontSize: 11, color: Color(0xff64748b)),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xffdcfce7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(radius: 3, backgroundColor: Color(0xff16a34a)),
+                    SizedBox(width: 4),
+                    Text('LIVE', style: TextStyle(color: Color(0xff15803d), fontSize: 9, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
         // Chat Message List
         Expanded(
           child: ListView.builder(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -53,10 +54,34 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chat with Provider'),
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        } else {
+          context.go('/orders');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Chat with Provider'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                context.go('/orders');
+              }
+            },
+          ),
+        ),
       body: Column(
         children: [
           Expanded(
@@ -129,6 +154,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

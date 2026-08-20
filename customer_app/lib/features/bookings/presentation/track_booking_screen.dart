@@ -328,24 +328,116 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
     final serviceName = _bookingData!['service_name'] ?? 'Home Service';
     final scheduledDate = _bookingData!['scheduled_date'] ?? '';
     final scheduledTime = _bookingData!['scheduled_time'] ?? '';
+    final status = (_bookingData!['status'] ?? 'Pending').toString();
+    final isCancelled = status.toUpperCase().contains('CANCELLED');
+    final isCompleted = status.toUpperCase() == 'COMPLETED';
+    final canCancel = !isCancelled && !isCompleted && !_workCommenced;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Track Booking'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchBookingDetails,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/orders');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Track Booking'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/orders');
+              }
+            },
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
+          actions: [
+            if (canCancel)
+              TextButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Cancel Booking?'),
+                      content: const Text('Are you sure you want to cancel this service booking?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('No, Keep Booking'),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.dangerColor),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _updateBookingStatus('CANCELLED_BY_CUSTOMER');
+                            try {
+                              if (Hive.isBoxOpen('customer_cache')) {
+                                final box = Hive.box('customer_cache');
+                                final List<dynamic> cancelled = box.get('cancelled_booking_ids', defaultValue: []) as List<dynamic>;
+                                final list = List<String>.from(cancelled);
+                                if (!list.contains(widget.bookingId)) {
+                                  list.add(widget.bookingId);
+                                  box.put('cancelled_booking_ids', list);
+                                }
+                              }
+                            } catch (_) {}
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Service booking cancelled successfully.'),
+                                backgroundColor: AppTheme.dangerColor,
+                              ),
+                            );
+                          },
+                          child: const Text('Confirm Cancel', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                child: const Text('Cancel', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+              ),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _fetchBookingDetails,
+            ),
+          ],
+        ),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              if (isCancelled)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  color: const Color(0xfffef2f2),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.cancel, color: AppTheme.dangerColor, size: 28),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Booking Cancelled',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.dangerColor),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'This service booking has been cancelled.',
+                              style: TextStyle(color: Color(0xff991b1b), fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             // 1. MAP SECTION (ANIMATED)
             Stack(
               children: [
@@ -596,6 +688,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

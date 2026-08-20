@@ -52,25 +52,34 @@ class LocationApiService {
       }
     } catch (_) {}
 
-    // Remote sync background fetch
-    try {
-      final client = Supabase.instance.client;
-      final user = client.auth.currentUser;
-      if (user != null) {
-        final response = await client
-            .from('customer_locations')
-            .select()
-            .eq('customer_id', user.id)
-            .order('created_at', ascending: false);
+      // Remote sync background fetch
+      try {
+        final client = Supabase.instance.client;
+        final user = client.auth.currentUser;
+        if (user != null && !user.id.startsWith('mock_')) {
+          final response = await client
+              .from('customer_locations')
+              .select()
+              .eq('customer_id', user.id)
+              .order('created_at', ascending: false);
 
-        if (response.isNotEmpty) {
-          locations.clear();
-          for (var item in response) {
-            locations.add(CustomerLocationModel.fromJson(Map<String, dynamic>.from(item)));
+          if (response.isNotEmpty) {
+            Box box;
+            if (Hive.isBoxOpen(_boxName)) {
+              box = Hive.box(_boxName);
+            } else {
+              box = await Hive.openBox(_boxName);
+            }
+            final List<CustomerLocationModel> remoteLocations = [];
+            for (var item in response) {
+              final loc = CustomerLocationModel.fromJson(Map<String, dynamic>.from(item));
+              remoteLocations.add(loc);
+              await box.put(loc.id, loc.toJson());
+            }
+            return remoteLocations;
           }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
 
     return locations;
   }

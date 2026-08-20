@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/customer_location_model.dart';
 import '../models/location_model.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -38,9 +39,12 @@ class _BookForSomeoneElseSheetState extends State<BookForSomeoneElseSheet> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
+      final user = Supabase.instance.client.auth.currentUser;
+      final userId = user?.id ?? 'cust_${DateTime.now().millisecondsSinceEpoch}';
+
       final savedLoc = CustomerLocationModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        customerId: 'current_user',
+        id: 'loc_${DateTime.now().millisecondsSinceEpoch}',
+        customerId: userId,
         latitude: widget.location.latitude,
         longitude: widget.location.longitude,
         address: widget.location.address,

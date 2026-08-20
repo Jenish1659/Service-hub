@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../location/providers/location_provider.dart';
 import 'cart_provider.dart';
 import 'promo_code_provider.dart';
 
@@ -57,6 +58,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final user = client.auth.currentUser;
     final customerId = user?.id ?? 'cust_${DateTime.now().millisecondsSinceEpoch}';
 
+    final locState = ref.read(locationProvider);
+    final location = locState.selectedLocation ?? locState.currentLocation;
+    final shippingAddress = location?.address ?? 'Digvijay Plot, Main Road, Jamnagar';
+    final lat = location?.latitude ?? 22.4707;
+    final lng = location?.longitude ?? 70.0577;
+
     final itemsSummary = cartItems.map((item) => '${item.name} x${item.quantity}').join(', ');
     final otpPin = _generateOtpPin();
 
@@ -72,7 +79,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           'delivery_fee': deliveryFee.toDouble(),
           'grand_total': total.toDouble(),
           'delivery_pin': otpPin,
-          'shipping_address': 'Digvijay Plot, Main Road, Jamnagar',
+          'shipping_address': shippingAddress,
+          'customer_lat': lat,
+          'customer_lng': lng,
         };
       } else {
         try {
@@ -84,7 +93,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'delivery_fee': deliveryFee.toDouble(),
             'grand_total': total.toDouble(),
             'delivery_pin': otpPin,
-            'shipping_address': 'Digvijay Plot, Main Road, Jamnagar',
+            'shipping_address': shippingAddress,
+            'customer_lat': lat,
+            'customer_lng': lng,
           }).select().single();
           responseData = response;
         } catch (e) {
@@ -97,7 +108,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'delivery_fee': deliveryFee.toDouble(),
             'grand_total': total.toDouble(),
             'delivery_pin': otpPin,
-            'shipping_address': 'Digvijay Plot, Main Road, Jamnagar',
+            'shipping_address': shippingAddress,
+            'customer_lat': lat,
+            'customer_lng': lng,
           };
         }
       }
@@ -179,15 +192,58 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        context.go('/');
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/');
+        }
       },
       child: Scaffold(
       appBar: AppBar(
         title: const Text('Your Cart'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/'),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
+          },
         ),
+        actions: [
+          if (cartItems.isNotEmpty)
+            TextButton.icon(
+              icon: const Icon(Icons.delete_sweep_outlined, color: Colors.white, size: 18),
+              label: const Text('Clear', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Clear Cart?'),
+                    content: const Text('Are you sure you want to remove all items from your cart?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.dangerColor),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          ref.read(cartProvider.notifier).clearCart();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Cart cleared successfully!')),
+                          );
+                        },
+                        child: const Text('Clear All', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       body: cartItems.isNotEmpty
           ? SingleChildScrollView(
@@ -444,26 +500,38 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   const SizedBox(height: 20),
 
                   // 3. INFORMATION CALLOUT
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xffeff6ff),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.borderCol),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.pin_drop_outlined, color: AppTheme.primaryColor, size: 20),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Delivering to Digvijay Plot, Jamnagar (within 5 km) · Secure OTP verification required.',
-                            style: TextStyle(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
+                  Builder(
+                    builder: (context) {
+                      final locState = ref.watch(locationProvider);
+                      final activeLoc = locState.selectedLocation ?? locState.currentLocation;
+                      final addressText = activeLoc?.address ?? 'Digvijay Plot, Jamnagar';
+
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xffeff6ff),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.borderCol),
                         ),
-                      ],
-                    ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2.0),
+                              child: Icon(Icons.pin_drop_outlined, color: AppTheme.primaryColor, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Delivering to $addressText · Hyperlocal OTP verification required.',
+                                style: const TextStyle(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.w600, height: 1.3),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
 
