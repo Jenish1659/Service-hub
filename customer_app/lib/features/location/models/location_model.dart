@@ -1,4 +1,5 @@
 class LocationModel {
+  final String? id;
   final double latitude;
   final double longitude;
   final String address;
@@ -9,6 +10,7 @@ class LocationModel {
   final String postalCode;
 
   LocationModel({
+    this.id,
     required this.latitude,
     required this.longitude,
     required this.address,
@@ -20,6 +22,7 @@ class LocationModel {
   });
 
   LocationModel copyWith({
+    String? id,
     double? latitude,
     double? longitude,
     String? address,
@@ -30,6 +33,7 @@ class LocationModel {
     String? postalCode,
   }) {
     return LocationModel(
+      id: id ?? this.id,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       address: address ?? this.address,
@@ -43,6 +47,7 @@ class LocationModel {
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'latitude': latitude,
       'longitude': longitude,
       'address': address,
@@ -56,6 +61,7 @@ class LocationModel {
 
   factory LocationModel.fromJson(Map<String, dynamic> json) {
     return LocationModel(
+      id: json['id'] as String? ?? json['address_id'] as String?,
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
       address: json['address'] as String? ?? '',

@@ -1,297 +1,967 @@
--- =======================================================
--- SERVICEHUB MASTER DATABASE SCHEMA (SUPABASE POSTGRESQL + POSTGIS)
--- =======================================================
+-- =============================================================================
+-- SERVICEHUB ENTERPRISE MASTER DATABASE SCHEMA
+-- PostgreSQL 15+ with PostGIS Extension (Supabase Cloud)
+-- 16 Modular Domains | 70 Dedicated Tables | Realtime | Row Level Security (RLS)
+-- =============================================================================
 
--- Enable PostGIS extension for hyperlocal geofencing
+-- Clean Wipe of Previous Schema (Complete Reset)
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+
+-- Enable PostgreSQL Extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS postgis;
 
--- 1. PROFILES TABLE (Holds roles: customer, partner, admin)
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+-- Set Default Search Path
+SET search_path TO public, auth, extensions;
+
+-- =============================================================================
+-- MODULE 1: USER & ROLE MANAGEMENT
+-- =============================================================================
+
+-- 1. roles
+CREATE TABLE IF NOT EXISTS public.roles (
+    role_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    role_name TEXT UNIQUE NOT NULL CHECK (role_name IN ('customer', 'service_provider', 'shopkeeper', 'delivery_agent', 'admin')),
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. permissions
+CREATE TABLE IF NOT EXISTS public.permissions (
+    permission_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    permission_name TEXT UNIQUE NOT NULL,
+    module TEXT NOT NULL,
+    description TEXT
+);
+
+-- 3. role_permissions
+CREATE TABLE IF NOT EXISTS public.role_permissions (
+    role_id UUID REFERENCES public.roles(role_id) ON DELETE CASCADE,
+    permission_id UUID REFERENCES public.permissions(permission_id) ON DELETE CASCADE,
+    PRIMARY KEY (role_id, permission_id)
+);
+
+-- 4. users
+CREATE TABLE IF NOT EXISTS public.users (
+    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    auth_id UUID UNIQUE, -- References auth.users(id) in Supabase Auth
+    role_id UUID NOT NULL REFERENCES public.roles(role_id),
+    username TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('customer', 'partner', 'admin')),
-    name TEXT,
-    phone TEXT,
-    avatar_url TEXT,
-    latitude DOUBLE PRECISION DEFAULT 12.9103,
-    longitude DOUBLE PRECISION DEFAULT 77.6433,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    phone TEXT UNIQUE NOT NULL,
+    account_status TEXT NOT NULL CHECK (account_status IN ('ACTIVE', 'PENDING_VERIFICATION', 'SUSPENDED', 'DEACTIVATED')) DEFAULT 'ACTIVE',
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Enable RLS on profiles
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow public read access to profiles" 
-    ON public.profiles FOR SELECT USING (true);
-
-CREATE POLICY "Allow users to update their own profile" 
-    ON public.profiles FOR UPDATE USING (auth.uid() = id);
-
--- 2. PROVIDERS TABLE (Detailed provider registration & verification state)
-CREATE TABLE IF NOT EXISTS public.providers (
-    id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
-    service_category TEXT NOT NULL,
-    skills TEXT[] DEFAULT '{}',
-    experience_years INTEGER DEFAULT 1,
-    service_radius_km DOUBLE PRECISION DEFAULT 5.0,
-    verification_status TEXT CHECK (verification_status IN ('PENDING', 'VERIFIED', 'REJECTED', 'SUSPENDED')) DEFAULT 'PENDING',
-    is_active BOOLEAN DEFAULT true,
-    is_available BOOLEAN DEFAULT true,
-    rating DOUBLE PRECISION DEFAULT 5.0,
-    completed_jobs INTEGER DEFAULT 0,
-    current_lat DOUBLE PRECISION DEFAULT 12.9103,
-    current_lng DOUBLE PRECISION DEFAULT 77.6433,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- 5. user_profiles
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+    profile_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID UNIQUE NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    first_name TEXT NOT NULL,
+    last_name TEXT,
+    gender TEXT CHECK (gender IN ('Male', 'Female', 'Other')),
+    profile_photo TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Enable RLS on providers
-ALTER TABLE public.providers ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow public read access to providers" 
-    ON public.providers FOR SELECT USING (true);
-
-CREATE POLICY "Allow providers to update their own record" 
-    ON public.providers FOR UPDATE USING (auth.uid() = id);
-
--- 3. SERVICES CATALOG TABLE
-CREATE TABLE IF NOT EXISTS public.services (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    category TEXT NOT NULL,
-    description TEXT,
-    price DOUBLE PRECISION NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Enable RLS on services
-ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow public read access to services" 
-    ON public.services FOR SELECT USING (true);
-
-CREATE POLICY "Allow admin only edits to services" 
-    ON public.services FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
-
--- 4. PRODUCTS CATALOG TABLE (With location coordinates for geofencing)
-CREATE TABLE IF NOT EXISTS public.products (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    seller_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    description TEXT,
-    price DOUBLE PRECISION NOT NULL,
-    original_price DOUBLE PRECISION,
-    discount TEXT,
-    category TEXT NOT NULL,
-    stock INTEGER DEFAULT 10,
+-- 6. user_addresses
+CREATE TABLE IF NOT EXISTS public.user_addresses (
+    address_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    address_type TEXT NOT NULL CHECK (address_type IN ('Home', 'Work', 'Other')) DEFAULT 'Home',
+    house_no TEXT,
+    building_name TEXT,
+    street TEXT,
+    area TEXT NOT NULL,
+    landmark TEXT,
+    city TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'Gujarat',
+    pincode TEXT NOT NULL,
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Enable RLS on products
-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+-- 7. user_devices
+CREATE TABLE IF NOT EXISTS public.user_devices (
+    device_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    device_token TEXT NOT NULL,
+    platform TEXT NOT NULL CHECK (platform IN ('android', 'ios', 'web')),
+    last_active_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
-CREATE POLICY "Allow public read access to products" 
-    ON public.products FOR SELECT USING (true);
+-- =============================================================================
+-- MODULE 2: PARTNER MANAGEMENT
+-- =============================================================================
 
-CREATE POLICY "Allow seller to edit their own products" 
-    ON public.products FOR ALL USING (auth.uid() = seller_id);
+-- 8. partners
+CREATE TABLE IF NOT EXISTS public.partners (
+    partner_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID UNIQUE NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    partner_code TEXT UNIQUE NOT NULL DEFAULT ('SHP' || FLOOR(100000 + RANDOM() * 900000)::TEXT),
+    verification_status TEXT NOT NULL CHECK (verification_status IN ('PENDING', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED', 'SUSPENDED')) DEFAULT 'PENDING',
+    availability_status TEXT NOT NULL CHECK (availability_status IN ('ONLINE', 'OFFLINE', 'ON_JOB', 'BUSY')) DEFAULT 'ONLINE',
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    approved_at TIMESTAMP WITH TIME ZONE
+);
 
--- 5. BOOKINGS TABLE (Service bookings)
-CREATE TABLE IF NOT EXISTS public.bookings (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    booking_code TEXT UNIQUE NOT NULL DEFAULT ('SHB' || FLOOR(10000000 + RANDOM() * 90000000)::TEXT),
-    customer_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    provider_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    service_name TEXT NOT NULL,
-    category TEXT NOT NULL DEFAULT 'ac_service',
-    issue_description TEXT,
-    photo_url TEXT,
-    scheduled_date TEXT NOT NULL,
-    scheduled_time TEXT NOT NULL,
-    payment_method TEXT DEFAULT 'Cash on Service',
+-- 9. service_provider_profiles
+CREATE TABLE IF NOT EXISTS public.service_provider_profiles (
+    provider_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    partner_id UUID UNIQUE NOT NULL REFERENCES public.partners(partner_id) ON DELETE CASCADE,
+    experience_years INTEGER NOT NULL DEFAULT 1,
+    about TEXT,
+    rating DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    total_jobs INTEGER NOT NULL DEFAULT 0,
+    service_radius_km DOUBLE PRECISION NOT NULL DEFAULT 10.0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 10. shopkeeper_profiles
+CREATE TABLE IF NOT EXISTS public.shopkeeper_profiles (
+    shopkeeper_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    partner_id UUID UNIQUE NOT NULL REFERENCES public.partners(partner_id) ON DELETE CASCADE,
+    business_name TEXT NOT NULL,
+    business_type TEXT NOT NULL,
+    business_experience INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 11. delivery_agent_profiles
+CREATE TABLE IF NOT EXISTS public.delivery_agent_profiles (
+    delivery_agent_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    partner_id UUID UNIQUE NOT NULL REFERENCES public.partners(partner_id) ON DELETE CASCADE,
+    vehicle_type TEXT NOT NULL CHECK (vehicle_type IN ('Bike', 'Scooter', 'Electric Vehicle')),
+    vehicle_number TEXT NOT NULL,
+    driving_license_number TEXT NOT NULL,
+    availability_status TEXT NOT NULL CHECK (availability_status IN ('ONLINE', 'OFFLINE', 'ON_DELIVERY')) DEFAULT 'ONLINE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 12. delivery_vehicles
+CREATE TABLE IF NOT EXISTS public.delivery_vehicles (
+    vehicle_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    delivery_agent_id UUID NOT NULL REFERENCES public.delivery_agent_profiles(delivery_agent_id) ON DELETE CASCADE,
+    vehicle_type TEXT NOT NULL,
+    registration_number TEXT UNIQUE NOT NULL,
+    model TEXT,
+    insurance_status TEXT CHECK (insurance_status IN ('VALID', 'EXPIRED', 'PENDING')) DEFAULT 'VALID'
+);
+
+-- =============================================================================
+-- MODULE 3: VERIFICATION & KYC
+-- =============================================================================
+
+-- 13. verification_requests
+CREATE TABLE IF NOT EXISTS public.verification_requests (
+    verification_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    verification_type TEXT NOT NULL CHECK (verification_type IN ('AADHAAR', 'PAN', 'DRIVING_LICENSE', 'SHOP_LICENSE', 'POLICE_CLEARANCE')),
+    status TEXT NOT NULL CHECK (status IN ('PENDING', 'IN_REVIEW', 'APPROVED', 'REJECTED')) DEFAULT 'PENDING',
+    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    reviewed_by UUID REFERENCES public.users(user_id),
+    remarks TEXT
+);
+
+-- 14. identity_documents
+CREATE TABLE IF NOT EXISTS public.identity_documents (
+    document_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    document_type TEXT NOT NULL,
+    document_number TEXT NOT NULL,
+    verification_status TEXT NOT NULL CHECK (verification_status IN ('PENDING', 'VERIFIED', 'REJECTED')) DEFAULT 'PENDING',
+    verified_at TIMESTAMP WITH TIME ZONE
+);
+
+-- 15. document_files
+CREATE TABLE IF NOT EXISTS public.document_files (
+    file_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID NOT NULL REFERENCES public.identity_documents(document_id) ON DELETE CASCADE,
+    file_url TEXT NOT NULL,
+    file_type TEXT NOT NULL,
+    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 16. face_verifications
+CREATE TABLE IF NOT EXISTS public.face_verifications (
+    face_verification_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    verification_id UUID REFERENCES public.verification_requests(verification_id) ON DELETE CASCADE,
+    method TEXT NOT NULL DEFAULT 'AI_FACIAL_MATCH',
+    match_status TEXT NOT NULL CHECK (match_status IN ('MATCHED', 'MISMATCH', 'PENDING')) DEFAULT 'PENDING',
+    confidence_score DOUBLE PRECISION DEFAULT 0.98,
+    verified_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 17. shop_inspections
+CREATE TABLE IF NOT EXISTS public.shop_inspections (
+    inspection_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id UUID NOT NULL,
+    inspector_id UUID REFERENCES public.users(user_id),
+    inspection_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    status TEXT NOT NULL CHECK (status IN ('PASSED', 'FAILED', 'PENDING')) DEFAULT 'PENDING',
+    findings TEXT,
+    remarks TEXT
+);
+
+-- 18. verification_history
+CREATE TABLE IF NOT EXISTS public.verification_history (
+    history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    verification_id UUID NOT NULL REFERENCES public.verification_requests(verification_id) ON DELETE CASCADE,
+    old_status TEXT,
+    new_status TEXT NOT NULL,
+    changed_by UUID REFERENCES public.users(user_id),
+    reason TEXT,
+    changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================================================
+-- MODULE 4: SERVICE CATALOG
+-- =============================================================================
+
+-- 19. service_categories
+CREATE TABLE IF NOT EXISTS public.service_categories (
+    category_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    icon TEXT,
+    status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'INACTIVE')) DEFAULT 'ACTIVE'
+);
+
+-- 20. services
+CREATE TABLE IF NOT EXISTS public.services (
+    service_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    category_id TEXT NOT NULL REFERENCES public.service_categories(category_id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    image TEXT,
+    base_price DOUBLE PRECISION NOT NULL,
+    duration_minutes INTEGER NOT NULL DEFAULT 60,
+    status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'INACTIVE')) DEFAULT 'ACTIVE'
+);
+
+-- 21. service_variants
+CREATE TABLE IF NOT EXISTS public.service_variants (
+    variant_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_id UUID NOT NULL REFERENCES public.services(service_id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
     price DOUBLE PRECISION NOT NULL,
+    duration_minutes INTEGER NOT NULL DEFAULT 60
+);
+
+-- 22. service_addons
+CREATE TABLE IF NOT EXISTS public.service_addons (
+    addon_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_id UUID NOT NULL REFERENCES public.services(service_id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    price DOUBLE PRECISION NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'INACTIVE')) DEFAULT 'ACTIVE'
+);
+
+-- 23. service_requirements
+CREATE TABLE IF NOT EXISTS public.service_requirements (
+    requirement_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_id UUID NOT NULL REFERENCES public.services(service_id) ON DELETE CASCADE,
+    requirement_name TEXT NOT NULL,
+    description TEXT,
+    is_required BOOLEAN NOT NULL DEFAULT true
+);
+
+-- =============================================================================
+-- MODULE 5: SERVICE PROVIDER DOMAIN
+-- =============================================================================
+
+-- 24. provider_services
+CREATE TABLE IF NOT EXISTS public.provider_services (
+    provider_service_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider_id UUID NOT NULL REFERENCES public.service_provider_profiles(provider_id) ON DELETE CASCADE,
+    service_id UUID NOT NULL REFERENCES public.services(service_id) ON DELETE CASCADE,
+    price DOUBLE PRECISION,
+    is_available BOOLEAN NOT NULL DEFAULT true,
+    UNIQUE(provider_id, service_id)
+);
+
+-- 25. provider_service_areas
+CREATE TABLE IF NOT EXISTS public.provider_service_areas (
+    area_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider_id UUID NOT NULL REFERENCES public.service_provider_profiles(provider_id) ON DELETE CASCADE,
+    city TEXT NOT NULL,
+    area_name TEXT NOT NULL,
+    radius_km DOUBLE PRECISION NOT NULL DEFAULT 10.0,
+    status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'INACTIVE')) DEFAULT 'ACTIVE'
+);
+
+-- 26. provider_availability
+CREATE TABLE IF NOT EXISTS public.provider_availability (
+    availability_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider_id UUID NOT NULL REFERENCES public.service_provider_profiles(provider_id) ON DELETE CASCADE,
+    day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6), -- 0: Sunday, 6: Saturday
+    start_time TIME NOT NULL DEFAULT '08:00:00',
+    end_time TIME NOT NULL DEFAULT '20:00:00',
+    is_available BOOLEAN NOT NULL DEFAULT true
+);
+
+-- =============================================================================
+-- MODULE 6: AC SERVICE (SPECIALIZED DOMAIN)
+-- =============================================================================
+
+-- 27. ac_service_types
+CREATE TABLE IF NOT EXISTS public.ac_service_types (
+    ac_service_type_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_id UUID NOT NULL REFERENCES public.services(service_id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    base_price DOUBLE PRECISION NOT NULL,
+    estimated_duration INTEGER NOT NULL DEFAULT 60
+);
+
+-- 28. ac_service_reports
+CREATE TABLE IF NOT EXISTS public.ac_service_reports (
+    report_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID NOT NULL,
+    ac_type TEXT NOT NULL CHECK (ac_type IN ('Split AC', 'Window AC', 'Cassette AC', 'Tower AC')),
+    ac_model TEXT,
+    issue_found TEXT,
+    work_done TEXT,
+    technician_notes TEXT,
+    completion_status TEXT NOT NULL CHECK (completion_status IN ('COMPLETED', 'PARTS_PENDING', 'UNREPAIRABLE')) DEFAULT 'COMPLETED'
+);
+
+-- 29. ac_service_checklists
+CREATE TABLE IF NOT EXISTS public.ac_service_checklists (
+    checklist_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_type_id UUID NOT NULL REFERENCES public.ac_service_types(ac_service_type_id) ON DELETE CASCADE,
+    checklist_item TEXT NOT NULL,
+    sequence_no INTEGER NOT NULL DEFAULT 1,
+    is_required BOOLEAN NOT NULL DEFAULT true
+);
+
+-- 30. ac_service_photos
+CREATE TABLE IF NOT EXISTS public.ac_service_photos (
+    photo_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    report_id UUID NOT NULL REFERENCES public.ac_service_reports(report_id) ON DELETE CASCADE,
+    photo_type TEXT NOT NULL CHECK (photo_type IN ('BEFORE_SERVICE', 'AFTER_SERVICE', 'DEFECTIVE_PART', 'INVOICE_RECEIPT')),
+    file_id UUID NOT NULL,
+    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================================================
+-- MODULE 7: SERVICE BOOKING ENGINE
+-- =============================================================================
+
+-- 31. service_bookings
+CREATE TABLE IF NOT EXISTS public.service_bookings (
+    booking_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_code TEXT UNIQUE NOT NULL DEFAULT ('SHB' || FLOOR(10000000 + RANDOM() * 90000000)::TEXT),
+    customer_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    service_id UUID NOT NULL REFERENCES public.services(service_id),
+    address_id UUID NOT NULL REFERENCES public.user_addresses(address_id),
+    booking_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    scheduled_time TEXT NOT NULL,
+    problem_description TEXT,
+    estimated_amount DOUBLE PRECISION NOT NULL,
+    final_amount DOUBLE PRECISION,
     status TEXT NOT NULL CHECK (status IN (
-        'PENDING', 
-        'SEARCHING_PROVIDER', 
-        'OFFERED_TO_PROVIDERS', 
-        'ACCEPTED', 
-        'ON_THE_WAY', 
-        'ARRIVED', 
-        'SERVICE_STARTED', 
-        'SERVICE_COMPLETED', 
-        'PAYMENT_COMPLETED', 
-        'REVIEWED', 
+        'PENDING',
+        'SEARCHING_PROVIDER',
+        'OFFERED_TO_PROVIDERS',
+        'ACCEPTED',
+        'ON_THE_WAY',
+        'ARRIVED',
+        'SERVICE_STARTED',
+        'SERVICE_COMPLETED',
+        'PAYMENT_COMPLETED',
+        'REVIEWED',
         'CLOSED',
         'CANCELLED_BY_CUSTOMER',
         'CANCELLED_BY_PROVIDER',
         'REJECTED',
-        'EXPIRED',
-        'NO_PROVIDER_FOUND'
+        'EXPIRED'
     )) DEFAULT 'SEARCHING_PROVIDER',
     entrance_pin TEXT DEFAULT '7429',
     completion_otp TEXT DEFAULT '5892',
-    customer_lat DOUBLE PRECISION,
-    customer_lng DOUBLE PRECISION,
-    provider_lat DOUBLE PRECISION,
-    provider_lng DOUBLE PRECISION,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    accepted_at TIMESTAMP WITH TIME ZONE,
-    completed_at TIMESTAMP WITH TIME ZONE
-);
-
--- Enable RLS on bookings
-ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow public select on bookings" ON public.bookings FOR SELECT USING (true);
-CREATE POLICY "Allow public insert on bookings" ON public.bookings FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update on bookings" ON public.bookings FOR UPDATE USING (true);
-
--- 6. BOOKING OFFERS TABLE (Multi-provider bidding / notification tracking)
-CREATE TABLE IF NOT EXISTS public.booking_offers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    booking_id UUID REFERENCES public.bookings(id) ON DELETE CASCADE,
-    provider_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    status TEXT NOT NULL CHECK (status IN ('PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'ALREADY_ASSIGNED')) DEFAULT 'PENDING',
-    distance_km DOUBLE PRECISION DEFAULT 2.3,
-    estimated_earning DOUBLE PRECISION,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    responded_at TIMESTAMP WITH TIME ZONE
-);
-
--- Enable RLS on booking_offers
-ALTER TABLE public.booking_offers ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow public select on booking_offers" ON public.booking_offers FOR SELECT USING (true);
-CREATE POLICY "Allow public insert on booking_offers" ON public.booking_offers FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update on booking_offers" ON public.booking_offers FOR UPDATE USING (true);
-
--- 7. ORDERS TABLE (Product delivery orders)
-CREATE TABLE IF NOT EXISTS public.orders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    customer_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    agent_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    status TEXT NOT NULL CHECK (status IN ('Placed', 'Packing', 'Ready for Pickup', 'Out for Delivery', 'Delivered', 'Cancelled', 'CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_PROVIDER')) DEFAULT 'Placed',
-    items_summary TEXT,
-    subtotal DOUBLE PRECISION NOT NULL,
-    delivery_fee DOUBLE PRECISION NOT NULL,
-    grand_total DOUBLE PRECISION NOT NULL,
-    delivery_pin TEXT DEFAULT '2842',
-    shipping_address TEXT,
-    customer_lat DOUBLE PRECISION,
-    customer_lng DOUBLE PRECISION,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Enable RLS on orders
-ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public select on orders" ON public.orders FOR SELECT USING (true);
-CREATE POLICY "Allow public insert on orders" ON public.orders FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update on orders" ON public.orders FOR UPDATE USING (true);
+-- 32. booking_requests
+CREATE TABLE IF NOT EXISTS public.booking_requests (
+    request_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID NOT NULL REFERENCES public.service_bookings(booking_id) ON DELETE CASCADE,
+    provider_id UUID NOT NULL REFERENCES public.service_provider_profiles(provider_id) ON DELETE CASCADE,
+    sent_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    response_at TIMESTAMP WITH TIME ZONE,
+    response_status TEXT NOT NULL CHECK (response_status IN ('Pending', 'Accepted', 'Rejected', 'Expired')) DEFAULT 'Pending'
+);
 
--- 8. CUSTOMER LOCATIONS / SAVED ADDRESSES TABLE
-CREATE TABLE IF NOT EXISTS public.customer_locations (
-    id TEXT PRIMARY KEY,
-    customer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+-- 33. booking_assignment
+CREATE TABLE IF NOT EXISTS public.booking_assignment (
+    assignment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID UNIQUE NOT NULL REFERENCES public.service_bookings(booking_id) ON DELETE CASCADE,
+    provider_id UUID NOT NULL REFERENCES public.service_provider_profiles(provider_id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    assignment_method TEXT NOT NULL CHECK (assignment_method IN ('FIRST_ACCEPT', 'AUTO_DISPATCH', 'ADMIN_MANUAL')) DEFAULT 'FIRST_ACCEPT',
+    status TEXT NOT NULL CHECK (status IN ('ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')) DEFAULT 'ASSIGNED'
+);
+
+-- 34. booking_status_history
+CREATE TABLE IF NOT EXISTS public.booking_status_history (
+    history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID NOT NULL REFERENCES public.service_bookings(booking_id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    changed_by UUID REFERENCES public.users(user_id),
+    remarks TEXT,
+    changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 35. booking_cancellations
+CREATE TABLE IF NOT EXISTS public.booking_cancellations (
+    cancellation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID NOT NULL REFERENCES public.service_bookings(booking_id) ON DELETE CASCADE,
+    cancelled_by UUID NOT NULL REFERENCES public.users(user_id),
+    reason TEXT NOT NULL,
+    cancelled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 36. booking_location_logs
+CREATE TABLE IF NOT EXISTS public.booking_location_logs (
+    location_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID NOT NULL REFERENCES public.service_bookings(booking_id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(user_id),
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
-    address TEXT NOT NULL,
-    area TEXT,
-    city TEXT,
-    state TEXT,
-    country TEXT DEFAULT 'India',
-    postal_code TEXT,
-    address_type TEXT DEFAULT 'home',
-    is_for_someone_else BOOLEAN DEFAULT false,
-    recipient_name TEXT,
-    recipient_phone TEXT,
-    house_number TEXT,
-    landmark TEXT,
+    recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================================================
+-- MODULE 8: SHOPKEEPER & SHOP
+-- =============================================================================
+
+-- 37. shops
+CREATE TABLE IF NOT EXISTS public.shops (
+    shop_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shopkeeper_id UUID NOT NULL REFERENCES public.shopkeeper_profiles(shopkeeper_id) ON DELETE CASCADE,
+    shop_name TEXT NOT NULL,
+    shop_type TEXT NOT NULL,
+    address_id UUID REFERENCES public.user_addresses(address_id),
+    verification_status TEXT NOT NULL CHECK (verification_status IN ('PENDING', 'VERIFIED', 'SUSPENDED')) DEFAULT 'PENDING',
+    rating DOUBLE PRECISION NOT NULL DEFAULT 0.0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Enable RLS on customer_locations
-ALTER TABLE public.customer_locations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public select on customer_locations" ON public.customer_locations FOR SELECT USING (true);
-CREATE POLICY "Allow public insert on customer_locations" ON public.customer_locations FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update on customer_locations" ON public.customer_locations FOR UPDATE USING (true);
-CREATE POLICY "Allow public delete on customer_locations" ON public.customer_locations FOR DELETE USING (true);
+-- 38. shop_services
+CREATE TABLE IF NOT EXISTS public.shop_services (
+    shop_service_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id UUID NOT NULL REFERENCES public.shops(shop_id) ON DELETE CASCADE,
+    service_id UUID NOT NULL REFERENCES public.services(service_id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'INACTIVE')) DEFAULT 'ACTIVE'
+);
 
--- 9. SUPPORT TICKETS TABLE
-CREATE TABLE IF NOT EXISTS public.tickets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    customer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+-- 39. shop_business_hours
+CREATE TABLE IF NOT EXISTS public.shop_business_hours (
+    hours_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id UUID NOT NULL REFERENCES public.shops(shop_id) ON DELETE CASCADE,
+    day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+    opening_time TIME NOT NULL DEFAULT '09:00:00',
+    closing_time TIME NOT NULL DEFAULT '21:00:00',
+    is_open BOOLEAN NOT NULL DEFAULT true
+);
+
+-- 40. shop_images
+CREATE TABLE IF NOT EXISTS public.shop_images (
+    shop_image_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id UUID NOT NULL REFERENCES public.shops(shop_id) ON DELETE CASCADE,
+    file_id UUID NOT NULL,
+    image_type TEXT NOT NULL CHECK (image_type IN ('STORE_FRONT', 'INTERIOR', 'BANNER', 'DOCUMENT'))
+);
+
+-- =============================================================================
+-- MODULE 9: PRODUCTS & INVENTORY
+-- =============================================================================
+
+-- 41. product_categories
+CREATE TABLE IF NOT EXISTS public.product_categories (
+    category_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_id UUID REFERENCES public.services(service_id) ON DELETE SET NULL,
+    name TEXT NOT NULL,
+    description TEXT
+);
+
+-- 42. products
+CREATE TABLE IF NOT EXISTS public.products (
+    product_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id UUID NOT NULL REFERENCES public.shops(shop_id) ON DELETE CASCADE,
+    category_id UUID REFERENCES public.product_categories(category_id) ON DELETE SET NULL,
+    product_name TEXT NOT NULL,
+    description TEXT,
+    sku TEXT UNIQUE,
+    price DOUBLE PRECISION NOT NULL,
+    discount DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    tax_rate DOUBLE PRECISION NOT NULL DEFAULT 0.18,
+    image TEXT,
+    status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'OUT_OF_STOCK', 'DISCONTINUED')) DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 43. inventory
+CREATE TABLE IF NOT EXISTS public.inventory (
+    inventory_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID UNIQUE NOT NULL REFERENCES public.products(product_id) ON DELETE CASCADE,
+    current_stock INTEGER NOT NULL DEFAULT 0,
+    reserved_stock INTEGER NOT NULL DEFAULT 0,
+    low_stock_limit INTEGER NOT NULL DEFAULT 5,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 44. inventory_transactions
+CREATE TABLE IF NOT EXISTS public.inventory_transactions (
+    transaction_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES public.products(product_id) ON DELETE CASCADE,
+    transaction_type TEXT NOT NULL CHECK (transaction_type IN ('STOCK_IN', 'ORDER_RESERVE', 'ORDER_FULFILL', 'RETURN', 'DAMAGE_WRITE_OFF')),
+    quantity INTEGER NOT NULL,
+    reference_id UUID,
+    created_by UUID REFERENCES public.users(user_id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================================================
+-- MODULE 10: PRODUCT ORDERS
+-- =============================================================================
+
+-- 45. orders
+CREATE TABLE IF NOT EXISTS public.orders (
+    order_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_code TEXT UNIQUE NOT NULL DEFAULT ('SHO' || FLOOR(10000000 + RANDOM() * 90000000)::TEXT),
+    customer_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    shop_id UUID NOT NULL REFERENCES public.shops(shop_id),
+    address_id UUID NOT NULL REFERENCES public.user_addresses(address_id),
+    subtotal DOUBLE PRECISION NOT NULL,
+    delivery_charge DOUBLE PRECISION NOT NULL DEFAULT 40.0,
+    discount DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    tax DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    total_amount DOUBLE PRECISION NOT NULL,
+    payment_status TEXT NOT NULL CHECK (payment_status IN ('PENDING', 'PAID', 'REFUNDED', 'FAILED')) DEFAULT 'PENDING',
+    order_status TEXT NOT NULL CHECK (order_status IN (
+        'Placed',
+        'Packing',
+        'Ready for Pickup',
+        'Out for Delivery',
+        'Delivered',
+        'Cancelled',
+        'CANCELLED_BY_CUSTOMER',
+        'CANCELLED_BY_PROVIDER'
+    )) DEFAULT 'Placed',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 46. order_items
+CREATE TABLE IF NOT EXISTS public.order_items (
+    order_item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES public.orders(order_id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES public.products(product_id),
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    unit_price DOUBLE PRECISION NOT NULL,
+    subtotal DOUBLE PRECISION NOT NULL
+);
+
+-- 47. order_status_history
+CREATE TABLE IF NOT EXISTS public.order_status_history (
+    history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES public.orders(order_id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    changed_by UUID REFERENCES public.users(user_id),
+    remarks TEXT,
+    changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 48. order_cancellations
+CREATE TABLE IF NOT EXISTS public.order_cancellations (
+    cancellation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES public.orders(order_id) ON DELETE CASCADE,
+    cancelled_by UUID NOT NULL REFERENCES public.users(user_id),
+    reason TEXT NOT NULL,
+    cancelled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================================================
+-- MODULE 11: DELIVERY
+-- =============================================================================
+
+-- 49. delivery_assignments
+CREATE TABLE IF NOT EXISTS public.delivery_assignments (
+    assignment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID UNIQUE NOT NULL REFERENCES public.orders(order_id) ON DELETE CASCADE,
+    delivery_agent_id UUID NOT NULL REFERENCES public.delivery_agent_profiles(delivery_agent_id) ON DELETE CASCADE,
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    accepted_at TIMESTAMP WITH TIME ZONE,
+    picked_up_at TIMESTAMP WITH TIME ZONE,
+    delivered_at TIMESTAMP WITH TIME ZONE,
+    status TEXT NOT NULL CHECK (status IN ('ASSIGNED', 'ACCEPTED', 'PICKED_UP', 'DELIVERED', 'FAILED', 'CANCELLED')) DEFAULT 'ASSIGNED'
+);
+
+-- 50. delivery_tracking
+CREATE TABLE IF NOT EXISTS public.delivery_tracking (
+    tracking_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    assignment_id UUID NOT NULL REFERENCES public.delivery_assignments(assignment_id) ON DELETE CASCADE,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    accuracy DOUBLE PRECISION,
+    speed DOUBLE PRECISION,
+    recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 51. delivery_status_history
+CREATE TABLE IF NOT EXISTS public.delivery_status_history (
+    history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    assignment_id UUID NOT NULL REFERENCES public.delivery_assignments(assignment_id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    remarks TEXT
+);
+
+-- 52. delivery_failures
+CREATE TABLE IF NOT EXISTS public.delivery_failures (
+    failure_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    assignment_id UUID NOT NULL REFERENCES public.delivery_assignments(assignment_id) ON DELETE CASCADE,
+    failure_type TEXT NOT NULL CHECK (failure_type IN ('CUSTOMER_UNAVAILABLE', 'INCORRECT_ADDRESS', 'REJECTED_BY_CUSTOMER', 'ACCIDENT_VEHICLE_ISSUE')),
+    reason TEXT NOT NULL,
+    attempted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    resolution TEXT
+);
+
+-- =============================================================================
+-- MODULE 12: PAYMENT & FINANCE
+-- =============================================================================
+
+-- 53. payments
+CREATE TABLE IF NOT EXISTS public.payments (
+    payment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID NOT NULL REFERENCES public.users(user_id),
+    booking_id UUID REFERENCES public.service_bookings(booking_id) ON DELETE SET NULL,
+    order_id UUID REFERENCES public.orders(order_id) ON DELETE SET NULL,
+    transaction_id TEXT UNIQUE,
+    amount DOUBLE PRECISION NOT NULL,
+    payment_method TEXT NOT NULL CHECK (payment_method IN ('CASH_ON_SERVICE', 'UPI', 'CREDIT_CARD', 'DEBIT_CARD', 'NET_BANKING', 'WALLET')) DEFAULT 'CASH_ON_SERVICE',
+    status TEXT NOT NULL CHECK (status IN ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED')) DEFAULT 'PENDING',
+    paid_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 54. payment_transactions
+CREATE TABLE IF NOT EXISTS public.payment_transactions (
+    transaction_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    payment_id UUID NOT NULL REFERENCES public.payments(payment_id) ON DELETE CASCADE,
+    gateway_reference TEXT,
+    gateway_status TEXT,
+    response_code TEXT,
+    response_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 55. refunds
+CREATE TABLE IF NOT EXISTS public.refunds (
+    refund_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    payment_id UUID NOT NULL REFERENCES public.payments(payment_id) ON DELETE CASCADE,
+    amount DOUBLE PRECISION NOT NULL,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('REQUESTED', 'PROCESSING', 'COMPLETED', 'REJECTED')) DEFAULT 'REQUESTED',
+    processed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- 56. invoices
+CREATE TABLE IF NOT EXISTS public.invoices (
+    invoice_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID REFERENCES public.service_bookings(booking_id) ON DELETE SET NULL,
+    order_id UUID REFERENCES public.orders(order_id) ON DELETE SET NULL,
+    invoice_number TEXT UNIQUE NOT NULL DEFAULT ('INV-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || FLOOR(1000 + RANDOM() * 9000)::TEXT),
+    subtotal DOUBLE PRECISION NOT NULL,
+    tax DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    total DOUBLE PRECISION NOT NULL,
+    generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 57. partner_earnings
+CREATE TABLE IF NOT EXISTS public.partner_earnings (
+    earning_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    partner_id UUID NOT NULL REFERENCES public.partners(partner_id) ON DELETE CASCADE,
+    booking_id UUID REFERENCES public.service_bookings(booking_id) ON DELETE SET NULL,
+    order_id UUID REFERENCES public.orders(order_id) ON DELETE SET NULL,
+    gross_amount DOUBLE PRECISION NOT NULL,
+    platform_fee DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    net_amount DOUBLE PRECISION NOT NULL,
+    earning_status TEXT NOT NULL CHECK (earning_status IN ('PENDING', 'AVAILABLE_FOR_PAYOUT', 'PAID_OUT')) DEFAULT 'AVAILABLE_FOR_PAYOUT',
+    earned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 58. payouts
+CREATE TABLE IF NOT EXISTS public.payouts (
+    payout_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    partner_id UUID NOT NULL REFERENCES public.partners(partner_id) ON DELETE CASCADE,
+    amount DOUBLE PRECISION NOT NULL,
+    payout_period TEXT NOT NULL, -- e.g. '2026-W34' or '2026-08'
+    status TEXT NOT NULL CHECK (status IN ('INITIATED', 'PROCESSING', 'SETTLED', 'FAILED')) DEFAULT 'INITIATED',
+    processed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- 59. commission_rules
+CREATE TABLE IF NOT EXISTS public.commission_rules (
+    commission_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    partner_type TEXT NOT NULL CHECK (partner_type IN ('service_provider', 'shopkeeper', 'delivery_agent')),
+    service_id UUID REFERENCES public.services(service_id) ON DELETE CASCADE,
+    percentage DOUBLE PRECISION NOT NULL DEFAULT 10.0,
+    fixed_amount DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    effective_from TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    effective_to TIMESTAMP WITH TIME ZONE
+);
+
+-- =============================================================================
+-- MODULE 13: REVIEWS
+-- =============================================================================
+
+-- 60. reviews
+CREATE TABLE IF NOT EXISTS public.reviews (
+    review_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    booking_id UUID REFERENCES public.service_bookings(booking_id) ON DELETE SET NULL,
+    order_id UUID REFERENCES public.orders(order_id) ON DELETE SET NULL,
+    rating DOUBLE PRECISION NOT NULL CHECK (rating BETWEEN 1.0 AND 5.0),
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 61. review_replies
+CREATE TABLE IF NOT EXISTS public.review_replies (
+    reply_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    review_id UUID NOT NULL REFERENCES public.reviews(review_id) ON DELETE CASCADE,
+    partner_id UUID NOT NULL REFERENCES public.partners(partner_id) ON DELETE CASCADE,
+    reply_text TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================================================
+-- MODULE 14: NOTIFICATIONS & SUPPORT
+-- =============================================================================
+
+-- 62. notifications
+CREATE TABLE IF NOT EXISTS public.notifications (
+    notification_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    notification_type TEXT NOT NULL CHECK (notification_type IN ('BOOKING', 'ORDER', 'PAYMENT', 'PROMO', 'SECURITY', 'SYSTEM')),
+    is_read BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 63. notification_preferences
+CREATE TABLE IF NOT EXISTS public.notification_preferences (
+    preference_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID UNIQUE NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    booking_notifications BOOLEAN NOT NULL DEFAULT true,
+    order_notifications BOOLEAN NOT NULL DEFAULT true,
+    payment_notifications BOOLEAN NOT NULL DEFAULT true,
+    general_notifications BOOLEAN NOT NULL DEFAULT true
+);
+
+-- 64. support_tickets
+CREATE TABLE IF NOT EXISTS public.support_tickets (
+    ticket_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
     subject TEXT NOT NULL,
+    category TEXT NOT NULL,
     description TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'Open',
+    priority TEXT NOT NULL CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH', 'URGENT')) DEFAULT 'MEDIUM',
+    status TEXT NOT NULL CHECK (status IN ('OPEN', 'IN_PROGRESS', 'WAITING_FOR_USER', 'RESOLVED', 'CLOSED')) DEFAULT 'OPEN',
+    assigned_admin UUID REFERENCES public.users(user_id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow public select on tickets" ON public.tickets FOR SELECT USING (true);
-CREATE POLICY "Allow public insert on tickets" ON public.tickets FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update on tickets" ON public.tickets FOR UPDATE USING (true);
+-- 65. support_messages
+CREATE TABLE IF NOT EXISTS public.support_messages (
+    message_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ticket_id UUID NOT NULL REFERENCES public.support_tickets(ticket_id) ON DELETE CASCADE,
+    sender_id UUID NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- =======================================================
--- ATOMIC FIRST-ACCEPT-WINS BACKEND TRANSACTION LOGIC
--- =======================================================
+-- =============================================================================
+-- MODULE 15: ADMIN
+-- =============================================================================
 
--- Procedure: Atomic acceptance of a booking offer by a provider
-CREATE OR REPLACE FUNCTION accept_booking_offer(
-    p_booking_id UUID,
+-- 66. admin_profiles
+CREATE TABLE IF NOT EXISTS public.admin_profiles (
+    admin_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID UNIQUE NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    admin_level TEXT NOT NULL CHECK (admin_level IN ('SUPER_ADMIN', 'OPERATIONS_ADMIN', 'FINANCE_ADMIN', 'SUPPORT_AGENT')) DEFAULT 'OPERATIONS_ADMIN',
+    status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'SUSPENDED')) DEFAULT 'ACTIVE'
+);
+
+-- 67. admin_actions
+CREATE TABLE IF NOT EXISTS public.admin_actions (
+    action_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    admin_id UUID NOT NULL REFERENCES public.admin_profiles(admin_id) ON DELETE CASCADE,
+    module TEXT NOT NULL,
+    action_type TEXT NOT NULL,
+    target_id UUID,
+    description TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 68. audit_logs
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.users(user_id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    module TEXT NOT NULL,
+    target_id UUID,
+    ip_address TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 69. system_settings
+CREATE TABLE IF NOT EXISTS public.system_settings (
+    setting_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    setting_key TEXT UNIQUE NOT NULL,
+    setting_value TEXT NOT NULL,
+    description TEXT,
+    updated_by UUID REFERENCES public.users(user_id),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================================================
+-- MODULE 16: FILE STORAGE
+-- =============================================================================
+
+-- 70. files
+CREATE TABLE IF NOT EXISTS public.files (
+    file_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    uploaded_by UUID REFERENCES public.users(user_id) ON DELETE SET NULL,
+    file_name TEXT NOT NULL,
+    file_type TEXT NOT NULL,
+    storage_path TEXT NOT NULL,
+    file_size BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- =============================================================================
+-- PERFORMANCE INDEXES
+-- =============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_users_username ON public.users(username);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON public.users(phone);
+CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
+CREATE INDEX IF NOT EXISTS idx_users_auth_id ON public.users(auth_id);
+CREATE INDEX IF NOT EXISTS idx_users_role_id ON public.users(role_id);
+CREATE INDEX IF NOT EXISTS idx_partners_user_id ON public.partners(user_id);
+CREATE INDEX IF NOT EXISTS idx_service_bookings_customer_id ON public.service_bookings(customer_id);
+CREATE INDEX IF NOT EXISTS idx_service_bookings_status ON public.service_bookings(status);
+CREATE INDEX IF NOT EXISTS idx_booking_requests_provider_id ON public.booking_requests(provider_id);
+CREATE INDEX IF NOT EXISTS idx_booking_requests_status ON public.booking_requests(response_status);
+CREATE INDEX IF NOT EXISTS idx_booking_assignment_booking_id ON public.booking_assignment(booking_id);
+CREATE INDEX IF NOT EXISTS idx_booking_assignment_provider_id ON public.booking_assignment(provider_id);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON public.orders(customer_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(order_status);
+CREATE INDEX IF NOT EXISTS idx_delivery_assignments_agent ON public.delivery_assignments(delivery_agent_id);
+CREATE INDEX IF NOT EXISTS idx_partner_earnings_partner ON public.partner_earnings(partner_id);
+CREATE INDEX IF NOT EXISTS idx_partner_earnings_date ON public.partner_earnings(earned_at);
+
+-- =============================================================================
+-- STORED PROCEDURES & ATOMIC TRANSACTION LOGIC
+-- =============================================================================
+
+-- 1. Atomic Booking Accept Procedure (First-Accept-Wins Transaction)
+CREATE OR REPLACE FUNCTION public.atomic_accept_booking_request(
+    p_request_id UUID,
     p_provider_id UUID
 )
 RETURNS JSON AS $$
 DECLARE
-    v_current_status TEXT;
+    v_booking_id UUID;
+    v_current_booking_status TEXT;
     v_result JSON;
 BEGIN
-    -- Perform row-level locking on the target booking record
-    SELECT status INTO v_current_status
-    FROM public.bookings
-    WHERE id = p_booking_id
+    -- Get target booking id from request
+    SELECT booking_id INTO v_booking_id
+    FROM public.booking_requests
+    WHERE request_id = p_request_id AND provider_id = p_provider_id;
+
+    IF v_booking_id IS NULL THEN
+        RETURN json_build_object('success', false, 'message', 'Request record not found.');
+    END IF;
+
+    -- Lock the booking row for update (Atomic First-Accept-Wins)
+    SELECT status INTO v_current_booking_status
+    FROM public.service_bookings
+    WHERE booking_id = v_booking_id
     FOR UPDATE;
 
-    -- Verify if booking is still available for assignment
-    IF v_current_status IN ('Pending', 'SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS') THEN
-        -- 1. Assign provider and transition booking status to ACCEPTED
-        UPDATE public.bookings
-        SET 
-            provider_id = p_provider_id,
-            status = 'ACCEPTED',
-            accepted_at = NOW()
-        WHERE id = p_booking_id;
+    -- Check if still available for assignment
+    IF v_current_booking_status IN ('PENDING', 'SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS') THEN
+        -- A. Update service_bookings status to ACCEPTED
+        UPDATE public.service_bookings
+        SET status = 'ACCEPTED'
+        WHERE booking_id = v_booking_id;
 
-        -- 2. Mark winning provider's offer as ACCEPTED
-        UPDATE public.booking_offers
-        SET status = 'ACCEPTED', responded_at = NOW()
-        WHERE booking_id = p_booking_id AND provider_id = p_provider_id;
+        -- B. Create assignment record
+        INSERT INTO public.booking_assignment (
+            booking_id,
+            provider_id,
+            assignment_method,
+            status
+        ) VALUES (
+            v_booking_id,
+            p_provider_id,
+            'FIRST_ACCEPT',
+            'ASSIGNED'
+        ) ON CONFLICT (booking_id) DO NOTHING;
 
-        -- 3. Mark all other competing providers' offers as ALREADY_ASSIGNED
-        UPDATE public.booking_offers
-        SET status = 'ALREADY_ASSIGNED', responded_at = NOW()
-        WHERE booking_id = p_booking_id AND provider_id != p_provider_id;
+        -- C. Update accepted request
+        UPDATE public.booking_requests
+        SET response_status = 'Accepted', response_at = NOW()
+        WHERE request_id = p_request_id;
+
+        -- D. Auto-expire/reject remaining competing requests
+        UPDATE public.booking_requests
+        SET response_status = 'Expired', response_at = NOW()
+        WHERE booking_id = v_booking_id AND request_id != p_request_id;
+
+        -- E. Log status history
+        INSERT INTO public.booking_status_history (
+            booking_id,
+            status,
+            remarks
+        ) VALUES (
+            v_booking_id,
+            'ACCEPTED',
+            'Provider accepted the service request'
+        );
 
         v_result := json_build_object(
             'success', true,
-            'message', 'Booking assigned successfully',
+            'message', 'Service booking accepted successfully!',
+            'booking_id', v_booking_id,
             'status', 'ACCEPTED'
         );
     ELSE
-        -- Booking was already claimed by another provider
-        UPDATE public.booking_offers
-        SET status = 'ALREADY_ASSIGNED', responded_at = NOW()
-        WHERE booking_id = p_booking_id AND provider_id = p_provider_id;
+        -- Already claimed by another provider
+        UPDATE public.booking_requests
+        SET response_status = 'Expired', response_at = NOW()
+        WHERE request_id = p_request_id;
 
         v_result := json_build_object(
             'success', false,
-            'message', 'Booking already accepted by another professional.',
-            'status', v_current_status
+            'message', 'Booking has already been accepted by another technician.',
+            'status', v_current_booking_status
         );
     END IF;
 
@@ -299,105 +969,289 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Procedure: Create booking request and dispatch to nearby verified providers
-CREATE OR REPLACE FUNCTION create_booking_request(
+-- 2. Dispatch Booking Request to Eligible Nearby Providers
+CREATE OR REPLACE FUNCTION public.create_service_booking_and_dispatch(
     p_customer_id UUID,
-    p_service_name TEXT,
-    p_category TEXT,
-    p_scheduled_date TEXT,
+    p_service_id UUID,
+    p_address_id UUID,
+    p_booking_date DATE,
     p_scheduled_time TEXT,
-    p_price DOUBLE PRECISION,
-    p_customer_lat DOUBLE PRECISION,
-    p_customer_lng DOUBLE PRECISION,
-    p_notes TEXT DEFAULT ''
+    p_problem_description TEXT,
+    p_estimated_amount DOUBLE PRECISION
 )
 RETURNS JSON AS $$
 DECLARE
     v_booking_id UUID;
     v_provider_record RECORD;
-    v_offer_count INTEGER := 0;
+    v_dispatched_count INTEGER := 0;
 BEGIN
-    -- 1. Insert new booking with SEARCHING_PROVIDER status
-    INSERT INTO public.bookings (
+    -- 1. Insert new booking
+    INSERT INTO public.service_bookings (
         customer_id,
-        service_name,
-        category,
-        scheduled_date,
+        service_id,
+        address_id,
+        booking_date,
         scheduled_time,
-        price,
-        customer_lat,
-        customer_lng,
-        issue_description,
+        problem_description,
+        estimated_amount,
+        final_amount,
         status
     ) VALUES (
         p_customer_id,
-        p_service_name,
-        p_category,
-        p_scheduled_date,
+        p_service_id,
+        p_address_id,
+        p_booking_date,
         p_scheduled_time,
-        p_price,
-        p_customer_lat,
-        p_customer_lng,
-        p_notes,
+        p_problem_description,
+        p_estimated_amount,
+        p_estimated_amount,
         'SEARCHING_PROVIDER'
-    ) RETURNING id INTO v_booking_id;
+    ) RETURNING booking_id INTO v_booking_id;
 
-    -- 2. Find eligible verified & active providers nearby and dispatch offers
+    -- 2. Log initial history
+    INSERT INTO public.booking_status_history (
+        booking_id,
+        status,
+        changed_by,
+        remarks
+    ) VALUES (
+        v_booking_id,
+        'SEARCHING_PROVIDER',
+        p_customer_id,
+        'Booking created, searching nearby verified providers'
+    );
+
+    -- 3. Find active verified providers and dispatch booking_requests
     FOR v_provider_record IN
-        SELECT id 
-        FROM public.providers
-        WHERE verification_status = 'VERIFIED'
-          AND is_active = true
-          AND is_available = true
+        SELECT sp.provider_id
+        FROM public.service_provider_profiles sp
+        JOIN public.partners p ON sp.partner_id = p.partner_id
+        JOIN public.users u ON p.user_id = u.user_id
+        WHERE p.verification_status = 'VERIFIED'
+          AND p.availability_status = 'ONLINE'
+          AND u.is_active = true
     LOOP
-        INSERT INTO public.booking_offers (
+        INSERT INTO public.booking_requests (
             booking_id,
             provider_id,
-            distance_km,
-            estimated_earning,
-            status
+            response_status
         ) VALUES (
             v_booking_id,
-            v_provider_record.id,
-            2.3,
-            p_price * 0.85,
-            'PENDING'
+            v_provider_record.provider_id,
+            'Pending'
         );
-        v_offer_count := v_offer_count + 1;
+        v_dispatched_count := v_dispatched_count + 1;
     END LOOP;
 
     RETURN json_build_object(
         'success', true,
         'booking_id', v_booking_id,
-        'offers_sent', v_offer_count
+        'dispatched_count', v_dispatched_count
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger to create a public profile automatically when a user signs up via auth
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, role, name)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'role', 'customer'),
-    COALESCE(NEW.raw_user_meta_data->>'name', NEW.email)
-  );
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- =============================================================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- =============================================================================
 
-CREATE OR REPLACE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_addresses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.service_provider_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shopkeeper_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.delivery_agent_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.service_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.service_bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.booking_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.booking_assignment ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.delivery_assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_earnings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
--- Seed data for testing products
-INSERT INTO public.products (name, description, price, original_price, discount, category, latitude, longitude)
-VALUES 
-('AC Dust Filter (Universal)', 'Universal high performance AC filter', 349, 499, '30% OFF', 'AC', 12.9103, 77.6433),
-('Pipe Repair Tape 5m', 'Waterproof heavy-duty repair tape', 89, 120, '26% OFF', 'Plumbing', 12.9110, 77.6420),
-('Car Shampoo 500ml', 'Premium wax-infused car cleaner', 199, 299, '33% OFF', 'Car', 12.9090, 77.6450),
-('3-Tier Tiffin Box', 'Stainless steel insulated lunch box', 449, 599, '25% OFF', 'Cooking', 12.9130, 77.6410)
+-- Allow public read & write policies for ServiceHub unified APIs
+CREATE POLICY "Public read roles" ON public.roles FOR SELECT USING (true);
+CREATE POLICY "Public read permissions" ON public.permissions FOR SELECT USING (true);
+CREATE POLICY "Public read role_permissions" ON public.role_permissions FOR SELECT USING (true);
+
+CREATE POLICY "Public access users" ON public.users FOR ALL USING (true);
+CREATE POLICY "Public access user_profiles" ON public.user_profiles FOR ALL USING (true);
+CREATE POLICY "Public access user_addresses" ON public.user_addresses FOR ALL USING (true);
+CREATE POLICY "Public access user_devices" ON public.user_devices FOR ALL USING (true);
+
+CREATE POLICY "Public access partners" ON public.partners FOR ALL USING (true);
+CREATE POLICY "Public access service_provider_profiles" ON public.service_provider_profiles FOR ALL USING (true);
+CREATE POLICY "Public access shopkeeper_profiles" ON public.shopkeeper_profiles FOR ALL USING (true);
+CREATE POLICY "Public access delivery_agent_profiles" ON public.delivery_agent_profiles FOR ALL USING (true);
+CREATE POLICY "Public access delivery_vehicles" ON public.delivery_vehicles FOR ALL USING (true);
+
+CREATE POLICY "Public access verification_requests" ON public.verification_requests FOR ALL USING (true);
+CREATE POLICY "Public access identity_documents" ON public.identity_documents FOR ALL USING (true);
+CREATE POLICY "Public access document_files" ON public.document_files FOR ALL USING (true);
+CREATE POLICY "Public access face_verifications" ON public.face_verifications FOR ALL USING (true);
+CREATE POLICY "Public access shop_inspections" ON public.shop_inspections FOR ALL USING (true);
+CREATE POLICY "Public access verification_history" ON public.verification_history FOR ALL USING (true);
+
+CREATE POLICY "Public access service_categories" ON public.service_categories FOR ALL USING (true);
+CREATE POLICY "Public access services" ON public.services FOR ALL USING (true);
+CREATE POLICY "Public access service_variants" ON public.service_variants FOR ALL USING (true);
+CREATE POLICY "Public access service_addons" ON public.service_addons FOR ALL USING (true);
+CREATE POLICY "Public access service_requirements" ON public.service_requirements FOR ALL USING (true);
+
+CREATE POLICY "Public access provider_services" ON public.provider_services FOR ALL USING (true);
+CREATE POLICY "Public access provider_service_areas" ON public.provider_service_areas FOR ALL USING (true);
+CREATE POLICY "Public access provider_availability" ON public.provider_availability FOR ALL USING (true);
+
+CREATE POLICY "Public access ac_service_types" ON public.ac_service_types FOR ALL USING (true);
+CREATE POLICY "Public access ac_service_reports" ON public.ac_service_reports FOR ALL USING (true);
+CREATE POLICY "Public access ac_service_checklists" ON public.ac_service_checklists FOR ALL USING (true);
+CREATE POLICY "Public access ac_service_photos" ON public.ac_service_photos FOR ALL USING (true);
+
+CREATE POLICY "Public access service_bookings" ON public.service_bookings FOR ALL USING (true);
+CREATE POLICY "Public access booking_requests" ON public.booking_requests FOR ALL USING (true);
+CREATE POLICY "Public access booking_assignment" ON public.booking_assignment FOR ALL USING (true);
+CREATE POLICY "Public access booking_status_history" ON public.booking_status_history FOR ALL USING (true);
+CREATE POLICY "Public access booking_cancellations" ON public.booking_cancellations FOR ALL USING (true);
+CREATE POLICY "Public access booking_location_logs" ON public.booking_location_logs FOR ALL USING (true);
+
+CREATE POLICY "Public access shops" ON public.shops FOR ALL USING (true);
+CREATE POLICY "Public access shop_services" ON public.shop_services FOR ALL USING (true);
+CREATE POLICY "Public access shop_business_hours" ON public.shop_business_hours FOR ALL USING (true);
+CREATE POLICY "Public access shop_images" ON public.shop_images FOR ALL USING (true);
+
+CREATE POLICY "Public access product_categories" ON public.product_categories FOR ALL USING (true);
+CREATE POLICY "Public access products" ON public.products FOR ALL USING (true);
+CREATE POLICY "Public access inventory" ON public.inventory FOR ALL USING (true);
+CREATE POLICY "Public access inventory_transactions" ON public.inventory_transactions FOR ALL USING (true);
+
+CREATE POLICY "Public access orders" ON public.orders FOR ALL USING (true);
+CREATE POLICY "Public access order_items" ON public.order_items FOR ALL USING (true);
+CREATE POLICY "Public access order_status_history" ON public.order_status_history FOR ALL USING (true);
+CREATE POLICY "Public access order_cancellations" ON public.order_cancellations FOR ALL USING (true);
+
+CREATE POLICY "Public access delivery_assignments" ON public.delivery_assignments FOR ALL USING (true);
+CREATE POLICY "Public access delivery_tracking" ON public.delivery_tracking FOR ALL USING (true);
+CREATE POLICY "Public access delivery_status_history" ON public.delivery_status_history FOR ALL USING (true);
+CREATE POLICY "Public access delivery_failures" ON public.delivery_failures FOR ALL USING (true);
+
+CREATE POLICY "Public access payments" ON public.payments FOR ALL USING (true);
+CREATE POLICY "Public access payment_transactions" ON public.payment_transactions FOR ALL USING (true);
+CREATE POLICY "Public access refunds" ON public.refunds FOR ALL USING (true);
+CREATE POLICY "Public access invoices" ON public.invoices FOR ALL USING (true);
+CREATE POLICY "Public access partner_earnings" ON public.partner_earnings FOR ALL USING (true);
+CREATE POLICY "Public access payouts" ON public.payouts FOR ALL USING (true);
+CREATE POLICY "Public access commission_rules" ON public.commission_rules FOR ALL USING (true);
+
+CREATE POLICY "Public access reviews" ON public.reviews FOR ALL USING (true);
+CREATE POLICY "Public access review_replies" ON public.review_replies FOR ALL USING (true);
+
+CREATE POLICY "Public access notifications" ON public.notifications FOR ALL USING (true);
+CREATE POLICY "Public access notification_preferences" ON public.notification_preferences FOR ALL USING (true);
+CREATE POLICY "Public access support_tickets" ON public.support_tickets FOR ALL USING (true);
+CREATE POLICY "Public access support_messages" ON public.support_messages FOR ALL USING (true);
+
+CREATE POLICY "Public access admin_profiles" ON public.admin_profiles FOR ALL USING (true);
+CREATE POLICY "Public access admin_actions" ON public.admin_actions FOR ALL USING (true);
+CREATE POLICY "Public access audit_logs" ON public.audit_logs FOR ALL USING (true);
+CREATE POLICY "Public access system_settings" ON public.system_settings FOR ALL USING (true);
+CREATE POLICY "Public access files" ON public.files FOR ALL USING (true);
+
+-- =============================================================================
+-- INITIAL SEED DATA
+-- =============================================================================
+
+-- 1. Insert Core Roles
+INSERT INTO public.roles (role_name, description) VALUES
+('customer', 'End-user customer who books services and orders products'),
+('service_provider', 'Skilled technician or professional providing services'),
+('shopkeeper', 'Local store vendor selling products on the marketplace'),
+('delivery_agent', 'Delivery personnel delivering orders to customers'),
+('admin', 'System administrator with oversight and moderation powers')
+ON CONFLICT (role_name) DO NOTHING;
+
+-- 2. Insert 6 Standard Service Categories
+INSERT INTO public.service_categories (category_id, name, description, icon, status) VALUES
+('ac_service', 'AC Service', 'Professional AC installation, deep jet cleaning, repair, and gas refilling', 'hvac', 'ACTIVE'),
+('laundry', 'Laundry', 'Washing, dry cleaning, ironing, and garment care services', 'local_laundry_service', 'ACTIVE'),
+('car_service', 'Car Service', 'Car washing, mechanical inspection, oil change, and doorstep detailing', 'directions_car', 'ACTIVE'),
+('cooking', 'Cooking', 'Professional domestic cooks, chefs, and catering services', 'restaurant', 'ACTIVE'),
+('plumbing', 'Plumbing', 'Pipe repair, tap installation, leakage fix, and water motor setup', 'plumbing', 'ACTIVE'),
+('care_taker', 'Care Taker', 'Elderly care, patient care, babysitting, and domestic assistance', 'elderly', 'ACTIVE')
+ON CONFLICT (category_id) DO NOTHING;
+
+-- 3. Insert AC Services
+INSERT INTO public.services (category_id, name, description, base_price, duration_minutes, status) VALUES
+('ac_service', 'Split AC Deep Cleaning (Jet Wash)', 'Complete indoor and outdoor unit jet cleaning with anti-bacterial treatment', 499.0, 45, 'ACTIVE'),
+('ac_service', 'AC Gas Refill (R32 / R410A / R22)', 'Complete vacuuming, leakage check, and 100% full gas recharge', 1499.0, 60, 'ACTIVE'),
+('ac_service', 'AC Installation & Uninstallation', 'Professional standard split or window AC wall mounting and piping setup', 899.0, 90, 'ACTIVE'),
+('ac_service', 'AC Complete Diagnostic & Repair', 'In-depth troubleshooting for cooling issues, PCB faults, and noise inspection', 299.0, 30, 'ACTIVE')
 ON CONFLICT DO NOTHING;
+
+-- 4. Insert Default System Settings
+INSERT INTO public.system_settings (setting_key, setting_value, description) VALUES
+('platform_commission_service_percent', '15.0', 'Platform commission percentage on completed service bookings'),
+('platform_commission_delivery_percent', '10.0', 'Platform commission percentage on delivery agent earnings'),
+('service_radius_default_km', '10.0', 'Default service radius for provider dispatch in km'),
+('support_emergency_helpline', '+91 1800 123 4567', '24x7 customer and partner emergency support phone')
+ON CONFLICT (setting_key) DO NOTHING;
+
+-- 5. Insert Primary System Administrator (admin@gmail.com / Admin@123)
+DO $$
+DECLARE
+    v_admin_role_id UUID;
+    v_admin_user_id UUID := '00000000-0000-0000-0000-000000000001'::UUID;
+BEGIN
+    SELECT role_id INTO v_admin_role_id FROM public.roles WHERE role_name = 'admin';
+
+    IF v_admin_role_id IS NOT NULL THEN
+        -- Insert Master Admin into users table
+        INSERT INTO public.users (
+            user_id,
+            role_id,
+            username,
+            email,
+            phone,
+            account_status,
+            is_active
+        ) VALUES (
+            v_admin_user_id,
+            v_admin_role_id,
+            'admin',
+            'admin@gmail.com',
+            '+91 99999 00000',
+            'ACTIVE',
+            true
+        ) ON CONFLICT (email) DO NOTHING;
+
+        -- Insert into user_profiles
+        INSERT INTO public.user_profiles (
+            user_id,
+            first_name,
+            last_name
+        ) VALUES (
+            v_admin_user_id,
+            'System',
+            'Administrator'
+        ) ON CONFLICT (user_id) DO NOTHING;
+
+        -- Insert into admin_profiles
+        INSERT INTO public.admin_profiles (
+            user_id,
+            admin_level,
+            status
+        ) VALUES (
+            v_admin_user_id,
+            'SUPER_ADMIN',
+            'ACTIVE'
+        ) ON CONFLICT (user_id) DO NOTHING;
+    END IF;
+END $$;
+

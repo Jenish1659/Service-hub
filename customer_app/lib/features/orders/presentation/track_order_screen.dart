@@ -211,10 +211,12 @@ class _TrackOrderScreenState extends ConsumerState<TrackOrderScreen> {
                   const SizedBox(height: 12),
                   ...reasons.map((reason) => RadioListTile<String>(
                         value: reason,
+                        // ignore: deprecated_member_use
                         groupValue: selectedReason,
                         title: Text(reason, style: const TextStyle(fontSize: 13)),
                         dense: true,
                         contentPadding: EdgeInsets.zero,
+                        // ignore: deprecated_member_use
                         onChanged: (val) {
                           if (val != null) {
                             setModalState(() {

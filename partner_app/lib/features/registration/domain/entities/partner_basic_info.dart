@@ -1,5 +1,6 @@
 class PartnerBasicInfo {
   final String? id;
+  final String? username;
   final String firstName;
   final String lastName;
   final String mobileNumber;
@@ -15,6 +16,7 @@ class PartnerBasicInfo {
 
   PartnerBasicInfo({
     this.id,
+    this.username,
     required this.firstName,
     required this.lastName,
     required this.mobileNumber,

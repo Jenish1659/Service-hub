@@ -38,26 +38,11 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
   }
 
   Future<void> _fetchBookingDetails() async {
-    if (widget.bookingId.startsWith('mock_')) {
-      setState(() {
-        _bookingData = {
-          'id': widget.bookingId,
-          'service_name': 'AC Service & Repair',
-          'scheduled_date': 'Today, July 12',
-          'scheduled_time': '06:30 PM',
-          'status': _serviceCompleted ? 'Completed' : (_workCommenced ? 'Started' : (_providerArrived ? 'En Route' : 'Pending')),
-          'price': 1100.0,
-        };
-        _loading = false;
-      });
-      return;
-    }
-
     try {
       final response = await Supabase.instance.client
-          .from('bookings')
-          .select()
-          .eq('id', widget.bookingId)
+          .from('service_bookings')
+          .select('*, services(*), user_addresses(*)')
+          .eq('booking_id', widget.bookingId)
           .maybeSingle();
 
       if (mounted) {
@@ -123,43 +108,28 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
   }
 
   Future<void> _updateBookingStatus(String status) async {
-    if (widget.bookingId.startsWith('mock_')) {
-      setState(() {
-        if (status == 'En Route') {
-          _providerArrived = true;
-          _distance = 3;
-        } else if (status == 'Started') {
-          _pinVerified = true;
-          _workCommenced = true;
-        } else if (status == 'Completed') {
-          _serviceCompleted = true;
-        }
-        _bookingData?['status'] = status;
-      });
-      return;
-    }
-
     try {
       await Supabase.instance.client
-          .from('bookings')
+          .from('service_bookings')
           .update({'status': status})
-          .eq('id', widget.bookingId);
+          .eq('booking_id', widget.bookingId);
       
       _fetchBookingDetails();
     } catch (e) {
-      // Offline fallback
-      setState(() {
-        if (status == 'En Route') {
-          _providerArrived = true;
-          _distance = 3;
-        } else if (status == 'Started') {
-          _pinVerified = true;
-          _workCommenced = true;
-        } else if (status == 'Completed') {
-          _serviceCompleted = true;
-        }
-        _bookingData?['status'] = status;
-      });
+      if (mounted) {
+        setState(() {
+          if (status == 'En Route' || status == 'ON_THE_WAY') {
+            _providerArrived = true;
+            _distance = 3;
+          } else if (status == 'Started' || status == 'SERVICE_STARTED') {
+            _pinVerified = true;
+            _workCommenced = true;
+          } else if (status == 'Completed' || status == 'SERVICE_COMPLETED') {
+            _serviceCompleted = true;
+          }
+          _bookingData?['status'] = status;
+        });
+      }
     }
   }
 

@@ -39,13 +39,15 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       activePartnersCount++;
     });
     try {
-      if (profileId.startsWith('mock_')) {
-        throw Exception("Mock profile");
-      }
       await Supabase.instance.client
-          .from('profiles')
-          .update({'is_verified': true})
-          .eq('id', profileId);
+          .from('verification_requests')
+          .update({'status': 'APPROVED', 'reviewed_at': DateTime.now().toIso8601String()})
+          .eq('verification_id', profileId);
+
+      await Supabase.instance.client
+          .from('partners')
+          .update({'verification_status': 'VERIFIED', 'approved_at': DateTime.now().toIso8601String()})
+          .eq('user_id', profileId);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -60,10 +62,12 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Partner "$name" approved successfully! KYC Activated.'),
+          content: Text('Partner "$name" verification approved.'),
           backgroundColor: AppTheme.successColor,
         ),
       );
+      ref.invalidate(adminUnverifiedPartnersProvider);
+      ref.invalidate(adminStatsProvider);
     }
   }
 
@@ -72,18 +76,15 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       _processedProfileIds.add(profileId);
     });
     try {
-      if (profileId.startsWith('mock_')) {
-        throw Exception("Mock profile");
-      }
       await Supabase.instance.client
-          .from('profiles')
-          .delete()
-          .eq('id', profileId);
+          .from('verification_requests')
+          .update({'status': 'REJECTED', 'reviewed_at': DateTime.now().toIso8601String()})
+          .eq('verification_id', profileId);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Partner "$name" application rejected and profile cleared.'),
+          content: Text('Partner "$name" application rejected.'),
           backgroundColor: AppTheme.dangerColor,
         ),
       );
@@ -97,19 +98,17 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           backgroundColor: AppTheme.dangerColor,
         ),
       );
+      ref.invalidate(adminUnverifiedPartnersProvider);
+      ref.invalidate(adminStatsProvider);
     }
   }
 
   Future<void> _settlePayout(String id, String type, String partnerName) async {
     try {
-      if (id.startsWith('mock_')) {
-        throw Exception("Mock payout");
-      }
-      final table = (type == 'Booking') ? 'bookings' : 'orders';
       await Supabase.instance.client
-          .from(table)
-          .update({'is_settled': true})
-          .eq('id', id);
+          .from('partner_earnings')
+          .update({'earning_status': 'PAID_OUT'})
+          .eq('earning_id', id);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -127,15 +126,16 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           backgroundColor: AppTheme.successColor,
         ),
       );
+      ref.invalidate(adminSettlementsProvider);
     }
   }
 
   Future<void> _resolveTicket(String id) async {
     try {
       await Supabase.instance.client
-          .from('tickets')
-          .update({'status': 'Resolved'})
-          .eq('id', id);
+          .from('support_tickets')
+          .update({'status': 'RESOLVED'})
+          .eq('ticket_id', id);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -153,6 +153,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           backgroundColor: AppTheme.dangerColor,
         ),
       );
+      ref.invalidate(adminSupportTicketsProvider);
     }
   }
 

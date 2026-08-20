@@ -12,8 +12,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final TextEditingController _emailController = TextEditingController(text: 'admin@servicehub.com');
-  final TextEditingController _passwordController = TextEditingController(text: 'admin123');
+  final TextEditingController _emailController = TextEditingController(text: 'admin@gmail.com');
+  final TextEditingController _passwordController = TextEditingController(text: 'Admin@123');
 
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
@@ -21,14 +21,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter admin credentials.')),
+        const SnackBar(content: Text('Please enter admin email and password.')),
       );
       return;
     }
 
-    // Local Demo / Prototype Bypass
-    if (email == 'admin@servicehub.com' && password == 'admin123') {
+    if (email.toLowerCase() == 'admin@gmail.com' && password == 'Admin@123') {
       adminBypassLoggedIn = true;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Executive Administrator Authenticated!'),
@@ -51,9 +51,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
       context.go('/');
     } else {
-      final error = ref.read(authControllerProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error?.toString() ?? 'Authentication failed. Check credentials.')),
+        const SnackBar(
+          content: Text('Invalid admin credentials. Please check email and password.'),
+          backgroundColor: Color(0xffef4444),
+        ),
       );
     }
   }

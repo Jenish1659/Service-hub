@@ -4,7 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/sh_logo_widget.dart';
 
 import '../../../../core/storage/local_registration_cache.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/supabase_auth_service.dart';
 
 class ProviderReviewApplicationScreen extends StatefulWidget {
   const ProviderReviewApplicationScreen({super.key});
@@ -48,6 +48,7 @@ class _ProviderReviewApplicationScreenState
     }
 
     final draft = _draftData ?? {};
+    final username = (draft['username'] ?? '').toString().trim();
     final firstName = draft['first_name'] ?? draft['firstName'] ?? 'Rajesh';
     final lastName = draft['last_name'] ?? draft['lastName'] ?? '';
     final fullName = '$firstName $lastName'.trim();
@@ -59,6 +60,7 @@ class _ProviderReviewApplicationScreenState
 
     final partnerRecord = {
       'id': 'partner_${DateTime.now().millisecondsSinceEpoch}',
+      'username': username.isNotEmpty ? username : 'partner_${phone.replaceAll("+", "").trim()}',
       'name': fullName.isNotEmpty ? fullName : 'Rajesh',
       'business_name': '${fullName.isNotEmpty ? fullName : "Rajesh"} AC Service Center',
       'phone': phone.isNotEmpty ? phone : '+91 98765 43210',
@@ -77,16 +79,18 @@ class _ProviderReviewApplicationScreenState
     await LocalRegistrationCache.clearDraft();
 
     try {
-      final client = Supabase.instance.client;
-      await client.from('providers').upsert({
-        'id': partnerRecord['id'],
-        'service_category': 'ac_service',
-        'verification_status': 'VERIFIED',
-        'is_active': true,
-        'is_available': true,
-        'rating': 0.0,
-        'completed_jobs': 0,
-      });
+      await SupabaseAuthService.registerServiceProvider(
+        username: username.isNotEmpty ? username : 'provider_${DateTime.now().millisecondsSinceEpoch % 10000}',
+        firstName: firstName,
+        lastName: lastName,
+        phone: phone.isNotEmpty ? phone : '9876543210',
+        email: email.isNotEmpty ? email : 'partner_${DateTime.now().millisecondsSinceEpoch}@servicehub.com',
+        password: password,
+        state: state,
+        city: city,
+        serviceCategoryId: 'ac_service',
+        specialization: 'AC Jet Cleaning & Gas Refill',
+      );
     } catch (_) {}
 
     if (mounted) {
@@ -185,6 +189,8 @@ class _ProviderReviewApplicationScreenState
                             final cityStr = (draft['city'] ?? 'Jamnagar').toString();
                             final stateStr = (draft['state'] ?? 'Gujarat').toString();
 
+                            final usernameStr = (draft['username'] ?? '').toString();
+
                             return _buildReviewCard(
                               icon: Icons.person_outline_rounded,
                               iconBg: const Color(0xFFF3E8FF),
@@ -195,8 +201,13 @@ class _ProviderReviewApplicationScreenState
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _InfoRow(label: 'Name', value: nameStr.isNotEmpty ? nameStr : 'Rajesh', extraLabel: 'Mobile', extraValue: phoneStr),
-                                  const SizedBox(height: 4),
-                                  _InfoRow(label: 'Email', value: emailStr.isNotEmpty ? emailStr : 'partner@servicehub.com', extraLabel: 'Location', extraValue: '$cityStr, $stateStr'),
+                                  if (usernameStr.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    _InfoRow(label: 'Username', value: '@$usernameStr', extraLabel: 'Location', extraValue: '$cityStr, $stateStr'),
+                                  ] else ...[
+                                    const SizedBox(height: 4),
+                                    _InfoRow(label: 'Email', value: emailStr.isNotEmpty ? emailStr : 'partner@servicehub.com', extraLabel: 'Location', extraValue: '$cityStr, $stateStr'),
+                                  ],
                                 ],
                               ),
                             );

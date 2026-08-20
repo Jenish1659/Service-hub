@@ -69,7 +69,25 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     try {
       Map<String, dynamic> responseData;
-      if (customerId.startsWith('mock_') || customerId.startsWith('cust_')) {
+      try {
+        final response = await client.from('orders').insert({
+          'customer_id': customerId,
+          'shop_id': '11111111-1111-1111-1111-111111111118',
+          'address_id': location?.id ?? '11111111-1111-1111-1111-111111111116',
+          'order_status': 'Placed',
+          'subtotal': subtotal.toDouble(),
+          'delivery_charge': deliveryFee.toDouble(),
+          'total_amount': total.toDouble(),
+          'payment_status': 'PAID',
+        }).select().single();
+        responseData = {
+          'id': response['order_id'] ?? response['id'],
+          'order_code': response['order_code'] ?? 'SHO12345678',
+          'delivery_pin': otpPin,
+          'grand_total': total.toDouble(),
+          'shipping_address': shippingAddress,
+        };
+      } catch (e) {
         responseData = {
           'id': 'ord_${DateTime.now().millisecondsSinceEpoch}',
           'customer_id': customerId,
@@ -83,36 +101,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           'customer_lat': lat,
           'customer_lng': lng,
         };
-      } else {
-        try {
-          final response = await client.from('orders').insert({
-            'customer_id': customerId,
-            'status': 'Placed',
-            'items_summary': itemsSummary,
-            'subtotal': subtotal.toDouble(),
-            'delivery_fee': deliveryFee.toDouble(),
-            'grand_total': total.toDouble(),
-            'delivery_pin': otpPin,
-            'shipping_address': shippingAddress,
-            'customer_lat': lat,
-            'customer_lng': lng,
-          }).select().single();
-          responseData = response;
-        } catch (e) {
-          responseData = {
-            'id': 'ord_${DateTime.now().millisecondsSinceEpoch}',
-            'customer_id': customerId,
-            'status': 'Placed',
-            'items_summary': itemsSummary,
-            'subtotal': subtotal.toDouble(),
-            'delivery_fee': deliveryFee.toDouble(),
-            'grand_total': total.toDouble(),
-            'delivery_pin': otpPin,
-            'shipping_address': shippingAddress,
-            'customer_lat': lat,
-            'customer_lng': lng,
-          };
-        }
       }
 
       // Mark applied promo code as used permanently for this user account

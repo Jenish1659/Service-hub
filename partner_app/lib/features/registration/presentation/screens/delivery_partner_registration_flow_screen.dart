@@ -188,7 +188,11 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
   }
 
   void _prevStep() {
-    if (_currentStep > 0) {
+    if (_currentStep == 2) {
+      setState(() {
+        _currentStep = 0;
+      });
+    } else if (_currentStep > 0) {
       setState(() {
         _currentStep--;
       });
@@ -312,7 +316,7 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
                     Navigator.pop(ctx);
                     setState(() {
                       _isPhoneVerified = true;
-                      _currentStep = 1; // Move to Screen 2 (Verified view)
+                      _currentStep = 2; // Directly move to Screen 3 (Account Credentials)
                     });
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(

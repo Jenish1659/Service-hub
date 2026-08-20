@@ -1,42 +1,50 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// StreamProvider for Super Admin Dashboard Console KPI Metrics
+// StreamProvider for Super Admin Dashboard Console KPI Metrics (70-Table Schema)
 final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) async* {
   final client = Supabase.instance.client;
 
   while (true) {
     try {
-      final partnersCountRes = await client.from('profiles').select('*').eq('role', 'partner');
-      final customersCountRes = await client.from('profiles').select('*').eq('role', 'customer');
-      final bookingsRes = await client.from('bookings').select('price');
-      final ordersRes = await client.from('orders').select('grand_total');
+      final partnersRes = await client.from('partners').select('partner_id');
+      final customersRes = await client.from('users').select('user_id, roles!inner(role_name)').eq('roles.role_name', 'customer');
+      final bookingsRes = await client.from('service_bookings').select('estimated_amount, final_amount');
+      final ordersRes = await client.from('orders').select('total_amount');
+      final earningsRes = await client.from('partner_earnings').select('gross_amount, platform_fee');
 
       double totalRevenue = 0.0;
+      double platformFee = 0.0;
+
       for (var b in bookingsRes) {
-        totalRevenue += (b['price'] as num?)?.toDouble() ?? 0.0;
+        totalRevenue += (b['final_amount'] as num?)?.toDouble() ?? (b['estimated_amount'] as num?)?.toDouble() ?? 0.0;
       }
       for (var o in ordersRes) {
-        totalRevenue += (o['grand_total'] as num?)?.toDouble() ?? 0.0;
+        totalRevenue += (o['total_amount'] as num?)?.toDouble() ?? 0.0;
+      }
+      for (var e in earningsRes) {
+        platformFee += (e['platform_fee'] as num?)?.toDouble() ?? 0.0;
       }
 
       yield {
-        'partnersCount': partnersCountRes.length,
-        'customersCount': customersCountRes.length,
+        'partnersCount': partnersRes.length,
+        'customersCount': customersRes.length,
         'revenue': totalRevenue,
-        'platformCommission': totalRevenue * 0.10,
+        'platformCommission': platformFee > 0 ? platformFee : totalRevenue * 0.15,
       };
     } catch (_) {
       yield {
-        'partnersCount': 28,
-        'customersCount': 142,
-        'revenue': 42850.00,
-        'platformCommission': 4285.00,
+        'partnersCount': 0,
+        'customersCount': 0,
+        'revenue': 0.0,
+        'platformCommission': 0.0,
       };
     }
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 4));
   }
 });
+
+final adminStatsProvider = adminStatsStreamProvider;
 
 // StreamProvider for Unverified/Pending Partners KYC Queue
 final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
@@ -45,218 +53,153 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
   while (true) {
     try {
       final List<dynamic> response = await client
-          .from('profiles')
-          .select()
-          .eq('role', 'partner')
-          .eq('is_verified', false)
-          .order('created_at', ascending: false);
-      yield List<Map<String, dynamic>>.from(response);
+          .from('verification_requests')
+          .select('*, users(*, user_profiles(*))')
+          .eq('status', 'PENDING')
+          .order('submitted_at', ascending: false);
+
+      final List<Map<String, dynamic>> pendingList = [];
+      for (var item in response) {
+        final user = item['users'] as Map<String, dynamic>?;
+        final profile = user?['user_profiles'] as Map<String, dynamic>?;
+        final fullName = profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : (user?['username'] ?? 'Partner');
+
+        pendingList.add({
+          'id': item['verification_id'],
+          'user_id': item['user_id'],
+          'full_name': fullName,
+          'verification_type': item['verification_type'],
+          'status': item['status'],
+          'submitted_at': item['submitted_at'],
+        });
+      }
+
+      yield pendingList;
     } catch (_) {
-      yield [
-        {
-          'id': 'mock_p1',
-          'full_name': 'Metro Plumbers Ltd',
-          'role': 'partner',
-          'is_verified': false,
-          'category': 'Plumbing',
-          'created_at': DateTime.now().toIso8601String(),
-        },
-        {
-          'id': 'mock_p2',
-          'full_name': 'Jamnagar CareTaker Services',
-          'role': 'partner',
-          'is_verified': false,
-          'category': 'Care Taker',
-          'created_at': DateTime.now().toIso8601String(),
-        },
-      ];
+      yield [];
     }
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 4));
   }
 });
 
-// StreamProvider for Settlements Ledger
+final adminUnverifiedPartnersProvider = adminUnverifiedPartnersStreamProvider;
+
+// StreamProvider for Settlements & Earnings Ledger
 final adminSettlementsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
   final client = Supabase.instance.client;
 
   while (true) {
     try {
-      final bookingsRes = await client
-          .from('bookings')
-          .select()
-          .order('created_at', ascending: false);
-
-      final ordersRes = await client
-          .from('orders')
-          .select()
-          .order('created_at', ascending: false);
+      final earningsRes = await client
+          .from('partner_earnings')
+          .select('*, partners(*, users(*, user_profiles(*))), service_bookings(*, services(*))')
+          .order('earned_at', ascending: false);
 
       final List<Map<String, dynamic>> settlementsList = [];
 
-      for (var b in bookingsRes) {
-        settlementsList.add({
-          'id': b['id'],
-          'type': 'Booking',
-          'partner': b['service_name'] ?? 'Service Job',
-          'amount': (b['price'] as num?)?.toDouble() ?? 0.0,
-          'commission': ((b['price'] as num?)?.toDouble() ?? 0.0) * 0.10,
-          'status': (b['status'] == 'Completed') ? 'Settled' : 'In Progress',
-          'date': b['scheduled_date'] ?? 'Today',
-        });
-      }
+      for (var e in earningsRes) {
+        final partner = e['partners'] as Map<String, dynamic>?;
+        final user = partner?['users'] as Map<String, dynamic>?;
+        final profile = user?['user_profiles'] as Map<String, dynamic>?;
+        final partnerName = profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : (user?['username'] ?? 'Partner');
+        final booking = e['service_bookings'] as Map<String, dynamic>?;
+        final service = booking?['services'] as Map<String, dynamic>?;
 
-      for (var o in ordersRes) {
         settlementsList.add({
-          'id': o['id'],
-          'type': 'Order',
-          'partner': o['items_summary'] ?? 'Product Dispatch',
-          'amount': (o['grand_total'] as num?)?.toDouble() ?? 0.0,
-          'commission': ((o['grand_total'] as num?)?.toDouble() ?? 0.0) * 0.10,
-          'status': (o['status'] == 'Delivered') ? 'Settled' : 'In Transit',
-          'date': 'Today',
+          'id': e['earning_id'],
+          'type': 'Booking Earning',
+          'partner': partnerName,
+          'service': service?['name'] ?? 'AC Service & Repair',
+          'gross_amount': e['gross_amount'],
+          'platform_fee': e['platform_fee'],
+          'net_amount': e['net_amount'],
+          'status': e['earning_status'],
+          'date': e['earned_at'],
         });
       }
 
       yield settlementsList;
     } catch (_) {
-      yield [
-        {
-          'id': 'mock_s1',
-          'type': 'Booking',
-          'partner': 'AC Repair - Rajesh Electricals',
-          'amount': 1200.0,
-          'commission': 120.0,
-          'status': 'In Progress',
-          'date': 'Today, 06:42 PM',
-        },
-        {
-          'id': 'mock_s2',
-          'type': 'Order',
-          'partner': 'Jamnagar General Store',
-          'amount': 450.0,
-          'commission': 45.0,
-          'status': 'Settled',
-          'date': 'Yesterday',
-        }
-      ];
+      yield [];
     }
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 4));
   }
 });
 
-// StreamProvider for Support & Dispute Tickets
+final adminSettlementsProvider = adminSettlementsStreamProvider;
+
+// StreamProvider for Support Tickets
 final adminSupportTicketsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
   final client = Supabase.instance.client;
 
   while (true) {
     try {
-      final List<dynamic> response = await client
-          .from('tickets')
-          .select()
+      final ticketsRes = await client
+          .from('support_tickets')
+          .select('*, users(*, user_profiles(*))')
           .order('created_at', ascending: false);
-      yield List<Map<String, dynamic>>.from(response);
+
+      final List<Map<String, dynamic>> ticketList = [];
+      for (var t in ticketsRes) {
+        final user = t['users'] as Map<String, dynamic>?;
+        final profile = user?['user_profiles'] as Map<String, dynamic>?;
+        final userName = profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : (user?['username'] ?? 'User');
+
+        ticketList.add({
+          'id': t['ticket_id'],
+          'user_id': t['user_id'],
+          'user_name': userName,
+          'subject': t['subject'],
+          'description': t['description'],
+          'priority': t['priority'],
+          'status': t['status'],
+          'created_at': t['created_at'],
+        });
+      }
+
+      yield ticketList;
     } catch (_) {
-      yield [
-        {
-          'id': 'mock_t1',
-          'customer_name': 'Jenish Bheda',
-          'subject': 'Promo Code Discount',
-          'description': 'Service visiting fee discount was not applied during AC booking.',
-          'status': 'Open',
-          'created_at': DateTime.now().toIso8601String(),
-        },
-      ];
+      yield [];
     }
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 4));
   }
 });
 
-// StreamProvider for Product Inventory Management
+final adminSupportTicketsProvider = adminSupportTicketsStreamProvider;
+
+// StreamProvider for Products
 final adminProductsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
   final client = Supabase.instance.client;
 
   while (true) {
     try {
-      final List<dynamic> response = await client
+      final productsRes = await client
           .from('products')
-          .select()
+          .select('*, shops(*), inventory(*)')
           .order('created_at', ascending: false);
-      yield List<Map<String, dynamic>>.from(response);
+
+      final List<Map<String, dynamic>> productList = [];
+      for (var p in productsRes) {
+        final shop = p['shops'] as Map<String, dynamic>?;
+        final inv = p['inventory'] as Map<String, dynamic>?;
+
+        productList.add({
+          'id': p['product_id'],
+          'product_name': p['product_name'],
+          'shop_name': shop?['shop_name'] ?? 'Local Shop',
+          'price': p['price'],
+          'discount': p['discount'],
+          'current_stock': inv?['current_stock'] ?? 10,
+          'status': p['status'],
+        });
+      }
+
+      yield productList;
     } catch (_) {
-      yield [
-        {
-          'id': 'prod_ac_1',
-          'name': 'AC Dust Filter (Universal)',
-          'price': 349,
-          'original_price': 599,
-          'discount': '41% OFF',
-          'category': 'AC Repair',
-          'stock': 100,
-        },
-        {
-          'id': 'prod_ac_2',
-          'name': 'Copper Coil Cleaner Spray',
-          'price': 299,
-          'original_price': 450,
-          'discount': '33% OFF',
-          'category': 'AC Repair',
-          'stock': 8, // Demo low stock
-        },
-        {
-          'id': 'prod_plumb_1',
-          'name': 'Stainless Steel Tap Valve',
-          'price': 199,
-          'original_price': 350,
-          'discount': '43% OFF',
-          'category': 'Plumbing',
-          'stock': 100,
-        },
-        {
-          'id': 'prod_plumb_2',
-          'name': 'Waterproof Pipe Sealing Tape',
-          'price': 99,
-          'original_price': 150,
-          'discount': '34% OFF',
-          'category': 'Plumbing',
-          'stock': 5, // Demo low stock
-        },
-        {
-          'id': 'prod_car_1',
-          'name': 'Synthetic Engine Oil 1L',
-          'price': 699,
-          'original_price': 950,
-          'discount': '26% OFF',
-          'category': 'Car Service',
-          'stock': 100,
-        },
-      ];
+      yield [];
     }
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 4));
   }
 });
 
-// Backward compatible FutureProviders
-final adminStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  final stream = ref.watch(adminStatsStreamProvider);
-  return stream.asData?.value ?? {'partnersCount': 28, 'customersCount': 142, 'revenue': 42850.00};
-});
-
-final adminUnverifiedPartnersProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final stream = ref.watch(adminUnverifiedPartnersStreamProvider);
-  return stream.asData?.value ?? [];
-});
-
-final adminSettlementsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final stream = ref.watch(adminSettlementsStreamProvider);
-  return stream.asData?.value ?? [];
-});
-
-final adminSupportTicketsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final stream = ref.watch(adminSupportTicketsStreamProvider);
-  return stream.asData?.value ?? [];
-});
-
-final adminProductsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final stream = ref.watch(adminProductsStreamProvider);
-  return stream.asData?.value ?? [];
-});
+final adminProductsProvider = adminProductsStreamProvider;

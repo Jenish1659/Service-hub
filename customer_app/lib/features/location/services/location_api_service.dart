@@ -56,7 +56,7 @@ class LocationApiService {
       try {
         final client = Supabase.instance.client;
         final user = client.auth.currentUser;
-        if (user != null && !user.id.startsWith('mock_')) {
+        if (user != null) {
           final response = await client
               .from('customer_locations')
               .select()
