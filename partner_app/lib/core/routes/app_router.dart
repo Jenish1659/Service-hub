@@ -15,7 +15,8 @@ import '../../features/registration/presentation/screens/provider_registration_s
 import '../../features/registration/presentation/screens/provider_application_status_screen.dart';
 import '../../features/registration/presentation/screens/shopkeeper_registration_flow_screen.dart';
 import '../../features/dashboard/presentation/provider_dashboard_screen.dart';
-
+import '../../features/dashboard/presentation/delivery_dashboard_screen.dart';
+import '../../features/dashboard/presentation/shopkeeper_dashboard_screen.dart';
 import '../../features/registration/presentation/screens/delivery_partner_registration_flow_screen.dart';
 
 final appRouter = GoRouter(
@@ -155,10 +156,22 @@ final appRouter = GoRouter(
       builder: (context, state) => const ProviderApplicationStatusScreen(),
     ),
 
-    // Provider Main Dashboard Route
+    // Provider Main Dashboard Route (AC & Services)
     GoRoute(
       path: '/dashboard',
       builder: (context, state) => const ProviderDashboardScreen(),
+    ),
+
+    // Delivery Agent Main Dashboard Route
+    GoRoute(
+      path: '/dashboard/delivery',
+      builder: (context, state) => const DeliveryDashboardScreen(),
+    ),
+
+    // Shopkeeper Store Main Dashboard Route
+    GoRoute(
+      path: '/dashboard/shopkeeper',
+      builder: (context, state) => const ShopkeeperDashboardScreen(),
     ),
   ],
 );
