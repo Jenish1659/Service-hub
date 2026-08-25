@@ -22,8 +22,10 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
-  # Maps & GPS
-  google_maps_flutter: ^2.5.3
+  # Maps & GPS (OpenStreetMap ₹0 Budget)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  http: ^1.2.2
   geolocator: ^10.1.0
   geocoding: ^2.1.1
   permission_handler: ^11.3.1

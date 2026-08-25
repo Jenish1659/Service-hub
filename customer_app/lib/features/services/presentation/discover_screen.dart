@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:hive/hive.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../location/providers/location_provider.dart';
 import '../../location/screens/map_screen.dart';
@@ -311,42 +312,32 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
     final int currentCoins = box.get('wallet_coins', defaultValue: 500) as int;
     box.put('wallet_coins', currentCoins + 100);
 
-    try {
-      final response = await client.from('bookings').insert({
-        'customer_id': userId,
-        'customer_name': 'Jenish Bheda',
-        'service_name': widget.serviceName,
-        'issue_description': _issueController.text.trim().isNotEmpty
-            ? _issueController.text.trim()
-            : '${widget.serviceName} requested by customer',
-        'scheduled_date': _selectedDate,
-        'scheduled_time': _selectedTime,
-        'payment_method': _selectedPayment,
-        'price': finalPrice,
-        'status': 'Pending',
-        'entrance_pin': '7429',
-        'completion_otp': '5892',
-        'customer_address': serviceAddress,
-        'customer_lat': serviceLat,
-        'customer_lng': serviceLng,
-      }).select().single();
+    final createdBooking = await LiveBookingSyncService.instance.createACBooking(
+      customerId: userId,
+      customerName: 'Jenish Bheda',
+      customerPhone: '+91 98765 43210',
+      serviceName: widget.serviceName,
+      problemDescription: _issueController.text.trim().isNotEmpty
+          ? _issueController.text.trim()
+          : '${widget.serviceName} requested by customer',
+      scheduledDate: _selectedDate,
+      scheduledTime: _selectedTime,
+      paymentMethod: _selectedPayment,
+      price: finalPrice,
+      customerAddress: serviceAddress,
+      customerLat: serviceLat,
+      customerLng: serviceLng,
+      entrancePin: '7429',
+      completionOtp: '5892',
+    );
 
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✓ Booking request placed live! Partner notified.'), backgroundColor: AppTheme.successColor),
-        );
-        final bookingId = response['id'];
-        context.push('/track-booking/$bookingId');
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✓ Booking request placed! Partner notified.'), backgroundColor: AppTheme.successColor),
-        );
-        context.push('/track-booking/bk_${DateTime.now().millisecondsSinceEpoch}');
-      }
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✓ Booking request placed live! Partner notified.'), backgroundColor: AppTheme.successColor),
+      );
+      final bookingId = createdBooking['id'];
+      context.push('/track-booking/$bookingId');
     }
   }
 

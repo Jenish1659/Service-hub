@@ -17,11 +17,31 @@ import '../../features/registration/presentation/screens/shopkeeper_registration
 import '../../features/dashboard/presentation/provider_dashboard_screen.dart';
 import '../../features/dashboard/presentation/delivery_dashboard_screen.dart';
 import '../../features/dashboard/presentation/shopkeeper_dashboard_screen.dart';
+import '../../features/dashboard/presentation/ac_active_job_navigation_screen.dart';
 import '../../features/registration/presentation/screens/delivery_partner_registration_flow_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
+    GoRoute(
+      path: '/dashboard/ac-job-navigation',
+      builder: (context, state) {
+        final job = state.extra as Map<String, dynamic>? ?? {
+          'booking_id': 'book_demo',
+          'service_name': 'Split AC Deep Cleaning (Jet Wash)',
+          'customer_name': 'Rajesh Patel',
+          'customer_phone': '+91 98765 43210',
+          'customer_address': 'Digvijay Plot, Jamnagar, Gujarat',
+          'price': 499.0,
+          'customer_lat': 22.4707,
+          'customer_lng': 70.0577,
+          'status': 'CONFIRMED',
+          'entrance_pin': '7429',
+          'completion_otp': '5892',
+        };
+        return ACActiveJobNavigationScreen(job: job);
+      },
+    ),
     GoRoute(
       path: '/',
       builder: (context, state) => const StoryboardAnimationScreen(),

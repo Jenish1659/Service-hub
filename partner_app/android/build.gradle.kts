@@ -29,6 +29,12 @@ subprojects {
             } catch (e: Exception) {
                 // Ignored fallback
             }
+            try {
+                val buildToolsVersionMethod = android.javaClass.getMethod("buildToolsVersion", String::class.java)
+                buildToolsVersionMethod.invoke(android, "36.0.0")
+            } catch (e: Exception) {
+                // Ignored fallback
+            }
         }
     }
     if (state.executed) {
@@ -40,7 +46,7 @@ subprojects {
 
 subprojects {
     tasks.withType<JavaCompile>().configureEach {
-        options.compilerArgs.add("-Xlint:-options")
+        options.compilerArgs.addAll(listOf("-Xlint:-options", "-Xlint:-deprecation", "-nowarn"))
     }
 }
 

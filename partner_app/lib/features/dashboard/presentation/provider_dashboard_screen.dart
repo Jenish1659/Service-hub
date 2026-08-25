@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/storage/local_registration_cache.dart';
 import 'ac_provider_dashboard_controller.dart';
@@ -13,8 +14,55 @@ class ProviderDashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<ProviderDashboardScreen> createState() => _ProviderDashboardScreenState();
 }
 
-class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScreen> {
+class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScreen> with WidgetsBindingObserver {
   int _currentBottomNavIndex = 0;
+  bool _hasNotificationPermission = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkAndRequestPermissions();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkNotificationPermissionStatus();
+    }
+  }
+
+  Future<void> _checkAndRequestPermissions() async {
+    try {
+      final status = await Permission.notification.status;
+      if (!status.isGranted) {
+        final req = await Permission.notification.request();
+        setState(() {
+          _hasNotificationPermission = req.isGranted;
+        });
+      } else {
+        setState(() {
+          _hasNotificationPermission = true;
+        });
+      }
+      await Permission.locationWhenInUse.request();
+    } catch (_) {}
+  }
+
+  Future<void> _checkNotificationPermissionStatus() async {
+    try {
+      final status = await Permission.notification.status;
+      setState(() {
+        _hasNotificationPermission = status.isGranted;
+      });
+    } catch (_) {}
+  }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -235,18 +283,14 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                                       backgroundColor: const Color(0xFF2563EB),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                     ),
-                                    onPressed: () {
-                                      ref.read(acProviderDashboardProvider.notifier).acceptOffer(offer);
-                                      Navigator.pop(ctx);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('✓ AC Service Job Accepted! Added to Active Jobs.'),
-                                          backgroundColor: Color(0xFF10B981),
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
+                                    onPressed: () async {
+                                      final activeJob = await ref.read(acProviderDashboardProvider.notifier).acceptOffer(offer);
+                                      if (ctx.mounted) Navigator.pop(ctx);
+                                      if (context.mounted) {
+                                        context.push('/dashboard/ac-job-navigation', extra: activeJob);
+                                      }
                                     },
-                                    child: const Text('ACCEPT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                    child: const Text('ACCEPT & NAVIGATE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                                   ),
                                 ),
                               ],
@@ -285,21 +329,36 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // 0. NOTIFICATION PERMISSION BANNER (If not granted)
+                        if (!_hasNotificationPermission) ...[
+                          _buildNotificationPermissionBanner(),
+                          const SizedBox(height: 14),
+                        ],
+
                         // 1. ONLINE STATUS TOGGLE CARD
                         _buildOnlineStatusCard(dashboardState),
                         const SizedBox(height: 18),
 
-                        // 2. LIVE REQUESTS BANNER (If pending offers exist)
-                        if (dashboardState.incomingOffers.isNotEmpty) ...[
+                        // 2. ACTIVE JOB IN PROGRESS CARD (If an active job exists)
+                        if (dashboardState.activeJob != null) ...[
+                          _buildActiveJobProgressCard(dashboardState.activeJob!),
+                          const SizedBox(height: 18),
+                        ],
+
+                        // 3. OFFLINE NOTICE OR LIVE REQUESTS BANNER
+                        if (!dashboardState.isOnline) ...[
+                          _buildOfflineWarningBanner(),
+                          const SizedBox(height: 18),
+                        ] else if (dashboardState.incomingOffers.isNotEmpty) ...[
                           _buildLiveOffersBanner(dashboardState),
                           const SizedBox(height: 18),
                         ],
 
-                        // 3. INCOME SUMMARY SECTION (4 CARDS)
+                        // 4. INCOME SUMMARY SECTION (4 CARDS)
                         _buildIncomeSummarySection(dashboardState),
                         const SizedBox(height: 22),
 
-                        // 4. TODAY'S WORK OVERVIEW SECTION (2 CARDS WITH WATERMARKS)
+                        // 5. TODAY'S WORK OVERVIEW SECTION (2 CARDS WITH WATERMARKS)
                         _buildWorkOverviewSection(dashboardState),
                         const SizedBox(height: 22),
 
@@ -439,6 +498,80 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     );
   }
 
+  // --- 1.5 Notification Permission Banner ---
+  Widget _buildNotificationPermissionBanner() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFCA5A5)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0AEF4444),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFEE2E2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.notifications_off_rounded, color: Color(0xFFDC2626), size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Notifications are Disabled',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF991B1B),
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Enable notifications to get instant alerts for incoming AC bookings.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFFB91C1C),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              final res = await Permission.notification.request();
+              if (res.isPermanentlyDenied) {
+                await openAppSettings();
+              }
+              setState(() {
+                _hasNotificationPermission = res.isGranted;
+              });
+            },
+            child: const Text('Enable', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   // --- 2. Online Status Card ---
   Widget _buildOnlineStatusCard(ACProviderDashboardState state) {
     return Container(
@@ -552,6 +685,121 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
             const Icon(Icons.chevron_right, color: Color(0xFF2563EB)),
           ],
         ),
+      ),
+    );
+  }
+
+  // --- Active Job in Progress Card ---
+  Widget _buildActiveJobProgressCard(Map<String, dynamic> job) {
+    final customerName = job['customer_name'] ?? 'Rajesh Patel';
+    final customerAddress = job['customer_address'] ?? 'Digvijay Plot, Jamnagar';
+    final serviceName = job['service_name'] ?? 'Split AC Deep Cleaning (Jet Wash)';
+    final price = (job['price'] as num?)?.toDouble() ?? 499.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2563EB), width: 1.8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A2563EB),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDBEAFE),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.directions_run_rounded, size: 14, color: Color(0xFF1E40AF)),
+                    SizedBox(width: 4),
+                    Text(
+                      'ACTIVE AC SERVICE JOB',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '₹${price.toStringAsFixed(0)}',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF16A34A)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            customerName,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+          ),
+          Text(
+            '$serviceName • $customerAddress',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.map_rounded, color: Colors.white, size: 18),
+              label: const Text('OPEN MAP & NAVIGATION', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+              onPressed: () {
+                context.push('/dashboard/ac-job-navigation', extra: job);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Offline Warning Banner ---
+  Widget _buildOfflineWarningBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFDE68A), width: 1.2),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.cloud_off_rounded, color: Color(0xFFD97706), size: 22),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'You are currently Offline',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF92400E)),
+                ),
+                Text(
+                  'Turn switch ON to receive incoming AC service booking requests.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFFB45309)),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

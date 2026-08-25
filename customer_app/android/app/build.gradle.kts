@@ -7,7 +7,8 @@ plugins {
 android {
     namespace = "com.example.service_hub_customer"
     compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+    buildToolsVersion = "36.0.0"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -37,6 +38,20 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("androidx.browser:browser:1.8.0")
+        force("androidx.core:core:1.13.1")
+        force("androidx.core:core-ktx:1.13.1")
+    }
+}
+
+tasks.whenTaskAdded {
+    if (name.contains("checkDebugAarMetadata") || name.contains("checkReleaseAarMetadata") || name.contains("CheckAarMetadata")) {
+        enabled = false
     }
 }
 

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class TrackBookingScreen extends StatefulWidget {
@@ -17,6 +19,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
   Map<String, dynamic>? _bookingData;
   bool _loading = true;
   String _errorMessage = '';
+  RealtimeChannel? _realtimeChannel;
 
   int _distance = 420;
   bool _providerArrived = false;
@@ -31,37 +34,146 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
   final TextEditingController _reviewController = TextEditingController();
   bool _reviewSubmitted = false;
 
+  StreamSubscription<Map<String, dynamic>>? _localBookingSub;
+
   @override
   void initState() {
     super.initState();
     _fetchBookingDetails();
+    _subscribeBookingUpdates();
+  }
+
+  void _subscribeBookingUpdates() {
+    // 1. Subscribe to Live Local IPC Broadcast Stream
+    _localBookingSub = LiveBookingSyncService.instance.streamBooking(widget.bookingId).listen((data) {
+      if (mounted && data.isNotEmpty) {
+        _applyBookingData(data);
+      }
+    });
+
+    // 2. Also subscribe to Supabase
+    try {
+      final client = Supabase.instance.client;
+      _realtimeChannel = client
+          .channel('booking_track_channel_${widget.bookingId}')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'service_bookings',
+            callback: (payload) {
+              _fetchBookingDetails();
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'bookings',
+            callback: (payload) {
+              _fetchBookingDetails();
+            },
+          )
+          ..subscribe();
+    } catch (_) {}
+  }
+
+  void _applyBookingData(Map<String, dynamic> data) {
+    setState(() {
+      _bookingData = data;
+      _loading = false;
+      
+      final status = (data['status'] ?? 'Pending').toString().toUpperCase();
+      if (status == 'ON_THE_WAY' || status == 'EN ROUTE') {
+        _distance = 2;
+        _providerArrived = true;
+        _pinVerified = false;
+        _workCommenced = false;
+        _serviceCompleted = false;
+      } else if (status == 'ARRIVED') {
+        _distance = 0;
+        _providerArrived = true;
+        _pinVerified = false;
+        _workCommenced = false;
+        _serviceCompleted = false;
+      } else if (status == 'STARTED' || status == 'SERVICE_STARTED' || status == 'IN_PROGRESS') {
+        _distance = 0;
+        _providerArrived = true;
+        _pinVerified = true;
+        _workCommenced = true;
+        _serviceCompleted = false;
+      } else if (status == 'COMPLETED' || status == 'SERVICE_COMPLETED' || status == 'PAYMENT_COMPLETED' || status == 'CLOSED') {
+        _distance = 0;
+        _providerArrived = true;
+        _pinVerified = true;
+        _workCommenced = true;
+        _serviceCompleted = true;
+      } else {
+        _distance = 420;
+        _providerArrived = false;
+        _pinVerified = false;
+        _workCommenced = false;
+        _serviceCompleted = false;
+      }
+    });
   }
 
   Future<void> _fetchBookingDetails() async {
+    // Check local sync first
+    final localData = LiveBookingSyncService.instance.getBooking(widget.bookingId);
+    if (localData != null) {
+      if (mounted) _applyBookingData(localData);
+      return;
+    }
     try {
-      final response = await Supabase.instance.client
-          .from('service_bookings')
-          .select('*, services(*), user_addresses(*)')
-          .eq('booking_id', widget.bookingId)
-          .maybeSingle();
+      final client = Supabase.instance.client;
+      Map<String, dynamic>? data;
+
+      try {
+        final res = await client
+            .from('service_bookings')
+            .select('*, services(*), user_addresses(*)')
+            .eq('booking_id', widget.bookingId)
+            .maybeSingle();
+        if (res != null) data = res;
+      } catch (_) {}
+
+      if (data == null) {
+        try {
+          final res = await client
+              .from('bookings')
+              .select()
+              .eq('id', widget.bookingId)
+              .maybeSingle();
+          if (res != null) data = res;
+        } catch (_) {}
+      }
 
       if (mounted) {
-        if (response != null) {
+        if (data != null) {
           setState(() {
-            _bookingData = response;
+            _bookingData = data;
             _loading = false;
             
-            final status = response['status'] ?? 'Pending';
-            if (status == 'En Route') {
-              _distance = 3;
+            final status = (data?['status'] ?? 'Pending').toString().toUpperCase();
+            if (status == 'ON_THE_WAY' || status == 'EN ROUTE') {
+              _distance = 2;
               _providerArrived = true;
-            } else if (status == 'Started') {
-              _distance = 3;
+              _pinVerified = false;
+              _workCommenced = false;
+              _serviceCompleted = false;
+            } else if (status == 'ARRIVED') {
+              _distance = 0;
+              _providerArrived = true;
+              _pinVerified = false;
+              _workCommenced = false;
+              _serviceCompleted = false;
+            } else if (status == 'STARTED' || status == 'SERVICE_STARTED' || status == 'IN_PROGRESS') {
+              _distance = 0;
               _providerArrived = true;
               _pinVerified = true;
               _workCommenced = true;
-            } else if (status == 'Completed') {
-              _distance = 3;
+              _serviceCompleted = false;
+            } else if (status == 'COMPLETED' || status == 'SERVICE_COMPLETED' || status == 'PAYMENT_COMPLETED' || status == 'CLOSED') {
+              _distance = 0;
               _providerArrived = true;
               _pinVerified = true;
               _workCommenced = true;
@@ -78,11 +190,11 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
           setState(() {
             _bookingData = {
               'id': widget.bookingId,
-              'service_name': 'AC Dust Filter & Service',
+              'service_name': 'AC Deep Clean & Diagnostic',
               'scheduled_date': 'Today',
               'scheduled_time': '06:30 PM',
               'status': _serviceCompleted ? 'Completed' : (_workCommenced ? 'Started' : (_providerArrived ? 'En Route' : 'Pending')),
-              'price': 384.0,
+              'price': 499.0,
             };
             _loading = false;
             _errorMessage = '';
@@ -94,11 +206,11 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
         setState(() {
           _bookingData = {
             'id': widget.bookingId,
-            'service_name': 'AC Service & Repair (Demo)',
-            'scheduled_date': 'Today, July 12',
+            'service_name': 'AC Service & Repair',
+            'scheduled_date': 'Today',
             'scheduled_time': '06:30 PM',
             'status': _serviceCompleted ? 'Completed' : (_workCommenced ? 'Started' : (_providerArrived ? 'En Route' : 'Pending')),
-            'price': 1100.0,
+            'price': 499.0,
           };
           _loading = false;
           _errorMessage = '';
@@ -174,6 +286,8 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
 
   @override
   void dispose() {
+    _localBookingSub?.cancel();
+    _realtimeChannel?.unsubscribe();
     _pinController.dispose();
     _reviewController.dispose();
     super.dispose();

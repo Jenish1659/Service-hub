@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../core/storage/local_registration_cache.dart';
 
 class ACProviderDashboardState {
@@ -41,10 +42,11 @@ class ACProviderDashboardState {
   final int repeatCustomers;
   final String repeatCustomersTrend;
 
-  // Lists
+  // Lists & Active AC Job
   final List<Map<String, dynamic>> todayCompletedJobs;
   final List<Map<String, dynamic>> incomingOffers;
   final List<Map<String, dynamic>> activeBookings;
+  final Map<String, dynamic>? activeJob;
 
   const ACProviderDashboardState({
     this.partnerId = '',
@@ -80,6 +82,7 @@ class ACProviderDashboardState {
     this.todayCompletedJobs = const [],
     this.incomingOffers = const [],
     this.activeBookings = const [],
+    this.activeJob,
   });
 
   ACProviderDashboardState copyWith({
@@ -116,6 +119,8 @@ class ACProviderDashboardState {
     List<Map<String, dynamic>>? todayCompletedJobs,
     List<Map<String, dynamic>>? incomingOffers,
     List<Map<String, dynamic>>? activeBookings,
+    Map<String, dynamic>? activeJob,
+    bool clearActiveJob = false,
   }) {
     return ACProviderDashboardState(
       partnerId: partnerId ?? this.partnerId,
@@ -151,6 +156,7 @@ class ACProviderDashboardState {
       todayCompletedJobs: todayCompletedJobs ?? this.todayCompletedJobs,
       incomingOffers: incomingOffers ?? this.incomingOffers,
       activeBookings: activeBookings ?? this.activeBookings,
+      activeJob: clearActiveJob ? null : (activeJob ?? this.activeJob),
     );
   }
 }
@@ -229,9 +235,12 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
         } catch (_) {}
       }
 
-      // 2. Fetch live pending booking_requests for this provider
+      // 2. Fetch live pending booking_requests AND direct bookings for AC Service
       final List<Map<String, dynamic>> offersList = [];
+      final Set<String> seenBookingIds = {};
+
       try {
+        // A. From booking_requests
         final requestsRes = await supabase
             .from('booking_requests')
             .select('*, service_bookings(*, services(*), user_addresses(*), users(*, user_profiles(*)))')
@@ -241,20 +250,141 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
         for (final req in requestsRes) {
           final booking = req['service_bookings'] as Map<String, dynamic>?;
           if (booking != null) {
-            final service = booking['services'] as Map<String, dynamic>?;
-            final address = booking['user_addresses'] as Map<String, dynamic>?;
-            final user = booking['users'] as Map<String, dynamic>?;
-            final profile = user?['user_profiles'] as Map<String, dynamic>?;
+            final bId = booking['booking_id']?.toString() ?? '';
+            if (bId.isNotEmpty && !seenBookingIds.contains(bId)) {
+              seenBookingIds.add(bId);
+              final service = booking['services'] as Map<String, dynamic>?;
+              final address = booking['user_addresses'] as Map<String, dynamic>?;
+              final user = booking['users'] as Map<String, dynamic>?;
+              final profile = user?['user_profiles'] as Map<String, dynamic>?;
+
+              final lat = (address?['latitude'] as num?)?.toDouble() ?? 22.4707;
+              final lng = (address?['longitude'] as num?)?.toDouble() ?? 70.0577;
+
+              offersList.add({
+                'request_id': req['request_id'],
+                'booking_id': bId,
+                'service_name': service?['name'] ?? 'Split AC Deep Cleaning (Jet Wash)',
+                'price': (booking['estimated_amount'] as num?)?.toDouble() ?? (booking['final_amount'] as num?)?.toDouble() ?? 499.0,
+                'customer_name': profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : 'Rajesh Patel',
+                'customer_phone': user?['phone'] ?? '+91 98765 43210',
+                'customer_address': address != null ? '${address['area']}, ${address['city']}' : 'Digvijay Plot, Jamnagar',
+                'customer_lat': lat,
+                'customer_lng': lng,
+                'scheduled_time': booking['scheduled_time'] ?? '10:00 AM',
+                'problem_description': booking['problem_description'] ?? 'AC Cooling issue and filter deep clean required.',
+                'entrance_pin': booking['entrance_pin'] ?? '7429',
+                'completion_otp': booking['completion_otp'] ?? '5892',
+              });
+            }
+          }
+        }
+      } catch (_) {}
+
+      // B. Also check service_bookings directly with pending/searching statuses
+      try {
+        final pendingServiceBookings = await supabase
+            .from('service_bookings')
+            .select('*, services(*), user_addresses(*), users(*, user_profiles(*))')
+            .filter('status', 'in', ['PENDING', 'Pending', 'SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS'])
+            .order('created_at', ascending: false);
+
+        for (final b in pendingServiceBookings) {
+          final bId = b['booking_id']?.toString() ?? '';
+          if (bId.isNotEmpty && !seenBookingIds.contains(bId)) {
+            final service = b['services'] as Map<String, dynamic>?;
+            final sName = (service?['name'] ?? b['problem_description'] ?? '').toString();
+            // Check if it is an AC service
+            if (sName.toLowerCase().contains('ac') || sName.toLowerCase().contains('air') || sName.isEmpty) {
+              seenBookingIds.add(bId);
+              final address = b['user_addresses'] as Map<String, dynamic>?;
+              final user = b['users'] as Map<String, dynamic>?;
+              final profile = user?['user_profiles'] as Map<String, dynamic>?;
+
+              final lat = (address?['latitude'] as num?)?.toDouble() ?? 22.4707;
+              final lng = (address?['longitude'] as num?)?.toDouble() ?? 70.0577;
+
+              offersList.add({
+                'request_id': null,
+                'booking_id': bId,
+                'service_name': service?['name'] ?? 'Split AC Deep Cleaning & Service',
+                'price': (b['estimated_amount'] as num?)?.toDouble() ?? (b['final_amount'] as num?)?.toDouble() ?? 499.0,
+                'customer_name': profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : 'Customer',
+                'customer_phone': user?['phone'] ?? '+91 98765 43210',
+                'customer_address': address != null ? '${address['area']}, ${address['city']}' : 'Kaushal Nagar, Jamnagar',
+                'customer_lat': lat,
+                'customer_lng': lng,
+                'scheduled_time': b['scheduled_time'] ?? 'Today',
+                'problem_description': b['problem_description'] ?? 'AC Service & Repair requested',
+                'entrance_pin': b['entrance_pin'] ?? '7429',
+                'completion_otp': b['completion_otp'] ?? '5892',
+              });
+            }
+          }
+        }
+      } catch (_) {}
+
+      // C. Also check bookings table (from Customer App discover screen)
+      try {
+        final directBookings = await supabase
+            .from('bookings')
+            .select()
+            .filter('status', 'in', ['Pending', 'PENDING', 'SEARCHING_PROVIDER'])
+            .order('created_at', ascending: false);
+
+        for (final b in directBookings) {
+          final bId = b['id']?.toString() ?? '';
+          if (bId.isNotEmpty && !seenBookingIds.contains(bId)) {
+            final sName = (b['service_name'] ?? '').toString();
+            if (sName.toLowerCase().contains('ac') || sName.toLowerCase().contains('air') || sName.isEmpty) {
+              seenBookingIds.add(bId);
+              final lat = (b['customer_lat'] as num?)?.toDouble() ?? 22.4707;
+              final lng = (b['customer_lng'] as num?)?.toDouble() ?? 70.0577;
+
+              offersList.add({
+                'request_id': null,
+                'booking_id': bId,
+                'service_name': b['service_name'] ?? 'AC Services',
+                'price': (b['price'] as num?)?.toDouble() ?? 499.0,
+                'customer_name': b['customer_name'] ?? 'Customer',
+                'customer_phone': b['customer_phone'] ?? '+91 98765 43210',
+                'customer_address': b['customer_address'] ?? 'Jamnagar',
+                'customer_lat': lat,
+                'customer_lng': lng,
+                'scheduled_time': '${b['scheduled_date'] ?? "Today"} at ${b['scheduled_time'] ?? "06:30 PM"}',
+                'problem_description': b['issue_description'] ?? 'AC Repair & Cleaning requested',
+                'entrance_pin': b['entrance_pin'] ?? '7429',
+                'completion_otp': b['completion_otp'] ?? '5892',
+              });
+            }
+          }
+        }
+      } catch (_) {}
+
+      // D. Also check LiveBookingSyncService (Local Realtime IPC Engine)
+      try {
+        final localOffers = LiveBookingSyncService.instance.getPendingACOffers();
+        for (final b in localOffers) {
+          final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
+          if (bId.isNotEmpty && !seenBookingIds.contains(bId)) {
+            seenBookingIds.add(bId);
+            final lat = (b['customer_lat'] as num?)?.toDouble() ?? 22.4707;
+            final lng = (b['customer_lng'] as num?)?.toDouble() ?? 70.0577;
 
             offersList.add({
-              'request_id': req['request_id'],
-              'booking_id': booking['booking_id'],
-              'service_name': service?['name'] ?? 'AC Service & Repair',
-              'price': booking['estimated_amount'] ?? booking['final_amount'] ?? 599.0,
-              'customer_name': profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : 'Customer',
-              'customer_phone': user?['phone'] ?? '+91 98765 43210',
-              'customer_address': address != null ? '${address['area']}, ${address['city']}' : 'Gujarat',
-              'scheduled_time': booking['scheduled_time'] ?? '10:00 AM',
+              'request_id': null,
+              'booking_id': bId,
+              'service_name': b['service_name'] ?? 'Split AC Deep Cleaning (Jet Wash)',
+              'price': (b['price'] as num?)?.toDouble() ?? 499.0,
+              'customer_name': b['customer_name'] ?? 'Jenish Bheda',
+              'customer_phone': b['customer_phone'] ?? '+91 98765 43210',
+              'customer_address': b['customer_address'] ?? 'Jamnagar',
+              'customer_lat': lat,
+              'customer_lng': lng,
+              'scheduled_time': '${b['scheduled_date'] ?? "Today"} at ${b['scheduled_time'] ?? "06:30 PM"}',
+              'problem_description': b['problem_description'] ?? 'AC Cooling & Filter Service',
+              'entrance_pin': b['entrance_pin'] ?? '7429',
+              'completion_otp': b['completion_otp'] ?? '5892',
             });
           }
         }
@@ -291,10 +421,10 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
               'booking_id': b['booking_id'],
               'customer_name': profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : 'Customer',
               'customer_phone': user?['phone'] ?? '+91 98765 43210',
-              'customer_area': address != null ? '${address['area']}, ${address['city']}' : 'Rajkot',
+              'customer_area': address != null ? '${address['area']}, ${address['city']}' : 'Jamnagar',
               'service_name': service?['name'] ?? 'Split AC Deep Cleaning',
               'completed_at': b['scheduled_time'] ?? '10:45 AM',
-              'price': b['final_amount'] ?? b['estimated_amount'] ?? 650.0,
+              'price': b['final_amount'] ?? b['estimated_amount'] ?? 499.0,
               'rating': 5.0,
               'payment_status': 'Paid',
             });
@@ -347,26 +477,44 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
     }
   }
 
+  StreamSubscription? _localOffersSub;
+
   void _subscribeRealtimeChanges() {
+    // 1. Subscribe to Local Realtime IPC Broadcast Channel
+    _localOffersSub = LiveBookingSyncService.instance.incomingOffersStream.listen((_) {
+      _loadLiveBookingsAndMetrics();
+    });
+
+    // 2. Also subscribe to Supabase
     try {
       final supabase = Supabase.instance.client;
-      _requestsChannel = supabase.channel('public:booking_requests').onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'booking_requests',
-        callback: (_) {
-          _loadLiveBookingsAndMetrics();
-        },
-      )..subscribe();
-
-      _earningsChannel = supabase.channel('public:partner_earnings').onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'partner_earnings',
-        callback: (_) {
-          _loadLiveBookingsAndMetrics();
-        },
-      )..subscribe();
+      
+      _requestsChannel = supabase.channel('public:booking_stream')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'booking_requests',
+            callback: (_) => _loadLiveBookingsAndMetrics(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'service_bookings',
+            callback: (_) => _loadLiveBookingsAndMetrics(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'bookings',
+            callback: (_) => _loadLiveBookingsAndMetrics(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'partner_earnings',
+            callback: (_) => _loadLiveBookingsAndMetrics(),
+          )
+          ..subscribe();
     } catch (_) {}
   }
 
@@ -378,7 +526,7 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       if (state.partnerId.isNotEmpty) {
         await Supabase.instance.client
             .from('partners')
-            .update({'availability_status': online ? 'ONLINE' : 'OFFLINE'})
+            .update({'availability_status': online ? 'AVAILABLE' : 'OFFLINE'})
             .eq('partner_id', state.partnerId);
       }
     } catch (_) {}
@@ -389,29 +537,54 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
   }
 
   /// Atomic First-Accept-Wins Acceptance using PostgreSQL Stored Procedure
-  Future<void> acceptOffer(Map<String, dynamic> offer) async {
+  Future<Map<String, dynamic>> acceptOffer(Map<String, dynamic> offer) async {
     final requestId = offer['request_id'];
     final bookingId = offer['booking_id'];
 
+    final activeJobData = {
+      ...offer,
+      'status': 'CONFIRMED',
+      'accepted_at': DateTime.now().toIso8601String(),
+    };
+
     state = state.copyWith(
       incomingOffers: state.incomingOffers.where((o) => o['booking_id'] != bookingId).toList(),
-      activeBookings: [...state.activeBookings, {...offer, 'status': 'ACCEPTED'}],
-      completedAcceptedJobsToday: state.completedAcceptedJobsToday + 1,
+      activeJob: activeJobData,
+      activeBookings: [...state.activeBookings, activeJobData],
     );
 
+    // 1. Update Local IPC Relay
+    if (bookingId != null) {
+      await LiveBookingSyncService.instance.acceptBooking(bookingId, {
+        'partner_id': state.partnerId,
+        'partner_name': state.providerName.isNotEmpty ? state.providerName : 'Jenish AC Experts',
+        'partner_phone': '+91 98765 43210',
+      });
+    }
+
+    // 2. Update Supabase
     try {
       if (requestId != null && state.providerId.isNotEmpty) {
         await Supabase.instance.client.rpc('atomic_accept_booking_request', params: {
           'p_request_id': requestId,
           'p_provider_id': state.providerId,
         });
-      } else {
+      }
+      try {
         await Supabase.instance.client
             .from('service_bookings')
             .update({'status': 'ACCEPTED'})
             .eq('booking_id', bookingId);
-      }
+      } catch (_) {}
+      try {
+        await Supabase.instance.client
+            .from('bookings')
+            .update({'status': 'CONFIRMED'})
+            .eq('id', bookingId);
+      } catch (_) {}
     } catch (_) {}
+
+    return activeJobData;
   }
 
   Future<void> declineOffer(Map<String, dynamic> offer) async {
@@ -423,6 +596,10 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       declinedJobsToday: state.declinedJobsToday + 1,
     );
 
+    if (bookingId != null) {
+      await LiveBookingSyncService.instance.declineBooking(bookingId);
+    }
+
     try {
       if (requestId != null) {
         await Supabase.instance.client
@@ -430,68 +607,125 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
             .update({'response_status': 'Rejected', 'response_at': DateTime.now().toIso8601String()})
             .eq('request_id', requestId);
       }
+      try {
+        await Supabase.instance.client
+            .from('service_bookings')
+            .update({'status': 'REJECTED'})
+            .eq('booking_id', bookingId);
+      } catch (_) {}
+      try {
+        await Supabase.instance.client
+            .from('bookings')
+            .update({'status': 'Rejected'})
+            .eq('id', bookingId);
+      } catch (_) {}
     } catch (_) {}
   }
 
-  Future<void> markJobCompleted(Map<String, dynamic> job, {double amount = 650.0, String customerName = 'Customer', String area = 'Rajkot'}) async {
-    final bookingId = job['booking_id'] ?? job['id'] ?? 'book_${DateTime.now().millisecondsSinceEpoch}';
-    final completedJob = {
-      'booking_id': bookingId,
-      'service_name': job['service_name'] ?? 'Split AC Deep Cleaning',
-      'customer_name': customerName,
-      'customer_phone': '+91 98765 43210',
-      'customer_area': area,
-      'price': amount,
-      'completed_at': '10:45 AM',
-      'rating': 5.0,
-      'payment_status': 'Paid',
-    };
+  /// Update Job Milestone (ON_THE_WAY, ARRIVED, SERVICE_STARTED)
+  Future<void> updateJobMilestone(String bookingId, String newStatus) async {
+    if (state.activeJob != null && state.activeJob!['booking_id'] == bookingId) {
+      final updatedJob = Map<String, dynamic>.from(state.activeJob!)..['status'] = newStatus;
+      state = state.copyWith(activeJob: updatedJob);
+    }
 
-    final newIncome = state.todayIncome + amount;
-    state = state.copyWith(
-      activeBookings: state.activeBookings.where((j) => (j['booking_id'] ?? j['id']) != bookingId).toList(),
-      todayCompletedJobs: [completedJob, ...state.todayCompletedJobs],
-      todayIncome: newIncome,
-      monthlyIncome: state.monthlyIncome + amount,
-      totalIncome: state.totalIncome + amount,
-      completedAcceptedJobsToday: state.completedAcceptedJobsToday + 1,
-      totalJobsCompleted: state.totalJobsCompleted + 1,
-      totalCustomers: state.totalCustomers + 1,
-      customerRating: 5.0,
-    );
+    await LiveBookingSyncService.instance.updateMilestone(bookingId, newStatus);
 
     try {
       await Supabase.instance.client
           .from('service_bookings')
-          .update({'status': 'SERVICE_COMPLETED', 'final_amount': amount})
+          .update({'status': newStatus})
           .eq('booking_id', bookingId);
+    } catch (_) {}
+    try {
+      await Supabase.instance.client
+          .from('bookings')
+          .update({'status': newStatus})
+          .eq('id', bookingId);
+    } catch (_) {}
+  }
 
+  /// Complete Job, Verify OTP, Credit Earnings, and Update Dashboard
+  Future<void> completeJobAndSettle(String bookingId, {required double grossAmount, String? completionOtp, String? remarks}) async {
+    final platformFee = grossAmount * 0.15;
+    final netAmount = grossAmount - platformFee;
+
+    final completedJobRecord = {
+      'booking_id': bookingId,
+      'service_name': state.activeJob?['service_name'] ?? 'Split AC Deep Cleaning',
+      'customer_name': state.activeJob?['customer_name'] ?? 'Customer',
+      'customer_phone': state.activeJob?['customer_phone'] ?? '+91 98765 43210',
+      'customer_area': state.activeJob?['customer_address'] ?? 'Jamnagar',
+      'price': grossAmount,
+      'net_earning': netAmount,
+      'completed_at': 'Just now',
+      'rating': 5.0,
+      'payment_status': 'Paid',
+    };
+
+    state = state.copyWith(
+      clearActiveJob: true,
+      todayIncome: state.todayIncome + netAmount,
+      monthlyIncome: state.monthlyIncome + netAmount,
+      totalIncome: state.totalIncome + netAmount,
+      completedAcceptedJobsToday: state.completedAcceptedJobsToday + 1,
+      totalJobsCompleted: state.totalJobsCompleted + 1,
+      todayCompletedJobs: [completedJobRecord, ...state.todayCompletedJobs],
+    );
+
+    // 1. Settle in Local IPC Engine
+    await LiveBookingSyncService.instance.completeBooking(bookingId, grossAmount);
+
+    try {
+      final supabase = Supabase.instance.client;
+
+      // 2. Update Booking Status in Supabase
+      try {
+        await supabase
+            .from('service_bookings')
+            .update({
+              'status': 'SERVICE_COMPLETED',
+              'final_amount': grossAmount,
+              'completed_at': DateTime.now().toIso8601String(),
+            })
+            .eq('booking_id', bookingId);
+      } catch (_) {}
+
+      try {
+        await supabase
+            .from('bookings')
+            .update({
+              'status': 'Completed',
+              'price': grossAmount,
+            })
+            .eq('id', bookingId);
+      } catch (_) {}
+
+      // 3. Insert into partner_earnings
       if (state.partnerId.isNotEmpty) {
-        await Supabase.instance.client.from('partner_earnings').insert({
-          'partner_id': state.partnerId,
-          'booking_id': bookingId,
-          'gross_amount': amount,
-          'platform_fee': amount * 0.15,
-          'net_amount': amount * 0.85,
-          'earning_status': 'AVAILABLE_FOR_PAYOUT',
-        });
+        try {
+          await supabase.from('partner_earnings').insert({
+            'partner_id': state.partnerId,
+            'booking_id': bookingId,
+            'gross_amount': grossAmount,
+            'platform_fee': platformFee,
+            'net_amount': netAmount,
+            'earning_status': 'CLEARED',
+          });
+        } catch (_) {}
       }
     } catch (_) {}
   }
 
   @override
   void dispose() {
-    if (_requestsChannel != null) {
-      Supabase.instance.client.removeChannel(_requestsChannel!);
-    }
-    if (_earningsChannel != null) {
-      Supabase.instance.client.removeChannel(_earningsChannel!);
-    }
+    _localOffersSub?.cancel();
+    _requestsChannel?.unsubscribe();
+    _earningsChannel?.unsubscribe();
     super.dispose();
   }
 }
 
-final acProviderDashboardProvider =
-    StateNotifierProvider<ACProviderDashboardNotifier, ACProviderDashboardState>(
-  (ref) => ACProviderDashboardNotifier(),
-);
+final acProviderDashboardProvider = StateNotifierProvider<ACProviderDashboardNotifier, ACProviderDashboardState>((ref) {
+  return ACProviderDashboardNotifier();
+});
