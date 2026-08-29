@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/services/live_booking_sync_service.dart';
 
 // StreamProvider for Super Admin Dashboard Console KPI Metrics (70-Table Schema)
 final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) async* {
@@ -51,6 +52,30 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
   final client = Supabase.instance.client;
 
   while (true) {
+    final List<Map<String, dynamic>> pendingList = [];
+    final Set<String> seenIds = {};
+
+    // 1. Fetch from Local Live Sync Service
+    try {
+      final localVerifications = LiveBookingSyncService.instance.getPendingPartnerVerifications();
+      for (var item in localVerifications) {
+        final id = (item['id'] ?? item['verification_id'] ?? '').toString();
+        if (id.isNotEmpty && !seenIds.contains(id)) {
+          seenIds.add(id);
+          pendingList.add({
+            'id': id,
+            'user_id': item['user_id'] ?? id,
+            'full_name': item['full_name'] ?? 'Jenish Bheda',
+            'phone': item['phone'] ?? '+91 98765 43210',
+            'verification_type': item['category'] ?? 'AC Service Specialist',
+            'status': item['status'] ?? 'PENDING',
+            'submitted_at': item['submitted_at'] ?? 'Just now',
+          });
+        }
+      }
+    } catch (_) {}
+
+    // 2. Fetch from Supabase
     try {
       final List<dynamic> response = await client
           .from('verification_requests')
@@ -58,27 +83,28 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           .eq('status', 'PENDING')
           .order('submitted_at', ascending: false);
 
-      final List<Map<String, dynamic>> pendingList = [];
       for (var item in response) {
-        final user = item['users'] as Map<String, dynamic>?;
-        final profile = user?['user_profiles'] as Map<String, dynamic>?;
-        final fullName = profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : (user?['username'] ?? 'Partner');
+        final id = item['verification_id']?.toString() ?? '';
+        if (id.isNotEmpty && !seenIds.contains(id)) {
+          seenIds.add(id);
+          final user = item['users'] as Map<String, dynamic>?;
+          final profile = user?['user_profiles'] as Map<String, dynamic>?;
+          final fullName = profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : (user?['username'] ?? 'Partner');
 
-        pendingList.add({
-          'id': item['verification_id'],
-          'user_id': item['user_id'],
-          'full_name': fullName,
-          'verification_type': item['verification_type'],
-          'status': item['status'],
-          'submitted_at': item['submitted_at'],
-        });
+          pendingList.add({
+            'id': id,
+            'user_id': item['user_id'],
+            'full_name': fullName,
+            'verification_type': item['verification_type'] ?? 'Service Provider',
+            'status': item['status'],
+            'submitted_at': item['submitted_at'],
+          });
+        }
       }
+    } catch (_) {}
 
-      yield pendingList;
-    } catch (_) {
-      yield [];
-    }
-    await Future.delayed(const Duration(seconds: 4));
+    yield pendingList;
+    await Future.delayed(const Duration(seconds: 2));
   }
 });
 

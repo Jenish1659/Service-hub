@@ -963,79 +963,144 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Select Delivery Address',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.my_location, color: Color(0xff0052cc)),
-                title: const Text('Detect My Location', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xff0052cc))),
-                subtitle: const Text('Automatically detect your location via GPS'),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  await ref.read(locationProvider.notifier).fetchLocation();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.map_outlined, color: Color(0xff0052cc)),
-                title: const Text('Pick on OpenStreetMap', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xff0052cc))),
-                subtitle: const Text('Select exact delivery pinpoint on map'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const MapScreen()),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.bookmark_outline, color: Color(0xff0052cc)),
-                title: const Text('Manage Saved Addresses', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xff0052cc))),
-                subtitle: const Text('Choose from your saved home, work, or recipient addresses'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const SavedLocationsScreen()),
-                  );
-                },
-              ),
-              const Divider(),
-              const SizedBox(height: 10),
-              Expanded(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: presets.length,
-                  itemBuilder: (c, index) {
-                    final preset = presets[index];
-                    return ListTile(
-                      leading: const Icon(Icons.location_on_outlined, color: Color(0xff0052cc)),
-                      title: Text(preset['name']),
-                      subtitle: const Text('Jamnagar'),
-                      onTap: () {
-                        ref.read(locationProvider.notifier).updateCustomLocation(
-                          preset['lat'],
-                          preset['lng'],
-                          preset['name'],
-                        );
-                        Navigator.pop(ctx);
-                      },
+        return SafeArea(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.75,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xffcbd5e1),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Select Delivery Address',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xff0f172a)),
+                ),
+                const SizedBox(height: 14),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: Color(0xffeff6ff),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.my_location, color: Color(0xff0052cc), size: 22),
+                  ),
+                  title: const Text('Detect My Location', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xff0052cc))),
+                  subtitle: const Text('Automatically detect your live GPS location', style: TextStyle(fontSize: 12)),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Row(
+                          children: [
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            ),
+                            SizedBox(width: 12),
+                            Text('Detecting GPS location...'),
+                          ],
+                        ),
+                        backgroundColor: Color(0xff0052cc),
+                        duration: Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    await ref.read(locationProvider.notifier).fetchLocation();
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: Color(0xffeff6ff),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.map_outlined, color: Color(0xff0052cc), size: 22),
+                  ),
+                  title: const Text('Pick on OpenStreetMap', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xff0052cc))),
+                  subtitle: const Text('Select exact pinpoint on map', style: TextStyle(fontSize: 12)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MapScreen()),
                     );
                   },
                 ),
-              ),
-            ],
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      color: Color(0xffeff6ff),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.bookmark_outline, color: Color(0xff0052cc), size: 22),
+                  ),
+                  title: const Text('Manage Saved Addresses', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xff0052cc))),
+                  subtitle: const Text('Choose from saved home or work addresses', style: TextStyle(fontSize: 12)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SavedLocationsScreen()),
+                    );
+                  },
+                ),
+                const Divider(),
+                const SizedBox(height: 8),
+                const Text(
+                  'Quick Area Presets',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xff64748b)),
+                ),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: presets.length,
+                    itemBuilder: (c, index) {
+                      final preset = presets[index];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.location_on_outlined, color: Color(0xff0052cc)),
+                        title: Text(preset['name'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        subtitle: const Text('Jamnagar, Gujarat', style: TextStyle(fontSize: 12)),
+                        onTap: () {
+                          ref.read(locationProvider.notifier).updateCustomLocation(
+                            preset['lat'],
+                            preset['lng'],
+                            preset['name'],
+                          );
+                          Navigator.pop(ctx);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

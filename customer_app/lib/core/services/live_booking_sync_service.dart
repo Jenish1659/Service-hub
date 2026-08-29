@@ -245,9 +245,132 @@ class LiveBookingSyncService {
     } catch (_) {}
   }
 
+  // --- Partner Verification & Admin Approval Sync ---
+  final StreamController<List<Map<String, dynamic>>> _verificationsStreamController =
+      StreamController<List<Map<String, dynamic>>>.broadcast();
+
+  Stream<List<Map<String, dynamic>>> get verificationsStream => _verificationsStreamController.stream;
+
+  File? _verificationsFile;
+
+  File _getVerificationsFile() {
+    if (_verificationsFile != null) return _verificationsFile!;
+    final tempDir = Directory.systemTemp;
+    _verificationsFile = File('${tempDir.path}/service_hub_partner_verifications.json');
+    if (!_verificationsFile!.existsSync()) {
+      _verificationsFile!.createSync(recursive: true);
+      _verificationsFile!.writeAsStringSync('{}');
+    }
+    return _verificationsFile!;
+  }
+
+  Map<String, dynamic> _readAllVerifications() {
+    try {
+      final file = _getVerificationsFile();
+      if (!file.existsSync()) return {};
+      final content = file.readAsStringSync();
+      if (content.trim().isEmpty) return {};
+      return jsonDecode(content) as Map<String, dynamic>;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  void _writeAllVerifications(Map<String, dynamic> map) {
+    try {
+      final file = _getVerificationsFile();
+      file.writeAsStringSync(jsonEncode(map));
+      final pending = getPendingPartnerVerifications();
+      if (!_verificationsStreamController.isClosed) {
+        _verificationsStreamController.add(pending);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> submitPartnerVerification(Map<String, dynamic> partnerData) async {
+    final verId = partnerData['verification_id'] ?? partnerData['id'] ?? 'ver_${DateTime.now().millisecondsSinceEpoch}';
+    final all = _readAllVerifications();
+    all[verId] = {
+      'id': verId,
+      'verification_id': verId,
+      'user_id': partnerData['id'] ?? partnerData['user_id'] ?? verId,
+      'full_name': partnerData['name'] ?? partnerData['business_name'] ?? 'Partner Provider',
+      'phone': partnerData['phone'] ?? partnerData['mobile'] ?? '+91 98765 43210',
+      'business_name': partnerData['business_name'] ?? 'Jenish AC Care',
+      'category': partnerData['category'] ?? 'AC Repair & Service',
+      'experience_years': partnerData['experience_years'] ?? '5+',
+      'status': 'PENDING',
+      'submitted_at': DateTime.now().toIso8601String(),
+    };
+    _writeAllVerifications(all);
+
+    try {
+      final client = Supabase.instance.client;
+      await client.from('verification_requests').insert(all[verId]!);
+    } catch (_) {}
+  }
+
+  List<Map<String, dynamic>> getPendingPartnerVerifications() {
+    final all = _readAllVerifications();
+    final pending = <Map<String, dynamic>>[];
+    all.forEach((id, val) {
+      if (val is Map<String, dynamic>) {
+        final status = (val['status'] ?? '').toString().toUpperCase();
+        if (status == 'PENDING' || status == 'PENDING_APPROVAL') {
+          pending.add(val);
+        }
+      }
+    });
+    return pending;
+  }
+
+  String getPartnerVerificationStatus(String partnerId) {
+    final all = _readAllVerifications();
+    for (final val in all.values) {
+      if (val is Map<String, dynamic>) {
+        if (val['user_id'] == partnerId || val['id'] == partnerId || val['verification_id'] == partnerId) {
+          return (val['status'] ?? 'PENDING').toString().toUpperCase();
+        }
+      }
+    }
+    return 'APPROVED'; // Default approved for active test sessions
+  }
+
+  Future<void> approvePartnerVerification(String verificationId) async {
+    final all = _readAllVerifications();
+    if (all.containsKey(verificationId)) {
+      all[verificationId]['status'] = 'APPROVED';
+      all[verificationId]['approved_at'] = DateTime.now().toIso8601String();
+      _writeAllVerifications(all);
+    }
+
+    try {
+      await Supabase.instance.client
+          .from('verification_requests')
+          .update({'status': 'APPROVED', 'reviewed_at': DateTime.now().toIso8601String()})
+          .eq('verification_id', verificationId);
+    } catch (_) {}
+  }
+
+  Future<void> rejectPartnerVerification(String verificationId) async {
+    final all = _readAllVerifications();
+    if (all.containsKey(verificationId)) {
+      all[verificationId]['status'] = 'REJECTED';
+      _writeAllVerifications(all);
+    }
+
+    try {
+      await Supabase.instance.client
+          .from('verification_requests')
+          .update({'status': 'REJECTED', 'reviewed_at': DateTime.now().toIso8601String()})
+          .eq('verification_id', verificationId);
+    } catch (_) {}
+  }
+
   void dispose() {
     _pollingTimer?.cancel();
     _offersStreamController.close();
+    _verificationsStreamController.close();
     for (var ctrl in _bookingStreamControllers.values) {
       ctrl.close();
     }

@@ -42,12 +42,23 @@ class _DetectingLocationScreenState extends ConsumerState<DetectingLocationScree
     _hasStartedDetection = true;
 
     final locationNotifier = ref.read(locationProvider.notifier);
+    
+    // Add safe timeout to prevent any infinite detection or black screen
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted && ref.read(locationProvider).status != LocationStatus.success) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MapScreen()),
+        );
+      }
+    });
+
     await locationNotifier.initializeAndDetectLocation();
 
     if (!mounted) return;
     final state = ref.read(locationProvider);
 
-    if (state.status == LocationStatus.success && state.currentLocation != null) {
+    if (state.currentLocation != null || state.status == LocationStatus.success) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MapScreen()),

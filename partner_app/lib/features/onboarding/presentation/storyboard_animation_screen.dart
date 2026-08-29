@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/sh_logo_widget.dart';
 
+import '../../../core/storage/local_registration_cache.dart';
+
 class StoryboardAnimationScreen extends StatefulWidget {
   const StoryboardAnimationScreen({super.key});
 
@@ -13,6 +15,36 @@ class StoryboardAnimationScreen extends StatefulWidget {
 class _StoryboardAnimationScreenState extends State<StoryboardAnimationScreen> {
   final PageController _pageController = PageController();
   int _currentIndex = 0;
+  bool _isCheckingSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkActiveSession();
+  }
+
+  Future<void> _checkActiveSession() async {
+    try {
+      final activePartner = await LocalRegistrationCache.getActivePartner();
+      if (activePartner != null && mounted) {
+        final role = (activePartner['role'] ?? activePartner['partner_type'] ?? 'service_provider').toString().toLowerCase();
+        if (role.contains('delivery') || role.contains('agent')) {
+          context.go('/dashboard/delivery');
+        } else if (role.contains('shop') || role.contains('store')) {
+          context.go('/dashboard/shopkeeper');
+        } else {
+          context.go('/dashboard');
+        }
+        return;
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _isCheckingSession = false;
+      });
+    }
+  }
 
   // 7 Storyboard slides (6th slide "Everything in One App" REMOVED as per user instructions)
   final List<Map<String, dynamic>> _slides = [
@@ -73,6 +105,25 @@ class _StoryboardAnimationScreenState extends State<StoryboardAnimationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isCheckingSession) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F172A),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ShLogoWidget(size: 80, showSubtitle: false),
+              SizedBox(height: 24),
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentGold),
+                strokeWidth: 3,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.bgLight,
       body: SafeArea(

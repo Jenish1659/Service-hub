@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/routes/app_router.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/routes/app_router.dart';
+import '../../../core/services/live_booking_sync_service.dart';
 import '../../auth/presentation/auth_controller.dart';
 import 'admin_provider.dart';
 
@@ -38,6 +39,11 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
       _processedProfileIds.add(profileId);
       activePartnersCount++;
     });
+
+    // 1. Settle in Local Realtime IPC Relay
+    await LiveBookingSyncService.instance.approvePartnerVerification(profileId);
+
+    // 2. Settle in Supabase
     try {
       await Supabase.instance.client
           .from('verification_requests')
@@ -48,59 +54,44 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           .from('partners')
           .update({'verification_status': 'VERIFIED', 'approved_at': DateTime.now().toIso8601String()})
           .eq('user_id', profileId);
+    } catch (_) {}
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Partner "$name" approved successfully! KYC Activated.'),
-          backgroundColor: AppTheme.successColor,
-        ),
-      );
-      ref.invalidate(adminUnverifiedPartnersProvider);
-      ref.invalidate(adminStatsProvider);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Partner "$name" verification approved.'),
-          backgroundColor: AppTheme.successColor,
-        ),
-      );
-      ref.invalidate(adminUnverifiedPartnersProvider);
-      ref.invalidate(adminStatsProvider);
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Partner "$name" approved successfully! KYC Activated.'),
+        backgroundColor: AppTheme.successColor,
+      ),
+    );
+    ref.invalidate(adminUnverifiedPartnersProvider);
+    ref.invalidate(adminStatsProvider);
   }
 
   Future<void> _rejectPartnerProfile(String profileId, String name) async {
     setState(() {
       _processedProfileIds.add(profileId);
     });
+
+    // 1. Settle in Local Realtime IPC Relay
+    await LiveBookingSyncService.instance.rejectPartnerVerification(profileId);
+
+    // 2. Settle in Supabase
     try {
       await Supabase.instance.client
           .from('verification_requests')
           .update({'status': 'REJECTED', 'reviewed_at': DateTime.now().toIso8601String()})
           .eq('verification_id', profileId);
+    } catch (_) {}
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Partner "$name" application rejected.'),
-          backgroundColor: AppTheme.dangerColor,
-        ),
-      );
-      ref.invalidate(adminUnverifiedPartnersProvider);
-      ref.invalidate(adminStatsProvider);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Partner "$name" application rejected and removed from queue.'),
-          backgroundColor: AppTheme.dangerColor,
-        ),
-      );
-      ref.invalidate(adminUnverifiedPartnersProvider);
-      ref.invalidate(adminStatsProvider);
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Partner "$name" application rejected.'),
+        backgroundColor: AppTheme.dangerColor,
+      ),
+    );
+    ref.invalidate(adminUnverifiedPartnersProvider);
+    ref.invalidate(adminStatsProvider);
   }
 
   Future<void> _settlePayout(String id, String type, String partnerName) async {

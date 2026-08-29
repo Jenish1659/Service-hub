@@ -5,6 +5,7 @@ import '../../../../core/widgets/sh_logo_widget.dart';
 
 import '../../../../core/storage/local_registration_cache.dart';
 import '../../../../core/services/supabase_auth_service.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
 
 class ProviderReviewApplicationScreen extends StatefulWidget {
   const ProviderReviewApplicationScreen({super.key});
@@ -77,6 +78,9 @@ class _ProviderReviewApplicationScreenState
 
     await LocalRegistrationCache.saveRegisteredPartner(partnerRecord);
     await LocalRegistrationCache.clearDraft();
+
+    // Broadcast verification request to Admin live queue
+    await LiveBookingSyncService.instance.submitPartnerVerification(partnerRecord);
 
     try {
       await SupabaseAuthService.registerServiceProvider(

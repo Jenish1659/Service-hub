@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/storage/local_registration_cache.dart';
@@ -354,6 +356,10 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                           const SizedBox(height: 18),
                         ],
 
+                        // 3.5 LIVE SERVICE AREA & RADAR MAP CARD
+                        _buildLiveServiceAreaMapCard(dashboardState),
+                        const SizedBox(height: 22),
+
                         // 4. INCOME SUMMARY SECTION (4 CARDS)
                         _buildIncomeSummarySection(dashboardState),
                         const SizedBox(height: 22),
@@ -566,6 +572,259 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
               });
             },
             child: const Text('Enable', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- 1.8 Live Service Area & Coverage Radar Map Card ---
+  Widget _buildLiveServiceAreaMapCard(ACProviderDashboardState state) {
+    const partnerCenter = LatLng(22.4707, 70.0577); // Jamnagar Central Operations Hub
+
+    // Generate markers for all pending customer requests
+    final markers = <Marker>[
+      // Partner Core Marker
+      Marker(
+        point: partnerCenter,
+        width: 48,
+        height: 48,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF2563EB),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: const [
+              BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
+            ],
+          ),
+          child: const Icon(Icons.hvac_rounded, color: Colors.white, size: 24),
+        ),
+      ),
+    ];
+
+    for (final offer in state.incomingOffers) {
+      final lat = (offer['customer_lat'] as num?)?.toDouble() ?? 22.4725;
+      final lng = (offer['customer_lng'] as num?)?.toDouble() ?? 70.0610;
+      markers.add(
+        Marker(
+          point: LatLng(lat, lng),
+          width: 42,
+          height: 42,
+          child: GestureDetector(
+            onTap: () => _showLiveOffersModal(context, state),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2.5),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x40EF4444), blurRadius: 6, offset: Offset(0, 2)),
+                ],
+              ),
+              child: const Icon(Icons.person_pin_circle_rounded, color: Colors.white, size: 22),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (state.activeJob != null) {
+      final actLat = (state.activeJob!['customer_lat'] as num?)?.toDouble() ?? 22.4725;
+      final actLng = (state.activeJob!['customer_lng'] as num?)?.toDouble() ?? 70.0610;
+      markers.add(
+        Marker(
+          point: LatLng(actLat, actLng),
+          width: 46,
+          height: 46,
+          child: GestureDetector(
+            onTap: () {
+              context.push('/dashboard/ac-job-navigation', extra: state.activeJob);
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x4010B981), blurRadius: 8, offset: Offset(0, 3)),
+                ],
+              ),
+              child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 24),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.map_rounded, color: Color(0xFF2563EB), size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Live Service Area & Radar',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        SizedBox(height: 1),
+                        Text(
+                          '10 km Coverage Radius • Jamnagar',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: state.isOnline ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: state.isOnline ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        state.isOnline ? 'RADAR ACTIVE' : 'RADAR PAUSED',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: state.isOnline ? const Color(0xFF15803D) : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Map Container
+          SizedBox(
+            height: 220,
+            width: double.infinity,
+            child: FlutterMap(
+              options: const MapOptions(
+                initialCenter: partnerCenter,
+                initialZoom: 13.2,
+                interactionOptions: InteractionOptions(flags: InteractiveFlag.all),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.service_hub_partner',
+                ),
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: partnerCenter,
+                      radius: 260,
+                      useRadiusInMeter: false,
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.10),
+                      borderColor: const Color(0xFF2563EB).withValues(alpha: 0.5),
+                      borderStrokeWidth: 2,
+                    ),
+                  ],
+                ),
+                MarkerLayer(markers: markers),
+              ],
+            ),
+          ),
+
+          // Bottom Action Footer
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            color: const Color(0xFFF8FAFC),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.radar_rounded, color: Color(0xFF2563EB), size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${state.incomingOffers.length} Customer Booking(s) Nearby',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
+                if (state.activeJob != null)
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.navigation_rounded, size: 14, color: Colors.white),
+                    label: const Text('Live Navigation', style: TextStyle(fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      context.push('/dashboard/ac-job-navigation', extra: state.activeJob);
+                    },
+                  )
+                else if (state.incomingOffers.isNotEmpty)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => _showLiveOffersModal(context, state),
+                    child: Text('View (${state.incomingOffers.length})', style: const TextStyle(fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
