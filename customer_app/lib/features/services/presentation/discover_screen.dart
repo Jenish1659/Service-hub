@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../location/providers/location_provider.dart';
 import '../../location/screens/map_screen.dart';
 import '../../location/screens/saved_locations_screen.dart';
+import 'ac_issue_details_screen.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -18,6 +19,19 @@ class DiscoverScreen extends ConsumerStatefulWidget {
 
 class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   void _startBookingFlow(BuildContext context, String serviceName, double servicePrice) {
+    if (serviceName.toLowerCase().contains('ac')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ACIssueDetailsScreen(
+            serviceName: serviceName,
+            servicePrice: servicePrice,
+          ),
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

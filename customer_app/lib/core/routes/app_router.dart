@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/services/presentation/discover_screen.dart';
+import '../../features/services/presentation/ac_issue_details_screen.dart';
+import '../../features/services/presentation/ac_date_time_selection_screen.dart';
 import '../../features/products/presentation/products_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
@@ -91,6 +93,23 @@ final GoRouter appRouter = GoRouter(
       path: '/map',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (BuildContext context, GoRouterState state) => const MapScreen(),
+    ),
+
+    // AC Service First Issue Details Route
+    GoRoute(
+      path: '/services/ac/issue-details',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) => const ACIssueDetailsScreen(),
+    ),
+
+    // AC Service Date & Time Selection Route
+    GoRoute(
+      path: '/services/ac/date-time',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return ACDateTimeSelectionScreen(issueDetails: extra);
+      },
     ),
 
     // Cart route
