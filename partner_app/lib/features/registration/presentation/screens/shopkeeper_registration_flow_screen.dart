@@ -1580,9 +1580,9 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
           title: 'Personal Details',
           onEdit: () => setState(() => _currentStep = 0),
           items: [
-            {'label': 'Full Name', 'value': nameStr.isEmpty ? 'Jenish Bheda' : nameStr},
-            {'label': 'Phone', 'value': phoneStr.isEmpty ? '+91 9876543210 (Verified ✓)' : '+91 $phoneStr (${_isPhoneVerified ? "Verified ✓" : "Verified ✓"})'},
-            {'label': 'Username', 'value': usernameStr.isEmpty ? '@quick_parts_hub' : '@$usernameStr'},
+            {'label': 'Full Name', 'value': nameStr.isEmpty ? 'Not Provided' : nameStr},
+            {'label': 'Phone', 'value': phoneStr.isEmpty ? 'Not Provided' : '+91 $phoneStr (${_isPhoneVerified ? "Verified ✓" : "Pending"})'},
+            {'label': 'Username', 'value': usernameStr.isEmpty ? 'Not Provided' : '@$usernameStr'},
           ],
         ),
         const SizedBox(height: 14),

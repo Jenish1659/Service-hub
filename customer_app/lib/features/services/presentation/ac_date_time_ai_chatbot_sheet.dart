@@ -3,20 +3,17 @@ import 'package:flutter/material.dart';
 class ACDateTimeAIChatbotSheet extends StatefulWidget {
   final String? selectedDateText;
   final String? selectedTimeText;
-  final int availablePartners;
 
   const ACDateTimeAIChatbotSheet({
     super.key,
     this.selectedDateText,
     this.selectedTimeText,
-    this.availablePartners = 3,
   });
 
   static void show(
     BuildContext context, {
     String? selectedDateText,
     String? selectedTimeText,
-    int availablePartners = 3,
   }) {
     showModalBottomSheet(
       context: context,
@@ -25,7 +22,6 @@ class ACDateTimeAIChatbotSheet extends StatefulWidget {
       builder: (context) => ACDateTimeAIChatbotSheet(
         selectedDateText: selectedDateText,
         selectedTimeText: selectedTimeText,
-        availablePartners: availablePartners,
       ),
     );
   }
@@ -41,9 +37,9 @@ class _ACDateTimeAIChatbotSheetState extends State<ACDateTimeAIChatbotSheet> {
   late final List<Map<String, dynamic>> _messages;
 
   final List<String> _quickSuggestions = [
-    'Why can’t I book for Today?',
+    'Can I book for Today?',
     'How long does an AC service take?',
-    'What if my preferred slot is busy?',
+    'What is the pricing & raw bill estimate?',
     'How does technician arrival work?',
     'Can I reschedule later?',
   ];
@@ -52,13 +48,12 @@ class _ACDateTimeAIChatbotSheetState extends State<ACDateTimeAIChatbotSheet> {
   void initState() {
     super.initState();
     final dateInfo = widget.selectedDateText != null ? ' (Selected date: ${widget.selectedDateText})' : '';
-    final partnerInfo = '${widget.availablePartners} verified technicians are currently active in your area.';
 
     _messages = [
       {
         'isUser': false,
         'text':
-            "Hello! 👋 I'm your ServiceHub Scheduling Assistant.\n\nI can help you understand our 3-day advance booking rules, 15-minute time slots, technician availability, and service duration.$dateInfo\n\n$partnerInfo How can I help you?",
+            "Hello! 👋 I'm your ServiceHub Scheduling Assistant.\n\nI can help you understand our booking dates, dynamic time clock selector, service durations, and billing breakdown.$dateInfo\n\nHow can I help you?",
         'time': 'Just now',
       },
     ];
@@ -96,26 +91,26 @@ class _ACDateTimeAIChatbotSheetState extends State<ACDateTimeAIChatbotSheet> {
     final lower = query.toLowerCase();
 
     if (lower.contains('today') || lower.contains('same day') || lower.contains('now')) {
-      return "Under ServiceHub's quality standard, advance scheduling is enabled for the next 3 days starting from Tomorrow.\n\nThis ensures our verified technician receives your AC issue details, prepares the exact replacement filters/tools, and arrives punctually at your chosen 15-minute slot!";
+      return "Yes! Same-day bookings are available.\n\nWhen booking for today, you can select any slot starting 15 minutes from now so our technician can prepare tools and arrive promptly.";
+    }
+
+    if (lower.contains('bill') || lower.contains('price') || lower.contains('cost') || lower.contains('charge')) {
+      return "ServiceHub provides complete price transparency! You can see the full Raw Bill breakdown before confirming your booking. No advance payment is needed—pay only after satisfactory service.";
     }
 
     if (lower.contains('duration') || lower.contains('how long') || lower.contains('time take')) {
-      return "A standard AC diagnostic and jet cleaning service takes approximately 60 to 90 minutes.\n\nFor major repairs or complete gas refills, the technician may take up to 2 hours. Our 15-minute slot marks the technician's arrival window at your doorstep!";
-    }
-
-    if (lower.contains('busy') || lower.contains('not available') || lower.contains('grey')) {
-      return "Grey slots marked with a disabled icon mean all active AC technicians in your area are already booked for that window.\n\nYou can pick any green 'Available' slot or select another day from the top 3 date cards!";
+      return "A standard AC diagnostic and jet cleaning service takes approximately 60 to 90 minutes.\n\nFor major repairs or complete gas refills, the technician may take up to 2 hours.";
     }
 
     if (lower.contains('arrival') || lower.contains('otp') || lower.contains('pin') || lower.contains('how does')) {
-      return "Here is what happens after you book:\n\n1. An assigned certified AC technician confirms your slot.\n2. You can track their live location in real time.\n3. Upon arrival, share your Entrance PIN to start the service.\n4. After inspection and testing, verify with your completion OTP.";
+      return "Here is what happens after you book:\n\n1. A verified certified AC technician confirms your slot.\n2. You can track their live location in real time.\n3. Upon arrival, share your Entrance PIN to start the service.\n4. After inspection and testing, verify with your completion OTP.";
     }
 
     if (lower.contains('reschedule') || lower.contains('cancel') || lower.contains('change')) {
       return "Yes! You can easily reschedule or cancel your visit free of charge from your 'Track Booking' screen up to 2 hours before the scheduled time.";
     }
 
-    return "For this AC visit, please choose your preferred date from the next 3 days and pick an open 15-minute slot.\n\nCurrently, ${widget.availablePartners} verified AC partners are active in your area ready to accept your request!";
+    return "For your AC service, please choose your preferred date and time on the clock dial.\n\nOur verified technician will arrive punctually at your chosen slot!";
   }
 
   void _scrollToBottom() {

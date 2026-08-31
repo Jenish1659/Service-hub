@@ -82,6 +82,7 @@ class _RootNavigationLayoutState extends ConsumerState<RootNavigationLayout> {
         }
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         body: Stack(
           children: [
             widget.child,

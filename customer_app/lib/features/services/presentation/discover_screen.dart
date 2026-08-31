@@ -20,8 +20,7 @@ class DiscoverScreen extends ConsumerStatefulWidget {
 class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   void _startBookingFlow(BuildContext context, String serviceName, double servicePrice) {
     if (serviceName.toLowerCase().contains('ac')) {
-      Navigator.push(
-        context,
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(
           builder: (context) => ACIssueDetailsScreen(
             serviceName: serviceName,
@@ -326,10 +325,20 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
     final int currentCoins = box.get('wallet_coins', defaultValue: 500) as int;
     box.put('wallet_coins', currentCoins + 100);
 
+    final userName = user?.userMetadata?['name'] as String? ?? 
+                     user?.userMetadata?['full_name'] as String? ?? 
+                     box.get('user_name', defaultValue: 'Customer') as String;
+    final userPhone = user?.phone ?? 
+                      user?.userMetadata?['phone'] as String? ?? 
+                      box.get('user_phone', defaultValue: '') as String;
+
+    final pin = (1000 + DateTime.now().millisecond % 9000).toString();
+    final otp = (1000 + (DateTime.now().microsecondsSinceEpoch % 9000)).toString();
+
     final createdBooking = await LiveBookingSyncService.instance.createACBooking(
       customerId: userId,
-      customerName: 'Jenish Bheda',
-      customerPhone: '+91 98765 43210',
+      customerName: userName,
+      customerPhone: userPhone,
       serviceName: widget.serviceName,
       problemDescription: _issueController.text.trim().isNotEmpty
           ? _issueController.text.trim()
@@ -341,8 +350,8 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
       customerAddress: serviceAddress,
       customerLat: serviceLat,
       customerLng: serviceLng,
-      entrancePin: '7429',
-      completionOtp: '5892',
+      entrancePin: pin,
+      completionOtp: otp,
     );
 
     if (mounted) {

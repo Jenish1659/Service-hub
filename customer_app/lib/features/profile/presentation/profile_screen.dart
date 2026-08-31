@@ -56,7 +56,11 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              user?.phone ?? '+91 98765 43210',
+                              (user?.phone?.isNotEmpty == true)
+                                  ? user!.phone!
+                                  : (user?.email?.isNotEmpty == true)
+                                      ? user!.email!
+                                      : 'No phone linked',
                               style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 14),
                             ),
                           ],
@@ -238,8 +242,8 @@ class ProfileScreen extends ConsumerWidget {
         
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-            final int coins = box.get('wallet_coins', defaultValue: 500) as int;
-            final double balance = box.get('wallet_balance_inr', defaultValue: 50.0) as double;
+            final int coins = box.get('wallet_coins', defaultValue: 300) as int;
+            final double balance = box.get('wallet_balance_inr', defaultValue: 30.0) as double;
 
             return Padding(
               padding: EdgeInsets.only(

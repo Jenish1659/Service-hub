@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../services/services/ac_booking_service.dart';
 
 class TrackBookingScreen extends StatefulWidget {
   final String bookingId;
@@ -369,12 +370,10 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                   setState(() {
                     _reviewSubmitted = true;
                   });
-                  final box = Hive.box('customer_cache');
-                  final currentCoins = box.get('wallet_coins', defaultValue: 0) as int;
-                  box.put('wallet_coins', currentCoins + 50);
+                  final coinsAwarded = WalletRewardService.instance.rewardCompletedService();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Review submitted! You earned 50 coins!'),
+                    SnackBar(
+                      content: Text('Review submitted! You earned $coinsAwarded coins!'),
                       backgroundColor: AppTheme.successColor,
                     ),
                   );
@@ -575,6 +574,77 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // PRE-BOOKING TRACKING ID CARD
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Text(
+                                    'PRE-BOOKING TRACKING ID',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E40AF),
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text(
+                                      'ACTIVE',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF15803D),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'TRK-AC-${widget.bookingId.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase()}',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   // 2. PROVIDER CARD
                   Card(
                     child: Padding(
@@ -876,6 +946,21 @@ class _AnimatedLiveMapTrackerState extends State<AnimatedLiveMapTracker> with Si
                 size: Size.infinite,
               );
             },
+          ),
+          const Positioned(
+            top: 14,
+            right: 14,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.radar_rounded, color: AppTheme.primaryColor, size: 14),
+                SizedBox(width: 4),
+                Text(
+                  '10 km Live Radar Active',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                ),
+              ],
+            ),
           ),
           const Positioned(
             top: 40,

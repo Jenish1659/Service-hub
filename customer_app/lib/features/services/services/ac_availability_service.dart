@@ -39,16 +39,28 @@ class ACAvailabilityService {
   static final ACAvailabilityService instance = ACAvailabilityService._internal();
   ACAvailabilityService._internal();
 
-  /// Calculates strictly the next 3 available booking dates (D+1, D+2, D+3),
-  /// strictly excluding today (D).
-  List<BookingDateOption> getNext3BookingDates() {
+  /// Checks if a date is bookable:
+  /// Current day (Today) and all future dates are available.
+  /// Past dates (before today) are strictly unavailable.
+  bool isDateBookable(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(date.year, date.month, date.day);
+    return !target.isBefore(today);
+  }
+
+  /// Calculates available booking dates starting from Today (D) onward.
+  List<BookingDateOption> getAvailableBookingDates({int count = 14}) {
     final now = DateTime.now();
     final List<BookingDateOption> dates = [];
 
-    for (int i = 1; i <= 3; i++) {
+    for (int i = 0; i < count; i++) {
       final targetDate = now.add(Duration(days: i));
+      final isToday = i == 0;
       final isTomorrow = i == 1;
-      final dayName = isTomorrow ? 'Tomorrow' : DateFormat('EEE').format(targetDate);
+      final dayName = isToday
+          ? 'Today'
+          : (isTomorrow ? 'Tomorrow' : DateFormat('EEE').format(targetDate));
       final dateNumber = DateFormat('dd').format(targetDate);
       final monthName = DateFormat('MMM').format(targetDate);
       final formattedIso = DateFormat('yyyy-MM-dd').format(targetDate);
@@ -66,6 +78,11 @@ class ACAvailabilityService {
     }
 
     return dates;
+  }
+
+  /// Legacy helper returning next 3 days
+  List<BookingDateOption> getNext3BookingDates() {
+    return getAvailableBookingDates(count: 3);
   }
 
   /// Queries the live count of active & verified AC Service Partners from Supabase / Hive.

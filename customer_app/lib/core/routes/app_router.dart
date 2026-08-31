@@ -6,8 +6,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/services/presentation/discover_screen.dart';
+import '../../features/services/presentation/ac_service_overview_screen.dart';
 import '../../features/services/presentation/ac_issue_details_screen.dart';
-import '../../features/services/presentation/ac_date_time_selection_screen.dart';
+import '../../features/services/presentation/ac_select_date_screen.dart';
+import '../../features/services/presentation/ac_select_time_screen.dart';
+import '../../features/services/presentation/ac_service_details_screen.dart';
+import '../../features/services/presentation/ac_review_confirm_screen.dart';
+import '../../features/services/presentation/ac_booking_confirmed_screen.dart';
+import '../../features/services/services/ac_availability_service.dart';
 import '../../features/products/presentation/products_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
@@ -95,20 +101,97 @@ final GoRouter appRouter = GoRouter(
       builder: (BuildContext context, GoRouterState state) => const MapScreen(),
     ),
 
-    // AC Service First Issue Details Route
+    // AC Service Overview Route (Screen 1)
+    GoRoute(
+      path: '/services/ac/overview',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return ACServiceOverviewScreen(issueDetails: extra);
+      },
+    ),
+
+    // AC Service Issue Details Route
     GoRoute(
       path: '/services/ac/issue-details',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (BuildContext context, GoRouterState state) => const ACIssueDetailsScreen(),
     ),
 
-    // AC Service Date & Time Selection Route
+    // AC Service Select Date Route (Screen 2)
     GoRoute(
-      path: '/services/ac/date-time',
+      path: '/services/ac/select-date',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (BuildContext context, GoRouterState state) {
         final extra = state.extra as Map<String, dynamic>?;
-        return ACDateTimeSelectionScreen(issueDetails: extra);
+        return ACSelectDateScreen(issueDetails: extra);
+      },
+    ),
+
+    // AC Service Select Time Route (Screen 3)
+    GoRoute(
+      path: '/services/ac/select-time',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final selectedDate = extra['selected_date'] as BookingDateOption? ??
+            ACAvailabilityService.instance.getNext3BookingDates().first;
+        return ACSelectTimeScreen(
+          issueDetails: extra,
+          selectedDate: selectedDate,
+        );
+      },
+    ),
+
+    // AC Service Details Route (Screen 4)
+    GoRoute(
+      path: '/services/ac/service-details',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final selectedDate = extra['selected_date'] as BookingDateOption? ??
+            ACAvailabilityService.instance.getNext3BookingDates().first;
+        final selectedTime = extra['selected_time'] as String? ?? '02:00 PM';
+        return ACServiceDetailsScreen(
+          issueDetails: extra,
+          selectedDate: selectedDate,
+          selectedTime: selectedTime,
+        );
+      },
+    ),
+
+    // AC Service Review & Confirm Route (Screen 5)
+    GoRoute(
+      path: '/services/ac/review-confirm',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final selectedDate = extra['selected_date'] as BookingDateOption? ??
+            ACAvailabilityService.instance.getNext3BookingDates().first;
+        final selectedTime = extra['selected_time'] as String? ?? '02:00 PM';
+        return ACReviewConfirmScreen(
+          issueDetails: extra,
+          selectedDate: selectedDate,
+          selectedTime: selectedTime,
+        );
+      },
+    ),
+
+    // AC Service Booking Confirmed Route (Screen 6)
+    GoRoute(
+      path: '/services/ac/confirmed',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final bookingData = extra['booking_data'] as Map<String, dynamic>? ?? {};
+        return ACBookingConfirmedScreen(
+          bookingData: bookingData,
+          selectedDateFormatted: extra['selected_date_formatted'] as String? ?? 'Tomorrow',
+          selectedTime: extra['selected_time'] as String? ?? '02:00 PM',
+          serviceTitle: extra['service_title'] as String? ?? 'AC Service',
+          address: extra['address'] as String? ?? '',
+          partnerCount: extra['partner_count'] as int? ?? 3,
+        );
       },
     ),
 

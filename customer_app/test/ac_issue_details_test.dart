@@ -13,6 +13,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     // Verify Title and "Need Help?" button
     expect(find.text('AC Service'), findsOneWidget);
@@ -25,27 +26,27 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsNothing);
 
     // Verify Hero title & subtitle
-    expect(find.text('Tell us about your AC'), findsOneWidget);
+    expect(find.text("Let's fix your AC"), findsOneWidget);
     expect(find.text('Please provide accurate details so we can assign the right expert for you.'), findsOneWidget);
 
     // Verify 5 Fields
-    expect(find.text('1. AC Type *'), findsOneWidget);
+    expect(find.text('1. Type of AC *'), findsOneWidget);
     expect(find.text('Select AC Type'), findsOneWidget);
 
-    expect(find.text('2. AC Brand / Company *'), findsOneWidget);
-    expect(find.text('Search or select brand'), findsOneWidget);
+    expect(find.text('2. Company / Brand *'), findsOneWidget);
+    expect(find.text('Select Company / Brand'), findsOneWidget);
 
-    expect(find.text('3. Describe the Problem *'), findsOneWidget);
+    expect(find.text('3. Describe the problem *'), findsOneWidget);
     expect(find.text('0/500'), findsOneWidget);
 
-    expect(find.text('4. Upload AC / Problem Photo *'), findsOneWidget);
-    expect(find.text('Add Photos'), findsOneWidget);
+    expect(find.text('4. Upload photos of the problem *'), findsOneWidget);
+    expect(find.text('Add clear photos'), findsOneWidget);
     expect(find.text('Take Photo'), findsOneWidget);
     expect(find.text('Choose from Gallery'), findsOneWidget);
     expect(find.text('You can upload up to 5 photos'), findsOneWidget);
 
-    expect(find.text('5. AC Age (Approx.) *'), findsOneWidget);
-    expect(find.text('Select AC Age'), findsOneWidget);
+    expect(find.text('5. How old is your AC? *'), findsOneWidget);
+    expect(find.text('Select Age'), findsOneWidget);
 
     // Verify Next button
     expect(find.text('Next'), findsOneWidget);
@@ -59,6 +60,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     // Tap "Need Help?" button
     await tester.tap(find.text('Need Help?'));
@@ -71,7 +73,7 @@ void main() {
     expect(find.text('My AC is not cooling, what to write?'), findsOneWidget);
   });
 
-  test('ACIssueBookingService persists issue metadata', () async {
+  test('ACIssueBookingService persists issue metadata into draft format', () async {
     final service = ACIssueBookingService.instance;
     final result = await service.saveACIssueDetails(
       acType: 'Split AC',

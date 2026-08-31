@@ -1,28 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:intl/intl.dart';
 import 'package:service_hub_customer/features/services/presentation/ac_date_time_selection_screen.dart';
 import 'package:service_hub_customer/features/services/services/ac_availability_service.dart';
 
 void main() {
-  test('ACAvailabilityService strictly generates next 3 days and excludes Today', () {
+  test('ACAvailabilityService allows Today (D) and all future dates, excludes past dates', () {
     final service = ACAvailabilityService.instance;
-    final dates = service.getNext3BookingDates();
-
-    expect(dates.length, equals(3));
-
     final now = DateTime.now();
-    final todayIso = DateFormat('yyyy-MM-dd').format(now);
-    final tomorrowIso = DateFormat('yyyy-MM-dd').format(now.add(const Duration(days: 1)));
 
-    // Ensure Today is NOT in the list
-    expect(dates.any((d) => d.formattedIso == todayIso), isFalse);
+    // Today is bookable
+    expect(service.isDateBookable(now), isTrue);
 
-    // Ensure first available date is Tomorrow (D+1)
-    expect(dates[0].formattedIso, equals(tomorrowIso));
-    expect(dates[0].isTomorrow, isTrue);
-    expect(dates[0].dayName, equals('Tomorrow'));
+    // Tomorrow is bookable
+    expect(service.isDateBookable(now.add(const Duration(days: 1))), isTrue);
+
+    // 10 days in future is bookable
+    expect(service.isDateBookable(now.add(const Duration(days: 10))), isTrue);
+
+    // Yesterday is NOT bookable
+    expect(service.isDateBookable(now.subtract(const Duration(days: 1))), isFalse);
   });
 
   testWidgets('ACDateTimeSelectionScreen renders real user data and slot intervals', (WidgetTester tester) async {
@@ -97,7 +94,7 @@ void main() {
     // Verify Scheduling AI Chatbot modal appears
     expect(find.text('ServiceHub Scheduling AI'), findsOneWidget);
     expect(find.text('Online • Live Availability Assistant'), findsOneWidget);
-    expect(find.text('Why can’t I book for Today?'), findsOneWidget);
+    expect(find.text('Can I book for Today?'), findsOneWidget);
     expect(find.text('How long does an AC service take?'), findsOneWidget);
   });
 }

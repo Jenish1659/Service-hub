@@ -153,6 +153,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final providerMarkers = _generateNearbyProviderMarkers(initialLat, initialLng);
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           // 1. Interactive OpenStreetMap Engine

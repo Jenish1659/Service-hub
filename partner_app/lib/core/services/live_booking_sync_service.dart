@@ -180,9 +180,9 @@ class LiveBookingSyncService {
     final booking = all[bookingId] as Map<String, dynamic>?;
     if (booking != null) {
       booking['status'] = 'CONFIRMED';
-      booking['partner_id'] = partnerInfo['partner_id'] ?? '';
-      booking['partner_name'] = partnerInfo['partner_name'] ?? 'Jenish AC Experts';
-      booking['partner_phone'] = partnerInfo['partner_phone'] ?? '+91 98765 43210';
+      booking['partner_id'] = partnerInfo['partner_id'] ?? partnerInfo['id'] ?? '';
+      booking['partner_name'] = partnerInfo['partner_name'] ?? partnerInfo['name'] ?? partnerInfo['business_name'] ?? 'Service Partner';
+      booking['partner_phone'] = partnerInfo['partner_phone'] ?? partnerInfo['phone'] ?? '';
       booking['accepted_at'] = DateTime.now().toIso8601String();
       all[bookingId] = booking;
       _writeAllBookings(all);
@@ -294,11 +294,11 @@ class LiveBookingSyncService {
       'id': verId,
       'verification_id': verId,
       'user_id': partnerData['id'] ?? partnerData['user_id'] ?? verId,
-      'full_name': partnerData['name'] ?? partnerData['business_name'] ?? 'Partner Provider',
-      'phone': partnerData['phone'] ?? partnerData['mobile'] ?? '+91 98765 43210',
-      'business_name': partnerData['business_name'] ?? 'Jenish AC Care',
+      'full_name': partnerData['name'] ?? partnerData['full_name'] ?? partnerData['business_name'] ?? 'Partner',
+      'phone': partnerData['phone'] ?? partnerData['mobile'] ?? '',
+      'business_name': partnerData['business_name'] ?? partnerData['name'] ?? 'Partner Service',
       'category': partnerData['category'] ?? 'AC Repair & Service',
-      'experience_years': partnerData['experience_years'] ?? '5+',
+      'experience_years': partnerData['experience_years'] ?? '1+',
       'status': 'PENDING',
       'submitted_at': DateTime.now().toIso8601String(),
     };

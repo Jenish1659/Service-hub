@@ -260,7 +260,6 @@ class _ACDateTimeSelectionScreenState extends ConsumerState<ACDateTimeSelectionS
                 context,
                 selectedDateText: _selectedDate != null ? '${_selectedDate!.dayName}, ${_selectedDate!.dateNumber} ${_selectedDate!.monthName}' : null,
                 selectedTimeText: _selectedTime,
-                availablePartners: _activePartnersCount,
               ),
               borderRadius: BorderRadius.circular(20),
               child: Container(

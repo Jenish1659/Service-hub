@@ -374,17 +374,17 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
             offersList.add({
               'request_id': null,
               'booking_id': bId,
-              'service_name': b['service_name'] ?? 'Split AC Deep Cleaning (Jet Wash)',
+              'service_name': b['service_name'] ?? 'AC Service',
               'price': (b['price'] as num?)?.toDouble() ?? 499.0,
-              'customer_name': b['customer_name'] ?? 'Jenish Bheda',
-              'customer_phone': b['customer_phone'] ?? '+91 98765 43210',
-              'customer_address': b['customer_address'] ?? 'Jamnagar',
+              'customer_name': b['customer_name'] ?? 'Customer',
+              'customer_phone': b['customer_phone'] ?? '',
+              'customer_address': b['customer_address'] ?? 'Service Location',
               'customer_lat': lat,
               'customer_lng': lng,
-              'scheduled_time': '${b['scheduled_date'] ?? "Today"} at ${b['scheduled_time'] ?? "06:30 PM"}',
-              'problem_description': b['problem_description'] ?? 'AC Cooling & Filter Service',
-              'entrance_pin': b['entrance_pin'] ?? '7429',
-              'completion_otp': b['completion_otp'] ?? '5892',
+              'scheduled_time': '${b['scheduled_date'] ?? ""} ${b['scheduled_time'] ?? ""}',
+              'problem_description': b['problem_description'] ?? 'AC Service Request',
+              'entrance_pin': b['entrance_pin'] ?? '',
+              'completion_otp': b['completion_otp'] ?? '',
             });
           }
         }
@@ -557,8 +557,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
     if (bookingId != null) {
       await LiveBookingSyncService.instance.acceptBooking(bookingId, {
         'partner_id': state.partnerId,
-        'partner_name': state.providerName.isNotEmpty ? state.providerName : 'Jenish AC Experts',
-        'partner_phone': '+91 98765 43210',
+        'partner_name': state.providerName.isNotEmpty ? state.providerName : 'Service Partner',
+        'partner_phone': Supabase.instance.client.auth.currentUser?.phone ?? '',
       });
     }
 

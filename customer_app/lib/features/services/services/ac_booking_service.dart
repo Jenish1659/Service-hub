@@ -40,7 +40,42 @@ class ACIssueBookingService {
     return uploadedUrls;
   }
 
-  /// Saves the AC issue details to the database and local session cache.
+  /// Saves the current unconfirmed AC booking draft to local Hive cache.
+  /// (Does NOT commit to database until final confirmation).
+  Future<void> saveDraft(Map<String, dynamic> draftData) async {
+    try {
+      final box = Hive.box('customer_cache');
+      await box.put('ac_booking_draft', draftData);
+    } catch (e) {
+      debugPrint('Error saving AC booking draft to cache: $e');
+    }
+  }
+
+  /// Loads the cached AC booking draft if present.
+  Map<String, dynamic>? loadDraft() {
+    try {
+      final box = Hive.box('customer_cache');
+      final data = box.get('ac_booking_draft');
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+    } catch (e) {
+      debugPrint('Error reading AC booking draft from cache: $e');
+    }
+    return null;
+  }
+
+  /// Clears the draft from local cache upon successful booking confirmation.
+  Future<void> clearDraft() async {
+    try {
+      final box = Hive.box('customer_cache');
+      await box.delete('ac_booking_draft');
+    } catch (e) {
+      debugPrint('Error clearing AC booking draft: $e');
+    }
+  }
+
+  /// Saves AC issue details into draft format.
   Future<Map<String, dynamic>> saveACIssueDetails({
     required String acType,
     required String acBrand,
@@ -59,7 +94,7 @@ class ACIssueBookingService {
       }
     } catch (_) {}
 
-    final issueRecord = {
+    final issueDraft = {
       'customer_id': customerId,
       'service_id': 'srv_ac_service',
       'service_name': serviceName ?? 'AC Service & Repair',
@@ -73,20 +108,94 @@ class ACIssueBookingService {
       'created_at': DateTime.now().toIso8601String(),
     };
 
-    // 1. Save to local cache
-    try {
-      final box = Hive.box('customer_cache');
-      await box.put('current_ac_issue_booking', issueRecord);
-    } catch (_) {}
+    // Save only to local draft cache
+    await saveDraft(issueDraft);
 
-    // 2. Try inserting into Supabase
+    return issueDraft;
+  }
+}
+
+class WalletRewardService {
+  static final WalletRewardService instance = WalletRewardService._internal();
+  WalletRewardService._internal();
+
+  static const String cacheBoxName = 'customer_cache';
+  static const String walletCoinsKey = 'wallet_coins';
+  static const String walletBalanceKey = 'wallet_balance_inr';
+  static const String completedServicesKey = 'completed_services_count';
+  static const String isInitializedKey = 'wallet_initialized_v2';
+
+  /// Ensures that on first-time account opening, the customer receives exactly 300 coins.
+  void ensureInitialWalletCreated() {
     try {
-      final client = Supabase.instance.client;
-      await client.from('booking_issue_details').insert(issueRecord);
+      if (!Hive.isBoxOpen(cacheBoxName)) return;
+      final box = Hive.box(cacheBoxName);
+      final isInitialized = box.get(isInitializedKey, defaultValue: false) as bool;
+
+      if (!isInitialized) {
+        final existingCoins = box.get(walletCoinsKey);
+        if (existingCoins == null) {
+          box.put(walletCoinsKey, 300);
+          box.put(walletBalanceKey, 30.0);
+        }
+        box.put(isInitializedKey, true);
+      }
     } catch (e) {
-      debugPrint('Database insert note (offline or custom schema fallback): $e');
+      debugPrint('Wallet init error: $e');
     }
+  }
 
-    return issueRecord;
+  /// Calculates and awards coins upon service completion:
+  /// - 1st Service: 200 coins
+  /// - 2nd Service: 100 coins
+  /// - 3rd Service onwards: Random coins <= 80 (range 30..80)
+  int rewardCompletedService() {
+    try {
+      if (!Hive.isBoxOpen(cacheBoxName)) return 0;
+      final box = Hive.box(cacheBoxName);
+
+      final currentServices = (box.get(completedServicesKey, defaultValue: 0) as num).toInt();
+      final newServicesCount = currentServices + 1;
+      box.put(completedServicesKey, newServicesCount);
+
+      int coinsAwarded = 0;
+      if (newServicesCount == 1) {
+        coinsAwarded = 200;
+      } else if (newServicesCount == 2) {
+        coinsAwarded = 100;
+      } else {
+        // Random coins under 80 (range 30..80 coins)
+        final random = DateTime.now().microsecondsSinceEpoch;
+        coinsAwarded = 30 + (random % 51); // 30..80
+      }
+
+      final currentCoins = (box.get(walletCoinsKey, defaultValue: 300) as num).toInt();
+      box.put(walletCoinsKey, currentCoins + coinsAwarded);
+
+      return coinsAwarded;
+    } catch (e) {
+      debugPrint('Reward error: $e');
+      return 0;
+    }
+  }
+
+  int getWalletCoins() {
+    try {
+      if (!Hive.isBoxOpen(cacheBoxName)) return 300;
+      final box = Hive.box(cacheBoxName);
+      return (box.get(walletCoinsKey, defaultValue: 300) as num).toInt();
+    } catch (_) {
+      return 300;
+    }
+  }
+
+  double getWalletBalanceInr() {
+    try {
+      if (!Hive.isBoxOpen(cacheBoxName)) return 30.0;
+      final box = Hive.box(cacheBoxName);
+      return (box.get(walletBalanceKey, defaultValue: 30.0) as num).toDouble();
+    } catch (_) {
+      return 30.0;
+    }
   }
 }

@@ -65,11 +65,11 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           pendingList.add({
             'id': id,
             'user_id': item['user_id'] ?? id,
-            'full_name': item['full_name'] ?? 'Jenish Bheda',
-            'phone': item['phone'] ?? '+91 98765 43210',
-            'verification_type': item['category'] ?? 'AC Service Specialist',
+            'full_name': item['full_name'] ?? item['name'] ?? item['business_name'] ?? 'Partner',
+            'phone': item['phone'] ?? '',
+            'verification_type': item['category'] ?? 'Service Specialist',
             'status': item['status'] ?? 'PENDING',
-            'submitted_at': item['submitted_at'] ?? 'Just now',
+            'submitted_at': item['submitted_at'] ?? 'Recently',
           });
         }
       }
