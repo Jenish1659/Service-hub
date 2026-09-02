@@ -7,6 +7,7 @@ import 'package:service_hub_customer/features/services/presentation/ac_select_ti
 import 'package:service_hub_customer/features/services/presentation/ac_service_details_screen.dart';
 import 'package:service_hub_customer/features/services/presentation/ac_review_confirm_screen.dart';
 import 'package:service_hub_customer/features/services/presentation/ac_booking_confirmed_screen.dart';
+import 'package:service_hub_customer/core/services/live_booking_sync_service.dart';
 import 'package:service_hub_customer/features/services/services/ac_availability_service.dart';
 import 'package:service_hub_customer/features/services/services/ac_booking_service.dart';
 
@@ -290,4 +291,70 @@ void main() {
     await tester.ensureVisible(find.text('View My Bookings'));
     expect(find.text('View My Bookings'), findsOneWidget);
   });
+
+  test('Complete End-to-End AC Booking Cycle: Customer -> Targeted Partner Alert -> Admin Sync -> Live Tracking', () async {
+    final syncService = LiveBookingSyncService.instance;
+
+    // 1. Customer confirms AC booking for ₹498
+    final createdBooking = await syncService.createACBooking(
+      customerId: 'usr_live_99',
+      customerName: 'Aakash Mehta',
+      customerPhone: '+91 98250 12345',
+      serviceName: 'AC Service (Split AC)',
+      problemDescription: 'Split AC deep cleaning and gas inspection',
+      scheduledDate: '2026-09-02',
+      scheduledTime: '10:30 AM',
+      paymentMethod: 'Cash on Service',
+      price: 498.0,
+      customerAddress: 'Digvijay Plot, Street 4, Jamnagar',
+      customerLat: 22.4707,
+      customerLng: 70.0577,
+    );
+
+    expect(createdBooking['id'], isNotNull);
+    expect(createdBooking['price'], equals(498.0));
+    expect(createdBooking['status'], equals('PENDING'));
+    expect(createdBooking['category'], equals('AC Service'));
+    expect(createdBooking['tracking_id'], startsWith('TRK-AC-'));
+
+    // 2. Partner App detects targeted AC offer in 10 km radius
+    final pendingOffers = syncService.getPendingACOffers();
+    final matching = pendingOffers.where((o) => o['id'] == createdBooking['id']).toList();
+    expect(matching.isNotEmpty, isTrue);
+
+    // 3. AC Partner accepts offer
+    final bookingId = createdBooking['id'];
+    await syncService.acceptBooking(bookingId, {
+      'partner_id': 'prt_ac_7788',
+      'partner_name': 'Rajesh Sharma (AC Specialist)',
+      'partner_phone': '+91 98765 43210',
+      'partner_lat': 22.4580,
+      'partner_lng': 70.0480,
+      'partner_vehicle': 'Honda Activa (GJ-10-AC-4589)',
+    });
+
+    // 4. Admin Dashboard receives accepted partner details
+    final allAdminBookings = syncService.getAllBookings();
+    final adminRecord = allAdminBookings.firstWhere((b) => b['id'] == bookingId);
+    expect(adminRecord['partner_id'], equals('prt_ac_7788'));
+    expect(adminRecord['partner_name'], equals('Rajesh Sharma (AC Specialist)'));
+    expect(adminRecord['status'], equals('CONFIRMED'));
+    expect(adminRecord['accepted_at'], isNotNull);
+
+    // 5. Partner updates live GPS coordinates towards customer home
+    await syncService.updatePartnerLocation(bookingId, 22.4650, 70.0530, distanceMeters: 650.0);
+    final inTransit = syncService.getBooking(bookingId);
+    expect(inTransit!['partner_lat'], equals(22.4650));
+    expect(inTransit['partner_lng'], equals(70.0530));
+
+    // 6. Complete milestones
+    await syncService.updateMilestone(bookingId, 'ARRIVED');
+    expect(syncService.getBooking(bookingId)!['status'], equals('ARRIVED'));
+
+    await syncService.completeBooking(bookingId, 498.0);
+    final completed = syncService.getBooking(bookingId);
+    expect(completed!['status'], equals('SERVICE_COMPLETED'));
+    expect(completed['final_amount'], equals(498.0));
+  });
 }
+

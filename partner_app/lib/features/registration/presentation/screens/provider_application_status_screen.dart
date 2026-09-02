@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/storage/local_registration_cache.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
 
 class ProviderApplicationStatusScreen extends StatefulWidget {
   const ProviderApplicationStatusScreen({super.key});
@@ -13,8 +15,36 @@ class ProviderApplicationStatusScreen extends StatefulWidget {
 
 class _ProviderApplicationStatusScreenState
     extends State<ProviderApplicationStatusScreen> {
-  final String _appId = 'SHB7845123056';
-  final String _submittedDate = '12 May 2025, 10:30 AM';
+  String _appId = 'SHB7845123056';
+  String _submittedDate = 'Today, Live';
+  Map<String, dynamic>? _partnerData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPartnerData();
+  }
+
+  Future<void> _loadPartnerData() async {
+    final partner = await LocalRegistrationCache.getRegisteredPartner();
+    if (mounted) {
+      setState(() {
+        _partnerData = partner;
+        if (partner != null) {
+          final id = (partner['verification_id'] ?? partner['id'] ?? '').toString();
+          if (id.isNotEmpty) {
+            _appId = id.toUpperCase().replaceAll('PARTNER_', 'SHB-').replaceAll('VER_', 'SHB-');
+          }
+          final submitted = partner['submitted_at'] ?? partner['created_at'];
+          if (submitted != null) {
+            _submittedDate = 'Today, Just now';
+          }
+        }
+        _isLoading = false;
+      });
+    }
+  }
 
   void _copyAppId() {
     Clipboard.setData(ClipboardData(text: _appId));
@@ -38,219 +68,328 @@ class _ProviderApplicationStatusScreenState
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFF2563EB);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    if (_isLoading) {
+      return const Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        leadingWidth: 48,
-        leading: IconButton(
-          padding: EdgeInsets.zero,
-          icon: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: AppColors.bgLight,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.borderLight),
-            ),
-            child: const Icon(Icons.arrow_back_ios_new, color: AppColors.primaryNavy, size: 14),
-          ),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/login/service-provider');
-            }
-          },
-        ),
-        title: const Text(
-          'Application Status',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            tooltip: 'Refresh Status',
-            icon: const Icon(Icons.refresh_rounded, size: 20, color: primaryColor),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Checking latest application status...'),
-                  duration: Duration(seconds: 1),
-                  behavior: SnackBarBehavior.floating,
+        body: Center(child: CircularProgressIndicator(color: primaryColor)),
+      );
+    }
+
+    final partnerId = _partnerData?['id'] ?? _partnerData?['user_id'] ?? _appId;
+
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: LiveBookingSyncService.instance.streamPartnerVerification(partnerId.toString()),
+      builder: (context, snapshot) {
+        final liveRecord = snapshot.data;
+        final status = (liveRecord?['status'] ?? _partnerData?['verification_status'] ?? _partnerData?['status'] ?? 'PENDING')
+            .toString()
+            .toUpperCase();
+        final isApproved = status == 'APPROVED' || status == 'VERIFIED';
+        final isRejected = status == 'REJECTED';
+
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leadingWidth: 48,
+            leading: IconButton(
+              padding: EdgeInsets.zero,
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.bgLight,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.borderLight),
                 ),
-              );
-            },
+                child: const Icon(Icons.arrow_back_ios_new, color: AppColors.primaryNavy, size: 14),
+              ),
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/login/service-provider');
+                }
+              },
+            ),
+            title: const Text(
+              'Application Status',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+            ),
+            centerTitle: true,
+            actions: [
+              IconButton(
+                tooltip: 'Refresh Status',
+                icon: const Icon(Icons.refresh_rounded, size: 20, color: primaryColor),
+                onPressed: () {
+                  setState(() {});
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Checking latest application status with Admin live server...'),
+                      duration: Duration(seconds: 1),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 4),
+            ],
           ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 640),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Application ID & Date Card
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('Application ID', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                                    const SizedBox(height: 2),
-                                    Row(
+          body: SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Center(
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 640),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1. Application ID & Date Card
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          _appId,
-                                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: 0.5),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        InkWell(
-                                          onTap: _copyAppId,
-                                          child: const Icon(Icons.copy_rounded, size: 16, color: primaryColor),
+                                        const Text('Application ID', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              _appId,
+                                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: 0.5),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            InkWell(
+                                              onTap: _copyAppId,
+                                              child: const Icon(Icons.copy_rounded, size: 16, color: primaryColor),
+                                            ),
+                                          ],
                                         ),
                                       ],
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      const Text('Submitted On', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _submittedDate,
+                                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // 2. Celebration Card when Approved
+                            if (isApproved) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFECFDF5),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(color: const Color(0xFFA7F3D0), width: 1.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF10B981),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.verified_rounded, color: Colors.white, size: 28),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '🎉 Account Activated & Approved!',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFF065F46),
+                                            ),
+                                          ),
+                                          SizedBox(height: 3),
+                                          Text(
+                                            'Admin has approved your KYC documents. You are now authorized to accept incoming service requests!',
+                                            style: TextStyle(fontSize: 11.5, color: Color(0xFF047857), height: 1.3),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
+                              const SizedBox(height: 16),
+                            ],
+
+                            // 3. Status Timeline Tracker
+                            _buildStatusTimeline(isApproved: isApproved, isRejected: isRejected),
+                            const SizedBox(height: 20),
+
+                            // 4. Information Notice Box
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: isApproved ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: isApproved ? const Color(0xFFBBF7D0) : const Color(0xFFBFDBFE)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Submitted On', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _submittedDate,
-                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      isApproved ? Icons.check_circle_outline_rounded : Icons.access_time_rounded,
+                                      color: isApproved ? const Color(0xFF16A34A) : primaryColor,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              isApproved ? 'Operational Status' : 'Estimated Review Time',
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: isApproved ? const Color(0xFF166534) : const Color(0xFF1E40AF),
+                                              ),
+                                            ),
+                                            Text(
+                                              isApproved ? 'Active Online' : 'Instant (AI Verified)',
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w900,
+                                                color: isApproved ? const Color(0xFF16A34A) : primaryColor,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          isApproved
+                                              ? 'Your profile is live in Jamnagar service dispatch radius. You can now toggle Online and receive job leads.'
+                                              : 'Our AI verification engine has analyzed your documents. Admin review is pending.',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isApproved ? const Color(0xFF15803D) : const Color(0xFF3B82F6),
+                                            height: 1.3,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
                         ),
-                        const SizedBox(height: 20),
+                      ),
+                    ),
+                  ),
+                ),
 
-                        // Timeline Tracker
-                        _buildStatusTimeline(),
-                        const SizedBox(height: 20),
-
-                        // Estimated Time Box
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                // Bottom Action Bar
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    child: Center(
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 640),
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isApproved ? const Color(0xFF16A34A) : primaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 2,
                           ),
+                          onPressed: () {
+                            if (isApproved) {
+                              context.go('/dashboard');
+                            } else {
+                              context.go('/login/service-provider');
+                            }
+                          },
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.access_time_rounded, color: primaryColor, size: 20),
+                              Text(
+                                isApproved ? 'Launch Partner Dashboard 🚀' : 'Return to Provider Login',
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
                               ),
-                              const SizedBox(width: 12),
-                               const Expanded(
-                                 child: Column(
-                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                   children: [
-                                     Row(
-                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                       children: [
-                                         Text('Estimated Time', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
-                                         Text('24 – 48 Hours', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: primaryColor)),
-                                       ],
-                                     ),
-                                     SizedBox(height: 4),
-                                     Text(
-                                       'We will notify you on your registered mobile number and email once your account is approved.',
-                                       style: TextStyle(fontSize: 11, color: Color(0xFF3B82F6), height: 1.3),
-                                     ),
-                                   ],
-                                 ),
-                               ),
+                              const SizedBox(width: 6),
+                              Icon(isApproved ? Icons.arrow_forward_rounded : Icons.login_rounded, color: Colors.white, size: 18),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // Bottom Navigation Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 640),
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 2,
-                      ),
-                      onPressed: () => context.go('/login/service-provider'),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('Return to Provider Login', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
-                          SizedBox(width: 6),
-                          Icon(Icons.login_rounded, color: Colors.white, size: 18),
-                        ],
                       ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildStatusTimeline() {
+  Widget _buildStatusTimeline({bool isApproved = false, bool isRejected = false}) {
     final steps = [
       _TimelineStepData(
         title: '1. Registration Submitted',
-        date: '12 May 2025, 10:30 AM',
+        date: 'Just Now',
         desc: 'Your application details have been safely received.',
         statusTag: 'Completed',
         statusColor: const Color(0xFF10B981),
@@ -260,36 +399,40 @@ class _ProviderApplicationStatusScreenState
         isInProgress: false,
       ),
       _TimelineStepData(
-        title: '2. AI Verification (In Progress)',
-        date: 'Currently Active',
-        desc: 'Your documents are being verified by our AI system.',
-        statusTag: 'In Progress',
-        statusColor: const Color(0xFF2563EB),
-        statusBg: const Color(0xFFDBEAFE),
-        icon: Icons.sync_rounded,
-        isCompleted: false,
-        isInProgress: true,
-      ),
-      _TimelineStepData(
-        title: '3. Admin Review',
-        date: 'Pending',
-        desc: 'Our team will review your application and verification results.',
-        statusTag: 'Pending',
-        statusColor: const Color(0xFF64748B),
-        statusBg: const Color(0xFFF1F5F9),
-        icon: Icons.shield_outlined,
-        isCompleted: false,
+        title: '2. AI Verification Engine',
+        date: 'Verified (Score: 0.02 - Low Risk)',
+        desc: 'Aadhaar QR, FaceRD biometrics, and Bank Penny Drop ₹1 verified.',
+        statusTag: 'Passed',
+        statusColor: const Color(0xFF10B981),
+        statusBg: const Color(0xFFDCFCE7),
+        icon: Icons.check,
+        isCompleted: true,
         isInProgress: false,
       ),
       _TimelineStepData(
-        title: '4. Final Approval',
-        date: 'Pending',
-        desc: 'You will be notified once approved.',
-        statusTag: 'Pending',
-        statusColor: const Color(0xFF64748B),
-        statusBg: const Color(0xFFF1F5F9),
-        icon: Icons.verified_user_outlined,
-        isCompleted: false,
+        title: '3. Admin Review & Audit',
+        date: isApproved ? 'Approved by Admin' : (isRejected ? 'Application Rejected' : 'In Progress'),
+        desc: isApproved
+            ? 'Admin verified documents and authorized partner activation.'
+            : (isRejected ? 'Application requires document correction.' : 'Admin is reviewing your application in the master queue.'),
+        statusTag: isApproved ? 'Approved' : (isRejected ? 'Rejected' : 'Under Review'),
+        statusColor: isApproved ? const Color(0xFF10B981) : (isRejected ? const Color(0xFFEF4444) : const Color(0xFF2563EB)),
+        statusBg: isApproved ? const Color(0xFFDCFCE7) : (isRejected ? const Color(0xFFFEE2E2) : const Color(0xFFDBEAFE)),
+        icon: isApproved ? Icons.check : (isRejected ? Icons.close : Icons.sync_rounded),
+        isCompleted: isApproved,
+        isInProgress: !isApproved && !isRejected,
+      ),
+      _TimelineStepData(
+        title: '4. Final Approval & Activation',
+        date: isApproved ? 'Account Activated' : 'Pending Review',
+        desc: isApproved
+            ? 'Your account is active. You can now go online and accept bookings.'
+            : 'You will receive immediate app notification once activated.',
+        statusTag: isApproved ? 'Active' : 'Pending',
+        statusColor: isApproved ? const Color(0xFF10B981) : const Color(0xFF64748B),
+        statusBg: isApproved ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+        icon: isApproved ? Icons.verified_user_rounded : Icons.verified_user_outlined,
+        isCompleted: isApproved,
         isInProgress: false,
       ),
     ];

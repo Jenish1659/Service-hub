@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,6 +20,8 @@ class ProviderDashboardScreen extends ConsumerStatefulWidget {
 class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScreen> with WidgetsBindingObserver {
   int _currentBottomNavIndex = 0;
   bool _hasNotificationPermission = true;
+  bool _isOverlayShowing = false;
+  String? _lastShownOfferId;
 
   @override
   void initState() {
@@ -131,6 +134,37 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
         );
       },
     );
+  }
+
+  void _showIncomingJobOverlay(BuildContext context, Map<String, dynamic> offer) {
+    if (_isOverlayShowing) return;
+    _isOverlayShowing = true;
+    _lastShownOfferId = (offer['booking_id'] ?? offer['id'] ?? offer['request_id'] ?? '').toString();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return _IncomingJobAlertOverlayDialog(
+          offer: offer,
+          onAccept: () async {
+            Navigator.of(dialogCtx, rootNavigator: true).pop();
+            _isOverlayShowing = false;
+            final activeJob = await ref.read(acProviderDashboardProvider.notifier).acceptOffer(offer);
+            if (context.mounted) {
+              context.push('/dashboard/ac-job-navigation', extra: activeJob);
+            }
+          },
+          onDecline: () {
+            Navigator.of(dialogCtx, rootNavigator: true).pop();
+            _isOverlayShowing = false;
+            ref.read(acProviderDashboardProvider.notifier).declineOffer(offer);
+          },
+        );
+      },
+    ).then((_) {
+      _isOverlayShowing = false;
+    });
   }
 
   void _showLiveOffersModal(BuildContext context, ACProviderDashboardState state) {
@@ -313,6 +347,19 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
   @override
   Widget build(BuildContext context) {
     final dashboardState = ref.watch(acProviderDashboardProvider);
+
+    // Auto-trigger Display Over App Heads-up Alert Dialog for new incoming AC offers
+    ref.listen<ACProviderDashboardState>(acProviderDashboardProvider, (previous, next) {
+      if (next.isOnline && next.activeJob == null && next.incomingOffers.isNotEmpty) {
+        final topOffer = next.incomingOffers.first;
+        final offerId = (topOffer['booking_id'] ?? topOffer['id'] ?? topOffer['request_id'] ?? '').toString();
+        if (offerId != _lastShownOfferId && !_isOverlayShowing) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showIncomingJobOverlay(context, topOffer);
+          });
+        }
+      }
+    });
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -2198,3 +2245,311 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     );
   }
 }
+
+class _IncomingJobAlertOverlayDialog extends StatefulWidget {
+  final Map<String, dynamic> offer;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  const _IncomingJobAlertOverlayDialog({
+    required this.offer,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  @override
+  State<_IncomingJobAlertOverlayDialog> createState() => _IncomingJobAlertOverlayDialogState();
+}
+
+class _IncomingJobAlertOverlayDialogState extends State<_IncomingJobAlertOverlayDialog> with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  int _secondsRemaining = 30;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 30),
+    )..forward();
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (_secondsRemaining > 1) {
+        setState(() => _secondsRemaining--);
+      } else {
+        t.cancel();
+        widget.onDecline();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final price = (widget.offer['price'] as num?)?.toDouble() ?? 498.0;
+    final serviceName = widget.offer['service_name'] ?? 'AC Service (Split AC)';
+    final customerName = widget.offer['customer_name'] ?? 'Customer';
+    final customerAddress = widget.offer['customer_address'] ?? 'Digvijay Plot, Jamnagar';
+    final problemDesc = widget.offer['problem_description'] ?? 'AC Service & Diagnostics';
+    final scheduledTime = widget.offer['scheduled_time'] ?? 'Today';
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 440),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 25,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Top Urgent Red/Orange Alert Bar
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFDC2626), Color(0xFFEA580C)],
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.flash_on_rounded, color: Color(0xFFDC2626), size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'NEW AC SERVICE REQUEST!',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    // Countdown Circle
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: CircularProgressIndicator(
+                            value: _secondsRemaining / 30.0,
+                            strokeWidth: 3.5,
+                            backgroundColor: Colors.white24,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        Text(
+                          '${_secondsRemaining}s',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Price & Service Title
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFBFDBFE)),
+                                ),
+                                child: const Text(
+                                  '❄️ AC SPECIALIST JOB',
+                                  style: TextStyle(color: Color(0xFF1D4ED8), fontSize: 11, fontWeight: FontWeight.w900),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                serviceName,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '₹${price.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF16A34A),
+                              ),
+                            ),
+                            const Text(
+                              'Visiting + Protection',
+                              style: TextStyle(color: Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    const SizedBox(height: 14),
+
+                    // Customer & Location Details
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.person_pin_circle_rounded, color: Color(0xFF2563EB), size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                customerName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                customerAddress,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Issue details card
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.build_circle_outlined, color: Color(0xFF64748B), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Issue: $problemDesc • Slot: $scheduledTime',
+                              style: const TextStyle(color: Color(0xFF334155), fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Accept & Decline Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFEF4444),
+                              side: const BorderSide(color: Color(0xFFFCA5A5)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            onPressed: widget.onDecline,
+                            child: const Text('DECLINE', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 3,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF16A34A),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            icon: const Icon(Icons.navigation_rounded, size: 18),
+                            label: const Text(
+                              'ACCEPT & GO',
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                            ),
+                            onPressed: widget.onAccept,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

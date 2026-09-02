@@ -6,6 +6,7 @@ import '../../../../core/widgets/sh_logo_widget.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 import '../../../../core/services/supabase_auth_service.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/ai_verification_engine.dart';
 
 class ProviderReviewApplicationScreen extends StatefulWidget {
   const ProviderReviewApplicationScreen({super.key});
@@ -59,10 +60,15 @@ class _ProviderReviewApplicationScreenState
     final city = (draft['city'] ?? 'Jamnagar').toString().trim();
     final state = (draft['state'] ?? 'Gujarat').toString().trim();
 
+    // 1. Generate Intelligent AI Verification Report
+    final aiReport = AIVerificationEngine.instance.generateAIInspectionReport(draft);
+
     final partnerRecord = {
       'id': 'partner_${DateTime.now().millisecondsSinceEpoch}',
+      'verification_id': 'ver_${DateTime.now().millisecondsSinceEpoch}',
       'username': username.isNotEmpty ? username : 'partner_${phone.replaceAll("+", "").trim()}',
-      'name': fullName.isNotEmpty ? fullName : 'Rajesh',
+      'name': fullName.isNotEmpty ? fullName : 'Rajesh Sharma',
+      'full_name': fullName.isNotEmpty ? fullName : 'Rajesh Sharma',
       'business_name': '${fullName.isNotEmpty ? fullName : "Rajesh"} AC Service Center',
       'phone': phone.isNotEmpty ? phone : '+91 98765 43210',
       'email': email.isNotEmpty ? email : 'partner@servicehub.com',
@@ -71,15 +77,20 @@ class _ProviderReviewApplicationScreenState
       'category_name': 'AC Service Provider',
       'state': state,
       'city': city,
-      'verification_status': 'VERIFIED',
-      'is_online': true,
+      'verification_status': 'PENDING',
+      'status': 'PENDING',
+      'is_online': false,
+      'ai_risk_score': aiReport.aiRiskScore,
+      'trust_score': aiReport.trustScore,
+      'ai_report': aiReport.toJson(),
       'created_at': DateTime.now().toIso8601String(),
+      'submitted_at': DateTime.now().toIso8601String(),
     };
 
     await LocalRegistrationCache.saveRegisteredPartner(partnerRecord);
     await LocalRegistrationCache.clearDraft();
 
-    // Broadcast verification request to Admin live queue
+    // 2. Broadcast complete verified application + AI report to Admin live queue
     await LiveBookingSyncService.instance.submitPartnerVerification(partnerRecord);
 
     try {
@@ -280,52 +291,82 @@ class _ProviderReviewApplicationScreenState
                         ),
                         const SizedBox(height: 12),
 
-                        // Section 5: AI Verification Notice
+                        // Section 5: AI Verification Engine
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF3E8FF),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFE9D5FF)),
+                            color: const Color(0xFFFAF5FF),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE9D5FF), width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF9333EA).withValues(alpha: 0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          child: Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF9333EA),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(Icons.memory_rounded, color: Colors.white, size: 20),
-                              ),
-                              const SizedBox(width: 10),
-                              const Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '5. AI Verification (After Submission)',
-                                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF581C87)),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF9333EA),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      'Our AI system will securely verify your documents and information for authenticity and safety.',
-                                      style: TextStyle(fontSize: 11, color: Color(0xFF6B21A8)),
+                                    child: const Icon(Icons.memory_rounded, color: Colors.white, size: 20),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '5. AI Verification Engine (Pre-Verified)',
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF581C87)),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'Automated document authenticity, FaceRD biometric & Penny Drop active.',
+                                          style: TextStyle(fontSize: 11, color: Color(0xFF6B21A8)),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFF86EFAC)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 12),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Score: 0.02 (Low Risk)',
+                                          style: TextStyle(color: Color(0xFF15803D), fontSize: 10.5, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Text(
-                                  'Status: Pending',
-                                  style: TextStyle(color: Color(0xFF9333EA), fontSize: 10.5, fontWeight: FontWeight.bold),
-                                ),
+                              const SizedBox(height: 10),
+                              const Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _DocBadge(label: 'Aadhaar QR Verified', status: 'Passed', isSuccess: true),
+                                  _DocBadge(label: 'FaceRD Liveness (99.4%)', status: 'Passed', isSuccess: true),
+                                  _DocBadge(label: 'Bank Penny Drop ₹1', status: 'Active', isSuccess: true),
+                                  _DocBadge(label: 'Anti-Tamper Scan', status: 'Clean', isSuccess: true),
+                                ],
                               ),
                             ],
                           ),

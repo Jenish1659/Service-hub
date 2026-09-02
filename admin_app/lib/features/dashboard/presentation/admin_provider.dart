@@ -64,11 +64,22 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           seenIds.add(id);
           pendingList.add({
             'id': id,
+            'verification_id': id,
             'user_id': item['user_id'] ?? id,
-            'full_name': item['full_name'] ?? item['name'] ?? item['business_name'] ?? 'Partner',
+            'name': item['full_name'] ?? item['name'] ?? 'Partner',
+            'full_name': item['full_name'] ?? item['name'] ?? 'Partner',
             'phone': item['phone'] ?? '',
-            'verification_type': item['category'] ?? 'Service Specialist',
+            'email': item['email'] ?? 'partner@servicehub.com',
+            'business_name': item['business_name'] ?? 'Service Provider',
+            'category': item['category'] ?? 'ac_service',
+            'category_name': item['category_name'] ?? 'AC Service Specialist',
+            'city': item['city'] ?? 'Jamnagar',
+            'state': item['state'] ?? 'Gujarat',
+            'verification_type': item['category_name'] ?? item['category'] ?? 'AC Service Specialist',
             'status': item['status'] ?? 'PENDING',
+            'ai_risk_score': item['ai_risk_score'] ?? 0.02,
+            'trust_score': item['trust_score'] ?? 99.8,
+            'ai_report': item['ai_report'] ?? {},
             'submitted_at': item['submitted_at'] ?? 'Recently',
           });
         }

@@ -149,6 +149,10 @@ class LocalRegistrationCache {
     return null;
   }
 
+  static Future<Map<String, dynamic>?> getRegisteredPartner() async {
+    return await getActivePartner();
+  }
+
   static Future<void> updateActivePartner(Map<String, dynamic> updates) async {
     final current = await getActivePartner() ?? {};
     final updated = {...current, ...updates};

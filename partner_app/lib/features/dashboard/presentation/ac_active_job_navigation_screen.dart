@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'ac_provider_dashboard_controller.dart';
 
@@ -24,6 +26,7 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
   late LatLng _customerLocation;
   late String _currentStatus;
   bool _isProcessing = false;
+  Timer? _gpsMovementTimer;
 
   @override
   void initState() {
@@ -34,10 +37,51 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
     final custLat = (widget.job['customer_lat'] as num?)?.toDouble() ?? 22.4707;
     final custLng = (widget.job['customer_lng'] as num?)?.toDouble() ?? 70.0577;
 
-    // Partner is located ~1.8 km nearby
+    // Partner is located ~1.8 km nearby initially
     _partnerLocation = LatLng(custLat - 0.012, custLng - 0.009);
     _customerLocation = LatLng(custLat, custLng);
     _currentStatus = widget.job['status'] ?? 'CONFIRMED';
+
+    // Broadcast initial position
+    final bookingId = widget.job['booking_id'] ?? widget.job['id'] ?? '';
+    if (bookingId.toString().isNotEmpty) {
+      LiveBookingSyncService.instance.updatePartnerLocation(
+        bookingId.toString(),
+        _partnerLocation.latitude,
+        _partnerLocation.longitude,
+      );
+    }
+
+    _startGpsSimulationTimer();
+  }
+
+  void _startGpsSimulationTimer() {
+    _gpsMovementTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!mounted) return;
+      if (_currentStatus == 'ON_THE_WAY' || _currentStatus == 'CONFIRMED' || _currentStatus == 'ACCEPTED') {
+        final dLat = (_customerLocation.latitude - _partnerLocation.latitude) * 0.15;
+        final dLng = (_customerLocation.longitude - _partnerLocation.longitude) * 0.15;
+
+        setState(() {
+          _partnerLocation = LatLng(_partnerLocation.latitude + dLat, _partnerLocation.longitude + dLng);
+        });
+
+        final bookingId = widget.job['booking_id'] ?? widget.job['id'] ?? '';
+        if (bookingId.toString().isNotEmpty) {
+          LiveBookingSyncService.instance.updatePartnerLocation(
+            bookingId.toString(),
+            _partnerLocation.latitude,
+            _partnerLocation.longitude,
+          );
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _gpsMovementTimer?.cancel();
+    super.dispose();
   }
 
   void _recenterMap() {

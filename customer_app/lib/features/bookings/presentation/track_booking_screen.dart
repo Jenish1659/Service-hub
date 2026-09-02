@@ -83,9 +83,21 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
       _loading = false;
       
       final status = (data['status'] ?? 'Pending').toString().toUpperCase();
+      final pLat = (data['partner_lat'] as num?)?.toDouble();
+      final pLng = (data['partner_lng'] as num?)?.toDouble();
+      final cLat = (data['customer_lat'] as num?)?.toDouble();
+      final cLng = (data['customer_lng'] as num?)?.toDouble();
+
+      int computedDistance = 420;
+      if (pLat != null && pLng != null && cLat != null && cLng != null) {
+        final dLat = (pLat - cLat).abs();
+        final dLng = (pLng - cLng).abs();
+        computedDistance = ((dLat + dLng) * 111000).clamp(5.0, 9999.0).toInt();
+      }
+
       if (status == 'ON_THE_WAY' || status == 'EN ROUTE') {
-        _distance = 2;
-        _providerArrived = true;
+        _distance = computedDistance;
+        _providerArrived = computedDistance <= 30;
         _pinVerified = false;
         _workCommenced = false;
         _serviceCompleted = false;
@@ -108,7 +120,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
         _workCommenced = true;
         _serviceCompleted = true;
       } else {
-        _distance = 420;
+        _distance = computedDistance;
         _providerArrived = false;
         _pinVerified = false;
         _workCommenced = false;
@@ -408,9 +420,6 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
       );
     }
 
-    final serviceName = _bookingData!['service_name'] ?? 'Home Service';
-    final scheduledDate = _bookingData!['scheduled_date'] ?? '';
-    final scheduledTime = _bookingData!['scheduled_time'] ?? '';
     final status = (_bookingData!['status'] ?? 'Pending').toString();
     final isCancelled = status.toUpperCase().contains('CANCELLED');
     final isCompleted = status.toUpperCase() == 'COMPLETED';
@@ -521,10 +530,15 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                     ],
                   ),
                 ),
-            // 1. MAP SECTION (ANIMATED)
+            // 1. MAP SECTION (ANIMATED REAL-TIME LOCATION TRACKING)
             Stack(
               children: [
-                AnimatedLiveMapTracker(providerArrived: _providerArrived),
+                AnimatedLiveMapTracker(
+                  providerArrived: _providerArrived,
+                  isAccepted: _bookingData?['partner_name'] != null && _bookingData!['partner_name'].toString().isNotEmpty,
+                  partnerName: _bookingData?['partner_name']?.toString(),
+                  distanceMeters: _distance,
+                ),
                 Positioned(
                   top: 16,
                   left: 16,
@@ -538,14 +552,18 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          _providerArrived ? Icons.check_circle : Icons.directions_run,
-                          color: _providerArrived ? AppTheme.successColor : AppTheme.primaryColor,
+                          _providerArrived ? Icons.check_circle : Icons.near_me_rounded,
+                          color: _providerArrived ? AppTheme.successColor : const Color(0xFF2563EB),
                           size: 16,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          _providerArrived ? 'Provider is here (3 m away)' : 'Provider is $_distance m away',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                          _providerArrived
+                              ? 'Technician has arrived at doorstep'
+                              : (_distance >= 1000
+                                  ? 'Technician is ${(_distance / 1000).toStringAsFixed(1)} km away'
+                                  : 'Technician is $_distance m away'),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF0F172A)),
                         ),
                       ],
                     ),
@@ -645,50 +663,131 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                     ),
                   ),
 
-                  // 2. PROVIDER CARD
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: const BoxDecoration(
-                              color: Color(0xffeff6ff),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'SP',
-                                style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
-                              ),
-                            ),
+                  // 2. PROVIDER DETAILS & LIVE DISPATCH CARD
+                  Builder(
+                    builder: (context) {
+                      final partnerName = _bookingData!['partner_name'];
+                      final partnerRating = _bookingData!['partner_rating'] ?? 4.9;
+                      final partnerVehicle = _bookingData!['partner_vehicle'] ?? 'Honda Activa (GJ-10-AC-4589)';
+                      final isAccepted = partnerName != null && partnerName.toString().isNotEmpty;
+
+                      if (!isAccepted) {
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xfffed7aa)),
+                            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  serviceName,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xfffff7ed),
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Scheduled: $scheduledDate ($scheduledTime)',
-                                  style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
+                                child: const Icon(Icons.radar_rounded, color: Color(0xffea580c), size: 24),
+                              ),
+                              const SizedBox(width: 14),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Connecting Nearby AC Specialist...',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xff0f172a)),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Searching available technicians in 10 km radius.',
+                                      style: TextStyle(color: Color(0xff64748b), fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xffea580c)),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xffbfdbfe), width: 1.5),
+                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 52,
+                                  height: 52,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xffeff6ff),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: Icon(Icons.hvac_rounded, color: Color(0xff2563eb), size: 26),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              partnerName.toString(),
+                                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xff0f172a)),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          const Icon(Icons.verified_rounded, color: Color(0xff16a34a), size: 16),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            '$partnerRating • AC Specialist',
+                                            style: const TextStyle(color: Color(0xff475569), fontSize: 12, fontWeight: FontWeight.w600),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        partnerVehicle.toString(),
+                                        style: const TextStyle(color: Color(0xff64748b), fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xff2563eb)),
+                                  onPressed: () => context.push('/chat/${widget.bookingId}'),
                                 ),
                               ],
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.chat_bubble_outline, color: AppTheme.primaryColor),
-                            onPressed: () => context.push('/chat/${widget.bookingId}'),
-                          ),
-                        ],
-                      ),
-                    ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 20),
 
@@ -903,7 +1002,17 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
 
 class AnimatedLiveMapTracker extends StatefulWidget {
   final bool providerArrived;
-  const AnimatedLiveMapTracker({super.key, required this.providerArrived});
+  final bool isAccepted;
+  final String? partnerName;
+  final int distanceMeters;
+
+  const AnimatedLiveMapTracker({
+    super.key,
+    required this.providerArrived,
+    this.isAccepted = false,
+    this.partnerName,
+    this.distanceMeters = 420,
+  });
 
   @override
   State<AnimatedLiveMapTracker> createState() => _AnimatedLiveMapTrackerState();
@@ -942,33 +1051,63 @@ class _AnimatedLiveMapTrackerState extends State<AnimatedLiveMapTracker> with Si
             animation: _controller,
             builder: (context, child) {
               return CustomPaint(
-                painter: MapPainter(_controller.value, widget.providerArrived),
+                painter: MapPainter(_controller.value, widget.providerArrived, widget.isAccepted),
                 size: Size.infinite,
               );
             },
           ),
-          const Positioned(
+          Positioned(
             top: 14,
             right: 14,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.radar_rounded, color: AppTheme.primaryColor, size: 14),
-                SizedBox(width: 4),
-                Text(
-                  '10 km Live Radar Active',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
-                ),
-              ],
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xffbfdbfe)),
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    widget.isAccepted ? Icons.gps_fixed_rounded : Icons.radar_rounded,
+                    color: widget.isAccepted ? const Color(0xff16a34a) : const Color(0xff2563eb),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    widget.isAccepted ? 'Live GPS Tracking Active' : '10 km Radar Searching',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: widget.isAccepted ? const Color(0xff15803d) : const Color(0xff1e40af),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const Positioned(
+          Positioned(
             top: 40,
             left: 40,
             child: Column(
               children: [
-                Icon(Icons.store, color: AppTheme.primaryColor, size: 24),
-                Text('Provider Hub', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor)),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: widget.isAccepted ? const Color(0xff2563eb) : const Color(0xff64748b),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.hvac_rounded, color: Colors.white, size: 18),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  widget.partnerName != null && widget.partnerName!.isNotEmpty
+                      ? widget.partnerName!
+                      : 'AC Technician',
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
+                ),
               ],
             ),
           ),
@@ -991,7 +1130,8 @@ class _AnimatedLiveMapTrackerState extends State<AnimatedLiveMapTracker> with Si
 class MapPainter extends CustomPainter {
   final double animationProgress;
   final bool arrived;
-  MapPainter(this.animationProgress, this.arrived);
+  final bool isAccepted;
+  MapPainter(this.animationProgress, this.arrived, [this.isAccepted = false]);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1015,14 +1155,14 @@ class MapPainter extends CustomPainter {
       ..cubicTo(controlPoint1.dx, controlPoint1.dy, controlPoint2.dx, controlPoint2.dy, endOffset.dx, endOffset.dy);
 
     final routePaint = Paint()
-      ..color = AppTheme.primaryColor.withValues(alpha: 0.15)
-      ..strokeWidth = 4.0
+      ..color = (isAccepted ? const Color(0xff2563eb) : AppTheme.primaryColor).withValues(alpha: 0.25)
+      ..strokeWidth = 4.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     canvas.drawPath(path, routePaint);
 
-    final double t = arrived ? 1.0 : animationProgress;
+    final double t = arrived ? 1.0 : (isAccepted ? animationProgress : (animationProgress * 0.5));
     final metrics = path.computeMetrics().toList();
     if (metrics.isNotEmpty) {
       final pMetrics = metrics.first;
@@ -1032,25 +1172,27 @@ class MapPainter extends CustomPainter {
         final agentOffset = tangent.position;
         
         final pulsePaint = Paint()
-          ..color = AppTheme.primaryColor.withValues(alpha: 0.2)
+          ..color = (isAccepted ? const Color(0xff2563eb) : AppTheme.primaryColor).withValues(alpha: 0.2)
           ..style = PaintingStyle.fill;
-        canvas.drawCircle(agentOffset, 12 + 6 * (arrived ? 0 : animationProgress), pulsePaint);
+        canvas.drawCircle(agentOffset, 14 + 6 * (arrived ? 0 : animationProgress), pulsePaint);
 
         final agentPaint = Paint()
-          ..color = AppTheme.primaryColor
+          ..color = isAccepted ? const Color(0xff2563eb) : AppTheme.primaryColor
           ..style = PaintingStyle.fill;
-        canvas.drawCircle(agentOffset, 8, agentPaint);
+        canvas.drawCircle(agentOffset, 9, agentPaint);
         
         final corePaint = Paint()
           ..color = Colors.white
           ..style = PaintingStyle.fill;
-        canvas.drawCircle(agentOffset, 3, corePaint);
+        canvas.drawCircle(agentOffset, 3.5, corePaint);
       }
     }
   }
 
   @override
   bool shouldRepaint(covariant MapPainter oldDelegate) {
-    return oldDelegate.animationProgress != animationProgress || oldDelegate.arrived != arrived;
+    return oldDelegate.animationProgress != animationProgress ||
+        oldDelegate.arrived != arrived ||
+        oldDelegate.isAccepted != isAccepted;
   }
 }
