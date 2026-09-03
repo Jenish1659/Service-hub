@@ -1,3 +1,4 @@
+import '../../../../core/services/live_booking_sync_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -374,8 +375,30 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
 
       debugPrint('✓ Real delivery partner registration inserted to Supabase database!');
     } catch (e) {
-      debugPrint('Supabase database sync info: $e (Proceeding with local state)');
+      debugPrint('Supabase database sync info: $e');
     }
+
+    try {
+      final dId = 'ver_del_${DateTime.now().millisecondsSinceEpoch}';
+      await LiveBookingSyncService.instance.submitPartnerVerification({
+        'id': dId,
+        'verification_id': dId,
+        'user_id': dId,
+        'name': fullName.isEmpty ? 'Delivery Partner' : fullName,
+        'full_name': fullName.isEmpty ? 'Delivery Partner' : fullName,
+        'phone': phone.isEmpty ? '+91 98765 43210' : phone,
+        'email': '${username.isNotEmpty ? username : "delivery"}@servicehub.com',
+        'business_name': '$fullName Express Delivery',
+        'category': 'delivery_agent',
+        'category_name': 'Delivery Partner ($_selectedVehicleType)',
+        'city': city.isEmpty ? 'Jamnagar' : city,
+        'state': 'Gujarat',
+        'verification_status': 'PENDING',
+        'status': 'PENDING',
+        'ai_risk_score': 0.02,
+        'trust_score': 99.8,
+      });
+    } catch (_) {}
 
     setState(() {
       _isSubmittingToDb = false;

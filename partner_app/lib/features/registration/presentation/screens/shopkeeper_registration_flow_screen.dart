@@ -1,3 +1,4 @@
+import '../../../../core/services/live_booking_sync_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -461,8 +462,30 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
 
       debugPrint('✓ Real shopkeeper registration inserted to Supabase database successfully!');
     } catch (e) {
-      debugPrint('Supabase database sync info: $e (Proceeding with local verified state)');
+      debugPrint('Supabase database sync info: $e');
     }
+
+    try {
+      final sId = 'ver_shop_${DateTime.now().millisecondsSinceEpoch}';
+      await LiveBookingSyncService.instance.submitPartnerVerification({
+        'id': sId,
+        'verification_id': sId,
+        'user_id': sId,
+        'name': name.isEmpty ? 'ServiceHub Shopkeeper' : name,
+        'full_name': name.isEmpty ? 'ServiceHub Shopkeeper' : name,
+        'phone': phone.isEmpty ? '+91 98765 43210' : phone,
+        'email': '${username.isNotEmpty ? username : "shopkeeper"}@servicehub.com',
+        'business_name': shopName.isEmpty ? 'ServiceHub Parts Store' : shopName,
+        'category': 'shopkeeper',
+        'category_name': 'Shopkeeper ($category)',
+        'city': city,
+        'state': 'Gujarat',
+        'verification_status': 'PENDING',
+        'status': 'PENDING',
+        'ai_risk_score': 0.02,
+        'trust_score': 99.8,
+      });
+    } catch (_) {}
 
     setState(() {
       _isSubmittingToDb = false;
