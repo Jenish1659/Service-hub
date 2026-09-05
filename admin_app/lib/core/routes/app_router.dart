@@ -34,7 +34,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/',
-      builder: (BuildContext context, GoRouterState state) => const AdminDashboard(),
+      builder: (BuildContext context, GoRouterState state) => const AdminDashboardScreen(),
     ),
   ],
 );

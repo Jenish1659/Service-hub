@@ -51,32 +51,61 @@ class _ProviderReviewApplicationScreenState
 
     final draft = _draftData ?? {};
     final username = (draft['username'] ?? '').toString().trim();
-    final firstName = draft['first_name'] ?? draft['firstName'] ?? 'Rajesh';
-    final lastName = draft['last_name'] ?? draft['lastName'] ?? '';
-    final fullName = '$firstName $lastName'.trim();
-    final phone = (draft['mobile_number'] ?? draft['mobile'] ?? draft['phone'] ?? '').toString().trim();
+    final firstName = (draft['first_name'] ?? draft['firstName'] ?? '').toString().trim();
+    final lastName = (draft['last_name'] ?? draft['lastName'] ?? '').toString().trim();
+    final rawFullName = (draft['full_name'] ?? draft['fullName'] ?? draft['name'] ?? '$firstName $lastName').toString().trim();
+    final fullName = rawFullName.isNotEmpty ? rawFullName : (firstName.isNotEmpty ? '$firstName $lastName'.trim() : 'Service Provider');
+    
+    final rawPhone = (draft['mobile_number'] ?? draft['mobile'] ?? draft['phone'] ?? draft['phone_number'] ?? '').toString().trim();
+    final phone = rawPhone.startsWith('+91') ? rawPhone : (rawPhone.isNotEmpty ? '+91 $rawPhone' : '');
     final email = (draft['email'] ?? '').toString().trim();
-    final password = (draft['password'] ?? '123456').toString().trim();
+    final password = (draft['password'] ?? '').toString().trim();
     final city = (draft['city'] ?? 'Jamnagar').toString().trim();
     final state = (draft['state'] ?? 'Gujarat').toString().trim();
+    final businessName = (draft['business_name'] ?? draft['businessName'] ?? draft['shop_name'] ?? '$fullName Services').toString().trim();
+    final businessAddress = (draft['business_address'] ?? draft['address'] ?? draft['shop_address'] ?? '$city, $state').toString().trim();
+    final category = (draft['service_category_id'] ?? draft['category'] ?? 'ac_service').toString().trim();
+    final categoryName = (draft['category_name'] ?? (category == 'ac_service' ? 'AC Service Specialist' : category)).toString().trim();
+    final experience = (draft['experience_years'] ?? draft['experience'] ?? '3+ Years').toString().trim();
+
+    final bankName = (draft['bank_name'] ?? draft['bankName'] ?? '').toString().trim();
+    final accountNumber = (draft['bank_account_number'] ?? draft['account_number'] ?? draft['accountNumber'] ?? '').toString().trim();
+    final ifscCode = (draft['ifsc_code'] ?? draft['ifsc'] ?? '').toString().trim();
+    final accountHolder = (draft['account_holder_name'] ?? draft['accountHolderName'] ?? fullName).toString().trim();
+    final aadhaar = (draft['aadhaar_number'] ?? draft['aadhaar'] ?? '').toString().trim();
+    final pan = (draft['pan_number'] ?? draft['pan'] ?? '').toString().trim();
+
+    final appId = 'SHB-${DateTime.now().millisecondsSinceEpoch}';
+    final partnerId = 'partner_${phone.replaceAll("+", "").replaceAll(" ", "").trim().isNotEmpty ? phone.replaceAll("+", "").replaceAll(" ", "").trim() : DateTime.now().millisecondsSinceEpoch}';
 
     // 1. Generate Intelligent AI Verification Report
     final aiReport = AIVerificationEngine.instance.generateAIInspectionReport(draft);
 
     final partnerRecord = {
-      'id': 'partner_${DateTime.now().millisecondsSinceEpoch}',
-      'verification_id': 'ver_${DateTime.now().millisecondsSinceEpoch}',
-      'username': username.isNotEmpty ? username : 'partner_${phone.replaceAll("+", "").trim()}',
-      'name': fullName.isNotEmpty ? fullName : 'Rajesh Sharma',
-      'full_name': fullName.isNotEmpty ? fullName : 'Rajesh Sharma',
-      'business_name': '${fullName.isNotEmpty ? fullName : "Rajesh"} AC Service Center',
-      'phone': phone.isNotEmpty ? phone : '+91 98765 43210',
-      'email': email.isNotEmpty ? email : 'partner@servicehub.com',
+      'id': partnerId,
+      'verification_id': appId,
+      'user_id': partnerId,
+      'username': username.isNotEmpty ? username : 'ptr_${DateTime.now().millisecondsSinceEpoch % 10000}',
+      'name': fullName,
+      'full_name': fullName,
+      'first_name': firstName,
+      'last_name': lastName,
+      'business_name': businessName,
+      'business_address': businessAddress,
+      'phone': phone,
+      'email': email,
       'password': password,
-      'category': 'ac_service',
-      'category_name': 'AC Service Provider',
+      'category': category,
+      'category_name': categoryName,
+      'experience_years': experience,
       'state': state,
       'city': city,
+      'bank_name': bankName,
+      'account_number': accountNumber,
+      'ifsc_code': ifscCode,
+      'account_holder_name': accountHolder,
+      'aadhaar_number': aadhaar,
+      'pan_number': pan,
       'verification_status': 'PENDING',
       'status': 'PENDING',
       'is_online': false,

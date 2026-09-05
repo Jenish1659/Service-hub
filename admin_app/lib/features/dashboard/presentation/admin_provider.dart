@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/live_booking_sync_service.dart';
 
@@ -17,7 +20,7 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
     int underVerificationCount = 0;
     double totalRevenue = 0.0;
 
-    // 1. Real Bookings Aggregation from Sync Engine
+    LiveBookingSyncService.instance.reloadAllFromDisk();
     final localBookings = LiveBookingSyncService.instance.getAllBookings();
     totalBookings = localBookings.length;
 
@@ -39,19 +42,17 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
       }
     }
 
-    // 2. Real Partner Verification Counts
     final allVerifications = LiveBookingSyncService.instance.getAllPartnerVerifications();
     int activePartners = 0;
     for (var v in allVerifications) {
-      final status = (v['status'] ?? '').toString().toUpperCase();
+      final status = (v['status'] ?? v['verification_status'] ?? '').toString().toUpperCase();
       if (status == 'VERIFIED' || status == 'APPROVED') {
         activePartners++;
-      } else if (status == 'PENDING' || status == 'SUBMITTED' || status == 'UNDER_REVIEW') {
+      } else if (status == 'PENDING' || status == 'SUBMITTED' || status == 'UNDER_REVIEW' || status == 'PENDING_APPROVAL') {
         underVerificationCount++;
       }
     }
 
-    // 3. Fallback to Supabase Database Queries if connected
     try {
       final partnersRes = await client.from('partners').select('partner_id');
       totalPartners = partnersRes.length + activePartners;
@@ -66,7 +67,6 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
           .eq('roles.role_name', 'customer');
       totalCustomers = customersRes.length;
     } catch (_) {
-      // Calculate distinct customer names from bookings
       final distinctCustomers = localBookings
           .map((b) => b['customer_id'] ?? b['customer_name'] ?? '')
           .where((id) => id.toString().isNotEmpty)
@@ -74,7 +74,6 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
       totalCustomers = distinctCustomers.length;
     }
 
-    // Dynamic Top Services Calculation
     final Map<String, int> serviceBookingCounts = {};
     final Map<String, double> serviceRevenue = {};
     for (var b in localBookings) {
@@ -101,13 +100,13 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
       'serviceRevenue': serviceRevenue,
     };
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 300));
   }
 });
 
 final adminStatsProvider = adminStatsStreamProvider;
 
-// 2. Real-time Unverified / Pending Partners Provider
+// 2. Real-time Unverified / Pending Partners Provider (Multi-source: HTTP Bridge + Disk + Supabase)
 final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
   final client = Supabase.instance.client;
 
@@ -115,8 +114,33 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
     final List<Map<String, dynamic>> pendingList = [];
     final Set<String> seenIds = {};
 
-    // 1. Fetch live from Local Live Sync Service
+    // Source A: HTTP CORS Bridge on Port 8088
     try {
+      final hosts = kIsWeb ? ['localhost', '127.0.0.1'] : ['127.0.0.1', 'localhost', '10.0.2.2'];
+      for (final host in hosts) {
+        try {
+          final res = await http.get(Uri.parse('http://$host:8088/api/verifications')).timeout(const Duration(seconds: 1));
+          if (res.statusCode == 200) {
+            final List<dynamic> list = jsonDecode(res.body);
+            for (var item in list) {
+              if (item is Map<String, dynamic>) {
+                final status = (item['status'] ?? item['verification_status'] ?? '').toString().toUpperCase();
+                final id = (item['verification_id'] ?? item['id'] ?? '').toString();
+                if ((status == 'PENDING' || status == 'UNDER_REVIEW' || status == 'SUBMITTED' || status == 'PENDING_APPROVAL') && id.isNotEmpty && !seenIds.contains(id)) {
+                  seenIds.add(id);
+                  pendingList.add(item);
+                }
+              }
+            }
+            break;
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+
+    // Source B: Local File / Cache
+    try {
+      LiveBookingSyncService.instance.reloadAllFromDisk();
       final localVerifications = LiveBookingSyncService.instance.getPendingPartnerVerifications();
       for (var item in localVerifications) {
         final id = (item['id'] ?? item['verification_id'] ?? '').toString();
@@ -124,28 +148,28 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           seenIds.add(id);
           pendingList.add({
             'id': id,
-            'verification_id': id,
-            'user_id': item['user_id'] ?? id,
-            'name': item['full_name'] ?? item['name'] ?? 'Partner Candidate',
-            'full_name': item['full_name'] ?? item['name'] ?? 'Partner Candidate',
-            'phone': item['phone'] ?? '',
-            'email': item['email'] ?? 'partner@servicehub.com',
-            'business_name': item['business_name'] ?? 'Service Provider',
-            'category': item['category'] ?? 'ac_service',
-            'category_name': item['category_name'] ?? 'AC Service Specialist',
-            'city': item['city'] ?? 'Jamnagar',
-            'state': item['state'] ?? 'Gujarat',
-            'status': item['status'] ?? 'PENDING',
-            'ai_risk_score': item['ai_risk_score'] ?? 0.02,
-            'trust_score': item['trust_score'] ?? 99.8,
-            'ai_report': item['ai_report'] ?? {},
-            'submitted_at': item['submitted_at'] ?? 'Just now',
+            'verification_id': (item['verification_id'] ?? id).toString(),
+            'user_id': (item['user_id'] ?? id).toString(),
+            'name': (item['full_name'] ?? item['name'] ?? 'Partner Candidate').toString(),
+            'full_name': (item['full_name'] ?? item['name'] ?? 'Partner Candidate').toString(),
+            'phone': (item['phone'] ?? '+91 98250 12345').toString(),
+            'email': (item['email'] ?? 'partner@servicehub.com').toString(),
+            'business_name': (item['business_name'] ?? 'Service Provider').toString(),
+            'category': (item['category'] ?? 'ac_service').toString(),
+            'category_name': (item['category_name'] ?? 'AC Service Specialist').toString(),
+            'city': (item['city'] ?? 'Jamnagar').toString(),
+            'state': (item['state'] ?? 'Gujarat').toString(),
+            'status': (item['status'] ?? 'PENDING').toString().toUpperCase(),
+            'ai_risk_score': (item['ai_risk_score'] as num?)?.toDouble() ?? 0.02,
+            'trust_score': (item['trust_score'] as num?)?.toDouble() ?? 99.8,
+            'ai_report': item['ai_report'] as Map<String, dynamic>? ?? {},
+            'submitted_at': (item['submitted_at'] ?? 'Today, Live').toString(),
           });
         }
       }
     } catch (_) {}
 
-    // 2. Fetch from Supabase
+    // Source C: Cloud Supabase
     try {
       final List<dynamic> response = await client
           .from('verification_requests')
@@ -181,18 +205,31 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
     } catch (_) {}
 
     yield pendingList;
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 300));
   }
 });
 
 final adminUnverifiedPartnersProvider = adminUnverifiedPartnersStreamProvider;
 
-// 3. Live All Bookings Stream Provider
+// 3. Real-time All Partners (Pending + Verified) Provider
+final adminAllPartnersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
+  while (true) {
+    LiveBookingSyncService.instance.reloadAllFromDisk();
+    final all = LiveBookingSyncService.instance.getAllPartnerVerifications();
+    yield all;
+    await Future.delayed(const Duration(milliseconds: 300));
+  }
+});
+
+final adminAllPartnersProvider = adminAllPartnersStreamProvider;
+
+// 4. Live All Bookings Stream Provider
 final adminAllBookingsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
   while (true) {
+    LiveBookingSyncService.instance.reloadAllFromDisk();
     final localList = LiveBookingSyncService.instance.getAllBookings();
     yield localList;
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 300));
   }
 });
 

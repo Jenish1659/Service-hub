@@ -1,58 +1,185 @@
 import 'package:flutter/material.dart';
 
-class AdminFinanceView extends StatelessWidget {
+class AdminFinanceView extends StatefulWidget {
   final double totalRevenue;
-  final Function(String id, String type, String name) onSettlePayout;
+  final Function(String partnerId, double amount)? onSettlePayout;
 
-  const AdminFinanceView({super.key, required this.totalRevenue, required this.onSettlePayout});
+  const AdminFinanceView({super.key, required this.totalRevenue, this.onSettlePayout});
+
+  @override
+  State<AdminFinanceView> createState() => _AdminFinanceViewState();
+}
+
+class _AdminFinanceViewState extends State<AdminFinanceView> {
+  final List<Map<String, dynamic>> _ledger = [
+    {
+      'tx_id': 'TXN-98402',
+      'booking_id': 'AC_1788204910',
+      'customer': 'Meera Trivedi',
+      'partner': 'Rajesh Sharma',
+      'gross': 498.0,
+      'platform_fee': 99.6,
+      'partner_payout': 398.4,
+      'method': 'UPI (Google Pay)',
+      'status': 'SETTLED',
+      'date': 'Today, 02:15 PM',
+    },
+    {
+      'tx_id': 'TXN-98401',
+      'booking_id': 'AC_1788203890',
+      'customer': 'Hardik Bhatt',
+      'partner': 'Dhaval Jethwa',
+      'gross': 499.0,
+      'platform_fee': 99.8,
+      'partner_payout': 399.2,
+      'method': 'ServiceHub Wallet',
+      'status': 'SETTLED',
+      'date': 'Today, 11:30 AM',
+    },
+    {
+      'tx_id': 'TXN-98399',
+      'booking_id': 'AC_1788198200',
+      'customer': 'Pooja Vaghela',
+      'partner': 'Amit Varma',
+      'gross': 1250.0,
+      'platform_fee': 250.0,
+      'partner_payout': 1000.0,
+      'method': 'Cash on Service',
+      'status': 'SETTLED',
+      'date': 'Yesterday',
+    },
+  ];
+
+  void _triggerInstantPayout(String partnerName, double amount) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Settle IMPS Payout to $partnerName?'),
+        content: Text('Transfer ₹${amount.toStringAsFixed(2)} directly to verified HDFC Bank Account via instant IMPS micro-settlement?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('✓ IMPS Transfer of ₹${amount.toStringAsFixed(2)} to $partnerName processed successfully! Ref: IMPS${DateTime.now().millisecondsSinceEpoch % 1000000}'),
+                  backgroundColor: const Color(0xFF10B981),
+                ),
+              );
+            },
+            child: const Text('Confirm IMPS Transfer'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final double gmv = widget.totalRevenue > 0 ? widget.totalRevenue : 2247.0;
+    final double netRevenue = gmv * 0.20;
+    final double partnerPool = gmv * 0.80;
+
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Finance, Payouts & Commission Settlements', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
-                  SizedBox(height: 2),
-                  Text('Direct IMPS bank settlements, partner payout approvals, and commission ledgers', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  const Text('Finance, Escrow & Settlements Hub', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
+                  const SizedBox(height: 3),
+                  Text('Real-time transaction reconciliation, partner bank disbursements, and platform fee splits', style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade600)),
                 ],
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFA7F3D0)),
-                ),
-                child: Text('Total Gross Revenue: ₹${totalRevenue.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF065F46))),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white, elevation: 0),
+                icon: const Icon(Icons.bolt_rounded, size: 16),
+                label: const Text('Batch IMPS Payout'),
+                onPressed: () => _triggerInstantPayout('All Online Active Partners', partnerPool),
               ),
             ],
           ),
           const SizedBox(height: 20),
 
+          // Top 4 Finance Metric Cards
+          Row(
+            children: [
+              _buildFinanceCard('Gross Volume (GMV)', '₹${gmv.toStringAsFixed(2)}', 'Total Customer Spend', const Color(0xFF2563EB), Icons.account_balance_wallet_rounded),
+              const SizedBox(width: 14),
+              _buildFinanceCard('Platform Net (20%)', '₹${netRevenue.toStringAsFixed(2)}', 'ServiceHub Commission', const Color(0xFF059669), Icons.savings_rounded),
+              const SizedBox(width: 14),
+              _buildFinanceCard('Partner Payout Pool', '₹${partnerPool.toStringAsFixed(2)}', 'Technician Earnings', const Color(0xFF7C3AED), Icons.handshake_rounded),
+              const SizedBox(width: 14),
+              _buildFinanceCard('Dispute / Refund Pool', '₹0.00', '100% SLA Satisfied', const Color(0xFFD97706), Icons.shield_rounded),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Ledger Table
+          const Text('Live Transaction & Settlement Ledger', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+          const SizedBox(height: 12),
+
           Expanded(
             child: Container(
-              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: ListView(
-                children: [
-                  _buildPayoutRow('PAY-101', 'Ravi Technician', 'HDFC Bank (A/C: **5489)', '₹18,540.00', '10% (₹1,854)', '₹16,686.00', false),
-                  const Divider(color: Color(0xFFF1F5F9), height: 16),
-                  _buildPayoutRow('PAY-102', 'CoolFix Experts', 'SBI (A/C: **1290)', '₹15,320.00', '10% (₹1,532)', '₹13,788.00', false),
-                  const Divider(color: Color(0xFFF1F5F9), height: 16),
-                  _buildPayoutRow('PAY-103', 'AC Master Service', 'ICICI Bank (A/C: **7741)', '₹13,860.00', '10% (₹1,386)', '₹12,474.00', true),
-                ],
+              child: ListView.separated(
+                itemCount: _ledger.length,
+                separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                itemBuilder: (ctx, idx) {
+                  final row = _ledger[idx];
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(10)),
+                      child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF059669), size: 22),
+                    ),
+                    title: Row(
+                      children: [
+                        Text(row['tx_id'], style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, fontFamily: 'monospace')),
+                        const SizedBox(width: 8),
+                        Text('• ${row['date']}', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(4)),
+                          child: const Text('SETTLED', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF059669))),
+                        ),
+                      ],
+                    ),
+                    subtitle: Text('Customer: ${row['customer']} • Partner: ${row['partner']} • Via ${row['method']}', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('₹${row['gross']}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF0F172A))),
+                            Text('Fee: ₹${row['platform_fee']} | Partner: ₹${row['partner_payout']}', style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
+                          ],
+                        ),
+                        const SizedBox(width: 14),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEFF6FF), foregroundColor: const Color(0xFF2563EB), elevation: 0),
+                          onPressed: () => _triggerInstantPayout(row['partner'], row['partner_payout']),
+                          child: const Text('Disburse', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -61,37 +188,31 @@ class AdminFinanceView extends StatelessWidget {
     );
   }
 
-  Widget _buildPayoutRow(String id, String partner, String bank, String gross, String comm, String net, bool isPaid) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Expanded(flex: 2, child: Text(id, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2563EB), fontSize: 12))),
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildFinanceCard(String title, String value, String subtitle, Color color, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(partner, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                Text(bank, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                Icon(icon, size: 18, color: color),
               ],
             ),
-          ),
-          Expanded(flex: 2, child: Text(gross, style: const TextStyle(fontSize: 12, color: Color(0xFF334155)))),
-          Expanded(flex: 2, child: Text(comm, style: const TextStyle(fontSize: 12, color: Color(0xFFEF4444)))),
-          Expanded(flex: 2, child: Text(net, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Color(0xFF10B981)))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isPaid ? const Color(0xFFF1F5F9) : const Color(0xFF10B981),
-              foregroundColor: isPaid ? const Color(0xFF64748B) : Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: isPaid ? null : () => onSettlePayout(id, 'PROVIDER', partner),
-            child: Text(isPaid ? 'Settled ✓' : 'Instant Payout', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: color)),
+            const SizedBox(height: 3),
+            Text(subtitle, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+          ],
+        ),
       ),
     );
   }

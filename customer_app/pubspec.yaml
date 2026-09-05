@@ -28,7 +28,7 @@ dependencies:
   geolocator: ^10.1.0
   geocoding: ^2.1.1
   permission_handler: ^11.3.1
-  http: ^1.2.2
+  http: ^1.6.0
 
 
   # Utilities & Styling
