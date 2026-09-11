@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../core/storage/local_registration_cache.dart';
@@ -48,6 +49,11 @@ class ACProviderDashboardState {
   final List<Map<String, dynamic>> activeBookings;
   final Map<String, dynamic>? activeJob;
 
+  int get newRequestsCount => incomingOffers.length;
+  int get inProgressCount => activeBookings.length + (activeJob != null ? 1 : 0);
+  int get completedTodayCount => todayCompletedJobs.length;
+  int get cancelledTodayCount => declinedJobsToday;
+
   const ACProviderDashboardState({
     this.partnerId = '',
     this.providerId = '',
@@ -59,26 +65,26 @@ class ACProviderDashboardState {
     this.verificationStatus = 'VERIFIED',
     this.isOnline = true,
     this.unreadNotificationsCount = 0,
-    this.timeframe = 'This Month',
+    this.timeframe = 'Today',
     this.isLoading = false,
     this.todayIncome = 0.0,
-    this.todayIncomeTrend = '+ 0% vs yesterday',
+    this.todayIncomeTrend = '↑ 0% vs yesterday',
     this.monthlyIncome = 0.0,
-    this.monthlyIncomeTrend = '+ 0% vs last month',
+    this.monthlyIncomeTrend = '↑ 0% vs last month',
     this.totalIncome = 0.0,
     this.avgIncomePerMonth = 0.0,
     this.completedAcceptedJobsToday = 0,
     this.completedJobsTrend = '↑ 0% vs yesterday',
     this.declinedJobsToday = 0,
-    this.declinedJobsTrend = '↓ 0% vs yesterday',
+    this.declinedJobsTrend = '↑ 0% vs yesterday',
     this.totalJobsCompleted = 0,
-    this.totalJobsTrend = '↑ 0% vs last month',
+    this.totalJobsTrend = '↑ 0% vs yesterday',
     this.totalCustomers = 0,
-    this.totalCustomersTrend = '↑ 0% vs last month',
+    this.totalCustomersTrend = '↑ 0% vs yesterday',
     this.customerRating = 0.0,
-    this.ratingTrend = '★ 0.0 vs last month',
+    this.ratingTrend = '↑ 0.0 vs yesterday',
     this.repeatCustomers = 0,
-    this.repeatCustomersTrend = '↑ 0% vs last month',
+    this.repeatCustomersTrend = '↑ 0% vs yesterday',
     this.todayCompletedJobs = const [],
     this.incomingOffers = const [],
     this.activeBookings = const [],
@@ -307,17 +313,17 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
               offersList.add({
                 'request_id': null,
                 'booking_id': bId,
-                'service_name': service?['name'] ?? 'Split AC Deep Cleaning & Service',
-                'price': (b['estimated_amount'] as num?)?.toDouble() ?? (b['final_amount'] as num?)?.toDouble() ?? 499.0,
-                'customer_name': profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : 'Customer',
-                'customer_phone': user?['phone'] ?? '+91 98765 43210',
-                'customer_address': address != null ? '${address['area']}, ${address['city']}' : 'Kaushal Nagar, Jamnagar',
+                'service_name': service?['name'] ?? (sName.isNotEmpty ? sName : 'AC Service Request'),
+                'price': (b['estimated_amount'] as num?)?.toDouble() ?? (b['final_amount'] as num?)?.toDouble() ?? 0.0,
+                'customer_name': profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : (user?['username'] ?? 'Customer').toString(),
+                'customer_phone': user?['phone'] ?? '',
+                'customer_address': address != null ? '${address['area'] ?? ""}, ${address['city'] ?? ""}'.trim() : '',
                 'customer_lat': lat,
                 'customer_lng': lng,
-                'scheduled_time': b['scheduled_time'] ?? 'Today',
-                'problem_description': b['problem_description'] ?? 'AC Service & Repair requested',
-                'entrance_pin': b['entrance_pin'] ?? '7429',
-                'completion_otp': b['completion_otp'] ?? '5892',
+                'scheduled_time': b['scheduled_time'] ?? '',
+                'problem_description': b['problem_description'] ?? 'Service Request',
+                'entrance_pin': b['entrance_pin'] ?? '',
+                'completion_otp': b['completion_otp'] ?? '',
               });
             }
           }
@@ -344,17 +350,17 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
               offersList.add({
                 'request_id': null,
                 'booking_id': bId,
-                'service_name': b['service_name'] ?? 'AC Services',
-                'price': (b['price'] as num?)?.toDouble() ?? 499.0,
+                'service_name': b['service_name'] ?? 'AC Service',
+                'price': (b['price'] as num?)?.toDouble() ?? 0.0,
                 'customer_name': b['customer_name'] ?? 'Customer',
-                'customer_phone': b['customer_phone'] ?? '+91 98765 43210',
-                'customer_address': b['customer_address'] ?? 'Jamnagar',
+                'customer_phone': b['customer_phone'] ?? '',
+                'customer_address': b['customer_address'] ?? '',
                 'customer_lat': lat,
                 'customer_lng': lng,
-                'scheduled_time': '${b['scheduled_date'] ?? "Today"} at ${b['scheduled_time'] ?? "06:30 PM"}',
-                'problem_description': b['issue_description'] ?? 'AC Repair & Cleaning requested',
-                'entrance_pin': b['entrance_pin'] ?? '7429',
-                'completion_otp': b['completion_otp'] ?? '5892',
+                'scheduled_time': '${b['scheduled_date'] ?? ""} ${b['scheduled_time'] ?? ""}'.trim(),
+                'problem_description': b['issue_description'] ?? 'Service Request',
+                'entrance_pin': b['entrance_pin'] ?? '',
+                'completion_otp': b['completion_otp'] ?? '',
               });
             }
           }
@@ -375,13 +381,13 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
               'request_id': null,
               'booking_id': bId,
               'service_name': b['service_name'] ?? 'AC Service',
-              'price': (b['price'] as num?)?.toDouble() ?? 499.0,
+              'price': (b['price'] as num?)?.toDouble() ?? 0.0,
               'customer_name': b['customer_name'] ?? 'Customer',
               'customer_phone': b['customer_phone'] ?? '',
-              'customer_address': b['customer_address'] ?? 'Service Location',
+              'customer_address': b['customer_address'] ?? '',
               'customer_lat': lat,
               'customer_lng': lng,
-              'scheduled_time': '${b['scheduled_date'] ?? ""} ${b['scheduled_time'] ?? ""}',
+              'scheduled_time': '${b['scheduled_date'] ?? ""} ${b['scheduled_time'] ?? ""}'.trim(),
               'problem_description': b['problem_description'] ?? 'AC Service Request',
               'entrance_pin': b['entrance_pin'] ?? '',
               'completion_otp': b['completion_otp'] ?? '',
@@ -390,10 +396,26 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
         }
       } catch (_) {}
 
-      // 3. Fetch completed service bookings
+      // 3. Fetch real rating from service_provider_profiles
+      double realRating = 0.0;
+      if (partnerId.isNotEmpty) {
+        try {
+          final profileRes = await supabase
+              .from('service_provider_profiles')
+              .select('rating')
+              .eq('partner_id', partnerId)
+              .maybeSingle();
+          if (profileRes != null && profileRes['rating'] != null) {
+            realRating = (profileRes['rating'] as num).toDouble();
+          }
+        } catch (_) {}
+      }
+
+      // 4. Fetch completed service bookings
       final List<Map<String, dynamic>> todayJobs = [];
       int totalCompleted = 0;
       final Set<String> uniqueCustomers = {};
+      final Map<String, int> customerBookingCounts = {};
 
       try {
         final completedRes = await supabase
@@ -405,34 +427,46 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
         totalCompleted = completedRes.length;
 
         for (final b in completedRes) {
-          final service = b['services'] as Map<String, dynamic>?;
-          final address = b['user_addresses'] as Map<String, dynamic>?;
           final user = b['users'] as Map<String, dynamic>?;
           final profile = user?['user_profiles'] as Map<String, dynamic>?;
           final custId = b['customer_id']?.toString() ?? '';
 
           if (custId.isNotEmpty) {
             uniqueCustomers.add(custId);
+            customerBookingCounts[custId] = (customerBookingCounts[custId] ?? 0) + 1;
           }
 
           final createdAtStr = b['created_at']?.toString() ?? '';
           if (createdAtStr.startsWith(todayStr)) {
+            final custName = profile != null
+                ? '${profile['first_name'] ?? ""} ${profile['last_name'] ?? ""}'.trim()
+                : (user?['username'] ?? 'Customer').toString();
+
+            String formattedTime = '10:45 AM';
+            if (b['completed_at'] != null) {
+              try {
+                formattedTime = DateFormat('hh:mm a').format(DateTime.parse(b['completed_at'].toString()));
+              } catch (_) {}
+            } else if (b['scheduled_time'] != null && b['scheduled_time'].toString().isNotEmpty) {
+              formattedTime = b['scheduled_time'].toString();
+            }
+
+            final price = (b['final_amount'] as num?)?.toDouble() ??
+                (b['estimated_amount'] as num?)?.toDouble() ??
+                0.0;
+
             todayJobs.add({
               'booking_id': b['booking_id'],
-              'customer_name': profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : 'Customer',
-              'customer_phone': user?['phone'] ?? '+91 98765 43210',
-              'customer_area': address != null ? '${address['area']}, ${address['city']}' : 'Jamnagar',
-              'service_name': service?['name'] ?? 'Split AC Deep Cleaning',
-              'completed_at': b['scheduled_time'] ?? '10:45 AM',
-              'price': b['final_amount'] ?? b['estimated_amount'] ?? 499.0,
-              'rating': 5.0,
+              'customer_name': custName.isNotEmpty ? custName : 'Customer',
+              'completed_at': formattedTime,
+              'price': price,
               'payment_status': 'Paid',
             });
           }
         }
       } catch (_) {}
 
-      // 4. Fetch declined jobs count from booking_requests
+      // 5. Fetch declined jobs count from booking_requests
       int declinedCount = 0;
       try {
         final declinedRes = await supabase
@@ -441,6 +475,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
             .eq('response_status', 'Rejected');
         declinedCount = declinedRes.length;
       } catch (_) {}
+
+      final repeatCount = customerBookingCounts.values.where((c) => c > 1).length;
 
       state = state.copyWith(
         isLoading: false,
@@ -454,8 +490,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
         declinedJobsToday: declinedCount,
         totalJobsCompleted: totalCompleted,
         totalCustomers: uniqueCustomers.length,
-        customerRating: totalCompleted > 0 ? 5.0 : 0.0,
-        repeatCustomers: uniqueCustomers.length > 1 ? (uniqueCustomers.length / 2).floor() : 0,
+        customerRating: realRating,
+        repeatCustomers: repeatCount,
       );
     } catch (_) {
       state = state.copyWith(
@@ -652,14 +688,9 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
 
     final completedJobRecord = {
       'booking_id': bookingId,
-      'service_name': state.activeJob?['service_name'] ?? 'Split AC Deep Cleaning',
       'customer_name': state.activeJob?['customer_name'] ?? 'Customer',
-      'customer_phone': state.activeJob?['customer_phone'] ?? '+91 98765 43210',
-      'customer_area': state.activeJob?['customer_address'] ?? 'Jamnagar',
+      'completed_at': DateFormat('hh:mm a').format(DateTime.now()),
       'price': grossAmount,
-      'net_earning': netAmount,
-      'completed_at': 'Just now',
-      'rating': 5.0,
       'payment_status': 'Paid',
     };
 

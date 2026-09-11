@@ -388,7 +388,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFF6F9FD),
       appBar: _buildCustomHeader(context, dashboardState),
       drawer: _buildAppDrawer(context, dashboardState),
       body: dashboardState.isLoading
@@ -412,42 +412,34 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
 
                         // 1. ONLINE STATUS TOGGLE CARD
                         _buildOnlineStatusCard(dashboardState),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 16),
 
                         // 2. ACTIVE JOB IN PROGRESS CARD (If an active job exists)
                         if (dashboardState.activeJob != null) ...[
                           _buildActiveJobProgressCard(dashboardState.activeJob!),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 16),
                         ],
 
                         // 3. OFFLINE NOTICE OR LIVE REQUESTS BANNER
                         if (!dashboardState.isOnline) ...[
                           _buildOfflineWarningBanner(),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 16),
                         ] else if (dashboardState.incomingOffers.isNotEmpty) ...[
                           _buildLiveOffersBanner(dashboardState),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 16),
                         ],
 
-                        // 3.5 LIVE SERVICE AREA & RADAR MAP CARD
-                        _buildLiveServiceAreaMapCard(dashboardState),
-                        const SizedBox(height: 22),
-
-                        // 4. INCOME SUMMARY SECTION (4 CARDS)
-                        _buildIncomeSummarySection(dashboardState),
-                        const SizedBox(height: 22),
-
-                        // 5. TODAY'S WORK OVERVIEW SECTION (2 CARDS WITH WATERMARKS)
+                        // 4. TODAY'S WORK OVERVIEW SECTION (4 CARDS: New Requests, In Progress, Completed, Cancelled)
                         _buildWorkOverviewSection(dashboardState),
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 18),
 
-                        // 5. BUSINESS OVERVIEW SECTION (4 CARDS WITH TIMEFRAME SELECTOR)
+                        // 5. BUSINESS OVERVIEW (TODAY) SECTION (4 CARDS: Today's Earnings, Jobs Completed, Average Rating, Repeat Customers)
                         _buildBusinessOverviewSection(dashboardState),
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 18),
 
-                        // 6. COMPLETED JOBS – TODAY SECTION
+                        // 6. COMPLETED JOBS – TODAY SECTION (Customer Name, Time, Price, Paid Badge ONLY)
                         _buildCompletedJobsSection(dashboardState),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 28),
                       ],
                     ),
                   ),
@@ -458,14 +450,14 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     );
   }
 
-  // --- 1. Custom App Bar matching exact image ---
+  // --- 1. Custom App Bar matching exact uploaded design ---
   PreferredSizeWidget _buildCustomHeader(BuildContext context, ACProviderDashboardState state) {
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0.5,
       leading: Builder(
         builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu_rounded, color: Color(0xFF0F172A), size: 26),
+          icon: const Icon(Icons.menu_rounded, color: Color(0xFF1D4ED8), size: 28),
           onPressed: () => Scaffold.of(ctx).openDrawer(),
         ),
       ),
@@ -477,37 +469,23 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
               Text(
                 '${_getGreeting()}, ${state.providerName}',
                 style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
                   color: Color(0xFF0F172A),
                 ),
               ),
               const SizedBox(width: 4),
-              const Text('👋', style: TextStyle(fontSize: 15)),
+              const Text('👋', style: TextStyle(fontSize: 16)),
             ],
           ),
-          const SizedBox(height: 2),
-          Row(
-            children: [
-              Flexible(
-                child: Text(
-                  state.businessName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF475569),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.verified_rounded,
-                color: Color(0xFF0052CC),
-                size: 15,
-              ),
-            ],
+          const SizedBox(height: 1),
+          const Text(
+            'Stay Active, Keep Growing',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF64748B),
+            ),
           ),
         ],
       ),
@@ -517,7 +495,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
           alignment: Alignment.center,
           children: [
             IconButton(
-              icon: const Icon(Icons.notifications_outlined, color: Color(0xFF0F172A), size: 24),
+              icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF0F172A), size: 26),
               onPressed: () {
                 if (state.incomingOffers.isNotEmpty) {
                   _showLiveOffersModal(context, state);
@@ -557,20 +535,39 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
           ],
         ),
 
-        // Profile Avatar
+        // Profile Avatar with Online Indicator Dot
         Padding(
-          padding: const EdgeInsets.only(right: 14, left: 2),
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF0052CC),
-              border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
-            ),
-            child: const Center(
-              child: Icon(Icons.person, color: Colors.white, size: 22),
-            ),
+          padding: const EdgeInsets.only(right: 16, left: 4),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF2563EB),
+                  border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
+                ),
+                child: const Center(
+                  child: Icon(Icons.person, color: Colors.white, size: 24),
+                ),
+              ),
+              if (state.isOnline)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ],
@@ -648,6 +645,38 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
           ),
         ],
       ),
+    );
+  }
+
+  void _showLiveRadarMapModal(BuildContext context, ACProviderDashboardState state) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildLiveServiceAreaMapCard(state),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -956,7 +985,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    state.isOnline ? 'Customers can book services' : 'You will not receive new bookings',
+                    state.isOnline ? 'You are accepting new service requests' : 'Go online to receive service requests',
                     style: const TextStyle(
                       fontSize: 11.5,
                       color: Color(0xFF64748B),
@@ -969,7 +998,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
           Switch(
             value: state.isOnline,
             activeThumbColor: Colors.white,
-            activeTrackColor: const Color(0xFF0052CC),
+            activeTrackColor: const Color(0xFF2563EB),
             onChanged: (val) {
               ref.read(acProviderDashboardProvider.notifier).toggleOnlineStatus(val);
             },
@@ -1136,186 +1165,223 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     );
   }
 
-  // --- 3. Income Summary Section (4 Cards) ---
-  Widget _buildIncomeSummarySection(ACProviderDashboardState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // --- 4. Today's Work Overview Section (4 Cards Matching Design) ---
+  Widget _buildWorkOverviewSection(ACProviderDashboardState state) {
+    final todayFormatted = DateFormat('EEE, d MMM yyyy').format(DateTime.now());
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF5FE),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFDBEAFE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.bar_chart_rounded, color: Color(0xFF2563EB), size: 26),
+                  SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Today's Work Overview",
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      SizedBox(height: 1),
+                      Text(
+                        "Here's what's happening today",
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.calendar_today_outlined, size: 12, color: Color(0xFF2563EB)),
+                    const SizedBox(width: 5),
+                    Text(
+                      todayFormatted,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // 4 Work Overview Cards in a Row
+          Row(
+            children: [
+              // 1. New Requests
+              Expanded(
+                child: _buildOverviewMetricCard(
+                  title: 'New Requests',
+                  value: '${state.newRequestsCount}',
+                  bgColor: const Color(0xFFE8F1FF),
+                  iconBg: const Color(0xFF3B82F6),
+                  icon: Icons.assignment_outlined,
+                  onTap: () => _showLiveOffersModal(context, state),
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // 2. In Progress
+              Expanded(
+                child: _buildOverviewMetricCard(
+                  title: 'In Progress',
+                  value: '${state.inProgressCount}',
+                  bgColor: const Color(0xFFFFF7E6),
+                  iconBg: const Color(0xFFF59E0B),
+                  icon: Icons.access_time_filled_rounded,
+                  onTap: () {
+                    if (state.activeJob != null) {
+                      context.push('/dashboard/ac-job-navigation', extra: state.activeJob);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('No active jobs in progress right now.')),
+                      );
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // 3. Completed
+              Expanded(
+                child: _buildOverviewMetricCard(
+                  title: 'Completed',
+                  value: '${state.completedTodayCount}',
+                  bgColor: const Color(0xFFEAF8EE),
+                  iconBg: const Color(0xFF10B981),
+                  icon: Icons.check_rounded,
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${state.completedTodayCount} jobs completed today.')),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // 4. Cancelled
+              Expanded(
+                child: _buildOverviewMetricCard(
+                  title: 'Cancelled',
+                  value: '${state.cancelledTodayCount}',
+                  bgColor: const Color(0xFFFFECEF),
+                  iconBg: const Color(0xFFEF4444),
+                  icon: Icons.close_rounded,
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${state.cancelledTodayCount} jobs cancelled today.')),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewMetricCard({
+    required String title,
+    required String value,
+    required Color bgColor,
+    required Color iconBg,
+    required IconData icon,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Income Summary',
-              style: TextStyle(
-                fontSize: 16,
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: iconBg,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Icon(icon, color: Colors.white, size: 16),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF475569),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 22,
                 fontWeight: FontWeight.w900,
                 color: Color(0xFF0F172A),
               ),
             ),
-            InkWell(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Detailed Earnings Report is up to date.')),
-                );
-              },
-              child: const Row(
-                children: [
-                  Text(
-                    'View All',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0052CC),
-                    ),
-                  ),
-                  SizedBox(width: 2),
-                  Icon(Icons.chevron_right_rounded, color: Color(0xFF0052CC), size: 16),
-                ],
-              ),
-            ),
           ],
         ),
-        const SizedBox(height: 12),
-
-        // 4 Horizontal / Grid Cards
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isSmall = constraints.maxWidth < 600;
-
-            if (isSmall) {
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child: Row(
-                  children: [
-                    _buildIncomeCard(
-                      icon: Icons.account_balance_wallet_rounded,
-                      iconBg: const Color(0xFFDBEAFE),
-                      iconColor: const Color(0xFF2563EB),
-                      title: "Today's Income",
-                      amount: _formatCurrency(state.todayIncome),
-                      badgeText: state.todayIncomeTrend,
-                      isPositive: true,
-                      width: 140,
-                    ),
-                    const SizedBox(width: 10),
-                    _buildIncomeCard(
-                      icon: Icons.calendar_month_rounded,
-                      iconBg: const Color(0xFFDCFCE7),
-                      iconColor: const Color(0xFF16A34A),
-                      title: 'Monthly Income',
-                      amount: _formatCurrency(state.monthlyIncome),
-                      badgeText: state.monthlyIncomeTrend,
-                      isPositive: true,
-                      width: 140,
-                    ),
-                    const SizedBox(width: 10),
-                    _buildIncomeCard(
-                      icon: Icons.layers_rounded,
-                      iconBg: const Color(0xFFF3E8FF),
-                      iconColor: const Color(0xFF9333EA),
-                      title: 'Total Income',
-                      amount: _formatCurrency(state.totalIncome),
-                      badgeText: 'All Time',
-                      isSubtext: true,
-                      width: 140,
-                    ),
-                    const SizedBox(width: 10),
-                    _buildIncomeCard(
-                      icon: Icons.insert_chart_rounded,
-                      iconBg: const Color(0xFFFFEDD5),
-                      iconColor: const Color(0xFFEA580C),
-                      title: 'Avg. Income / Month',
-                      amount: _formatCurrency(state.avgIncomePerMonth),
-                      badgeText: 'All Time',
-                      isSubtext: true,
-                      width: 150,
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return Row(
-              children: [
-                Expanded(
-                  child: _buildIncomeCard(
-                    icon: Icons.account_balance_wallet_rounded,
-                    iconBg: const Color(0xFFDBEAFE),
-                    iconColor: const Color(0xFF2563EB),
-                    title: "Today's Income",
-                    amount: _formatCurrency(state.todayIncome),
-                    badgeText: state.todayIncomeTrend,
-                    isPositive: true,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildIncomeCard(
-                    icon: Icons.calendar_month_rounded,
-                    iconBg: const Color(0xFFDCFCE7),
-                    iconColor: const Color(0xFF16A34A),
-                    title: 'Monthly Income',
-                    amount: _formatCurrency(state.monthlyIncome),
-                    badgeText: state.monthlyIncomeTrend,
-                    isPositive: true,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildIncomeCard(
-                    icon: Icons.layers_rounded,
-                    iconBg: const Color(0xFFF3E8FF),
-                    iconColor: const Color(0xFF9333EA),
-                    title: 'Total Income',
-                    amount: _formatCurrency(state.totalIncome),
-                    badgeText: 'All Time',
-                    isSubtext: true,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildIncomeCard(
-                    icon: Icons.insert_chart_rounded,
-                    iconBg: const Color(0xFFFFEDD5),
-                    iconColor: const Color(0xFFEA580C),
-                    title: 'Avg. Income / Month',
-                    amount: _formatCurrency(state.avgIncomePerMonth),
-                    badgeText: 'All Time',
-                    isSubtext: true,
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildIncomeCard({
-    required IconData icon,
-    required Color iconBg,
-    required Color iconColor,
-    required String title,
-    required String amount,
-    required String badgeText,
-    bool isPositive = false,
-    bool isSubtext = false,
-    double? width,
-  }) {
+  // --- 5. Business Overview (Today) Section (4 Cards Matching Design) ---
+  Widget _buildBusinessOverviewSection(ACProviderDashboardState state) {
     return Container(
-      width: width,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
           BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 1),
+            color: Color(0x08000000),
+            blurRadius: 10,
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -1323,713 +1389,476 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: iconColor, size: 18),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3E8FF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.bar_chart_rounded, color: Color(0xFF8B5CF6), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Business Overview (Today)',
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      SizedBox(height: 1),
+                      Text(
+                        'Your business performance at a glance',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              InkWell(
+                onTap: () => _showTimeframePicker(context),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFDBEAFE)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View Details',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(Icons.chevron_right_rounded, size: 15, color: Color(0xFF2563EB)),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            amount,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF0F172A),
-              letterSpacing: -0.5,
+          const SizedBox(height: 14),
+
+          // 4 Business Overview Cards in a Row
+          Row(
+            children: [
+              // 1. Today's Earnings
+              Expanded(
+                child: _buildBusinessCard(
+                  title: "Today's Earnings",
+                  value: '₹${state.todayIncome == 0 ? "0" : state.todayIncome.toStringAsFixed(0)}',
+                  trendPercent: '0%',
+                  trendText: 'vs yesterday',
+                  bgColor: const Color(0xFFF0F6FE),
+                  iconBg: const Color(0xFF2563EB),
+                  icon: Icons.account_balance_wallet_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // 2. Jobs Completed
+              Expanded(
+                child: _buildBusinessCard(
+                  title: 'Jobs Completed',
+                  value: '${state.completedTodayCount}',
+                  trendPercent: '0%',
+                  trendText: 'vs yesterday',
+                  bgColor: const Color(0xFFF7F3FE),
+                  iconBg: const Color(0xFF8B5CF6),
+                  icon: Icons.business_center_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // 3. Average Rating
+              Expanded(
+                child: _buildBusinessCard(
+                  title: 'Average Rating',
+                  value: state.customerRating.toStringAsFixed(1),
+                  trendPercent: '0.0',
+                  trendText: 'vs yesterday',
+                  bgColor: const Color(0xFFF0FDF4),
+                  iconBg: const Color(0xFF10B981),
+                  icon: Icons.star_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // 4. Repeat Customers
+              Expanded(
+                child: _buildBusinessCard(
+                  title: 'Repeat Customers',
+                  value: '${state.repeatCustomers}',
+                  trendPercent: '0%',
+                  trendText: 'vs yesterday',
+                  bgColor: const Color(0xFFFFF7ED),
+                  iconBg: const Color(0xFFF97316),
+                  icon: Icons.people_alt_rounded,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBusinessCard({
+    required String title,
+    required String value,
+    required String trendPercent,
+    required String trendText,
+    required Color bgColor,
+    required Color iconBg,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: iconBg,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Icon(icon, color: Colors.white, size: 16),
             ),
           ),
-          const SizedBox(height: 6),
-          if (isSubtext)
-            Text(
-              badgeText,
-              style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-            )
-          else
-            Row(
-              children: [
-                Icon(
-                  isPositive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                  size: 11,
-                  color: isPositive ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF475569),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.arrow_upward_rounded, size: 11, color: Color(0xFF16A34A)),
+              const SizedBox(width: 1),
+              Text(
+                trendPercent,
+                style: const TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF16A34A),
                 ),
-                const SizedBox(width: 2),
-                Flexible(
-                  child: Text(
-                    badgeText,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: isPositive ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+              ),
+            ],
+          ),
+          Text(
+            trendText,
+            style: const TextStyle(
+              fontSize: 8.5,
+              color: Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- 6. Completed Jobs – Today Section (Customer Name, Time, Price, Paid Badge ONLY) ---
+  Widget _buildCompletedJobsSection(ACProviderDashboardState state) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFDCFCE7),
+                      shape: BoxShape.circle,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    child: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Completed Jobs – Today',
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      SizedBox(height: 1),
+                      Text(
+                        'Successfully completed services',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Showing all completed tasks.')),
+                  );
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFDBEAFE)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(Icons.chevron_right_rounded, size: 15, color: Color(0xFF2563EB)),
+                    ],
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          if (state.todayCompletedJobs.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.assignment_turned_in_outlined, size: 30, color: Color(0xFF94A3B8)),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'No jobs completed yet today',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Completed jobs and verified customer payments will appear here.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: state.todayCompletedJobs.length,
+              separatorBuilder: (context, index) => const Divider(color: Color(0xFFF1F5F9), height: 20),
+              itemBuilder: (context, index) {
+                final job = state.todayCompletedJobs[index];
+                return _buildCompletedJobRow(job, index);
+              },
             ),
         ],
       ),
     );
   }
 
-  // --- 4. Today's Work Overview Section (2 Cards) ---
-  Widget _buildWorkOverviewSection(ACProviderDashboardState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildCompletedJobRow(Map<String, dynamic> job, int index) {
+    final customerName = (job['customer_name'] ?? 'Customer').toString();
+    final completedAt = (job['completed_at'] ?? '10:45 AM').toString();
+    final price = (job['price'] as num?)?.toDouble() ?? 0.0;
+
+    // Pastel Avatar Colors
+    final avatarColors = [
+      {'bg': const Color(0xFFDBEAFE), 'text': const Color(0xFF1D4ED8)}, // Blue
+      {'bg': const Color(0xFFF3E8FF), 'text': const Color(0xFF7E22CE)}, // Purple
+      {'bg': const Color(0xFFFFEDD5), 'text': const Color(0xFFC2410C)}, // Orange
+      {'bg': const Color(0xFFFCE7F3), 'text': const Color(0xFFBE185D)}, // Pink
+      {'bg': const Color(0xFFDCFCE7), 'text': const Color(0xFF15803D)}, // Green
+    ];
+    final colorScheme = avatarColors[index % avatarColors.length];
+    final initialLetter = customerName.isNotEmpty ? customerName[0].toUpperCase() : 'C';
+
+    return InkWell(
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Job for $customerName: Verified and Paid')),
+        );
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
           children: [
-            const Text(
-              "Today's Work Overview",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF0F172A),
+            // 1. Initial Letter Circle Avatar
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: colorScheme['bg'],
+                shape: BoxShape.circle,
               ),
-            ),
-            InkWell(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Viewing complete job history.')),
-                );
-              },
-              child: const Row(
-                children: [
-                  Text(
-                    'View All',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0052CC),
-                    ),
+              child: Center(
+                child: Text(
+                  initialLetter,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: colorScheme['text'],
                   ),
-                  SizedBox(width: 2),
-                  Icon(Icons.chevron_right_rounded, color: Color(0xFF0052CC), size: 16),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            // Card 1: Completed / Accepted Jobs
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0FDF4),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFDCFCE7)),
-                ),
-                child: Stack(
-                  children: [
-                    // Watermark Clipboard Icon
-                    Positioned(
-                      right: -6,
-                      bottom: -6,
-                      child: Icon(
-                        Icons.assignment_outlined,
-                        size: 70,
-                        color: const Color(0xFF16A34A).withValues(alpha: 0.08),
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF16A34A),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.check, color: Colors.white, size: 18),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Completed / Accepted Jobs',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF334155),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${state.completedAcceptedJobsToday}',
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.arrow_upward_rounded, color: Color(0xFF16A34A), size: 12),
-                            const SizedBox(width: 2),
-                            Text(
-                              state.completedJobsTrend,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF16A34A),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
                 ),
               ),
             ),
             const SizedBox(width: 12),
 
-            // Card 2: Declined Jobs
+            // 2. Customer Name & Time ONLY (Customer privacy protected: NO phone, NO address)
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFFEE2E2)),
-                ),
-                child: Stack(
-                  children: [
-                    // Watermark Cancelled Clipboard Icon
-                    Positioned(
-                      right: -6,
-                      bottom: -6,
-                      child: Icon(
-                        Icons.assignment_late_outlined,
-                        size: 70,
-                        color: const Color(0xFFDC2626).withValues(alpha: 0.08),
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFDC2626),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.close, color: Colors.white, size: 18),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Declined Jobs',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF334155),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${state.declinedJobsToday}',
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.arrow_downward_rounded, color: Color(0xFFDC2626), size: 12),
-                            const SizedBox(width: 2),
-                            Text(
-                              state.declinedJobsTrend,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFDC2626),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // --- 5. Business Overview Section (4 Cards) ---
-  Widget _buildBusinessOverviewSection(ACProviderDashboardState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Business Overview',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF0F172A),
-              ),
-            ),
-            InkWell(
-              onTap: () => _showTimeframePicker(context),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    state.timeframe,
+                    customerName,
                     style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0052CC),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: 2),
-                  const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF0052CC), size: 18),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time_rounded, size: 12, color: Color(0xFF64748B)),
+                      const SizedBox(width: 4),
+                      Text(
+                        completedAt,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            // Card 1: Total Jobs Completed
-            Expanded(
-              child: _buildBusinessCard(
-                icon: Icons.business_center_rounded,
-                iconBg: const Color(0xFFEFF6FF),
-                iconColor: const Color(0xFF2563EB),
-                title: 'Total Jobs Completed',
-                value: '${state.totalJobsCompleted}',
-                trendText: state.totalJobsTrend,
-                isPositive: true,
-              ),
-            ),
-            const SizedBox(width: 8),
 
-            // Card 2: Total Customers
-            Expanded(
-              child: _buildBusinessCard(
-                icon: Icons.people_alt_rounded,
-                iconBg: const Color(0xFFF0FDF4),
-                iconColor: const Color(0xFF16A34A),
-                title: 'Total Customers',
-                value: '${state.totalCustomers}',
-                trendText: state.totalCustomersTrend,
-                isPositive: true,
-              ),
-            ),
-            const SizedBox(width: 8),
-
-            // Card 3: Customer Rating
-            Expanded(
-              child: _buildBusinessCard(
-                icon: Icons.star_rounded,
-                iconBg: const Color(0xFFFAF5FF),
-                iconColor: const Color(0xFF9333EA),
-                title: 'Customer Rating',
-                value: state.customerRating.toStringAsFixed(1),
-                trendText: state.ratingTrend,
-                isPositive: true,
-              ),
-            ),
-            const SizedBox(width: 8),
-
-            // Card 4: Repeat Customers
-            Expanded(
-              child: _buildBusinessCard(
-                icon: Icons.sync_rounded,
-                iconBg: const Color(0xFFFFF7ED),
-                iconColor: const Color(0xFFEA580C),
-                title: 'Repeat Customers',
-                value: '${state.repeatCustomers}',
-                trendText: state.repeatCustomersTrend,
-                isPositive: true,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBusinessCard({
-    required IconData icon,
-    required Color iconBg,
-    required Color iconColor,
-    required String title,
-    required String value,
-    required String trendText,
-    bool isPositive = true,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: iconBg,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 9.5,
-              color: Color(0xFF64748B),
-              fontWeight: FontWeight.w600,
-              height: 1.2,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isPositive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                size: 10,
-                color: isPositive ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-              ),
-              const SizedBox(width: 2),
-              Flexible(
-                child: Text(
-                  trendText,
-                  style: TextStyle(
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.bold,
-                    color: isPositive ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- 6. Completed Jobs – Today Section ---
-  Widget _buildCompletedJobsSection(ACProviderDashboardState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Completed Jobs – Today',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF0F172A),
-              ),
-            ),
-            InkWell(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Showing all completed tasks for today.')),
-                );
-              },
-              child: const Text(
-                'View All',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0052CC),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        if (state.todayCompletedJobs.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-              boxShadow: const [
-                BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
-              ],
-            ),
-            child: Column(
+            // 3. Price & Paid Badge & Chevron
+            Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEFF6FF),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.hvac_rounded, color: Color(0xFF0052CC), size: 36),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'No jobs completed today yet',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Stay online to receive live AC installation, deep cleaning & repair requests from nearby customers.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
-                ),
-              ],
-            ),
-          )
-        else
-          Column(
-            children: state.todayCompletedJobs.map((job) => _buildCompletedJobCard(job)).toList(),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildCompletedJobCard(Map<String, dynamic> job) {
-    final customerName = job['customer_name'] ?? 'Customer';
-    final customerPhone = job['customer_phone'] ?? '+91 98765 43210';
-    final customerArea = job['customer_area'] ?? job['customer_address'] ?? 'Gondal Road, Rajkot';
-    final serviceName = job['service_name'] ?? 'AC Deep Cleaning';
-    final completedAt = job['completed_at'] ?? '10:45 AM';
-    final price = (job['price'] as num?)?.toDouble() ?? 650.0;
-    final rating = (job['rating'] as num?)?.toDouble() ?? 5.0;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Customer Avatar
-          Container(
-            width: 38,
-            height: 38,
-            decoration: const BoxDecoration(
-              color: Color(0xFFEFF6FF),
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: Icon(Icons.person, color: Color(0xFF2563EB), size: 20),
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // 2. Customer Details
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  customerName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    const Icon(Icons.phone, size: 10, color: Color(0xFF64748B)),
-                    const SizedBox(width: 3),
-                    Flexible(
-                      child: Text(
-                        customerPhone,
-                        style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on_outlined, size: 10, color: Color(0xFF64748B)),
-                    const SizedBox(width: 3),
-                    Flexible(
-                      child: Text(
-                        customerArea,
-                        style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // 3. Service Column
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Service', style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
-                const SizedBox(height: 1),
-                Text(
-                  serviceName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: Color(0xFF0F172A)),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text('Completed At\n$completedAt', style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B))),
-              ],
-            ),
-          ),
-
-          // 4. Amount & Paid Badge
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Amount', style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
-                const SizedBox(height: 1),
                 Text(
                   '₹${price.toStringAsFixed(0)}',
-                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5, color: Color(0xFF0F172A)),
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
-                const SizedBox(height: 2),
-                const Row(
-                  children: [
-                    Text('Payment', style: TextStyle(fontSize: 8.5, color: Color(0xFF94A3B8))),
-                  ],
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Paid',
+                    style: TextStyle(
+                      color: Color(0xFF16A34A),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-                const Row(
-                  children: [
-                    Text('Paid ', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
-                    Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 10),
-                  ],
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF94A3B8),
+                  size: 20,
                 ),
               ],
             ),
-          ),
-
-          // 5. Rating & Call Actions
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Text('Rating', style: TextStyle(fontSize: 9.5, color: Color(0xFF94A3B8))),
-              const SizedBox(height: 1),
-              Row(
-                children: [
-                  const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 14),
-                  Text(
-                    rating.toStringAsFixed(1),
-                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  // Call Action Button
-                  InkWell(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Calling customer $customerName ($customerPhone)...'),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.phone, color: Color(0xFF2563EB), size: 12),
-                          SizedBox(width: 3),
-                          Text('Call', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.more_vert, color: Color(0xFF94A3B8), size: 16),
-                ],
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2074,14 +1903,10 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
 
               // 3. Elevated Centered Map FAB Button
               InkWell(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Map View: Live GPS Service Coverage Active.')),
-                  );
-                },
+                onTap: () => _showLiveRadarMapModal(context, state),
                 child: Container(
-                  width: 52,
-                  height: 52,
+                  width: 54,
+                  height: 54,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(

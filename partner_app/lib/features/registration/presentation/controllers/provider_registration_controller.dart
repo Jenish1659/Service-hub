@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/partner_basic_info.dart';
 import '../../domain/repositories/registration_repository.dart';
 import '../../../../core/services/registration_service.dart';
@@ -26,6 +27,9 @@ class ProviderRegistrationController extends ChangeNotifier {
   bool isMobileVerified = false;
   bool isUsernameChecked = false;
   bool isUsernameAvailable = false;
+  bool isCheckingUsername = false;
+  String? usernameError;
+  List<String> usernameSuggestions = [];
   bool agreedToTerms = true;
   bool isLoading = false;
 
@@ -78,14 +82,117 @@ class ProviderRegistrationController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void checkUsernameAvailability(String username) {
+  /// Username condition:
+  /// - Minimum 6 characters
+  /// - Numbers allowed
+  /// - Allowed special characters ONLY: '_' and '.'
+  /// - At most 1 special character allowed (more than 1 shows error)
+  bool isValidUsernameFormat(String username) {
     final clean = username.trim();
+    if (clean.length < 6) return false;
+    // Disallow any characters other than letters, digits, '_' and '.'
+    if (!RegExp(r'^[a-zA-Z0-9_.]+$').hasMatch(clean)) return false;
+    // Count special characters
+    final specialCount = RegExp(r'[_.]').allMatches(clean).length;
+    if (specialCount > 1) return false;
+    return true;
+  }
+
+  List<String> generateUsernameSuggestions(String base) {
+    var clean = base.trim().toLowerCase().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+    if (clean.isEmpty) {
+      clean = effectiveFirstName.toLowerCase().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+    }
+    if (clean.length < 4) {
+      clean = '${clean}expert';
+    }
+
+    final candidates = <String>[
+      '${clean}_01',
+      '$clean.pro',
+      '${clean}_99',
+      '$clean.hub',
+      '${clean}_hub',
+    ];
+
+    return candidates.where((s) => isValidUsernameFormat(s)).take(4).toList();
+  }
+
+  void onUsernameChanged(String val) {
+    final clean = val.trim();
+    isUsernameChecked = false;
+    isUsernameAvailable = false;
+    usernameError = null;
     if (clean.isNotEmpty) {
+      usernameSuggestions = generateUsernameSuggestions(clean);
+    } else {
+      usernameSuggestions = [];
+    }
+    _autoSaveDraft();
+    notifyListeners();
+  }
+
+  void selectUsernameSuggestion(String suggestion) {
+    usernameController.text = suggestion;
+    usernameSuggestions = [];
+    checkUsernameInDatabase(suggestion);
+  }
+
+  Future<bool> checkUsernameInDatabase(String username) async {
+    final clean = username.trim().toLowerCase();
+
+    // Check conditions: length >= 6, max 1 special char (_ or .)
+    if (!isValidUsernameFormat(clean)) {
       isUsernameChecked = true;
-      isUsernameAvailable = true;
+      isUsernameAvailable = false;
+      usernameError = 'please enter username as per conditions';
+      usernameSuggestions = generateUsernameSuggestions(clean);
       _autoSaveDraft();
       notifyListeners();
+      return false;
     }
+
+    isCheckingUsername = true;
+    usernameError = null;
+    notifyListeners();
+
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('users')
+          .select('username')
+          .ilike('username', clean)
+          .limit(1);
+
+      final isTaken = res.isNotEmpty;
+      isCheckingUsername = false;
+      isUsernameChecked = true;
+      isUsernameAvailable = !isTaken;
+
+      if (isTaken) {
+        usernameError = 'use different username it is already availble';
+        usernameSuggestions = generateUsernameSuggestions(clean);
+      } else {
+        usernameError = null;
+        usernameSuggestions = [];
+      }
+
+      _autoSaveDraft();
+      notifyListeners();
+      return !isTaken;
+    } catch (_) {
+      isCheckingUsername = false;
+      isUsernameChecked = true;
+      isUsernameAvailable = true;
+      usernameError = null;
+      _autoSaveDraft();
+      notifyListeners();
+      return true;
+    }
+  }
+
+  void checkUsernameAvailability(String username) {
+    checkUsernameInDatabase(username);
   }
 
   bool handleStateSelection(String state, BuildContext context, VoidCallback onShowComingSoon) {

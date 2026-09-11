@@ -185,14 +185,21 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
       }
     } catch (_) {}
 
+    // Helper to parse KYC data from remarks
+    String extractFromRemarks(String? remarks, String label) {
+      if (remarks == null || remarks.isEmpty) return '';
+      final match = RegExp('$label:\\s*([^|]+)').firstMatch(remarks);
+      return match?.group(1)?.trim() ?? '';
+    }
+
     // Source C: Cloud Supabase (verification_requests with relationship disambiguation)
     try {
       final List<dynamic> response = await client
           .from('verification_requests')
           .select('*, users:users!verification_requests_user_id_fkey(*, user_profiles(*))')
-          .eq('status', 'PENDING')
+          .or('status.eq.PENDING,status.eq.IN_REVIEW,status.eq.UNDER_REVIEW,status.eq.SUBMITTED')
           .order('submitted_at', ascending: false)
-          .timeout(const Duration(milliseconds: 3000));
+          .timeout(const Duration(milliseconds: 10000));
 
       for (var item in response) {
         final id = item['verification_id']?.toString() ?? '';
@@ -211,6 +218,16 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           final displayName = fullName.isNotEmpty ? fullName : (user['username'] ?? user['email'] ?? 'Partner Candidate').toString();
           final realPhone = (user['phone'] ?? profile['phone'] ?? '').toString();
           final realEmail = (user['email'] ?? '').toString();
+          final remarks = item['remarks']?.toString() ?? '';
+
+          final aadhaar = (item['aadhaar_number'] ?? extractFromRemarks(remarks, 'Aadhaar')).toString();
+          final pan = (item['pan_number'] ?? extractFromRemarks(remarks, 'PAN')).toString();
+          final bank = (item['bank_name'] ?? extractFromRemarks(remarks, 'Bank')).toString();
+          final acc = (item['account_number'] ?? extractFromRemarks(remarks, 'Acc')).toString();
+          final ifsc = (item['ifsc_code'] ?? extractFromRemarks(remarks, 'IFSC')).toString();
+          final holder = (item['account_holder_name'] ?? extractFromRemarks(remarks, 'Holder')).toString();
+          final bName = (item['business_name'] ?? extractFromRemarks(remarks, 'Business')).toString();
+          final bAddr = (item['business_address'] ?? extractFromRemarks(remarks, 'Address')).toString();
 
           _persistedPendingPartners[id] = {
             'id': id,
@@ -222,19 +239,19 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
             'last_name': lName,
             'phone': realPhone,
             'email': realEmail,
-            'business_name': item['business_name'] ?? '$displayName Services',
-            'business_address': item['business_address'] ?? '',
+            'business_name': bName.isNotEmpty ? bName : '$displayName Services',
+            'business_address': bAddr,
             'category': item['verification_type'] ?? 'ac_service',
             'category_name': item['category_name'] ?? 'AC Service Provider',
             'city': profile['city'] ?? '',
             'state': profile['state'] ?? '',
             'status': item['status'] ?? 'PENDING',
-            'bank_name': item['bank_name'] ?? '',
-            'account_number': item['account_number'] ?? '',
-            'ifsc_code': item['ifsc_code'] ?? '',
-            'account_holder_name': item['account_holder_name'] ?? displayName,
-            'aadhaar_number': item['aadhaar_number'] ?? '',
-            'pan_number': item['pan_number'] ?? '',
+            'bank_name': bank,
+            'account_number': acc,
+            'ifsc_code': ifsc,
+            'account_holder_name': holder.isNotEmpty ? holder : displayName,
+            'aadhaar_number': aadhaar,
+            'pan_number': pan,
             'ai_risk_score': (item['ai_risk_score'] as num?)?.toDouble() ?? 0.02,
             'trust_score': (item['trust_score'] as num?)?.toDouble() ?? 99.8,
             'ai_report': item['ai_report'] ?? {},
@@ -244,14 +261,14 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
       }
     } catch (_) {}
 
-    // Source D: Cloud Supabase (partners table directly)
+    // Source D: Cloud Supabase (partners table directly with joined_at ordering)
     try {
       final List<dynamic> partnerRes = await client
           .from('partners')
           .select('*, users(*, user_profiles(*))')
-          .eq('verification_status', 'PENDING')
-          .order('created_at', ascending: false)
-          .timeout(const Duration(milliseconds: 3000));
+          .or('verification_status.eq.PENDING,verification_status.eq.UNDER_REVIEW,verification_status.eq.SUBMITTED')
+          .order('joined_at', ascending: false)
+          .timeout(const Duration(milliseconds: 10000));
 
       for (var p in partnerRes) {
         final pId = (p['partner_id'] ?? '').toString();
@@ -269,6 +286,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           final lN = (prof['last_name'] ?? '').toString();
           final full = '$fN $lN'.trim();
           final name = full.isNotEmpty ? full : (u['username'] ?? u['email'] ?? 'Partner Candidate').toString();
+          
           _persistedPendingPartners[checkId] = {
             'id': checkId,
             'verification_id': checkId,
@@ -286,7 +304,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
             'city': (prof['city'] ?? '').toString(),
             'state': (prof['state'] ?? '').toString(),
             'status': 'PENDING',
-            'submitted_at': p['created_at'] ?? 'Recently',
+            'submitted_at': p['joined_at'] ?? 'Recently',
             'trust_score': 99.8,
             'ai_risk_score': 0.02,
           };
@@ -295,7 +313,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
     } catch (_) {}
 
     yield _persistedPendingPartners.values.toList();
-    await Future.delayed(const Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 3000));
   }
 });
 

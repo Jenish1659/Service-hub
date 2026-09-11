@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/vector_avatar_widgets.dart';
+import '../../../../core/widgets/top_toast.dart';
+import '../../../../core/services/username_availability_service.dart';
 
 class DeliveryPartnerRegistrationFlowScreen extends StatefulWidget {
   const DeliveryPartnerRegistrationFlowScreen({super.key});
@@ -27,6 +29,8 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
   final _confirmPasswordController = TextEditingController();
   bool _isUsernameChecked = false;
   bool _isUsernameAvailable = false;
+  bool _isCheckingUsername = false;
+  List<String> _usernameSuggestions = [];
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -69,23 +73,10 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
   String _submittedRegistrationId = 'SH-DEL-2026-9042';
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.bold))),
-          ],
-        ),
-        backgroundColor: Colors.red.shade700,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    TopToast.show(context, message, isError: true);
   }
 
-  void _nextStep() {
+  void _nextStep() async {
     if (_currentStep == 0) {
       if (_fullNameController.text.trim().isEmpty) {
         _showError('Full Name is required *');
@@ -104,9 +95,32 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
         return;
       }
     } else if (_currentStep == 2) {
-      if (_usernameController.text.trim().isEmpty) {
-        _showError('Username is required *');
+      final uText = _usernameController.text.trim();
+      if (uText.isEmpty) {
+        TopToast.show(context, 'Username is required *', isError: true);
         return;
+      }
+      if (!UsernameAvailabilityService.isValidUsernameFormat(uText)) {
+        TopToast.show(context, 'please enter username as per conditions', isError: true);
+        return;
+      }
+      if (!_isUsernameChecked || !_isUsernameAvailable) {
+        final isAvail = await UsernameAvailabilityService.checkAvailabilityInSupabase(uText);
+        if (!mounted) return;
+        if (!isAvail) {
+          setState(() {
+            _isUsernameChecked = true;
+            _isUsernameAvailable = false;
+            _usernameSuggestions = UsernameAvailabilityService.generateSuggestions(uText);
+          });
+          TopToast.show(context, 'use different username it is already availble', isError: true);
+          return;
+        } else {
+          setState(() {
+            _isUsernameChecked = true;
+            _isUsernameAvailable = true;
+          });
+        }
       }
       if (_passwordController.text.isEmpty) {
         _showError('Password is required *');
@@ -824,33 +838,144 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _buildFieldLabel('Username', isRequired: true),
-                  if (_isUsernameChecked && _isUsernameAvailable)
-                    const Text('✓ Username available', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
+                  if (_isCheckingUsername)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.deliveryOrangePrimary),
+                    )
+                  else if (_isUsernameChecked && _isUsernameAvailable)
+                    const Text('✓ Available', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)))
+                  else if (_isUsernameChecked && !_isUsernameAvailable)
+                    const Text('Not Available', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
                 ],
               ),
               TextField(
                 controller: _usernameController,
+                onChanged: (val) {
+                  setState(() {
+                    _isUsernameChecked = false;
+                    _isUsernameAvailable = false;
+                    _usernameSuggestions = val.trim().isNotEmpty
+                        ? UsernameAvailabilityService.generateSuggestions(val.trim())
+                        : [];
+                  });
+                },
                 decoration: _inputDecoration(
-                  'Enter unique username',
+                  'e.g. rider_01 or express.pro',
                   icon: Icons.alternate_email_rounded,
                   suffixIcon: TextButton(
-                    onPressed: () {
-                      if (_usernameController.text.trim().isEmpty) {
-                        _usernameController.text = 'express_rider_99';
+                    onPressed: () async {
+                      final uText = _usernameController.text.trim();
+                      if (uText.isEmpty) {
+                        TopToast.show(context, 'please enter username as per conditions', isError: true);
+                        return;
                       }
+                      if (!UsernameAvailabilityService.isValidUsernameFormat(uText)) {
+                        setState(() {
+                          _isUsernameChecked = true;
+                          _isUsernameAvailable = false;
+                          _usernameSuggestions = UsernameAvailabilityService.generateSuggestions(uText);
+                        });
+                        TopToast.show(context, 'please enter username as per conditions', isError: true);
+                        return;
+                      }
+                      setState(() => _isCheckingUsername = true);
+                      final isAvail = await UsernameAvailabilityService.checkAvailabilityInSupabase(uText);
+                      if (!mounted) return;
                       setState(() {
+                        _isCheckingUsername = false;
                         _isUsernameChecked = true;
-                        _isUsernameAvailable = true;
+                        _isUsernameAvailable = isAvail;
+                        if (!isAvail) {
+                          _usernameSuggestions = UsernameAvailabilityService.generateSuggestions(uText);
+                        }
                       });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('✓ Username "@${_usernameController.text}" is available!'), backgroundColor: AppColors.deliveryOrangePrimary),
-                      );
+                      if (!isAvail) {
+                        TopToast.show(context, 'use different username it is already availble', isError: true);
+                      } else {
+                        TopToast.show(context, '✓ Username "@$uText" is available!', isError: false);
+                      }
                     },
-                    child: const Text('Check', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.deliveryOrangePrimary)),
+                    child: _isCheckingUsername
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.deliveryOrangePrimary),
+                          )
+                        : const Text('Check', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.deliveryOrangePrimary)),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 5),
+              const Text(
+                'Conditions: Minimum 6 characters. Numbers allowed. Only 1 special character (_ or .) allowed.',
+                style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+              ),
+              if (_usernameSuggestions.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFED7AA)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.lightbulb_outline_rounded, size: 16, color: AppColors.deliveryOrangePrimary),
+                          SizedBox(width: 6),
+                          Text('Suggested Available Usernames:', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF9A3412))),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: _usernameSuggestions.map((sug) => InkWell(
+                          onTap: () async {
+                            _usernameController.text = sug;
+                            setState(() {
+                              _usernameSuggestions = [];
+                              _isCheckingUsername = true;
+                            });
+                            final avail = await UsernameAvailabilityService.checkAvailabilityInSupabase(sug);
+                            if (!mounted) return;
+                            setState(() {
+                              _isCheckingUsername = false;
+                              _isUsernameChecked = true;
+                              _isUsernameAvailable = avail;
+                            });
+                            TopToast.show(context, 'Selected suggested username: @$sug', isError: false);
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFFDBA74)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('@$sug', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFFC2410C))),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.add_circle_outline_rounded, size: 14, color: AppColors.deliveryOrangePrimary),
+                              ],
+                            ),
+                          ),
+                        )).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
 
               _buildFieldLabel('Password', isRequired: true),
               TextField(

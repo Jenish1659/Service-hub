@@ -134,6 +134,7 @@ class _ProviderReviewApplicationScreenState
     await LiveBookingSyncService.instance.submitPartnerVerification(partnerRecord);
 
     try {
+      final expInt = int.tryParse(experience.replaceAll(RegExp(r'\D'), '')) ?? 3;
       await SupabaseAuthService.registerServiceProvider(
         username: username.isNotEmpty ? username : 'provider_${DateTime.now().millisecondsSinceEpoch % 10000}',
         firstName: firstName,
@@ -145,6 +146,15 @@ class _ProviderReviewApplicationScreenState
         city: city,
         serviceCategoryId: category,
         specialization: specialization.isNotEmpty ? specialization : 'Quality Service Specialist',
+        aadhaarNumber: aadhaar,
+        panNumber: pan,
+        bankName: bankName,
+        accountNumber: accountNumber,
+        ifscCode: ifscCode,
+        accountHolderName: accountHolder,
+        businessName: businessName,
+        businessAddress: businessAddress,
+        experienceYears: expInt,
       );
     } catch (err) {
       debugPrint('[ProviderReview] Supabase registration note: $err');
