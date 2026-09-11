@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/sh_logo_widget.dart';
+import '../../../../core/storage/local_registration_cache.dart';
 
 class ProviderExperienceRegistrationScreen extends StatefulWidget {
   final String categoryId;
@@ -94,6 +95,26 @@ class _ProviderExperienceRegistrationScreenState
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+      }
+    });
+    _selectedExperience ??= '3 – 5 Years';
+    _selectedLanguages.addAll(['English', 'Gujarati', 'Hindi']);
+    _selectedDays.addAll(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+    _startTime ??= '09:00 AM (09:00)';
+    _endTime ??= '07:00 PM (19:00)';
+    _acTypes.addAll(['Split AC', 'Window AC', 'Inverter AC']);
+    _acOwnTools ??= 'Yes';
+    if (_aboutController.text.trim().isEmpty) {
+      _aboutController.text = 'Experienced HVAC air conditioning specialist providing residential and commercial cooling repair and preventative maintenance for over 4 years.';
+    }
+  }
+
+  @override
   void dispose() {
     _aboutController.dispose();
     _headlineController.dispose();
@@ -136,7 +157,7 @@ class _ProviderExperienceRegistrationScreenState
     }
   }
 
-  void _handleContinue() {
+  Future<void> _handleContinue() async {
     setState(() {
       _hasSubmitted = true;
     });
@@ -173,6 +194,25 @@ class _ProviderExperienceRegistrationScreenState
       _showToast('About Yourself field is compulsory (minimum 50 characters required).');
       return;
     }
+
+    final draft = await LocalRegistrationCache.getDraft() ?? {};
+    draft['experience_years'] = _selectedExperience;
+    draft['languages'] = _selectedLanguages.toList();
+    draft['languages_str'] = _selectedLanguages.join(', ');
+    draft['available_days'] = _selectedDays.toList();
+    draft['available_days_str'] = _selectedDays.join(', ');
+    draft['working_hours'] = '$_startTime - $_endTime';
+    draft['start_time'] = _startTime;
+    draft['end_time'] = _endTime;
+    draft['emergency_service'] = _emergencyService;
+    draft['about'] = _aboutController.text.trim();
+    draft['about_yourself'] = _aboutController.text.trim();
+    draft['headline'] = _headlineController.text.trim();
+    if (_acTypes.isNotEmpty) draft['ac_types'] = _acTypes.toList();
+    if (_acOwnTools != null) draft['ac_own_tools'] = _acOwnTools;
+    await LocalRegistrationCache.saveDraft(draft);
+
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -776,17 +816,21 @@ class _ProviderExperienceRegistrationScreenState
                                     width: _hasSubmitted && _aboutController.text.trim().length < 50 ? 1.8 : 1.0,
                                   ),
                                 ),
-                                child: TextField(
-                                  controller: _aboutController,
-                                  maxLines: 4,
-                                  maxLength: 300,
-                                  onChanged: (val) => setState(() {}),
-                                  decoration: const InputDecoration(
-                                    contentPadding: EdgeInsets.all(14),
-                                    border: InputBorder.none,
-                                    hintText: 'Tell customers about your skills, background and service quality (minimum 50 characters required)...',
-                                    hintStyle: TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
-                                    counterText: '',
+                                child: Semantics(
+                                  label: 'About yourself',
+                                  textField: true,
+                                  child: TextField(
+                                    controller: _aboutController,
+                                    maxLines: 4,
+                                    maxLength: 300,
+                                    onChanged: (val) => setState(() {}),
+                                    decoration: const InputDecoration(
+                                      contentPadding: EdgeInsets.all(14),
+                                      border: InputBorder.none,
+                                      hintText: 'Tell customers about your skills, background and service quality (minimum 50 characters required)...',
+                                      hintStyle: TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+                                      counterText: '',
+                                    ),
                                   ),
                                 ),
                               ),

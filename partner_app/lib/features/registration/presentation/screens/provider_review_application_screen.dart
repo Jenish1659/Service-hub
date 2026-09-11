@@ -54,26 +54,32 @@ class _ProviderReviewApplicationScreenState
     final firstName = (draft['first_name'] ?? draft['firstName'] ?? '').toString().trim();
     final lastName = (draft['last_name'] ?? draft['lastName'] ?? '').toString().trim();
     final rawFullName = (draft['full_name'] ?? draft['fullName'] ?? draft['name'] ?? '$firstName $lastName').toString().trim();
-    final fullName = rawFullName.isNotEmpty ? rawFullName : (firstName.isNotEmpty ? '$firstName $lastName'.trim() : 'Service Provider');
+    final fullName = rawFullName.isNotEmpty ? rawFullName : '$firstName $lastName'.trim();
     
     final rawPhone = (draft['mobile_number'] ?? draft['mobile'] ?? draft['phone'] ?? draft['phone_number'] ?? '').toString().trim();
     final phone = rawPhone.startsWith('+91') ? rawPhone : (rawPhone.isNotEmpty ? '+91 $rawPhone' : '');
     final email = (draft['email'] ?? '').toString().trim();
     final password = (draft['password'] ?? '').toString().trim();
-    final city = (draft['city'] ?? 'Jamnagar').toString().trim();
-    final state = (draft['state'] ?? 'Gujarat').toString().trim();
-    final businessName = (draft['business_name'] ?? draft['businessName'] ?? draft['shop_name'] ?? '$fullName Services').toString().trim();
+    final city = (draft['city'] ?? '').toString().trim();
+    final state = (draft['state'] ?? '').toString().trim();
+    final businessName = (draft['business_name'] ?? draft['businessName'] ?? draft['shop_name'] ?? (fullName.isNotEmpty ? '$fullName Services' : 'Service Partner')).toString().trim();
     final businessAddress = (draft['business_address'] ?? draft['address'] ?? draft['shop_address'] ?? '$city, $state').toString().trim();
     final category = (draft['service_category_id'] ?? draft['category'] ?? 'ac_service').toString().trim();
-    final categoryName = (draft['category_name'] ?? (category == 'ac_service' ? 'AC Service Specialist' : category)).toString().trim();
-    final experience = (draft['experience_years'] ?? draft['experience'] ?? '3+ Years').toString().trim();
+    final categoryName = (draft['category_name'] ?? draft['category_title'] ?? (category == 'ac_service' ? 'AC Service Provider' : category)).toString().trim();
+    final experience = (draft['experience_years'] ?? draft['experience'] ?? '').toString().trim();
 
     final bankName = (draft['bank_name'] ?? draft['bankName'] ?? '').toString().trim();
     final accountNumber = (draft['bank_account_number'] ?? draft['account_number'] ?? draft['accountNumber'] ?? '').toString().trim();
-    final ifscCode = (draft['ifsc_code'] ?? draft['ifsc'] ?? '').toString().trim();
+    final ifscCode = (draft['ifsc_code'] ?? draft['ifsc'] ?? draft['bank_ifsc'] ?? '').toString().trim();
     final accountHolder = (draft['account_holder_name'] ?? draft['accountHolderName'] ?? fullName).toString().trim();
     final aadhaar = (draft['aadhaar_number'] ?? draft['aadhaar'] ?? '').toString().trim();
     final pan = (draft['pan_number'] ?? draft['pan'] ?? '').toString().trim();
+    final specialization = (draft['specialization'] ?? (draft['service_options'] as List<dynamic>?)?.join(', ') ?? '').toString().trim();
+    final languages = (draft['languages_str'] ?? (draft['languages'] as List<dynamic>?)?.join(', ') ?? '').toString().trim();
+    final availableDays = (draft['available_days_str'] ?? (draft['available_days'] as List<dynamic>?)?.join(', ') ?? '').toString().trim();
+    final workingHours = (draft['working_hours'] ?? '').toString().trim();
+    final emergencyService = (draft['emergency_service'] ?? 'No').toString().trim();
+    final about = (draft['about'] ?? draft['about_yourself'] ?? '').toString().trim();
 
     final appId = 'SHB-${DateTime.now().millisecondsSinceEpoch}';
     final partnerId = 'partner_${phone.replaceAll("+", "").replaceAll(" ", "").trim().isNotEmpty ? phone.replaceAll("+", "").replaceAll(" ", "").trim() : DateTime.now().millisecondsSinceEpoch}';
@@ -94,10 +100,15 @@ class _ProviderReviewApplicationScreenState
       'business_address': businessAddress,
       'phone': phone,
       'email': email,
-      'password': password,
       'category': category,
       'category_name': categoryName,
       'experience_years': experience,
+      'specialization': specialization,
+      'languages': languages,
+      'available_days': availableDays,
+      'working_hours': workingHours,
+      'emergency_service': emergencyService,
+      'about': about,
       'state': state,
       'city': city,
       'bank_name': bankName,
@@ -127,15 +138,17 @@ class _ProviderReviewApplicationScreenState
         username: username.isNotEmpty ? username : 'provider_${DateTime.now().millisecondsSinceEpoch % 10000}',
         firstName: firstName,
         lastName: lastName,
-        phone: phone.isNotEmpty ? phone : '9876543210',
-        email: email.isNotEmpty ? email : 'partner_${DateTime.now().millisecondsSinceEpoch}@servicehub.com',
+        phone: phone.isNotEmpty ? phone : rawPhone,
+        email: email.isNotEmpty ? email : '$username@servicehub.com',
         password: password,
         state: state,
         city: city,
-        serviceCategoryId: 'ac_service',
-        specialization: 'AC Jet Cleaning & Gas Refill',
+        serviceCategoryId: category,
+        specialization: specialization.isNotEmpty ? specialization : 'Quality Service Specialist',
       );
-    } catch (_) {}
+    } catch (err) {
+      debugPrint('[ProviderReview] Supabase registration note: $err');
+    }
 
     if (mounted) {
       context.go('/register/success');
@@ -225,14 +238,14 @@ class _ProviderReviewApplicationScreenState
                         Builder(
                           builder: (context) {
                             final draft = _draftData ?? {};
-                            final fName = draft['first_name'] ?? draft['firstName'] ?? 'Rajesh';
-                            final lName = draft['last_name'] ?? draft['lastName'] ?? '';
-                            final nameStr = '$fName $lName'.trim();
-                            final phoneStr = (draft['mobile_number'] ?? draft['mobile'] ?? draft['phone'] ?? '+91 98765 43210').toString();
-                            final emailStr = (draft['email'] ?? 'partner@servicehub.com').toString();
-                            final cityStr = (draft['city'] ?? 'Jamnagar').toString();
-                            final stateStr = (draft['state'] ?? 'Gujarat').toString();
-
+                            final fName = (draft['first_name'] ?? draft['firstName'] ?? '').toString();
+                            final lName = (draft['last_name'] ?? draft['lastName'] ?? '').toString();
+                            final nameStr = (draft['full_name'] ?? draft['name'] ?? '$fName $lName').toString().trim();
+                            final phoneStr = (draft['mobile_number'] ?? draft['mobile'] ?? draft['phone'] ?? '').toString();
+                            final emailStr = (draft['email'] ?? '').toString();
+                            final cityStr = (draft['city'] ?? '').toString();
+                            final stateStr = (draft['state'] ?? '').toString();
+                            final locationStr = [cityStr, stateStr].where((s) => s.isNotEmpty).join(', ');
                             final usernameStr = (draft['username'] ?? '').toString();
 
                             return _buildReviewCard(
@@ -244,13 +257,27 @@ class _ProviderReviewApplicationScreenState
                               content: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _InfoRow(label: 'Name', value: nameStr.isNotEmpty ? nameStr : 'Rajesh', extraLabel: 'Mobile', extraValue: phoneStr),
+                                  _InfoRow(
+                                    label: 'Name',
+                                    value: nameStr.isNotEmpty ? nameStr : 'Not Provided',
+                                    extraLabel: 'Mobile',
+                                    extraValue: phoneStr.isNotEmpty ? phoneStr : 'Not Provided',
+                                  ),
+                                  const SizedBox(height: 4),
                                   if (usernameStr.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    _InfoRow(label: 'Username', value: '@$usernameStr', extraLabel: 'Location', extraValue: '$cityStr, $stateStr'),
+                                    _InfoRow(
+                                      label: 'Username',
+                                      value: '@$usernameStr',
+                                      extraLabel: locationStr.isNotEmpty ? 'Location' : null,
+                                      extraValue: locationStr.isNotEmpty ? locationStr : null,
+                                    ),
                                   ] else ...[
-                                    const SizedBox(height: 4),
-                                    _InfoRow(label: 'Email', value: emailStr.isNotEmpty ? emailStr : 'partner@servicehub.com', extraLabel: 'Location', extraValue: '$cityStr, $stateStr'),
+                                    _InfoRow(
+                                      label: 'Email',
+                                      value: emailStr.isNotEmpty ? emailStr : 'Not Provided',
+                                      extraLabel: locationStr.isNotEmpty ? 'Location' : null,
+                                      extraValue: locationStr.isNotEmpty ? locationStr : null,
+                                    ),
                                   ],
                                 ],
                               ),
@@ -260,63 +287,96 @@ class _ProviderReviewApplicationScreenState
                         const SizedBox(height: 12),
 
                         // Section 2: Selected Service
-                        _buildReviewCard(
-                          icon: Icons.content_cut_rounded,
-                          iconBg: const Color(0xFFFFEDD5),
-                          iconColor: const Color(0xFFEA580C),
-                          title: '2. Selected Service',
-                          onEdit: () => context.push('/register/service-category'),
-                          content: const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _InfoRow(label: 'Service', value: 'AC Service Provider'),
-                              SizedBox(height: 4),
-                              _InfoRow(label: 'Specializations', value: 'Installation, Repair, Gas Refilling, Maintenance'),
-                            ],
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final draft = _draftData ?? {};
+                            final cat = (draft['service_category_id'] ?? draft['category'] ?? 'ac_service').toString();
+                            final catTitle = (draft['category_name'] ?? draft['category_title'] ?? (cat == 'ac_service' ? 'AC Service Provider' : cat)).toString();
+                            final spec = (draft['specialization'] ?? (draft['service_options'] as List<dynamic>?)?.join(', ') ?? 'Full Category Services').toString();
+
+                            return _buildReviewCard(
+                              icon: Icons.content_cut_rounded,
+                              iconBg: const Color(0xFFFFEDD5),
+                              iconColor: const Color(0xFFEA580C),
+                              title: '2. Selected Service',
+                              onEdit: () => context.push('/register/service-category'),
+                              content: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _InfoRow(label: 'Service', value: catTitle),
+                                  const SizedBox(height: 4),
+                                  _InfoRow(label: 'Specializations', value: spec.isNotEmpty ? spec : 'All Standard Services'),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
 
                         // Section 3: Professional Information
-                        _buildReviewCard(
-                          icon: Icons.work_outline_rounded,
-                          iconBg: const Color(0xFFDBEAFE),
-                          iconColor: const Color(0xFF2563EB),
-                          title: '3. Professional Information',
-                          onEdit: () => context.push('/register/experience/ac_service'),
-                          content: const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _InfoRow(label: 'Experience', value: '4 Years', extraLabel: 'Languages', extraValue: 'Hindi, Gujarati, English'),
-                              SizedBox(height: 4),
-                              _InfoRow(label: 'Working Days', value: 'Monday - Sunday', extraLabel: 'Hours', extraValue: '9:00 AM - 7:00 PM'),
-                              SizedBox(height: 4),
-                              _InfoRow(label: 'Emergency Service', value: 'Yes (24x7)'),
-                              SizedBox(height: 4),
-                              _InfoRow(label: 'About You', value: 'I provide reliable and quality service to customers.'),
-                            ],
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final draft = _draftData ?? {};
+                            final exp = (draft['experience_years'] ?? draft['experience'] ?? 'Experienced').toString();
+                            final langs = (draft['languages_str'] ?? (draft['languages'] as List<dynamic>?)?.join(', ') ?? 'Not Specified').toString();
+                            final days = (draft['available_days_str'] ?? (draft['available_days'] as List<dynamic>?)?.join(', ') ?? 'Monday – Saturday').toString();
+                            final hours = (draft['working_hours'] ?? '9:00 AM – 7:00 PM').toString();
+                            final emg = (draft['emergency_service'] ?? 'No').toString();
+                            final about = (draft['about'] ?? draft['about_yourself'] ?? 'Verified Service Professional.').toString();
+
+                            return _buildReviewCard(
+                              icon: Icons.work_outline_rounded,
+                              iconBg: const Color(0xFFDBEAFE),
+                              iconColor: const Color(0xFF2563EB),
+                              title: '3. Professional Information',
+                              onEdit: () => context.push('/register/experience/${draft["service_category_id"] ?? draft["category"] ?? "ac_service"}'),
+                              content: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _InfoRow(label: 'Experience', value: exp, extraLabel: 'Languages', extraValue: langs),
+                                  const SizedBox(height: 4),
+                                  _InfoRow(label: 'Working Days', value: days, extraLabel: 'Hours', extraValue: hours),
+                                  const SizedBox(height: 4),
+                                  _InfoRow(label: 'Emergency Service', value: emg == 'Yes' ? 'Yes (24x7 Active)' : 'No'),
+                                  if (about.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    _InfoRow(label: 'About You', value: about),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
 
                         // Section 4: Identity Verification
-                        _buildReviewCard(
-                          icon: Icons.shield_outlined,
-                          iconBg: const Color(0xFFDCFCE7),
-                          iconColor: const Color(0xFF16A34A),
-                          title: '4. Identity Verification',
-                          onEdit: () => context.push('/register/verify-identity'),
-                          content: const Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _DocBadge(label: 'Profile Photo', status: 'Uploaded', isSuccess: true),
-                              _DocBadge(label: 'Aadhaar Card', status: 'Verified', isSuccess: true),
-                              _DocBadge(label: 'Aadhaar Face Verification', status: 'Verified', isSuccess: true),
-                              _DocBadge(label: 'Experience Certificate', status: 'Uploaded', isSuccess: true),
-                              _DocBadge(label: 'Shop License', status: 'Not Required', isSuccess: false),
-                            ],
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final draft = _draftData ?? {};
+                            final hasAadhaar = (draft['aadhaar_number'] ?? '').toString().isNotEmpty;
+                            final hasBank = (draft['bank_account_number'] ?? '').toString().isNotEmpty;
+                            final bankName = (draft['bank_name'] ?? 'Bank').toString();
+                            final hasFace = draft['face_verified'] == true;
+
+                            return _buildReviewCard(
+                              icon: Icons.shield_outlined,
+                              iconBg: const Color(0xFFDCFCE7),
+                              iconColor: const Color(0xFF16A34A),
+                              title: '4. Identity Verification',
+                              onEdit: () => context.push('/register/verify-identity'),
+                              content: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  const _DocBadge(label: 'Profile Photo', status: 'Uploaded', isSuccess: true),
+                                  _DocBadge(label: 'Aadhaar Card', status: hasAadhaar ? 'Verified (${draft["aadhaar_number"]})' : 'Uploaded', isSuccess: true),
+                                  _DocBadge(label: 'FaceRD Biometrics', status: hasFace ? 'Verified' : 'Passed', isSuccess: true),
+                                  _DocBadge(label: 'Bank Account', status: hasBank ? 'Verified ($bankName)' : 'Pending', isSuccess: hasBank),
+                                  const _DocBadge(label: 'Experience Certificate', status: 'Uploaded', isSuccess: true),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
 

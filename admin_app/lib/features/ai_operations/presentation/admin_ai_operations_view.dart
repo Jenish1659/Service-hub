@@ -13,36 +13,7 @@ class _AdminAIOperationsViewState extends State<AdminAIOperationsView> {
   bool _autoApproveLowRisk = true;
   bool _liveBiometricsStrict = true;
 
-  final List<Map<String, dynamic>> _aiLogs = [
-    {
-      'timestamp': 'Just now',
-      'module': 'Aadhaar Verhoeff Engine',
-      'target': 'SHB-1788429693914',
-      'result': 'PASSED (Checksum & QR Signature Authentic)',
-      'status': 'SUCCESS',
-    },
-    {
-      'timestamp': '5 mins ago',
-      'module': 'FaceRD Biometric Liveness',
-      'target': 'SHB-1788429693914',
-      'result': 'MATCHED (Confidence: 99.4%, Passive 3D Verified)',
-      'status': 'SUCCESS',
-    },
-    {
-      'timestamp': '12 mins ago',
-      'module': 'Bank Penny Drop (NPCI / IMPS)',
-      'target': 'HDFC0000456 (₹1.00)',
-      'result': 'MATCHED (Beneficiary Name Match 100%)',
-      'status': 'SUCCESS',
-    },
-    {
-      'timestamp': '30 mins ago',
-      'module': 'AC Smart Dispatch AI',
-      'target': 'Booking AC_1788204910',
-      'result': 'Dispatched to Rajesh Sharma (Distance: 1.8km, Rating: 4.9)',
-      'status': 'SUCCESS',
-    },
-  ];
+  final List<Map<String, dynamic>> _aiLogs = [];
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +143,20 @@ class _AdminAIOperationsViewState extends State<AdminAIOperationsView> {
                         const SizedBox(height: 14),
 
                         Expanded(
-                          child: ListView.separated(
+                          child: _aiLogs.isEmpty
+                              ? const Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.psychology_outlined, size: 40, color: Color(0xFFCBD5E1)),
+                                      SizedBox(height: 8),
+                                      Text('No AI Operations Logs Yet', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                                      SizedBox(height: 4),
+                                      Text('Real-time security scans, Aadhaar validations & biometrics appear here as requests occur.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                                    ],
+                                  ),
+                                )
+                              : ListView.separated(
                             itemCount: _aiLogs.length,
                             separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                             itemBuilder: (ctx, idx) {

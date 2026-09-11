@@ -1255,3 +1255,58 @@ BEGIN
     END IF;
 END $$;
 
+-- =============================================================================
+-- ROW LEVEL SECURITY (RLS) & ACCESS POLICIES
+-- =============================================================================
+
+-- Enable RLS on spatial_ref_sys (PostGIS internal table) & allow public read access
+ALTER TABLE IF EXISTS public.spatial_ref_sys ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies 
+        WHERE schemaname = 'public' 
+          AND tablename = 'spatial_ref_sys' 
+          AND policyname = 'Public read spatial_ref_sys'
+    ) THEN
+        CREATE POLICY "Public read spatial_ref_sys" 
+        ON public.spatial_ref_sys 
+        FOR SELECT 
+        USING (true);
+    END IF;
+END $$;
+
+-- Enable RLS on all public tables & ensure standard public access policy exists
+DO $$
+DECLARE
+    tbl RECORD;
+BEGIN
+    FOR tbl IN 
+        SELECT tablename 
+        FROM pg_tables 
+        WHERE schemaname = 'public'
+    LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', tbl.tablename);
+        
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_policies 
+            WHERE schemaname = 'public' AND tablename = tbl.tablename
+        ) THEN
+            EXECUTE format('CREATE POLICY "Public access %I" ON public.%I FOR ALL TO public USING (true) WITH CHECK (true);', tbl.tablename, tbl.tablename);
+        END IF;
+    END LOOP;
+END $$;
+
+-- =============================================================================
+-- POSTGREST & SUPABASE ACCESS PERMISSIONS
+-- Grants USAGE and ALL privileges on public schema to anon, authenticated, service_role
+-- =============================================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+

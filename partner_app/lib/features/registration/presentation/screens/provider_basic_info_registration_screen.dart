@@ -509,17 +509,21 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
               TextField(
                 controller: _controller.usernameController,
                 decoration: _inputDecoration(
-                  'Enter unique username (e.g. rajesh_ac_pro)',
+                  'Enter unique username',
                   icon: Icons.alternate_email_rounded,
                   suffixIcon: TextButton(
                     onPressed: () {
-                      if (_controller.usernameController.text.trim().isEmpty) {
-                        _controller.usernameController.text = 'expert_technician_01';
+                      final uText = _controller.usernameController.text.trim();
+                      if (uText.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enter a username to check availability.')),
+                        );
+                        return;
                       }
-                      _controller.checkUsernameAvailability(_controller.usernameController.text);
+                      _controller.checkUsernameAvailability(uText);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('✓ Username "@${_controller.usernameController.text}" is available!'),
+                          content: Text('✓ Username "@$uText" is available!'),
                           backgroundColor: const Color(0xFF2563EB),
                         ),
                       );

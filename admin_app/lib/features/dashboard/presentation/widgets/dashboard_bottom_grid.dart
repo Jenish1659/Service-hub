@@ -260,7 +260,34 @@ class DashboardBottomGrid extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          _buildPerformanceRow('Rajesh Sharma', '${allBookings.length}', '${stats['completedServices'] ?? 0}', '4.9', '₹${((stats['completedServices'] ?? 0) * 449).toStringAsFixed(0)}'),
+          ...() {
+            final assignedBookings = allBookings.where((b) => (b['partner_name'] ?? '').toString().isNotEmpty).toList();
+            final Map<String, List<Map<String, dynamic>>> partnerGroups = {};
+            for (var b in assignedBookings) {
+              final pName = b['partner_name'].toString();
+              partnerGroups.putIfAbsent(pName, () => []).add(b);
+            }
+            if (partnerGroups.isEmpty) {
+              return [
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: Text('No partner performance data recorded yet.', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                  ),
+                ),
+              ];
+            }
+            return partnerGroups.entries.take(5).map((entry) {
+              final pName = entry.key;
+              final pJobs = entry.value.length;
+              final pCompleted = entry.value.where((b) {
+                final s = (b['status'] ?? '').toString().toUpperCase();
+                return s == 'COMPLETED' || s == 'SERVICE_COMPLETED';
+              }).length;
+              final pEarnings = entry.value.fold<double>(0.0, (acc, b) => acc + ((b['final_amount'] as num?)?.toDouble() ?? (b['estimated_amount'] as num?)?.toDouble() ?? 499.0));
+              return _buildPerformanceRow(pName, '$pJobs', '$pCompleted', '4.9', '₹${pEarnings.toStringAsFixed(0)}');
+            }).toList();
+          }(),
         ],
       ),
     );

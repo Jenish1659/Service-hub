@@ -32,14 +32,78 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   bool _isSidebarCollapsed = false;
   final String _dateRangeText = 'Live Operations';
 
-  Future<void> _approvePartnerProfile(String profileId, String name) async {
+  Future<void> _approvePartnerProfile(String profileId, String name, [Map<String, dynamic>? partnerMap]) async {
     await LiveBookingSyncService.instance.approvePartnerVerification(profileId);
+    final client = Supabase.instance.client;
+
+    String? targetUserId = partnerMap?['user_id']?.toString();
+    String? targetPartnerId = partnerMap?['partner_id']?.toString();
+
+    // If targetUserId is not directly in partnerMap, look it up in Supabase
+    if (targetUserId == null || targetUserId.isEmpty) {
+      try {
+        final vr = await client
+            .from('verification_requests')
+            .select('user_id')
+            .or('verification_id.eq.$profileId,user_id.eq.$profileId')
+            .maybeSingle();
+        if (vr != null && vr['user_id'] != null) {
+          targetUserId = vr['user_id']?.toString();
+        }
+      } catch (_) {}
+    }
+
+    if (targetUserId == null || targetUserId.isEmpty) {
+      try {
+        final p = await client
+            .from('partners')
+            .select('user_id, partner_id')
+            .or('partner_id.eq.$profileId,user_id.eq.$profileId')
+            .maybeSingle();
+        if (p != null) {
+          targetUserId = p['user_id']?.toString();
+          targetPartnerId = p['partner_id']?.toString();
+        }
+      } catch (_) {}
+    }
+
+    final effectiveUserId = (targetUserId != null && targetUserId.isNotEmpty) ? targetUserId : profileId;
+
+    // 1. Update verification_requests table
     try {
-      await Supabase.instance.client
+      await client
           .from('verification_requests')
           .update({'status': 'APPROVED', 'reviewed_at': DateTime.now().toIso8601String()})
-          .eq('verification_id', profileId);
+          .or('verification_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId');
     } catch (_) {}
+
+    // 2. Update partners table
+    try {
+      final filter = targetPartnerId != null && targetPartnerId.isNotEmpty
+          ? 'partner_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId,partner_id.eq.$targetPartnerId'
+          : 'partner_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId';
+      await client
+          .from('partners')
+          .update({'verification_status': 'VERIFIED', 'availability_status': 'AVAILABLE'})
+          .or(filter);
+    } catch (_) {}
+
+    // 3. Update users table
+    try {
+      await client
+          .from('users')
+          .update({'account_status': 'ACTIVE'})
+          .or('user_id.eq.$profileId,user_id.eq.$effectiveUserId');
+    } catch (_) {}
+
+    // Also update local sync cache with effectiveUserId if different
+    if (effectiveUserId != profileId) {
+      await LiveBookingSyncService.instance.approvePartnerVerification(effectiveUserId);
+    }
+
+    markPartnerResolved(profileId);
+    markPartnerResolved(effectiveUserId);
+    if (targetPartnerId != null && targetPartnerId.isNotEmpty) markPartnerResolved(targetPartnerId);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -52,8 +116,53 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     ref.invalidate(adminStatsProvider);
   }
 
-  Future<void> _rejectPartnerProfile(String profileId, String name) async {
+  Future<void> _rejectPartnerProfile(String profileId, String name, [Map<String, dynamic>? partnerMap]) async {
     await LiveBookingSyncService.instance.rejectPartnerVerification(profileId);
+    final client = Supabase.instance.client;
+
+    String? targetUserId = partnerMap?['user_id']?.toString();
+    String? targetPartnerId = partnerMap?['partner_id']?.toString();
+
+    if (targetUserId == null || targetUserId.isEmpty) {
+      try {
+        final vr = await client
+            .from('verification_requests')
+            .select('user_id')
+            .or('verification_id.eq.$profileId,user_id.eq.$profileId')
+            .maybeSingle();
+        if (vr != null && vr['user_id'] != null) {
+          targetUserId = vr['user_id']?.toString();
+        }
+      } catch (_) {}
+    }
+
+    final effectiveUserId = (targetUserId != null && targetUserId.isNotEmpty) ? targetUserId : profileId;
+
+    try {
+      await client
+          .from('verification_requests')
+          .update({'status': 'REJECTED', 'reviewed_at': DateTime.now().toIso8601String()})
+          .or('verification_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId');
+    } catch (_) {}
+
+    try {
+      final filter = targetPartnerId != null && targetPartnerId.isNotEmpty
+          ? 'partner_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId,partner_id.eq.$targetPartnerId'
+          : 'partner_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId';
+      await client
+          .from('partners')
+          .update({'verification_status': 'REJECTED'})
+          .or(filter);
+    } catch (_) {}
+
+    if (effectiveUserId != profileId) {
+      await LiveBookingSyncService.instance.rejectPartnerVerification(effectiveUserId);
+    }
+
+    markPartnerResolved(profileId);
+    markPartnerResolved(effectiveUserId);
+    if (targetPartnerId != null && targetPartnerId.isNotEmpty) markPartnerResolved(targetPartnerId);
+
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

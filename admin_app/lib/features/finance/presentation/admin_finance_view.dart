@@ -11,51 +11,14 @@ class AdminFinanceView extends StatefulWidget {
 }
 
 class _AdminFinanceViewState extends State<AdminFinanceView> {
-  final List<Map<String, dynamic>> _ledger = [
-    {
-      'tx_id': 'TXN-98402',
-      'booking_id': 'AC_1788204910',
-      'customer': 'Meera Trivedi',
-      'partner': 'Rajesh Sharma',
-      'gross': 498.0,
-      'platform_fee': 99.6,
-      'partner_payout': 398.4,
-      'method': 'UPI (Google Pay)',
-      'status': 'SETTLED',
-      'date': 'Today, 02:15 PM',
-    },
-    {
-      'tx_id': 'TXN-98401',
-      'booking_id': 'AC_1788203890',
-      'customer': 'Hardik Bhatt',
-      'partner': 'Dhaval Jethwa',
-      'gross': 499.0,
-      'platform_fee': 99.8,
-      'partner_payout': 399.2,
-      'method': 'ServiceHub Wallet',
-      'status': 'SETTLED',
-      'date': 'Today, 11:30 AM',
-    },
-    {
-      'tx_id': 'TXN-98399',
-      'booking_id': 'AC_1788198200',
-      'customer': 'Pooja Vaghela',
-      'partner': 'Amit Varma',
-      'gross': 1250.0,
-      'platform_fee': 250.0,
-      'partner_payout': 1000.0,
-      'method': 'Cash on Service',
-      'status': 'SETTLED',
-      'date': 'Yesterday',
-    },
-  ];
+  final List<Map<String, dynamic>> _ledger = [];
 
   void _triggerInstantPayout(String partnerName, double amount) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Settle IMPS Payout to $partnerName?'),
-        content: Text('Transfer ₹${amount.toStringAsFixed(2)} directly to verified HDFC Bank Account via instant IMPS micro-settlement?'),
+        content: Text('Transfer ₹${amount.toStringAsFixed(2)} directly to verified Bank Account via instant IMPS micro-settlement?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
@@ -133,7 +96,20 @@ class _AdminFinanceViewState extends State<AdminFinanceView> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: ListView.separated(
+              child: _ledger.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.account_balance_wallet_outlined, size: 44, color: Color(0xFFCBD5E1)),
+                          SizedBox(height: 10),
+                          Text('No Settled Transactions Yet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF64748B))),
+                          SizedBox(height: 4),
+                          Text('Real payment settlements and payouts will appear here automatically when customer bookings are completed.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
                 itemCount: _ledger.length,
                 separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 itemBuilder: (ctx, idx) {

@@ -186,7 +186,7 @@ class SupabaseAuthService {
         'username': cleanUsername,
         'email': cleanEmail,
         'phone': cleanPhone,
-        'account_status': 'ACTIVE',
+        'account_status': 'PENDING_VERIFICATION',
         'is_active': true,
       }).select().single();
 
@@ -212,11 +212,11 @@ class SupabaseAuthService {
         'is_default': true,
       });
 
-      // 6. Insert into partners table
+      // 6. Insert into partners table (PENDING verification)
       final partnerInsert = await client.from('partners').insert({
         'user_id': userId,
-        'verification_status': 'VERIFIED',
-        'availability_status': 'ONLINE',
+        'verification_status': 'PENDING',
+        'availability_status': 'OFFLINE',
       }).select().single();
 
       final partnerId = partnerInsert['partner_id'];
@@ -233,6 +233,20 @@ class SupabaseAuthService {
 
       final providerId = providerInsert['provider_id'];
 
+      // 8. Insert into verification_requests table
+      try {
+        await client.from('verification_requests').insert({
+          'user_id': userId,
+          'verification_type': 'AADHAAR',
+          'status': 'PENDING',
+          'remarks': 'New service provider registration application for $cleanUsername',
+        });
+      } catch (vrErr) {
+        if (kDebugMode) {
+          debugPrint('[SupabaseAuthService] verification_requests insert note: $vrErr');
+        }
+      }
+
       final sessionData = {
         'user_id': userId,
         'username': cleanUsername,
@@ -240,11 +254,11 @@ class SupabaseAuthService {
         'phone': cleanPhone,
         'role_name': 'service_provider',
         'name': '$firstName $lastName'.trim(),
-        'business_name': '${firstName.trim()} AC Service Center',
+        'business_name': '$firstName Services',
         'partner_id': partnerId,
         'provider_id': providerId,
-        'verification_status': 'VERIFIED',
-        'is_online': true,
+        'verification_status': 'PENDING',
+        'is_online': false,
       };
 
       await _saveActiveSession(sessionData);

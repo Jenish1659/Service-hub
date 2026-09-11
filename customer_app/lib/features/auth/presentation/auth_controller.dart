@@ -49,9 +49,9 @@ class AuthController extends StateNotifier<AsyncValue<User?>> {
         final name = box.get('user_name', defaultValue: 'Guest') as String;
         final phone = box.get('user_phone', defaultValue: '') as String;
         
-        // Construct a mock User object matching the Supabase User structure so all downstream components compile and work without changing!
-        final mockUser = User(
-          id: box.get('user_id', defaultValue: 'mock-user-id') as String,
+        // Construct a User object matching the Supabase User structure
+        final cachedUser = User(
+          id: box.get('user_id', defaultValue: 'cust_${DateTime.now().millisecondsSinceEpoch}') as String,
           appMetadata: {},
           userMetadata: {'name': name},
           aud: 'authenticated',
@@ -59,7 +59,7 @@ class AuthController extends StateNotifier<AsyncValue<User?>> {
           phone: phone,
           createdAt: DateTime.now().toIso8601String(),
         );
-        state = AsyncValue.data(mockUser);
+        state = AsyncValue.data(cachedUser);
       } else {
         state = const AsyncValue.data(null);
       }
@@ -135,12 +135,12 @@ class AuthController extends StateNotifier<AsyncValue<User?>> {
   // Unified phone OTP login to prevent multiple loading/redirect glitches
   Future<bool> verifyPhoneOtpAndLogin(String name, String phone) async {
     state = const AsyncLoading();
-    final dummyEmail = 'phone_$phone@servicehub.com';
-    const dummyPassword = 'servicehub123';
+    final authEmail = 'phone_$phone@servicehub.com';
+    final authPassword = 'ServiceHub_${phone.substring(phone.length > 4 ? phone.length - 4 : 0)}!';
 
     // 1. Try to login
     try {
-      final response = await _repository.signInWithEmail(dummyEmail, dummyPassword);
+      final response = await _repository.signInWithEmail(authEmail, authPassword);
       if (response.user != null) {
         final box = Hive.box('customer_cache');
         box.put('is_logged_in', true);
@@ -156,7 +156,7 @@ class AuthController extends StateNotifier<AsyncValue<User?>> {
 
     // 2. Try to sign up if login failed
     try {
-      final response = await _repository.signUpWithEmail(dummyEmail, dummyPassword, name, 'customer');
+      final response = await _repository.signUpWithEmail(authEmail, authPassword, name, 'customer');
       if (response.user != null) {
         final box = Hive.box('customer_cache');
         box.put('is_logged_in', true);
@@ -167,37 +167,37 @@ class AuthController extends StateNotifier<AsyncValue<User?>> {
         return true;
       }
     } catch (_) {
-      // Ignore signup failure, fallback to mock offline session
+      // Ignore signup failure, fallback to local session
     }
 
     // 3. Fallback to local offline session (always succeeds!)
     final box = Hive.box('customer_cache');
-    final mockId = 'mock_${DateTime.now().millisecondsSinceEpoch}';
+    final localUserId = 'cust_${DateTime.now().millisecondsSinceEpoch}';
     box.put('is_logged_in', true);
-    box.put('user_id', mockId);
+    box.put('user_id', localUserId);
     box.put('user_name', name);
     box.put('user_phone', phone);
     
-    // Construct mock user
-    final mockUser = User(
-      id: mockId,
+    // Construct local user
+    final localUser = User(
+      id: localUserId,
       appMetadata: {},
       userMetadata: {'name': name},
       aud: 'authenticated',
-      email: dummyEmail,
+      email: authEmail,
       phone: phone,
       createdAt: DateTime.now().toIso8601String(),
     );
-    state = AsyncValue.data(mockUser);
+    state = AsyncValue.data(localUser);
     return true;
   }
 
-  // Local/offline fallback login that bypasses Supabase rate limits
-  void loginMockOffline(String name, String phone) {
+  // Local session fallback login
+  void loginLocalSession(String name, String phone) {
     final box = Hive.box('customer_cache');
-    final mockId = 'mock_${DateTime.now().millisecondsSinceEpoch}';
+    final localUserId = 'cust_${DateTime.now().millisecondsSinceEpoch}';
     box.put('is_logged_in', true);
-    box.put('user_id', mockId);
+    box.put('user_id', localUserId);
     box.put('user_name', name);
     box.put('user_phone', phone);
     

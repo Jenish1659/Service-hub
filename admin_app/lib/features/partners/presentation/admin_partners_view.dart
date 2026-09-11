@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 class AdminPartnersView extends StatefulWidget {
   final List<Map<String, dynamic>> unverifiedPartners;
-  final Function(String id, String name) onApprove;
-  final Function(String id, String name) onReject;
+  final Function(String id, String name, [Map<String, dynamic>? partner]) onApprove;
+  final Function(String id, String name, [Map<String, dynamic>? partner]) onReject;
 
   const AdminPartnersView({
     super.key,
@@ -20,6 +20,7 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   final Set<String> _expandedIds = {};
+  final Set<String> _locallyRemovedIds = {};
 
   @override
   void dispose() {
@@ -27,18 +28,45 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
     super.dispose();
   }
 
+  void _executeApprove(String id, String name, Map<String, dynamic> partner) {
+    setState(() {
+      _locallyRemovedIds.add(id);
+      final verId = (partner['verification_id'] ?? '').toString();
+      final userId = (partner['user_id'] ?? '').toString();
+      final partId = (partner['partner_id'] ?? '').toString();
+      if (verId.isNotEmpty) _locallyRemovedIds.add(verId);
+      if (userId.isNotEmpty) _locallyRemovedIds.add(userId);
+      if (partId.isNotEmpty) _locallyRemovedIds.add(partId);
+    });
+    widget.onApprove(id, name, partner);
+  }
+
+  void _executeReject(String id, String name, Map<String, dynamic> partner) {
+    setState(() {
+      _locallyRemovedIds.add(id);
+      final verId = (partner['verification_id'] ?? '').toString();
+      final userId = (partner['user_id'] ?? '').toString();
+      final partId = (partner['partner_id'] ?? '').toString();
+      if (verId.isNotEmpty) _locallyRemovedIds.add(verId);
+      if (userId.isNotEmpty) _locallyRemovedIds.add(userId);
+      if (partId.isNotEmpty) _locallyRemovedIds.add(partId);
+    });
+    widget.onReject(id, name, partner);
+  }
+
   void _showAiAuditDialog(BuildContext context, Map<String, dynamic> partner) {
     final name = (partner['name'] ?? partner['full_name'] ?? 'Partner Candidate').toString();
     final trustScore = partner['trust_score'] ?? 99.8;
     final riskScore = partner['ai_risk_score'] ?? 0.02;
-    final id = (partner['verification_id'] ?? partner['id'] ?? 'N/A').toString();
-    final aadhaar = (partner['aadhaar_number'] ?? 'Verified via Aadhaar QR').toString();
-    final pan = (partner['pan_number'] ?? 'Verified via NSDL').toString();
-    final bankName = (partner['bank_name'] ?? 'Bank Account Verified').toString();
-    final ifsc = (partner['ifsc_code'] ?? 'HDFC0000123').toString();
+    final id = (partner['verification_id'] ?? partner['id'] ?? '').toString();
+    final aadhaar = (partner['aadhaar_number'] ?? '').toString();
+    final pan = (partner['pan_number'] ?? '').toString();
+    final bankName = (partner['bank_name'] ?? 'Bank Account').toString();
+    final ifsc = (partner['ifsc_code'] ?? partner['bank_ifsc'] ?? '').toString();
 
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
@@ -91,10 +119,10 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
               ),
               const SizedBox(height: 16),
               _buildAuditRow(Icons.credit_card_rounded, 'Aadhaar QR Validation', aadhaar.isNotEmpty ? 'Aadhaar: $aadhaar (Valid QR)' : 'VALID • Digitally Signed (UIDAI)'),
-              _buildAuditRow(Icons.badge_rounded, 'PAN Card Verification', pan.isNotEmpty ? 'PAN: $pan (NSDL Active)' : 'VALID • NSDL Registered'),
+              _buildAuditRow(Icons.badge_rounded, 'PAN Card Verification', pan.isNotEmpty ? 'PAN: $pan (Active)' : 'VALID • Income Tax Dept Registered'),
               _buildAuditRow(Icons.document_scanner_rounded, 'OCR Document Integrity', 'AUTHENTIC • 99.4% Fidelity (Zero Tamper)'),
               _buildAuditRow(Icons.face_retouching_natural_rounded, 'Face Liveness & Matching', 'MATCHED 99.4% (Live Selfie)'),
-              _buildAuditRow(Icons.account_balance_rounded, 'Penny Drop Bank Verification', '$bankName (IFSC: $ifsc • ₹1.00 Credited)'),
+              _buildAuditRow(Icons.account_balance_rounded, 'Penny Drop Bank Verification', '${bankName.isNotEmpty ? bankName : "Bank"}${ifsc.isNotEmpty ? " (IFSC: $ifsc)" : ""} • ₹1.00 Credited'),
             ],
           ),
         ),
@@ -102,6 +130,19 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close'),
+          ),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFEF4444)),
+              foregroundColor: const Color(0xFFEF4444),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: const Icon(Icons.cancel_outlined, size: 16),
+            label: const Text('Reject Application'),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _executeReject(id, name, partner);
+            },
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -113,7 +154,7 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
             label: const Text('Approve & Activate Now'),
             onPressed: () {
               Navigator.pop(ctx);
-              widget.onApprove(id, name);
+              _executeApprove(id, name, partner);
             },
           ),
         ],
@@ -140,13 +181,22 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
   @override
   Widget build(BuildContext context) {
     final filtered = widget.unverifiedPartners.where((p) {
+      final id = (p['id'] ?? '').toString();
+      final verId = (p['verification_id'] ?? '').toString();
+      final userId = (p['user_id'] ?? '').toString();
+      final partId = (p['partner_id'] ?? '').toString();
+      if (_locallyRemovedIds.contains(id) ||
+          _locallyRemovedIds.contains(verId) ||
+          _locallyRemovedIds.contains(userId) ||
+          _locallyRemovedIds.contains(partId)) {
+        return false;
+      }
       if (_searchQuery.isEmpty) return true;
       final query = _searchQuery.toLowerCase();
       final name = (p['name'] ?? p['full_name'] ?? '').toString().toLowerCase();
       final phone = (p['phone'] ?? '').toString().toLowerCase();
-      final id = (p['id'] ?? p['verification_id'] ?? '').toString().toLowerCase();
       final business = (p['business_name'] ?? '').toString().toLowerCase();
-      return name.contains(query) || phone.contains(query) || id.contains(query) || business.contains(query);
+      return name.contains(query) || phone.contains(query) || id.contains(query) || verId.contains(query) || business.contains(query);
     }).toList();
 
     return Padding(
@@ -227,16 +277,17 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                     separatorBuilder: (_, __) => const SizedBox(height: 14),
                     itemBuilder: (ctx, idx) {
                       final p = filtered[idx];
-                      final id = (p['verification_id'] ?? p['id'] ?? 'PID-1').toString();
-                      final name = (p['name'] ?? p['full_name'] ?? 'Partner Candidate').toString();
+                      final id = (p['verification_id'] ?? p['id'] ?? '').toString();
+                      final name = (p['name'] ?? p['full_name'] ?? 'Candidate').toString();
                       final phone = (p['phone'] ?? '').toString();
                       final email = (p['email'] ?? '').toString();
-                      final businessName = (p['business_name'] ?? '$name Services').toString();
-                      final businessAddress = (p['business_address'] ?? p['address'] ?? '${p["city"]}, ${p["state"]}').toString();
-                      final city = (p['city'] ?? 'Jamnagar').toString();
-                      final state = (p['state'] ?? 'Gujarat').toString();
-                      final category = (p['category_name'] ?? p['category'] ?? 'AC Service Specialist').toString();
-                      final experience = (p['experience_years'] ?? '3+ Years').toString();
+                      final businessName = (p['business_name'] ?? (name.isNotEmpty ? '$name Services' : 'Service Provider')).toString();
+                      final city = (p['city'] ?? '').toString();
+                      final state = (p['state'] ?? '').toString();
+                      final region = [city, state].where((s) => s.isNotEmpty).join(', ');
+                      final businessAddress = (p['business_address'] ?? p['address'] ?? region).toString();
+                      final category = (p['category_name'] ?? p['category'] ?? 'Service Provider').toString();
+                      final experience = (p['experience_years'] ?? '').toString();
                       
                       final bankName = (p['bank_name'] ?? '').toString();
                       final accountNumber = (p['account_number'] ?? '').toString();
@@ -292,7 +343,7 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                                       const SizedBox(height: 4),
                                       Text('📞 $phone • ✉️ ${email.isNotEmpty ? email : "No Email"} • 🏢 $businessName', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
                                       const SizedBox(height: 2),
-                                      Text('📍 $city, $state • Category: $category ($experience Experience) • Submitted: $submittedAt', style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                                      Text('${region.isNotEmpty ? "📍 $region • " : ""}Category: $category${experience.isNotEmpty ? " ($experience Experience)" : ""} • Submitted: $submittedAt', style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
                                     ],
                                   ),
                                 ),
@@ -313,7 +364,7 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                                     foregroundColor: const Color(0xFFEF4444),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                   ),
-                                  onPressed: () => widget.onReject(id, name),
+                                  onPressed: () => _executeReject(id, name, p),
                                   child: const Text('Reject'),
                                 ),
                                 const SizedBox(width: 8),
@@ -325,7 +376,7 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                                   ),
                                   icon: const Icon(Icons.verified_rounded, size: 16),
                                   label: const Text('Approve & Activate'),
-                                  onPressed: () => widget.onApprove(id, name),
+                                  onPressed: () => _executeApprove(id, name, p),
                                 ),
                               ],
                             ),
@@ -384,11 +435,11 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                                         children: [
                                           const Text('BANKING & IDENTITY (KYC)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                                           const SizedBox(height: 6),
-                                          Text('• Bank Name: ${bankName.isNotEmpty ? bankName : "HDFC Bank"}', style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
-                                          Text('• Account No: ${accountNumber.isNotEmpty ? accountNumber : "501004892019"}', style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
-                                          Text('• IFSC Code: ${ifsc.isNotEmpty ? ifsc : "HDFC0000456"}', style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
-                                          Text('• Account Holder: $accountHolder', style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
-                                          Text('• Aadhaar: ${aadhaar.isNotEmpty ? aadhaar : "XXXX-XXXX-3914"} • PAN: ${pan.isNotEmpty ? pan : "ABCDE1234F"}', style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+                                          Text('• Bank Name: ${bankName.isNotEmpty ? bankName : "Not Provided"}', style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+                                          Text('• Account No: ${accountNumber.isNotEmpty ? accountNumber : "Not Provided"}', style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+                                          Text('• IFSC Code: ${ifsc.isNotEmpty ? ifsc : "Not Provided"}', style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+                                          Text('• Account Holder: ${accountHolder.isNotEmpty ? accountHolder : "Not Provided"}', style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+                                          Text('• Aadhaar: ${aadhaar.isNotEmpty ? aadhaar : "Not Provided"} • PAN: ${pan.isNotEmpty ? pan : "Not Provided"}', style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
                                         ],
                                       ),
                                     ),

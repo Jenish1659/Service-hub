@@ -106,29 +106,50 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
 
 final adminStatsProvider = adminStatsStreamProvider;
 
-// 2. Real-time Unverified / Pending Partners Provider (Multi-source: HTTP Bridge + Disk + Supabase)
+// Global persistent registry for pending partner verification requests
+final Map<String, Map<String, dynamic>> _persistedPendingPartners = {};
+final Set<String> _resolvedPartnerIds = {};
+
+void markPartnerResolved(String id) {
+  final cleanId = id.trim();
+  if (cleanId.isNotEmpty) {
+    _resolvedPartnerIds.add(cleanId);
+    _persistedPendingPartners.remove(cleanId);
+    _persistedPendingPartners.removeWhere((k, v) =>
+        k == cleanId ||
+        v['id'] == cleanId ||
+        v['verification_id'] == cleanId ||
+        v['user_id'] == cleanId ||
+        v['partner_id'] == cleanId);
+  }
+}
+
+// 2. Real-time Unverified / Pending Partners Provider (Multi-source with State Retention)
 final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
   final client = Supabase.instance.client;
 
   while (true) {
-    final List<Map<String, dynamic>> pendingList = [];
-    final Set<String> seenIds = {};
-
     // Source A: HTTP CORS Bridge on Port 8088
     try {
       final hosts = kIsWeb ? ['localhost', '127.0.0.1'] : ['127.0.0.1', 'localhost', '10.0.2.2'];
       for (final host in hosts) {
         try {
-          final res = await http.get(Uri.parse('http://$host:8088/api/verifications')).timeout(const Duration(seconds: 1));
+          final res = await http.get(Uri.parse('http://$host:8088/api/verifications')).timeout(const Duration(milliseconds: 2000));
           if (res.statusCode == 200) {
             final List<dynamic> list = jsonDecode(res.body);
             for (var item in list) {
               if (item is Map<String, dynamic>) {
                 final status = (item['status'] ?? item['verification_status'] ?? '').toString().toUpperCase();
                 final id = (item['verification_id'] ?? item['id'] ?? '').toString();
-                if ((status == 'PENDING' || status == 'UNDER_REVIEW' || status == 'SUBMITTED' || status == 'PENDING_APPROVAL') && id.isNotEmpty && !seenIds.contains(id)) {
-                  seenIds.add(id);
-                  pendingList.add(item);
+                final uId = (item['user_id'] ?? '').toString();
+
+                if (status == 'APPROVED' || status == 'VERIFIED' || status == 'REJECTED') {
+                  markPartnerResolved(id);
+                  if (uId.isNotEmpty) markPartnerResolved(uId);
+                } else if (status == 'PENDING' || status == 'UNDER_REVIEW' || status == 'SUBMITTED' || status == 'PENDING_APPROVAL') {
+                  if (id.isNotEmpty && !_resolvedPartnerIds.contains(id) && !_resolvedPartnerIds.contains(uId)) {
+                    _persistedPendingPartners[id] = item;
+                  }
                 }
               }
             }
@@ -144,68 +165,137 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
       final localVerifications = LiveBookingSyncService.instance.getPendingPartnerVerifications();
       for (var item in localVerifications) {
         final id = (item['id'] ?? item['verification_id'] ?? '').toString();
-        if (id.isNotEmpty && !seenIds.contains(id)) {
-          seenIds.add(id);
-          pendingList.add({
-            'id': id,
-            'verification_id': (item['verification_id'] ?? id).toString(),
-            'user_id': (item['user_id'] ?? id).toString(),
-            'name': (item['full_name'] ?? item['name'] ?? 'Partner Candidate').toString(),
-            'full_name': (item['full_name'] ?? item['name'] ?? 'Partner Candidate').toString(),
-            'phone': (item['phone'] ?? '+91 98250 12345').toString(),
-            'email': (item['email'] ?? 'partner@servicehub.com').toString(),
-            'business_name': (item['business_name'] ?? 'Service Provider').toString(),
-            'category': (item['category'] ?? 'ac_service').toString(),
-            'category_name': (item['category_name'] ?? 'AC Service Specialist').toString(),
-            'city': (item['city'] ?? 'Jamnagar').toString(),
-            'state': (item['state'] ?? 'Gujarat').toString(),
-            'status': (item['status'] ?? 'PENDING').toString().toUpperCase(),
-            'ai_risk_score': (item['ai_risk_score'] as num?)?.toDouble() ?? 0.02,
-            'trust_score': (item['trust_score'] as num?)?.toDouble() ?? 99.8,
-            'ai_report': item['ai_report'] as Map<String, dynamic>? ?? {},
-            'submitted_at': (item['submitted_at'] ?? 'Today, Live').toString(),
-          });
+        final uId = (item['user_id'] ?? '').toString();
+        final status = (item['status'] ?? item['verification_status'] ?? 'PENDING').toString().toUpperCase();
+
+        if (status == 'APPROVED' || status == 'VERIFIED' || status == 'REJECTED') {
+          markPartnerResolved(id);
+          if (uId.isNotEmpty) markPartnerResolved(uId);
+        } else if (id.isNotEmpty && !_resolvedPartnerIds.contains(id) && !_resolvedPartnerIds.contains(uId)) {
+          final pMap = Map<String, dynamic>.from(item);
+          pMap['id'] = id;
+          pMap['verification_id'] = (item['verification_id'] ?? id).toString();
+          pMap['name'] = (item['full_name'] ?? item['name'] ?? 'Partner Candidate').toString();
+          pMap['full_name'] = (item['full_name'] ?? item['name'] ?? 'Partner Candidate').toString();
+          pMap['phone'] = (item['phone'] ?? '').toString();
+          pMap['email'] = (item['email'] ?? '').toString();
+          pMap['status'] = status;
+          _persistedPendingPartners[id] = pMap;
         }
       }
     } catch (_) {}
 
-    // Source C: Cloud Supabase
+    // Source C: Cloud Supabase (verification_requests with relationship disambiguation)
     try {
       final List<dynamic> response = await client
           .from('verification_requests')
-          .select('*, users(*, user_profiles(*))')
+          .select('*, users:users!verification_requests_user_id_fkey(*, user_profiles(*))')
           .eq('status', 'PENDING')
-          .order('submitted_at', ascending: false);
+          .order('submitted_at', ascending: false)
+          .timeout(const Duration(milliseconds: 3000));
 
       for (var item in response) {
         final id = item['verification_id']?.toString() ?? '';
-        if (id.isNotEmpty && !seenIds.contains(id)) {
-          seenIds.add(id);
-          final user = item['users'] ?? {};
-          final profile = user['user_profiles'] ?? {};
-          pendingList.add({
+        final uId = item['user_id']?.toString() ?? '';
+        if (id.isNotEmpty && !_resolvedPartnerIds.contains(id) && !_resolvedPartnerIds.contains(uId)) {
+          final user = item['users'] is Map ? item['users'] as Map<String, dynamic> : {};
+          Map<String, dynamic> profile = {};
+          if (user['user_profiles'] is Map) {
+            profile = user['user_profiles'] as Map<String, dynamic>;
+          } else if (user['user_profiles'] is List && (user['user_profiles'] as List).isNotEmpty) {
+            profile = (user['user_profiles'] as List).first as Map<String, dynamic>;
+          }
+          final fName = (profile['first_name'] ?? '').toString();
+          final lName = (profile['last_name'] ?? '').toString();
+          final fullName = '$fName $lName'.trim();
+          final displayName = fullName.isNotEmpty ? fullName : (user['username'] ?? user['email'] ?? 'Partner Candidate').toString();
+          final realPhone = (user['phone'] ?? profile['phone'] ?? '').toString();
+          final realEmail = (user['email'] ?? '').toString();
+
+          _persistedPendingPartners[id] = {
             'id': id,
             'verification_id': id,
-            'user_id': item['user_id'],
-            'name': profile['full_name'] ?? user['email'] ?? 'Partner Candidate',
-            'full_name': profile['full_name'] ?? user['email'] ?? 'Partner Candidate',
-            'phone': profile['phone_number'] ?? '',
-            'email': user['email'] ?? '',
-            'business_name': item['business_name'] ?? 'Service Business',
+            'user_id': uId,
+            'name': displayName,
+            'full_name': displayName,
+            'first_name': fName,
+            'last_name': lName,
+            'phone': realPhone,
+            'email': realEmail,
+            'business_name': item['business_name'] ?? '$displayName Services',
+            'business_address': item['business_address'] ?? '',
             'category': item['verification_type'] ?? 'ac_service',
-            'city': profile['city'] ?? 'Jamnagar',
-            'status': item['status'],
-            'ai_risk_score': item['ai_risk_score'] ?? 0.02,
-            'trust_score': item['trust_score'] ?? 99.8,
+            'category_name': item['category_name'] ?? 'AC Service Provider',
+            'city': profile['city'] ?? '',
+            'state': profile['state'] ?? '',
+            'status': item['status'] ?? 'PENDING',
+            'bank_name': item['bank_name'] ?? '',
+            'account_number': item['account_number'] ?? '',
+            'ifsc_code': item['ifsc_code'] ?? '',
+            'account_holder_name': item['account_holder_name'] ?? displayName,
+            'aadhaar_number': item['aadhaar_number'] ?? '',
+            'pan_number': item['pan_number'] ?? '',
+            'ai_risk_score': (item['ai_risk_score'] as num?)?.toDouble() ?? 0.02,
+            'trust_score': (item['trust_score'] as num?)?.toDouble() ?? 99.8,
             'ai_report': item['ai_report'] ?? {},
             'submitted_at': item['submitted_at'] ?? 'Recently',
-          });
+          };
         }
       }
     } catch (_) {}
 
-    yield pendingList;
-    await Future.delayed(const Duration(milliseconds: 300));
+    // Source D: Cloud Supabase (partners table directly)
+    try {
+      final List<dynamic> partnerRes = await client
+          .from('partners')
+          .select('*, users(*, user_profiles(*))')
+          .eq('verification_status', 'PENDING')
+          .order('created_at', ascending: false)
+          .timeout(const Duration(milliseconds: 3000));
+
+      for (var p in partnerRes) {
+        final pId = (p['partner_id'] ?? '').toString();
+        final uId = (p['user_id'] ?? '').toString();
+        final checkId = pId.isNotEmpty ? pId : uId;
+        if (checkId.isNotEmpty && !_resolvedPartnerIds.contains(checkId) && !_resolvedPartnerIds.contains(uId)) {
+          final u = p['users'] is Map ? p['users'] as Map<String, dynamic> : {};
+          Map<String, dynamic> prof = {};
+          if (u['user_profiles'] is Map) {
+            prof = u['user_profiles'] as Map<String, dynamic>;
+          } else if (u['user_profiles'] is List && (u['user_profiles'] as List).isNotEmpty) {
+            prof = (u['user_profiles'] as List).first as Map<String, dynamic>;
+          }
+          final fN = (prof['first_name'] ?? '').toString();
+          final lN = (prof['last_name'] ?? '').toString();
+          final full = '$fN $lN'.trim();
+          final name = full.isNotEmpty ? full : (u['username'] ?? u['email'] ?? 'Partner Candidate').toString();
+          _persistedPendingPartners[checkId] = {
+            'id': checkId,
+            'verification_id': checkId,
+            'partner_id': pId,
+            'user_id': uId,
+            'name': name,
+            'full_name': name,
+            'first_name': fN,
+            'last_name': lN,
+            'phone': (u['phone'] ?? prof['phone'] ?? '').toString(),
+            'email': (u['email'] ?? '').toString(),
+            'business_name': '$name Services',
+            'category': 'ac_service',
+            'category_name': 'AC Service Provider',
+            'city': (prof['city'] ?? '').toString(),
+            'state': (prof['state'] ?? '').toString(),
+            'status': 'PENDING',
+            'submitted_at': p['created_at'] ?? 'Recently',
+            'trust_score': 99.8,
+            'ai_risk_score': 0.02,
+          };
+        }
+      }
+    } catch (_) {}
+
+    yield _persistedPendingPartners.values.toList();
+    await Future.delayed(const Duration(milliseconds: 1000));
   }
 });
 

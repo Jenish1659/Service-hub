@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/sh_logo_widget.dart';
 import '../../../../core/widgets/vector_avatar_widgets.dart';
+import '../../../../core/storage/local_registration_cache.dart';
 
 class ServiceCategoryModel {
   final String id;
@@ -33,6 +34,28 @@ class ProviderCategorySelectionScreen extends StatefulWidget {
 
 class _ProviderCategorySelectionScreenState extends State<ProviderCategorySelectionScreen> {
   String? _selectedCategoryId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+      }
+    });
+  }
+
+  Future<void> _proceedWithCategory(ServiceCategoryModel cat) async {
+    final draft = await LocalRegistrationCache.getDraft() ?? {};
+    draft['service_category_id'] = cat.id;
+    draft['category'] = cat.id;
+    draft['category_name'] = cat.title;
+    draft['category_title'] = cat.title;
+    await LocalRegistrationCache.saveDraft(draft);
+    if (mounted) {
+      context.push('/register/service-options/${cat.id}');
+    }
+  }
 
   static const List<ServiceCategoryModel> _categories = [
     ServiceCategoryModel(
@@ -219,6 +242,7 @@ class _ProviderCategorySelectionScreenState extends State<ProviderCategorySelect
                                   _selectedCategoryId = category.id;
                                 });
                               },
+                              onDoubleTap: () => _proceedWithCategory(category),
                               borderRadius: BorderRadius.circular(20),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
@@ -334,7 +358,8 @@ class _ProviderCategorySelectionScreenState extends State<ProviderCategorySelect
                       ),
                       onPressed: _selectedCategoryId != null
                           ? () {
-                              context.push('/register/service-options/$_selectedCategoryId');
+                              final cat = _categories.firstWhere((c) => c.id == _selectedCategoryId);
+                              _proceedWithCategory(cat);
                             }
                           : null,
                       child: const Row(

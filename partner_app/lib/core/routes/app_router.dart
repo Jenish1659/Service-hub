@@ -26,19 +26,7 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/dashboard/ac-job-navigation',
       builder: (context, state) {
-        final job = state.extra as Map<String, dynamic>? ?? {
-          'booking_id': 'book_demo',
-          'service_name': 'Split AC Deep Cleaning (Jet Wash)',
-          'customer_name': 'Rajesh Patel',
-          'customer_phone': '+91 98765 43210',
-          'customer_address': 'Digvijay Plot, Jamnagar, Gujarat',
-          'price': 499.0,
-          'customer_lat': 22.4707,
-          'customer_lng': 70.0577,
-          'status': 'CONFIRMED',
-          'entrance_pin': '7429',
-          'completion_otp': '5892',
-        };
+        final job = state.extra as Map<String, dynamic>? ?? <String, dynamic>{};
         return ACActiveJobNavigationScreen(job: job);
       },
     ),

@@ -1694,8 +1694,8 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
           title: 'Personal Details',
           onEdit: () => setState(() => _currentStep = 0),
           items: [
-            {'label': 'Full Name', 'value': fullNameStr.isEmpty ? 'Rajesh Kumar' : fullNameStr},
-            {'label': 'Phone Number', 'value': phoneStr.isEmpty ? '+91 98765 43210 (✓ Phone Verified)' : '+91 $phoneStr (✓ Phone Verified)'},
+            {'label': 'Full Name', 'value': fullNameStr.isEmpty ? 'Not Provided' : fullNameStr},
+            {'label': 'Phone Number', 'value': phoneStr.isEmpty ? 'Not Provided' : '+91 $phoneStr (✓ Phone Verified)'},
           ],
         ),
         const SizedBox(height: 14),
@@ -1704,7 +1704,7 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
           title: 'Username',
           onEdit: () => setState(() => _currentStep = 2),
           items: [
-            {'label': 'Username', 'value': usernameStr.isEmpty ? '@express_rider_99' : '@$usernameStr'},
+            {'label': 'Username', 'value': usernameStr.isEmpty ? 'Not Provided' : '@$usernameStr'},
           ],
         ),
         const SizedBox(height: 14),

@@ -1,4 +1,4 @@
-﻿/// Detailed result of Aadhaar card validation
+/// Detailed result of Aadhaar card validation
 class AadhaarValidationResult {
   final bool isValid;
   final String formattedAadhaar;
@@ -252,8 +252,8 @@ class AIVerificationEngine {
     String? candidateName,
     String? city,
   }) {
-    final name = candidateName ?? 'Rajesh Sharma';
-    final location = city ?? 'Jamnagar, Gujarat';
+    final name = candidateName ?? 'Applicant';
+    final location = city ?? '';
 
     return OcrScanResult(
       isAuthentic: true,
@@ -291,7 +291,8 @@ class AIVerificationEngine {
     required String accountHolderName,
   }) {
     final cleanIfsc = ifscCode.trim().toUpperCase();
-    String bankName = 'State Bank of India';
+    String bankName = 'Bank Account';
+    if (cleanIfsc.startsWith('SBIN')) bankName = 'State Bank of India';
     if (cleanIfsc.startsWith('HDFC')) bankName = 'HDFC Bank';
     if (cleanIfsc.startsWith('ICIC')) bankName = 'ICICI Bank';
     if (cleanIfsc.startsWith('UTIB') || cleanIfsc.startsWith('AXIS')) bankName = 'Axis Bank';
@@ -303,8 +304,8 @@ class AIVerificationEngine {
     return PennyDropResult(
       isVerified: true,
       bankName: bankName,
-      ifsc: cleanIfsc.isNotEmpty ? cleanIfsc : 'SBIN0001234',
-      accountHolderName: accountHolderName.isNotEmpty ? accountHolderName : 'Rajesh Sharma',
+      ifsc: cleanIfsc,
+      accountHolderName: accountHolderName.isNotEmpty ? accountHolderName : 'Account Holder',
       utrNumber: randomUtr,
       nameMatchPercentage: 100.0,
       statusMessage: '₹1.00 micro-deposit successfully settled. Account Active and Verified.',
@@ -313,13 +314,13 @@ class AIVerificationEngine {
 
   /// 5. Master AI Verification Audit Report Generator
   AIVerificationReport generateAIInspectionReport(Map<String, dynamic> draft) {
-    final firstName = (draft['first_name'] ?? draft['firstName'] ?? 'Rajesh').toString().trim();
-    final lastName = (draft['last_name'] ?? draft['lastName'] ?? 'Sharma').toString().trim();
+    final firstName = (draft['first_name'] ?? draft['firstName'] ?? '').toString().trim();
+    final lastName = (draft['last_name'] ?? draft['lastName'] ?? '').toString().trim();
     final fullName = '$firstName $lastName'.trim();
-    final city = (draft['city'] ?? 'Jamnagar').toString();
-    final aadhaar = (draft['aadhaar_number'] ?? '742918456230').toString();
-    final accNum = (draft['bank_account_number'] ?? '50100458963214').toString();
-    final ifsc = (draft['bank_ifsc'] ?? 'HDFC0000123').toString();
+    final city = (draft['city'] ?? '').toString();
+    final aadhaar = (draft['aadhaar_number'] ?? '').toString();
+    final accNum = (draft['bank_account_number'] ?? draft['account_number'] ?? '').toString();
+    final ifsc = (draft['bank_ifsc'] ?? draft['ifsc_code'] ?? '').toString();
 
     final aadhaarRes = validateAadhaar(aadhaar);
     final ocrRes = scanDocumentOcr(docType: 'Aadhaar Card & Trade Cert', candidateName: fullName, city: city);

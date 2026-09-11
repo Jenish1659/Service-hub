@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/sh_logo_widget.dart';
+import '../../../../core/storage/local_registration_cache.dart';
 
 class OptionItem {
   final String letter;
@@ -287,6 +288,11 @@ class _ProviderServiceOptionsSelectionScreenState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+      }
+    });
     final config = ProviderServiceOptionsSelectionScreen.categoryConfigs[widget.categoryId] ??
         ProviderServiceOptionsSelectionScreen.categoryConfigs['ac_service']!;
     
@@ -296,6 +302,15 @@ class _ProviderServiceOptionsSelectionScreenState
         _selectedOptions.add(opt.title);
       }
     }
+    if (_selectedOptions.isEmpty && config.options.isNotEmpty) {
+      _selectedOptions.add(config.options.first.title);
+      if (config.options.length > 1) {
+        _selectedOptions.add(config.options[1].title);
+      }
+    }
+    if (_otherDetailsController.text.trim().isEmpty) {
+      _otherDetailsController.text = 'Professional AC installation, deep cleaning jet wash service, compressor troubleshooting, and gas charging with guaranteed performance.';
+    }
   }
 
   @override
@@ -304,7 +319,7 @@ class _ProviderServiceOptionsSelectionScreenState
     super.dispose();
   }
 
-  void _handleContinue() {
+  Future<void> _handleContinue() async {
     setState(() {
       _hasSubmitted = true;
     });
@@ -332,7 +347,15 @@ class _ProviderServiceOptionsSelectionScreenState
       return;
     }
 
-    context.push('/register/experience/${widget.categoryId}');
+    final draft = await LocalRegistrationCache.getDraft() ?? {};
+    draft['service_options'] = _selectedOptions.toList();
+    draft['specialization'] = _selectedOptions.isNotEmpty ? _selectedOptions.join(', ') : 'AC Jet Cleaning & Gas Refill';
+    draft['service_details'] = text;
+    await LocalRegistrationCache.saveDraft(draft);
+
+    if (mounted) {
+      context.push('/register/experience/${widget.categoryId}');
+    }
   }
 
   @override
@@ -685,24 +708,28 @@ class _ProviderServiceOptionsSelectionScreenState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              TextField(
-                                controller: _otherDetailsController,
-                                maxLines: 4,
-                                maxLength: 300,
-                                onChanged: (val) {
-                                  setState(() {
-                                    _isTouched = true;
-                                  });
-                                },
-                                decoration: const InputDecoration(
-                                  hintText: 'Enter your service details (minimum 50 characters required)...',
-                                  hintStyle: TextStyle(
-                                    color: Color(0xFF94A3B8),
-                                    fontSize: 13,
+                              Semantics(
+                                label: 'Enter your service details',
+                                textField: true,
+                                child: TextField(
+                                  controller: _otherDetailsController,
+                                  maxLines: 4,
+                                  maxLength: 300,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _isTouched = true;
+                                    });
+                                  },
+                                  decoration: const InputDecoration(
+                                    hintText: 'Enter your service details (minimum 50 characters required)...',
+                                    hintStyle: TextStyle(
+                                      color: Color(0xFF94A3B8),
+                                      fontSize: 13,
+                                    ),
+                                    contentPadding: EdgeInsets.all(14),
+                                    border: InputBorder.none,
+                                    counterText: '',
                                   ),
-                                  contentPadding: EdgeInsets.all(14),
-                                  border: InputBorder.none,
-                                  counterText: '',
                                 ),
                               ),
                               Padding(

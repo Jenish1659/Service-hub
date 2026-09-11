@@ -338,10 +338,10 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
 
   @override
   Widget build(BuildContext context) {
-    final customerName = widget.job['customer_name'] ?? 'Rajesh Patel';
-    final customerPhone = widget.job['customer_phone'] ?? '+91 98765 43210';
-    final customerAddress = widget.job['customer_address'] ?? 'Digvijay Plot, Jamnagar';
-    final serviceName = widget.job['service_name'] ?? 'Split AC Deep Cleaning (Jet Wash)';
+    final customerName = (widget.job['customer_name'] ?? 'Customer').toString();
+    final customerPhone = (widget.job['customer_phone'] ?? '').toString();
+    final customerAddress = (widget.job['customer_address'] ?? widget.job['address'] ?? '').toString();
+    final serviceName = (widget.job['service_name'] ?? 'AC Service').toString();
     final price = (widget.job['price'] as num?)?.toDouble() ?? 499.0;
     final netEarning = price * 0.85;
 

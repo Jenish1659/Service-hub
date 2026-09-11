@@ -80,7 +80,7 @@ class _TrackOrderScreenState extends ConsumerState<TrackOrderScreen> {
       return;
     }
 
-    if (widget.orderId.startsWith('mock_') || widget.orderId.startsWith('ord_')) {
+    if (widget.orderId.startsWith('ord_')) {
       if (mounted) {
         setState(() {
           if (_orderData == null) {

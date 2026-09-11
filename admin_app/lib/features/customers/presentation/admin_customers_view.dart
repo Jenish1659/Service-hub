@@ -13,56 +13,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
   final TextEditingController _searchController = TextEditingController();
   int _activeFilterIndex = 0; // 0: All, 1: Active, 2: Suspended/Blocked
 
-  final List<Map<String, dynamic>> _customers = [
-    {
-      'id': 'cust_101',
-      'name': 'Meera Trivedi',
-      'phone': '+91 98980 11223',
-      'email': 'meera.trivedi@gmail.com',
-      'city': 'Jamnagar (Patel Colony)',
-      'total_bookings': 4,
-      'total_spent': 2490.0,
-      'coins': 480,
-      'is_active': true,
-      'joined_date': '12 Aug 2026',
-    },
-    {
-      'id': 'cust_102',
-      'name': 'Hardik Bhatt',
-      'phone': '+91 98790 44332',
-      'email': 'hardik.bhatt@yahoo.com',
-      'city': 'Jamnagar (Digvijay Plot)',
-      'total_bookings': 2,
-      'total_spent': 998.0,
-      'coins': 300,
-      'is_active': true,
-      'joined_date': '18 Aug 2026',
-    },
-    {
-      'id': 'cust_103',
-      'name': 'Pooja Vaghela',
-      'phone': '+91 97241 88990',
-      'email': 'pooja.v@outlook.com',
-      'city': 'Jamnagar (Ranjit Nagar)',
-      'total_bookings': 6,
-      'total_spent': 3780.0,
-      'coins': 620,
-      'is_active': true,
-      'joined_date': '02 Jul 2026',
-    },
-    {
-      'id': 'cust_104',
-      'name': 'Sanjay Mehta',
-      'phone': '+91 99099 22114',
-      'email': 'sanjay.mehta@gmail.com',
-      'city': 'Jamnagar (Khodiyar Colony)',
-      'total_bookings': 1,
-      'total_spent': 499.0,
-      'coins': 300,
-      'is_active': false,
-      'joined_date': '28 Aug 2026',
-    },
-  ];
+  final List<Map<String, dynamic>> _customers = [];
 
   void _showCustomerDetailsModal(Map<String, dynamic> customer) {
     showDialog(
@@ -266,7 +217,20 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: ListView.separated(
+              child: filtered.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.people_outline_rounded, size: 44, color: Color(0xFFCBD5E1)),
+                          SizedBox(height: 10),
+                          Text('No Registered Customers Yet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF64748B))),
+                          SizedBox(height: 4),
+                          Text('Registered customer profiles and booking history will appear here automatically.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
                 itemCount: filtered.length,
                 separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 itemBuilder: (ctx, idx) {

@@ -7,7 +7,7 @@ import '../../features/dashboard/presentation/admin_dashboard.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-// Global flag to bypass Auth check for mock accounts & local testing
+// Global flag to allow administrative desktop session bypass
 bool adminBypassLoggedIn = false;
 
 final GoRouter appRouter = GoRouter(

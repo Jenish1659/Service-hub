@@ -266,15 +266,15 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
                 'booking_id': bId,
                 'service_name': service?['name'] ?? 'Split AC Deep Cleaning (Jet Wash)',
                 'price': (booking['estimated_amount'] as num?)?.toDouble() ?? (booking['final_amount'] as num?)?.toDouble() ?? 499.0,
-                'customer_name': profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : 'Rajesh Patel',
-                'customer_phone': user?['phone'] ?? '+91 98765 43210',
-                'customer_address': address != null ? '${address['area']}, ${address['city']}' : 'Digvijay Plot, Jamnagar',
+                'customer_name': profile != null ? '${profile['first_name'] ?? ""} ${profile['last_name'] ?? ""}'.trim() : (user?['username'] ?? 'Customer').toString(),
+                'customer_phone': (user?['phone'] ?? '').toString(),
+                'customer_address': address != null ? '${address['area'] ?? ""}, ${address['city'] ?? ""}'.trim() : '',
                 'customer_lat': lat,
                 'customer_lng': lng,
-                'scheduled_time': booking['scheduled_time'] ?? '10:00 AM',
-                'problem_description': booking['problem_description'] ?? 'AC Cooling issue and filter deep clean required.',
-                'entrance_pin': booking['entrance_pin'] ?? '7429',
-                'completion_otp': booking['completion_otp'] ?? '5892',
+                'scheduled_time': booking['scheduled_time'] ?? '',
+                'problem_description': booking['problem_description'] ?? 'Service Request',
+                'entrance_pin': booking['entrance_pin'] ?? '',
+                'completion_otp': booking['completion_otp'] ?? '',
               });
             }
           }

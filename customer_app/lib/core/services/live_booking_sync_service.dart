@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io' show Directory, File, Platform;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Universal Cross-Platform Synchronization Service (Web + Desktop + Mobile + Supabase)
 class LiveBookingSyncService {
@@ -322,11 +321,11 @@ class LiveBookingSyncService {
     final Map<String, dynamic> record = <String, dynamic>{
       'id': bId,
       'booking_id': bId,
-      'customer_id': bookingData['customer_id'] ?? 'cust_live_user',
-      'customer_name': bookingData['customer_name'] ?? 'Verified Customer',
-      'customer_phone': bookingData['customer_phone'] ?? '+91 98980 11223',
+      'customer_id': bookingData['customer_id'] ?? '',
+      'customer_name': bookingData['customer_name'] ?? 'Customer',
+      'customer_phone': bookingData['customer_phone'] ?? '',
       'service_id': bookingData['service_id'] ?? 'ac_master_service',
-      'service_name': bookingData['service_name'] ?? 'AC Service (Split AC)',
+      'service_name': bookingData['service_name'] ?? 'AC Service',
       'status': (bookingData['status'] ?? 'PENDING').toString().toUpperCase(),
       'service_status': (bookingData['status'] ?? 'PENDING').toString().toUpperCase(),
       'estimated_amount': bookingData['estimated_amount'] ?? 499.0,
@@ -334,7 +333,7 @@ class LiveBookingSyncService {
       'price': bookingData['price'] ?? 499.0,
       'scheduled_date': bookingData['scheduled_date'] ?? 'Today',
       'scheduled_time_slot': bookingData['scheduled_time_slot'] ?? 'Immediate',
-      'address': bookingData['address'] ?? 'Patel Colony, Jamnagar, Gujarat',
+      'address': bookingData['address'] ?? '',
       'created_at': DateTime.now().toIso8601String(),
     };
 
@@ -397,8 +396,8 @@ class LiveBookingSyncService {
     final booking = all[bookingId] as Map<String, dynamic>? ?? _inMemoryBookings[bookingId];
     if (booking != null) {
       booking['partner_id'] = partnerId;
-      booking['partner_name'] = partnerName ?? 'Rajesh Sharma';
-      booking['partner_phone'] = partnerPhone ?? '+91 98765 43210';
+      booking['partner_name'] = partnerName ?? '';
+      booking['partner_phone'] = partnerPhone ?? '';
       booking['status'] = 'ASSIGNED';
       booking['service_status'] = 'ASSIGNED';
       all[bookingId] = booking;
@@ -412,13 +411,13 @@ class LiveBookingSyncService {
     final booking = all[bookingId] as Map<String, dynamic>? ?? _inMemoryBookings[bookingId];
     if (booking != null) {
       if (partnerDataOrId is Map<String, dynamic>) {
-        booking['partner_id'] = partnerDataOrId['partner_id'] ?? 'ptr_live';
-        booking['partner_name'] = partnerDataOrId['partner_name'] ?? 'Jenish AC Experts';
-        booking['partner_phone'] = partnerDataOrId['partner_phone'] ?? '+91 98765 43210';
+        booking['partner_id'] = (partnerDataOrId['partner_id'] ?? '').toString();
+        booking['partner_name'] = (partnerDataOrId['partner_name'] ?? partnerDataOrId['name'] ?? '').toString();
+        booking['partner_phone'] = (partnerDataOrId['partner_phone'] ?? partnerDataOrId['phone'] ?? '').toString();
       } else {
         booking['partner_id'] = partnerDataOrId.toString();
-        booking['partner_name'] = partnerName ?? 'Rajesh Sharma';
-        booking['partner_phone'] = partnerPhone ?? '+91 98765 43210';
+        booking['partner_name'] = partnerName ?? '';
+        booking['partner_phone'] = partnerPhone ?? '';
       }
       booking['status'] = 'CONFIRMED';
       booking['service_status'] = 'CONFIRMED';
@@ -552,47 +551,38 @@ class LiveBookingSyncService {
     final verId = (partnerData['verification_id'] ?? partnerData['id'] ?? 'ver_${DateTime.now().millisecondsSinceEpoch}').toString();
     final all = _readAllVerifications();
 
-    final aiReport = partnerData['ai_report'] as Map<String, dynamic>? ?? {
-      'ai_risk_score': 0.02,
-      'trust_score': 99.8,
-      'risk_level': 'LOW_RISK',
-      'recommendation': 'RECOMMENDED_FOR_APPROVAL',
-      'aadhaar_validation': {'is_valid': true, 'is_verhoeff_valid': true, 'qr_signed': true, 'formatted': 'XXXX-XXXX-4589'},
-      'ocr_inspection': {'is_authentic': true, 'confidence': 0.994, 'tampering_detected': false, 'integrity_level': 'HIGH_FIDELITY'},
-      'face_biometrics': {'liveness_verified': true, 'match_score': 99.4, 'status': 'MATCH_VERIFIED'},
-      'penny_drop': {'is_verified': true, 'bank_name': 'HDFC Bank', 'ifsc': 'HDFC0000123', 'status': 'Verified'},
-    };
+    final aiReport = partnerData['ai_report'] as Map<String, dynamic>? ?? {};
 
-    final Map<String, dynamic> record = <String, dynamic>{
-      'id': verId,
-      'verification_id': verId,
-      'user_id': (partnerData['id'] ?? partnerData['user_id'] ?? verId).toString(),
-      'name': (partnerData['name'] ?? partnerData['full_name'] ?? partnerData['business_name'] ?? 'Partner Candidate').toString(),
-      'full_name': (partnerData['full_name'] ?? partnerData['name'] ?? partnerData['business_name'] ?? 'Partner Candidate').toString(),
-      'phone': (partnerData['phone'] ?? partnerData['mobile'] ?? '+91 98765 43210').toString(),
-      'email': (partnerData['email'] ?? 'partner@servicehub.com').toString(),
-      'business_name': (partnerData['business_name'] ?? partnerData['name'] ?? 'Service Center').toString(),
-      'category': (partnerData['category'] ?? 'ac_service').toString(),
-      'category_name': (partnerData['category_name'] ?? 'AC Service Specialist').toString(),
-      'experience_years': (partnerData['experience_years'] ?? '4 Years').toString(),
-      'city': (partnerData['city'] ?? 'Jamnagar').toString(),
-      'state': (partnerData['state'] ?? 'Gujarat').toString(),
-      'status': (partnerData['verification_status'] ?? partnerData['status'] ?? 'PENDING').toString().toUpperCase(),
-      'verification_status': (partnerData['verification_status'] ?? partnerData['status'] ?? 'PENDING').toString().toUpperCase(),
-      'ai_risk_score': (partnerData['ai_risk_score'] as num?)?.toDouble() ?? 0.02,
-      'trust_score': (partnerData['trust_score'] as num?)?.toDouble() ?? 99.8,
-      'ai_report': aiReport,
-      'submitted_at': (partnerData['submitted_at'] ?? DateTime.now().toIso8601String()).toString(),
-    };
+    final Map<String, dynamic> record = Map<String, dynamic>.from(partnerData);
+    record['id'] = verId;
+    record['verification_id'] = verId;
+    record['user_id'] = (partnerData['user_id'] ?? partnerData['id'] ?? verId).toString();
+    record['name'] = (partnerData['name'] ?? partnerData['full_name'] ?? '').toString();
+    record['full_name'] = (partnerData['full_name'] ?? partnerData['name'] ?? '').toString();
+    record['phone'] = (partnerData['phone'] ?? partnerData['mobile'] ?? '').toString();
+    record['email'] = (partnerData['email'] ?? '').toString();
+    record['business_name'] = (partnerData['business_name'] ?? (record['name'].toString().isNotEmpty ? "${record['name']} Services" : 'Service Business')).toString();
+    record['category'] = (partnerData['category'] ?? partnerData['service_category_id'] ?? 'ac_service').toString();
+    record['category_name'] = (partnerData['category_name'] ?? partnerData['category_title'] ?? 'AC Service Provider').toString();
+    record['experience_years'] = (partnerData['experience_years'] ?? '').toString();
+    record['city'] = (partnerData['city'] ?? '').toString();
+    record['state'] = (partnerData['state'] ?? '').toString();
+    record['status'] = (partnerData['verification_status'] ?? partnerData['status'] ?? 'PENDING').toString().toUpperCase();
+    record['verification_status'] = (partnerData['verification_status'] ?? partnerData['status'] ?? 'PENDING').toString().toUpperCase();
+    record['ai_risk_score'] = (partnerData['ai_risk_score'] as num?)?.toDouble() ?? 0.02;
+    record['trust_score'] = (partnerData['trust_score'] as num?)?.toDouble() ?? 99.8;
+    record['ai_report'] = aiReport;
+    record['submitted_at'] = (partnerData['submitted_at'] ?? DateTime.now().toIso8601String()).toString();
+    record['bank_name'] = (partnerData['bank_name'] ?? '').toString();
+    record['account_number'] = (partnerData['account_number'] ?? partnerData['bank_account_number'] ?? '').toString();
+    record['ifsc_code'] = (partnerData['ifsc_code'] ?? partnerData['bank_ifsc'] ?? '').toString();
+    record['account_holder_name'] = (partnerData['account_holder_name'] ?? record['full_name'] ?? '').toString();
+    record['aadhaar_number'] = (partnerData['aadhaar_number'] ?? '').toString();
+    record['pan_number'] = (partnerData['pan_number'] ?? '').toString();
 
     all[verId] = record;
     _writeAllVerifications(all);
     await _broadcastToHttpBridge('/api/verifications', record);
-
-    try {
-      final client = Supabase.instance.client;
-      await client.from('verification_requests').insert(record);
-    } catch (_) {}
   }
 
   List<Map<String, dynamic>> getPendingPartnerVerifications() {

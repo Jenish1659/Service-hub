@@ -8,38 +8,7 @@ class AdminSupportView extends StatefulWidget {
 }
 
 class _AdminSupportViewState extends State<AdminSupportView> {
-  final List<Map<String, dynamic>> _tickets = [
-    {
-      'id': 'TKT-1049',
-      'user': 'Meera Trivedi',
-      'role': 'Customer',
-      'issue': 'Technician arrived 10 mins early, very satisfied with deep jet wash.',
-      'category': 'Service Quality',
-      'priority': 'LOW',
-      'status': 'RESOLVED',
-      'created_at': 'Today, 01:10 PM',
-    },
-    {
-      'id': 'TKT-1048',
-      'user': 'Dhaval Jethwa',
-      'role': 'Service Partner',
-      'issue': 'Requesting extra copper pipe rate inclusion in customer raw bill.',
-      'category': 'Billing / Parts',
-      'priority': 'HIGH',
-      'status': 'OPEN',
-      'created_at': 'Today, 10:45 AM',
-    },
-    {
-      'id': 'TKT-1045',
-      'user': 'Hardik Bhatt',
-      'role': 'Customer',
-      'issue': 'Clarification on AC 90-day warranty coverage terms.',
-      'category': 'Warranty Inquiry',
-      'priority': 'MEDIUM',
-      'status': 'IN_PROGRESS',
-      'created_at': 'Yesterday',
-    },
-  ];
+  final List<Map<String, dynamic>> _tickets = [];
 
   void _showTicketResolutionModal(Map<String, dynamic> ticket) {
     final replyController = TextEditingController();
@@ -144,7 +113,26 @@ class _AdminSupportViewState extends State<AdminSupportView> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: ListView.separated(
+              child: _tickets.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.mark_email_read_rounded, size: 52, color: Colors.blueGrey.shade200),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'No Support Tickets in Queue',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Real user and partner tickets will appear here dynamically.',
+                            style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
                 itemCount: _tickets.length,
                 separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 itemBuilder: (ctx, idx) {

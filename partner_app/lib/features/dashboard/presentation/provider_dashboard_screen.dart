@@ -997,10 +997,10 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
 
   // --- Active Job in Progress Card ---
   Widget _buildActiveJobProgressCard(Map<String, dynamic> job) {
-    final customerName = job['customer_name'] ?? 'Rajesh Patel';
-    final customerAddress = job['customer_address'] ?? 'Digvijay Plot, Jamnagar';
-    final serviceName = job['service_name'] ?? 'Split AC Deep Cleaning (Jet Wash)';
-    final price = (job['price'] as num?)?.toDouble() ?? 499.0;
+    final customerName = (job['customer_name'] ?? 'Customer').toString();
+    final customerAddress = (job['customer_address'] ?? job['address'] ?? '').toString();
+    final serviceName = (job['service_name'] ?? 'Service').toString();
+    final price = (job['price'] as num?)?.toDouble() ?? (job['final_amount'] as num?)?.toDouble() ?? 499.0;
 
     return Container(
       padding: const EdgeInsets.all(16),

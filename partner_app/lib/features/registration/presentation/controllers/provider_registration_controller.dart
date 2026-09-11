@@ -20,7 +20,7 @@ class ProviderRegistrationController extends ChangeNotifier {
 
   String countryCode = '+91';
   String? selectedState = 'Gujarat';
-  String? selectedCity;
+  String? selectedCity = 'Jamnagar';
 
   bool isOtpSent = false;
   bool isMobileVerified = false;
