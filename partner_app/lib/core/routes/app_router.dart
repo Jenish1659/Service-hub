@@ -161,7 +161,9 @@ final appRouter = GoRouter(
     // Application Status Tracker Route
     GoRoute(
       path: '/register/status-tracker',
-      builder: (context, state) => const ProviderApplicationStatusScreen(),
+      builder: (context, state) => ProviderApplicationStatusScreen(
+        initialIdentifier: state.extra as String?,
+      ),
     ),
 
     // Provider Main Dashboard Route (AC & Services)

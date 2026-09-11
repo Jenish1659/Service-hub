@@ -56,13 +56,20 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
         );
         context.go('/dashboard');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.errorMessage ?? 'Invalid credentials. Please check your username/phone and password.'),
-            backgroundColor: const Color(0xFFEF4444),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        final errorMsg = result.errorMessage ?? 'Invalid credentials. Please check your username/phone and password.';
+        if (errorMsg.contains('PENDING_APPROVAL')) {
+          _showPendingApprovalDialog();
+        } else if (errorMsg.contains('REJECTED')) {
+          _showRejectedDialog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMsg),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -80,6 +87,119 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
         });
       }
     }
+  }
+
+  void _showPendingApprovalDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFEF3C7),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.hourglass_top_rounded, color: Color(0xFFD97706), size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Admin Approval Required',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Your partner registration is received and is currently pending Admin verification and approval.',
+                style: TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.lock_clock_rounded, color: Color(0xFFD97706), size: 20),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Dashboard access is locked until Admin approves your request.',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'You can track real-time status on the application tracker. Once Admin approves, a check mark will appear and dashboard access will unlock.',
+                style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B), height: 1.3),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Dismiss', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                Navigator.pop(dialogCtx);
+                final typed = _usernameController.text.trim();
+                context.push('/register/status-tracker', extra: typed.isNotEmpty ? typed : null);
+              },
+              icon: const Icon(Icons.track_changes_rounded, size: 16, color: Colors.white),
+              label: const Text('Track Application Status', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showRejectedDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.cancel_rounded, color: Color(0xFFEF4444), size: 24),
+            SizedBox(width: 8),
+            Text('Application Rejected', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: const Text(
+          'Your partner registration request was not approved by Admin. Please contact customer support.',
+          style: TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -290,6 +410,29 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
                                   Icon(Icons.arrow_forward, color: AppColors.accentGold, size: 20),
                                 ],
                               ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Dedicated Track Your Application Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          backgroundColor: const Color(0xFFEFF6FF),
+                        ),
+                        onPressed: () {
+                          final typed = _usernameController.text.trim();
+                          context.push('/register/status-tracker', extra: typed.isNotEmpty ? typed : null);
+                        },
+                        icon: const Icon(Icons.track_changes_rounded, color: Color(0xFF2563EB), size: 18),
+                        label: const Text(
+                          'Track Your Application',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),

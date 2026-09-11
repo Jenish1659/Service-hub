@@ -30,6 +30,20 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
     try {
       final activeUser = await LocalRegistrationCache.getActivePartner();
       if (activeUser != null) {
+        final status = (activeUser['verification_status'] ?? '').toString().toUpperCase();
+        if (status != 'VERIFIED' && status != 'APPROVED') {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Application is pending Admin approval. Please login after Admin approval.'),
+                backgroundColor: Color(0xFFD97706),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            context.go('/login/delivery-agent');
+            return;
+          }
+        }
         setState(() {
           _agentName = (activeUser['name'] ?? activeUser['username'] ?? 'Delivery Agent').toString();
         });

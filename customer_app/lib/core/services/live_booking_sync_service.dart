@@ -531,16 +531,28 @@ class LiveBookingSyncService {
   }
 
   Map<String, dynamic>? getPartnerVerification(String partnerId) {
-    final clean = partnerId.toLowerCase().replaceAll('shb-', '').replaceAll('partner_', '').replaceAll('ver_', '').replaceAll('+', '').replaceAll(' ', '').trim();
+    if (partnerId.trim().isEmpty) return null;
+    final lower = partnerId.toLowerCase().trim();
+    final digits = partnerId.replaceAll(RegExp(r'\D'), '');
+    final last10 = digits.length >= 10 ? digits.substring(digits.length - 10) : digits;
+    final clean = lower.replaceAll('shb-', '').replaceAll('partner_', '').replaceAll('ver_', '').replaceAll('+', '').replaceAll(' ', '').trim();
+
     for (final val in _inMemoryVerifications.values) {
       final vId = (val['id'] ?? '').toString().toLowerCase();
       final vVerId = (val['verification_id'] ?? '').toString().toLowerCase();
       final vUserId = (val['user_id'] ?? '').toString().toLowerCase();
-      final vPhone = (val['phone'] ?? '').toString().replaceAll('+', '').replaceAll(' ', '');
-      if (vId == partnerId.toLowerCase() || vVerId == partnerId.toLowerCase() || vUserId == partnerId.toLowerCase()) {
+      final vPartId = (val['partner_id'] ?? '').toString().toLowerCase();
+      final vPhone = (val['phone'] ?? val['mobile'] ?? '').toString();
+      final vPhoneDigits = vPhone.replaceAll(RegExp(r'\D'), '');
+      final vUname = (val['username'] ?? '').toString().toLowerCase();
+
+      if (vId == lower || vVerId == lower || vUserId == lower || vPartId == lower || vUname == lower) {
         return val;
       }
-      if (clean.isNotEmpty && (vId.contains(clean) || vVerId.contains(clean) || vPhone.contains(clean))) {
+      if (last10.length >= 10 && vPhoneDigits.endsWith(last10)) {
+        return val;
+      }
+      if (clean.isNotEmpty && (vId.contains(clean) || vVerId.contains(clean) || vUserId.contains(clean) || vPhone.contains(clean))) {
         return val;
       }
     }
@@ -606,10 +618,39 @@ class LiveBookingSyncService {
   }
 
   Future<void> approvePartnerVerification(String partnerId) async {
+    if (partnerId.trim().isEmpty) return;
+    final lower = partnerId.toLowerCase().trim();
+    final digits = partnerId.replaceAll(RegExp(r'\D'), '');
+    final last10 = digits.length >= 10 ? digits.substring(digits.length - 10) : digits;
+    final clean = lower.replaceAll('shb-', '').replaceAll('partner_', '').replaceAll('ver_', '').replaceAll('+', '').replaceAll(' ', '').trim();
+
     final all = _readAllVerifications();
     for (final key in all.keys.toList()) {
       final val = all[key];
-      if (key == partnerId || val['user_id'] == partnerId || val['verification_id'] == partnerId || val['id'] == partnerId) {
+      final vId = (val['id'] ?? '').toString().toLowerCase();
+      final vVerId = (val['verification_id'] ?? '').toString().toLowerCase();
+      final vUserId = (val['user_id'] ?? '').toString().toLowerCase();
+      final vPartId = (val['partner_id'] ?? '').toString().toLowerCase();
+      final vPhone = (val['phone'] ?? val['mobile'] ?? '').toString();
+      final vPhoneDigits = vPhone.replaceAll(RegExp(r'\D'), '');
+      final vUname = (val['username'] ?? '').toString().toLowerCase();
+
+      final matches = key.toLowerCase() == lower ||
+          vId == lower ||
+          vVerId == lower ||
+          vUserId == lower ||
+          vPartId == lower ||
+          vUname == lower ||
+          (last10.length >= 10 && vPhoneDigits.endsWith(last10)) ||
+          (clean.isNotEmpty && (
+            key.toLowerCase().contains(clean) ||
+            vId.contains(clean) ||
+            vVerId.contains(clean) ||
+            vUserId.contains(clean) ||
+            (clean.length >= 7 && vPhone.contains(clean))
+          ));
+
+      if (matches) {
         val['status'] = 'APPROVED';
         val['verification_status'] = 'VERIFIED';
         val['approved_at'] = DateTime.now().toIso8601String();
@@ -621,10 +662,39 @@ class LiveBookingSyncService {
   }
 
   Future<void> rejectPartnerVerification(String partnerId) async {
+    if (partnerId.trim().isEmpty) return;
+    final lower = partnerId.toLowerCase().trim();
+    final digits = partnerId.replaceAll(RegExp(r'\D'), '');
+    final last10 = digits.length >= 10 ? digits.substring(digits.length - 10) : digits;
+    final clean = lower.replaceAll('shb-', '').replaceAll('partner_', '').replaceAll('ver_', '').replaceAll('+', '').replaceAll(' ', '').trim();
+
     final all = _readAllVerifications();
     for (final key in all.keys.toList()) {
       final val = all[key];
-      if (key == partnerId || val['user_id'] == partnerId || val['verification_id'] == partnerId || val['id'] == partnerId) {
+      final vId = (val['id'] ?? '').toString().toLowerCase();
+      final vVerId = (val['verification_id'] ?? '').toString().toLowerCase();
+      final vUserId = (val['user_id'] ?? '').toString().toLowerCase();
+      final vPartId = (val['partner_id'] ?? '').toString().toLowerCase();
+      final vPhone = (val['phone'] ?? val['mobile'] ?? '').toString();
+      final vPhoneDigits = vPhone.replaceAll(RegExp(r'\D'), '');
+      final vUname = (val['username'] ?? '').toString().toLowerCase();
+
+      final matches = key.toLowerCase() == lower ||
+          vId == lower ||
+          vVerId == lower ||
+          vUserId == lower ||
+          vPartId == lower ||
+          vUname == lower ||
+          (last10.length >= 10 && vPhoneDigits.endsWith(last10)) ||
+          (clean.isNotEmpty && (
+            key.toLowerCase().contains(clean) ||
+            vId.contains(clean) ||
+            vVerId.contains(clean) ||
+            vUserId.contains(clean) ||
+            (clean.length >= 7 && vPhone.contains(clean))
+          ));
+
+      if (matches) {
         val['status'] = 'REJECTED';
         val['verification_status'] = 'REJECTED';
         all[key] = val;

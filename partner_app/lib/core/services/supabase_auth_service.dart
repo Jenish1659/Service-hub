@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'live_booking_sync_service.dart';
 
 class AuthResult {
   final bool isSuccess;
@@ -49,6 +50,16 @@ class SupabaseAuthService {
         // Check local persistent cache fallback
         final localMatch = await _checkLocalCachedUser(cleanId, cleanPass, expectedRole);
         if (localMatch != null) {
+          final status = (localMatch['verification_status'] ?? '').toString().toUpperCase();
+          final isApproved = status == 'VERIFIED' || status == 'APPROVED';
+          if (!isApproved) {
+            return AuthResult(
+              isSuccess: false,
+              errorMessage: 'PENDING_APPROVAL: Your application is pending Admin approval. You can only login to your dashboard after Admin approves your request.',
+              userData: localMatch,
+              roleName: localMatch['role_name'] ?? expectedRole,
+            );
+          }
           return AuthResult(
             isSuccess: true,
             userData: localMatch,
@@ -105,7 +116,53 @@ class SupabaseAuthService {
         }
       }
 
-      // 5. Store active session locally
+      // 5. Enforce Admin Approval verification
+      dynamic partnersData = usersRes['partners'];
+      if (partnersData is List && partnersData.isNotEmpty) {
+        partnersData = partnersData.first;
+      } else if (partnersData is! Map) {
+        partnersData = null;
+      }
+
+      final String partnerVerStatus = (partnersData?['verification_status'] ?? '').toString().toUpperCase();
+
+      // Check verification_requests table in Supabase
+      String? vrStatus;
+      try {
+        final vr = await client
+            .from('verification_requests')
+            .select('status')
+            .eq('user_id', usersRes['user_id'])
+            .order('submitted_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+        if (vr != null) {
+          vrStatus = (vr['status'] ?? '').toString().toUpperCase();
+        }
+      } catch (_) {}
+
+      // Check LiveBookingSyncService memory and local sync bridge
+      final userPhone = usersRes['phone']?.toString();
+      final syncRecord = LiveBookingSyncService.instance.getPartnerVerification(usersRes['user_id']?.toString() ?? '') ??
+          (partnersData?['partner_id'] != null ? LiveBookingSyncService.instance.getPartnerVerification(partnersData['partner_id'].toString()) : null) ??
+          (userPhone != null ? LiveBookingSyncService.instance.getPartnerVerification(userPhone) : null) ??
+          LiveBookingSyncService.instance.getPartnerVerification(cleanId);
+      final String syncStatus = (syncRecord?['status'] ?? syncRecord?['verification_status'] ?? '').toString().toUpperCase();
+
+      final bool isApproved = partnerVerStatus == 'VERIFIED' ||
+          partnerVerStatus == 'APPROVED' ||
+          vrStatus == 'APPROVED' ||
+          vrStatus == 'VERIFIED' ||
+          syncStatus == 'APPROVED' ||
+          syncStatus == 'VERIFIED' ||
+          (accountStatus == 'ACTIVE' && partnerVerStatus != 'PENDING' && vrStatus != 'PENDING' && syncStatus != 'PENDING');
+
+      final bool isRejected = partnerVerStatus == 'REJECTED' ||
+          vrStatus == 'REJECTED' ||
+          syncStatus == 'REJECTED' ||
+          accountStatus == 'REJECTED';
+
+      // 6. Store active session locally
       final sessionData = {
         'user_id': usersRes['user_id'],
         'username': usersRes['username'],
@@ -115,13 +172,31 @@ class SupabaseAuthService {
         'name': usersRes['user_profiles']?['first_name'] != null
             ? '${usersRes['user_profiles']['first_name']} ${usersRes['user_profiles']['last_name'] ?? ""}'.trim()
             : usersRes['username'],
-        'partner_id': usersRes['partners']?['partner_id'],
-        'provider_id': usersRes['partners']?['service_provider_profiles']?['provider_id'],
-        'verification_status': usersRes['partners']?['verification_status'] ?? 'VERIFIED',
-        'is_online': usersRes['partners']?['availability_status'] == 'ONLINE',
+        'partner_id': partnersData?['partner_id'] ?? usersRes['user_id'],
+        'provider_id': partnersData?['service_provider_profiles']?['provider_id'],
+        'verification_status': isApproved ? 'VERIFIED' : (isRejected ? 'REJECTED' : 'PENDING'),
+        'is_online': isApproved && partnersData?['availability_status'] == 'ONLINE',
       };
 
       await _saveActiveSession(sessionData);
+
+      if (isRejected) {
+        return AuthResult(
+          isSuccess: false,
+          errorMessage: 'REJECTED: Your application was rejected by the Admin. Please contact support.',
+          userData: sessionData,
+          roleName: roleName,
+        );
+      }
+
+      if (!isApproved) {
+        return AuthResult(
+          isSuccess: false,
+          errorMessage: 'PENDING_APPROVAL: Your application is pending Admin approval. You can only login to your dashboard after Admin approves your request.',
+          userData: sessionData,
+          roleName: roleName,
+        );
+      }
 
       return AuthResult(
         isSuccess: true,
@@ -136,6 +211,16 @@ class SupabaseAuthService {
       // Check offline fallback cache
       final localMatch = await _checkLocalCachedUser(cleanId, cleanPass, expectedRole);
       if (localMatch != null) {
+        final status = (localMatch['verification_status'] ?? '').toString().toUpperCase();
+        final isApproved = status == 'VERIFIED' || status == 'APPROVED';
+        if (!isApproved) {
+          return AuthResult(
+            isSuccess: false,
+            errorMessage: 'PENDING_APPROVAL: Your application is pending Admin approval. You can only login to your dashboard after Admin approves your request.',
+            userData: localMatch,
+            roleName: localMatch['role_name'] ?? expectedRole,
+          );
+        }
         return AuthResult(
           isSuccess: true,
           userData: localMatch,
@@ -284,8 +369,8 @@ class SupabaseAuthService {
         'password': password,
         'role_name': 'service_provider',
         'category': serviceCategoryId,
-        'verification_status': 'VERIFIED',
-        'is_online': true,
+        'verification_status': 'PENDING',
+        'is_online': false,
       };
 
       await _saveActiveSession(fallbackSession);
@@ -303,6 +388,7 @@ class SupabaseAuthService {
       if (Hive.isBoxOpen(_sessionBoxName)) {
         final box = Hive.box(_sessionBoxName);
         await box.put('active_user_session', session);
+        await box.put('active_partner_session', session);
 
         // Store in registered users list for local lookup
         final List<dynamic> rawList = box.get('registered_users_list', defaultValue: []) as List<dynamic>;
@@ -318,19 +404,40 @@ class SupabaseAuthService {
     try {
       if (Hive.isBoxOpen(_sessionBoxName)) {
         final box = Hive.box(_sessionBoxName);
-        final List<dynamic> rawList = box.get('registered_users_list', defaultValue: []) as List<dynamic>;
+        final List<dynamic> rawList = [
+          ...(box.get('registered_users_list', defaultValue: []) as List<dynamic>),
+          ...(box.get('registered_partners_list', defaultValue: []) as List<dynamic>),
+        ];
+        final activePartner = box.get('active_partner_session');
+        if (activePartner is Map) rawList.add(activePartner);
+        final activeUser = box.get('active_user_session');
+        if (activeUser is Map) rawList.add(activeUser);
+
+        final cleanId = identifier.trim().toLowerCase().replaceAll('@', '').replaceAll('+', '').replaceAll(' ', '');
+
         for (final item in rawList) {
           if (item is Map) {
-            final uName = (item['username'] ?? '').toString().toLowerCase();
-            final uPhone = (item['phone'] ?? '').toString().toLowerCase();
+            final uName = (item['username'] ?? '').toString().toLowerCase().replaceAll('@', '').replaceAll(' ', '');
+            final uPhone = (item['phone'] ?? item['mobile'] ?? '').toString().toLowerCase().replaceAll('+', '').replaceAll(' ', '');
             final uPass = (item['password'] ?? '').toString();
             final uRole = (item['role_name'] ?? item['role'] ?? '').toString().toLowerCase();
 
-            if ((uName == identifier || uPhone == identifier || uPhone.endsWith(identifier)) &&
-                (uPass.isEmpty || uPass == password)) {
+            final idMatches = (uName == cleanId || uPhone == cleanId || (cleanId.length >= 10 && uPhone.endsWith(cleanId)));
+            final passMatches = (uPass.isEmpty || uPass == password.trim());
+
+            if (idMatches && passMatches) {
               if (uRole == expectedRole || expectedRole == 'any' || uRole.isEmpty) {
                 final match = Map<String, dynamic>.from(item);
+                // Check latest live sync status
+                final syncRecord = LiveBookingSyncService.instance.getPartnerVerification(match['user_id']?.toString() ?? '') ??
+                    LiveBookingSyncService.instance.getPartnerVerification(match['id']?.toString() ?? '') ??
+                    LiveBookingSyncService.instance.getPartnerVerification(identifier);
+                final syncStatus = (syncRecord?['status'] ?? syncRecord?['verification_status'] ?? '').toString().toUpperCase();
+                if (syncStatus.isNotEmpty) {
+                  match['verification_status'] = syncStatus;
+                }
                 await box.put('active_user_session', match);
+                await box.put('active_partner_session', match);
                 return match;
               }
             }
@@ -362,6 +469,7 @@ class SupabaseAuthService {
       if (Hive.isBoxOpen(_sessionBoxName)) {
         final box = Hive.box(_sessionBoxName);
         await box.delete('active_user_session');
+        await box.delete('active_partner_session');
       }
     } catch (_) {}
   }

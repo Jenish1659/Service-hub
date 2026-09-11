@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 
 class ProviderApplicationStatusScreen extends StatefulWidget {
-  const ProviderApplicationStatusScreen({super.key});
+  final String? initialIdentifier;
+  const ProviderApplicationStatusScreen({super.key, this.initialIdentifier});
 
   @override
   State<ProviderApplicationStatusScreen> createState() =>
@@ -19,20 +22,156 @@ class _ProviderApplicationStatusScreenState
   String _submittedDate = 'Today, Live';
   Map<String, dynamic>? _partnerData;
   bool _isLoading = true;
+  Timer? _pollTimer;
+  late TextEditingController _searchController;
+
+  bool _isUuid(String s) =>
+      RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(s.trim());
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController(text: widget.initialIdentifier ?? '');
     _loadPartnerData();
+    _startLivePolling();
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _startLivePolling() {
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _checkRemoteSupabaseStatus();
+    });
+  }
+
+  Future<void> _checkRemoteSupabaseStatus() async {
+    try {
+      final client = Supabase.instance.client;
+      final phone = (_partnerData?['phone'] ?? _partnerData?['mobile'] ?? _searchController.text).toString().replaceAll(' ', '').trim();
+      final uId = _partnerData?['user_id']?.toString() ?? _partnerData?['id']?.toString();
+      final partnerId = _partnerData?['partner_id']?.toString();
+
+      // 1. Check local LiveBookingSyncService memory first
+      final syncRecord = (phone.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(phone) : null) ??
+          (uId != null ? LiveBookingSyncService.instance.getPartnerVerification(uId) : null) ??
+          (partnerId != null ? LiveBookingSyncService.instance.getPartnerVerification(partnerId) : null) ??
+          LiveBookingSyncService.instance.getPartnerVerification(_appId);
+
+      if (syncRecord != null) {
+        final syncStatus = (syncRecord['status'] ?? syncRecord['verification_status'] ?? '').toString().toUpperCase();
+        if (syncStatus == 'VERIFIED' || syncStatus == 'APPROVED') {
+          _markApprovedLocally();
+          return;
+        }
+      }
+
+      // 2. Query Supabase users table by Phone or Username (text comparison, never fails UUID constraint)
+      if (phone.isNotEmpty) {
+        final rawDigits = phone.replaceAll(RegExp(r'\D'), '');
+        final userRes = await client
+            .from('users')
+            .select('user_id, username, phone, account_status, partners(partner_id, verification_status, availability_status)')
+            .or('phone.eq.$phone,phone.ilike.%${rawDigits.length >= 10 ? rawDigits.substring(rawDigits.length - 10) : rawDigits}%,username.ilike.$phone')
+            .limit(1)
+            .maybeSingle();
+
+        if (userRes != null) {
+          final pList = userRes['partners'];
+          Map<String, dynamic>? pMap;
+          if (pList is List && pList.isNotEmpty) {
+            pMap = pList.first as Map<String, dynamic>;
+          } else if (pList is Map) {
+            pMap = pList as Map<String, dynamic>;
+          }
+          final pStatus = (pMap?['verification_status'] ?? '').toString().toUpperCase();
+          final uStatus = (userRes['account_status'] ?? '').toString().toUpperCase();
+          if (pStatus == 'VERIFIED' || pStatus == 'APPROVED' || (uStatus == 'ACTIVE' && pStatus.isNotEmpty && pStatus != 'REJECTED')) {
+            _markApprovedLocally();
+            return;
+          }
+        }
+      }
+
+      // 3. Check verification_requests table using valid UUID and submitted_at ordering
+      final checkUserId = (uId != null && _isUuid(uId)) ? uId : null;
+      if (checkUserId != null) {
+        final vrRes = await client
+            .from('verification_requests')
+            .select('status')
+            .eq('user_id', checkUserId)
+            .order('submitted_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+        if (vrRes != null) {
+          final st = (vrRes['status'] ?? '').toString().toUpperCase();
+          if (st == 'APPROVED' || st == 'VERIFIED') {
+            _markApprovedLocally();
+            return;
+          }
+        }
+      }
+
+      // 4. Check partners table with valid UUID
+      if (partnerId != null && _isUuid(partnerId)) {
+        final pRes = await client.from('partners').select('verification_status').eq('partner_id', partnerId).maybeSingle();
+        if (pRes != null) {
+          final st = (pRes['verification_status'] ?? '').toString().toUpperCase();
+          if (st == 'VERIFIED' || st == 'APPROVED') {
+            _markApprovedLocally();
+            return;
+          }
+        }
+      }
+
+      if (checkUserId != null) {
+        final pRes = await client.from('partners').select('verification_status').eq('user_id', checkUserId).maybeSingle();
+        if (pRes != null) {
+          final st = (pRes['verification_status'] ?? '').toString().toUpperCase();
+          if (st == 'VERIFIED' || st == 'APPROVED') {
+            _markApprovedLocally();
+            return;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _markApprovedLocally() {
+    if (mounted) {
+      setState(() {
+        _partnerData ??= {};
+        _partnerData!['verification_status'] = 'VERIFIED';
+        _partnerData!['status'] = 'APPROVED';
+      });
+    }
+    LocalRegistrationCache.updateActivePartner({'verification_status': 'VERIFIED', 'status': 'APPROVED'});
+    final pId = _partnerData?['id'] ?? _partnerData?['user_id'] ?? _appId;
+    LiveBookingSyncService.instance.approvePartnerVerification(pId.toString());
+    final phone = (_partnerData?['phone'] ?? _partnerData?['mobile'] ?? '').toString();
+    if (phone.isNotEmpty) {
+      LiveBookingSyncService.instance.approvePartnerVerification(phone);
+    }
   }
 
   Future<void> _loadPartnerData() async {
-    final partner = await LocalRegistrationCache.getRegisteredPartner();
+    Map<String, dynamic>? partner = await LocalRegistrationCache.getRegisteredPartner();
+    partner ??= await LocalRegistrationCache.getActivePartner();
+
+    // If still null and search text is available, look up in LiveBookingSyncService
+    if (partner == null && _searchController.text.trim().isNotEmpty) {
+      partner = LiveBookingSyncService.instance.getPartnerVerification(_searchController.text.trim());
+    }
+
     if (mounted) {
       setState(() {
         _partnerData = partner;
         if (partner != null) {
-          final id = (partner['verification_id'] ?? partner['id'] ?? '').toString();
+          final id = (partner['verification_id'] ?? partner['id'] ?? partner['user_id'] ?? '').toString();
           if (id.isNotEmpty) {
             _appId = id.toUpperCase().replaceAll('PARTNER_', 'SHB-').replaceAll('VER_', 'SHB-');
           }
@@ -43,6 +182,7 @@ class _ProviderApplicationStatusScreenState
         }
         _isLoading = false;
       });
+      _checkRemoteSupabaseStatus();
     }
   }
 
@@ -75,13 +215,17 @@ class _ProviderApplicationStatusScreenState
       );
     }
 
-    final partnerId = _partnerData?['id'] ?? _partnerData?['user_id'] ?? _appId;
+    final trackedPhone = (_partnerData?['phone'] ?? _partnerData?['mobile'] ?? _searchController.text).toString().replaceAll(' ', '').trim();
+    final trackedUId = (_partnerData?['user_id'] ?? _partnerData?['id'] ?? '').toString().trim();
+    final partnerId = trackedPhone.isNotEmpty ? trackedPhone : (trackedUId.isNotEmpty ? trackedUId : _appId);
 
     return StreamBuilder<Map<String, dynamic>?>(
-      stream: LiveBookingSyncService.instance.streamPartnerVerification(partnerId.toString()),
+      stream: LiveBookingSyncService.instance.streamPartnerVerification(partnerId),
       builder: (context, snapshot) {
-        final liveRecord = snapshot.data;
-        final status = (liveRecord?['status'] ?? _partnerData?['verification_status'] ?? _partnerData?['status'] ?? 'PENDING')
+        final liveRecord = snapshot.data ??
+            (trackedPhone.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(trackedPhone) : null) ??
+            (trackedUId.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(trackedUId) : null);
+        final status = (liveRecord?['status'] ?? liveRecord?['verification_status'] ?? _partnerData?['verification_status'] ?? _partnerData?['status'] ?? 'PENDING')
             .toString()
             .toUpperCase();
         final isApproved = status == 'APPROVED' || status == 'VERIFIED';
@@ -122,7 +266,7 @@ class _ProviderApplicationStatusScreenState
                 tooltip: 'Refresh Status',
                 icon: const Icon(Icons.refresh_rounded, size: 20, color: primaryColor),
                 onPressed: () {
-                  setState(() {});
+                  _checkRemoteSupabaseStatus();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Checking latest application status with Admin live server...'),
@@ -148,6 +292,54 @@ class _ProviderApplicationStatusScreenState
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 0. Live Search / Track by Phone Field
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 14),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFCBD5E1)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 20),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _searchController,
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                      decoration: const InputDecoration(
+                                        hintText: 'Track by Mobile Number or Application ID',
+                                        hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                      onSubmitted: (_) => _checkRemoteSupabaseStatus(),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: () {
+                                      _checkRemoteSupabaseStatus();
+                                    },
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: primaryColor,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'Track',
+                                        style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
                             // 1. Application ID & Date Card
                             Container(
                               padding: const EdgeInsets.all(14),
@@ -347,31 +539,62 @@ class _ProviderApplicationStatusScreenState
                       child: Container(
                         constraints: const BoxConstraints(maxWidth: 640),
                         width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isApproved ? const Color(0xFF16A34A) : primaryColor,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 2,
-                          ),
-                          onPressed: () {
-                            if (isApproved) {
-                              context.go('/dashboard');
-                            } else {
-                              context.go('/login/service-provider');
-                            }
-                          },
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                isApproved ? 'Launch Partner Dashboard 🚀' : 'Return to Provider Login',
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isApproved ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: isApproved ? 2 : 0,
                               ),
-                              const SizedBox(width: 6),
-                              Icon(isApproved ? Icons.arrow_forward_rounded : Icons.login_rounded, color: Colors.white, size: 18),
+                              onPressed: () {
+                                if (isApproved) {
+                                  context.go('/dashboard');
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Dashboard access is locked. A check mark will appear once Admin approves your request.'),
+                                      backgroundColor: Color(0xFFD97706),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              },
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(isApproved ? Icons.check_circle_rounded : Icons.lock_rounded, color: Colors.white, size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    isApproved ? 'Launch Partner Dashboard 🚀' : 'Dashboard Locked (Awaiting Admin Approval)',
+                                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                  if (isApproved) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            if (!isApproved) ...[
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 11),
+                                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  onPressed: () => context.go('/login/service-provider'),
+                                  icon: const Icon(Icons.login_rounded, size: 16, color: Color(0xFF334155)),
+                                  label: const Text('Return to Provider Login', style: TextStyle(color: Color(0xFF334155), fontWeight: FontWeight.w600, fontSize: 13)),
+                                ),
+                              ),
                             ],
-                          ),
+                          ],
                         ),
                       ),
                     ),
@@ -391,10 +614,10 @@ class _ProviderApplicationStatusScreenState
         title: '1. Registration Submitted',
         date: 'Just Now',
         desc: 'Your application details have been safely received.',
-        statusTag: 'Completed',
+        statusTag: 'Completed ✓',
         statusColor: const Color(0xFF10B981),
         statusBg: const Color(0xFFDCFCE7),
-        icon: Icons.check,
+        icon: Icons.check_rounded,
         isCompleted: true,
         isInProgress: false,
       ),
@@ -402,36 +625,38 @@ class _ProviderApplicationStatusScreenState
         title: '2. AI Verification Engine',
         date: 'Verified (Score: 0.02 - Low Risk)',
         desc: 'Aadhaar QR, FaceRD biometrics, and Bank Penny Drop ₹1 verified.',
-        statusTag: 'Passed',
+        statusTag: 'Passed ✓',
         statusColor: const Color(0xFF10B981),
         statusBg: const Color(0xFFDCFCE7),
-        icon: Icons.check,
+        icon: Icons.check_rounded,
         isCompleted: true,
         isInProgress: false,
       ),
       _TimelineStepData(
-        title: '3. Admin Review & Audit',
-        date: isApproved ? 'Approved by Admin' : (isRejected ? 'Application Rejected' : 'In Progress'),
+        title: '3. Admin Review & Approval Request',
+        date: isApproved ? 'Approved by Admin' : (isRejected ? 'Application Rejected' : 'Awaiting Admin Approval'),
         desc: isApproved
-            ? 'Admin verified documents and authorized partner activation.'
-            : (isRejected ? 'Application requires document correction.' : 'Admin is reviewing your application in the master queue.'),
-        statusTag: isApproved ? 'Approved' : (isRejected ? 'Rejected' : 'Under Review'),
-        statusColor: isApproved ? const Color(0xFF10B981) : (isRejected ? const Color(0xFFEF4444) : const Color(0xFF2563EB)),
-        statusBg: isApproved ? const Color(0xFFDCFCE7) : (isRejected ? const Color(0xFFFEE2E2) : const Color(0xFFDBEAFE)),
-        icon: isApproved ? Icons.check : (isRejected ? Icons.close : Icons.sync_rounded),
+            ? 'Admin verified your KYC documents and authorized partner activation.'
+            : (isRejected
+                ? 'Application requires document correction or support contact.'
+                : 'Your request is in the Admin verification queue. A check mark will appear here once Admin approves.'),
+        statusTag: isApproved ? 'Approved ✓' : (isRejected ? 'Rejected' : 'Unchecked (Pending)'),
+        statusColor: isApproved ? const Color(0xFF10B981) : (isRejected ? const Color(0xFFEF4444) : const Color(0xFFD97706)),
+        statusBg: isApproved ? const Color(0xFFDCFCE7) : (isRejected ? const Color(0xFFFEE2E2) : const Color(0xFFFEF3C7)),
+        icon: isApproved ? Icons.check_rounded : (isRejected ? Icons.close_rounded : Icons.radio_button_unchecked_rounded),
         isCompleted: isApproved,
-        isInProgress: !isApproved && !isRejected,
+        isInProgress: false,
       ),
       _TimelineStepData(
-        title: '4. Final Approval & Activation',
-        date: isApproved ? 'Account Activated' : 'Pending Review',
+        title: '4. Final Approval & Dashboard Access',
+        date: isApproved ? 'Account Activated & Dashboard Unlocked' : 'Pending Admin Approval',
         desc: isApproved
-            ? 'Your account is active. You can now go online and accept bookings.'
-            : 'You will receive immediate app notification once activated.',
-        statusTag: isApproved ? 'Active' : 'Pending',
+            ? 'Your account is active. You can now login and enter your partner dashboard.'
+            : 'Dashboard access is locked until Admin approves your request.',
+        statusTag: isApproved ? 'Unlocked ✓' : 'Locked (Unchecked)',
         statusColor: isApproved ? const Color(0xFF10B981) : const Color(0xFF64748B),
         statusBg: isApproved ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
-        icon: isApproved ? Icons.verified_user_rounded : Icons.verified_user_outlined,
+        icon: isApproved ? Icons.check_rounded : Icons.radio_button_unchecked_rounded,
         isCompleted: isApproved,
         isInProgress: false,
       ),
@@ -449,26 +674,38 @@ class _ProviderApplicationStatusScreenState
             Column(
               children: [
                 Container(
-                  width: 28,
-                  height: 28,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: step.isCompleted
                         ? const Color(0xFF10B981)
-                        : (step.isInProgress ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0)),
+                        : const Color(0xFFF8FAFC),
+                    border: Border.all(
+                      color: step.isCompleted
+                          ? const Color(0xFF10B981)
+                          : (step.statusColor == const Color(0xFFEF4444)
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFFCBD5E1)),
+                      width: 2.0,
+                    ),
                   ),
                   child: Center(
                     child: Icon(
                       step.icon,
-                      color: (step.isCompleted || step.isInProgress) ? Colors.white : const Color(0xFF94A3B8),
-                      size: 16,
+                      color: step.isCompleted
+                          ? Colors.white
+                          : (step.statusColor == const Color(0xFFEF4444)
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF94A3B8)),
+                      size: step.isCompleted ? 18 : 16,
                     ),
                   ),
                 ),
                 if (!isLast)
                   Container(
                     width: 2,
-                    height: 54,
+                    height: index >= 2 ? 70 : 54,
                     color: step.isCompleted ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
                   ),
               ],
@@ -485,8 +722,10 @@ class _ProviderApplicationStatusScreenState
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: step.isInProgress ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0),
-                      width: step.isInProgress ? 1.5 : 1.0,
+                      color: step.isCompleted
+                          ? const Color(0xFFA7F3D0)
+                          : const Color(0xFFE2E8F0),
+                      width: step.isCompleted ? 1.5 : 1.0,
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -508,7 +747,7 @@ class _ProviderApplicationStatusScreenState
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: step.isInProgress ? const Color(0xFF1E40AF) : const Color(0xFF0F172A),
+                                color: step.isCompleted ? const Color(0xFF065F46) : const Color(0xFF0F172A),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -533,6 +772,70 @@ class _ProviderApplicationStatusScreenState
                       if (step.date.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(step.date, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                      ],
+                      if (index == 2) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: isApproved ? const Color(0xFFECFDF5) : const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isApproved ? const Color(0xFFA7F3D0) : const Color(0xFFFDE68A),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isApproved ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                size: 14,
+                                color: isApproved ? const Color(0xFF10B981) : const Color(0xFFD97706),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isApproved ? 'Admin Approval Status: APPROVED ✓' : 'Admin Approval Status: UNCHECKED (Awaiting Admin)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isApproved ? const Color(0xFF065F46) : const Color(0xFF92400E),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (index == 3) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: isApproved ? const Color(0xFFECFDF5) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isApproved ? const Color(0xFFA7F3D0) : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isApproved ? Icons.check_circle_rounded : Icons.lock_outline_rounded,
+                                size: 14,
+                                color: isApproved ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isApproved ? 'Dashboard Login: AUTHORIZED ✓' : 'Dashboard Login: LOCKED (Requires Admin Approval)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isApproved ? const Color(0xFF065F46) : const Color(0xFF475569),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ],
                   ),

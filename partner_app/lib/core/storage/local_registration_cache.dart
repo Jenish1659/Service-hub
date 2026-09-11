@@ -136,12 +136,13 @@ class LocalRegistrationCache {
   static Future<Map<String, dynamic>?> getActivePartner() async {
     try {
       final box = _getBox();
-      final data = box.get('active_partner_session');
+      var data = box.get('active_partner_session');
+      data ??= box.get('active_user_session');
       if (data != null && data is Map) {
         return Map<String, dynamic>.from(data);
       }
     } catch (_) {
-      final raw = _memoryStorage['active_partner_session'];
+      final raw = _memoryStorage['active_partner_session'] ?? _memoryStorage['active_user_session'];
       if (raw != null) {
         return jsonDecode(raw) as Map<String, dynamic>;
       }

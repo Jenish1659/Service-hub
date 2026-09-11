@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/storage/local_registration_cache.dart';
+import '../../../core/services/live_booking_sync_service.dart';
 import 'ac_provider_dashboard_controller.dart';
 
 class ProviderDashboardScreen extends ConsumerStatefulWidget {
@@ -27,7 +28,32 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _verifyPartnerApprovalStatus();
     _checkAndRequestPermissions();
+  }
+
+  Future<void> _verifyPartnerApprovalStatus() async {
+    final active = await LocalRegistrationCache.getActivePartner();
+    if (active != null) {
+      final syncRecord = LiveBookingSyncService.instance.getPartnerVerification(active['id']?.toString() ?? '') ??
+          LiveBookingSyncService.instance.getPartnerVerification(active['user_id']?.toString() ?? '') ??
+          LiveBookingSyncService.instance.getPartnerVerification(active['phone']?.toString() ?? '');
+      final syncStatus = (syncRecord?['status'] ?? syncRecord?['verification_status'] ?? '').toString().toUpperCase();
+      final status = (syncStatus.isNotEmpty ? syncStatus : (active['verification_status'] ?? active['status'] ?? 'PENDING')).toString().toUpperCase();
+
+      if (status != 'VERIFIED' && status != 'APPROVED') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Application is pending Admin approval. Please login after Admin approval.'),
+              backgroundColor: Color(0xFFD97706),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          context.go('/login/service-provider');
+        }
+      }
+    }
   }
 
   @override

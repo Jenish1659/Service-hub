@@ -32,15 +32,41 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   bool _isSidebarCollapsed = false;
   final String _dateRangeText = 'Live Operations';
 
+  bool _isUuid(String s) =>
+      RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(s.trim());
+
   Future<void> _approvePartnerProfile(String profileId, String name, [Map<String, dynamic>? partnerMap]) async {
     await LiveBookingSyncService.instance.approvePartnerVerification(profileId);
     final client = Supabase.instance.client;
 
     String? targetUserId = partnerMap?['user_id']?.toString();
     String? targetPartnerId = partnerMap?['partner_id']?.toString();
+    final phone = partnerMap?['phone']?.toString().replaceAll(' ', '');
+    final verId = partnerMap?['verification_id']?.toString();
 
-    // If targetUserId is not directly in partnerMap, look it up in Supabase
-    if (targetUserId == null || targetUserId.isEmpty) {
+    // If targetUserId is not directly in partnerMap, look it up by phone first
+    if ((targetUserId == null || targetUserId.isEmpty) && phone != null && phone.isNotEmpty) {
+      try {
+        final rawDigits = phone.replaceAll(RegExp(r'\D'), '');
+        final u = await client
+            .from('users')
+            .select('user_id, phone, partners(partner_id)')
+            .or('phone.eq.$phone,phone.ilike.%${rawDigits.length >= 10 ? rawDigits.substring(rawDigits.length - 10) : rawDigits}%')
+            .maybeSingle();
+        if (u != null) {
+          targetUserId = u['user_id']?.toString();
+          final pList = u['partners'];
+          if (pList is List && pList.isNotEmpty) {
+            targetPartnerId = (pList.first as Map<String, dynamic>)['partner_id']?.toString();
+          } else if (pList is Map) {
+            targetPartnerId = (pList as Map<String, dynamic>)['partner_id']?.toString();
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Look up by profileId in Supabase if it's a valid UUID
+    if ((targetUserId == null || targetUserId.isEmpty) && _isUuid(profileId)) {
       try {
         final vr = await client
             .from('verification_requests')
@@ -53,7 +79,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       } catch (_) {}
     }
 
-    if (targetUserId == null || targetUserId.isEmpty) {
+    if ((targetUserId == null || targetUserId.isEmpty) && _isUuid(profileId)) {
       try {
         final p = await client
             .from('partners')
@@ -68,42 +94,87 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
 
     final effectiveUserId = (targetUserId != null && targetUserId.isNotEmpty) ? targetUserId : profileId;
+    final nowIso = DateTime.now().toIso8601String();
 
     // 1. Update verification_requests table
     try {
-      await client
-          .from('verification_requests')
-          .update({'status': 'APPROVED', 'reviewed_at': DateTime.now().toIso8601String()})
-          .or('verification_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId');
+      if (_isUuid(effectiveUserId)) {
+        await client
+            .from('verification_requests')
+            .update({'status': 'APPROVED', 'reviewed_at': nowIso})
+            .eq('user_id', effectiveUserId);
+      }
+      if (_isUuid(profileId)) {
+        await client
+            .from('verification_requests')
+            .update({'status': 'APPROVED', 'reviewed_at': nowIso})
+            .or('verification_id.eq.$profileId,user_id.eq.$profileId');
+      }
+      if (verId != null && _isUuid(verId)) {
+        await client
+            .from('verification_requests')
+            .update({'status': 'APPROVED', 'reviewed_at': nowIso})
+            .eq('verification_id', verId);
+      }
     } catch (_) {}
 
-    // 2. Update partners table
+    // 2. Update partners table (availability_status: 'ONLINE' complies with CHECK constraint)
     try {
-      final filter = targetPartnerId != null && targetPartnerId.isNotEmpty
-          ? 'partner_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId,partner_id.eq.$targetPartnerId'
-          : 'partner_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId';
-      await client
-          .from('partners')
-          .update({'verification_status': 'VERIFIED', 'availability_status': 'AVAILABLE'})
-          .or(filter);
+      if (targetPartnerId != null && _isUuid(targetPartnerId)) {
+        await client
+            .from('partners')
+            .update({'verification_status': 'VERIFIED', 'availability_status': 'ONLINE', 'approved_at': nowIso})
+            .eq('partner_id', targetPartnerId);
+      }
+      if (_isUuid(effectiveUserId)) {
+        await client
+            .from('partners')
+            .update({'verification_status': 'VERIFIED', 'availability_status': 'ONLINE', 'approved_at': nowIso})
+            .eq('user_id', effectiveUserId);
+      }
+      if (_isUuid(profileId)) {
+        await client
+            .from('partners')
+            .update({'verification_status': 'VERIFIED', 'availability_status': 'ONLINE', 'approved_at': nowIso})
+            .or('partner_id.eq.$profileId,user_id.eq.$profileId');
+      }
     } catch (_) {}
 
     // 3. Update users table
     try {
-      await client
-          .from('users')
-          .update({'account_status': 'ACTIVE'})
-          .or('user_id.eq.$profileId,user_id.eq.$effectiveUserId');
+      if (_isUuid(effectiveUserId)) {
+        await client
+            .from('users')
+            .update({'account_status': 'ACTIVE'})
+            .eq('user_id', effectiveUserId);
+      }
+      if (phone != null && phone.isNotEmpty) {
+        await client
+            .from('users')
+            .update({'account_status': 'ACTIVE'})
+            .or('phone.eq.$phone,phone.eq.+91$phone');
+      }
     } catch (_) {}
 
-    // Also update local sync cache with effectiveUserId if different
+    // Broadcast across LiveBookingSyncService for all IDs and phone
     if (effectiveUserId != profileId) {
       await LiveBookingSyncService.instance.approvePartnerVerification(effectiveUserId);
+    }
+    if (targetPartnerId != null && targetPartnerId.isNotEmpty) {
+      await LiveBookingSyncService.instance.approvePartnerVerification(targetPartnerId);
+    }
+    if (phone != null && phone.isNotEmpty) {
+      await LiveBookingSyncService.instance.approvePartnerVerification(phone);
+    }
+    if (verId != null && verId.isNotEmpty) {
+      await LiveBookingSyncService.instance.approvePartnerVerification(verId);
     }
 
     markPartnerResolved(profileId);
     markPartnerResolved(effectiveUserId);
     if (targetPartnerId != null && targetPartnerId.isNotEmpty) markPartnerResolved(targetPartnerId);
+    if (phone != null && phone.isNotEmpty) markPartnerResolved(phone);
+    if (verId != null && verId.isNotEmpty) markPartnerResolved(verId);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -122,8 +193,29 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     String? targetUserId = partnerMap?['user_id']?.toString();
     String? targetPartnerId = partnerMap?['partner_id']?.toString();
+    final phone = partnerMap?['phone']?.toString().replaceAll(' ', '');
 
-    if (targetUserId == null || targetUserId.isEmpty) {
+    if ((targetUserId == null || targetUserId.isEmpty) && phone != null && phone.isNotEmpty) {
+      try {
+        final rawDigits = phone.replaceAll(RegExp(r'\D'), '');
+        final u = await client
+            .from('users')
+            .select('user_id, phone, partners(partner_id)')
+            .or('phone.eq.$phone,phone.ilike.%${rawDigits.length >= 10 ? rawDigits.substring(rawDigits.length - 10) : rawDigits}%')
+            .maybeSingle();
+        if (u != null) {
+          targetUserId = u['user_id']?.toString();
+          final pList = u['partners'];
+          if (pList is List && pList.isNotEmpty) {
+            targetPartnerId = (pList.first as Map<String, dynamic>)['partner_id']?.toString();
+          } else if (pList is Map) {
+            targetPartnerId = (pList as Map<String, dynamic>)['partner_id']?.toString();
+          }
+        }
+      } catch (_) {}
+    }
+
+    if ((targetUserId == null || targetUserId.isEmpty) && _isUuid(profileId)) {
       try {
         final vr = await client
             .from('verification_requests')
@@ -137,31 +229,58 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
 
     final effectiveUserId = (targetUserId != null && targetUserId.isNotEmpty) ? targetUserId : profileId;
+    final nowIso = DateTime.now().toIso8601String();
 
     try {
-      await client
-          .from('verification_requests')
-          .update({'status': 'REJECTED', 'reviewed_at': DateTime.now().toIso8601String()})
-          .or('verification_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId');
+      if (_isUuid(effectiveUserId)) {
+        await client
+            .from('verification_requests')
+            .update({'status': 'REJECTED', 'reviewed_at': nowIso})
+            .eq('user_id', effectiveUserId);
+      }
+      if (_isUuid(profileId)) {
+        await client
+            .from('verification_requests')
+            .update({'status': 'REJECTED', 'reviewed_at': nowIso})
+            .or('verification_id.eq.$profileId,user_id.eq.$profileId');
+      }
     } catch (_) {}
 
     try {
-      final filter = targetPartnerId != null && targetPartnerId.isNotEmpty
-          ? 'partner_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId,partner_id.eq.$targetPartnerId'
-          : 'partner_id.eq.$profileId,user_id.eq.$profileId,user_id.eq.$effectiveUserId';
-      await client
-          .from('partners')
-          .update({'verification_status': 'REJECTED'})
-          .or(filter);
+      if (targetPartnerId != null && _isUuid(targetPartnerId)) {
+        await client
+            .from('partners')
+            .update({'verification_status': 'REJECTED'})
+            .eq('partner_id', targetPartnerId);
+      }
+      if (_isUuid(effectiveUserId)) {
+        await client
+            .from('partners')
+            .update({'verification_status': 'REJECTED'})
+            .eq('user_id', effectiveUserId);
+      }
+      if (_isUuid(profileId)) {
+        await client
+            .from('partners')
+            .update({'verification_status': 'REJECTED'})
+            .or('partner_id.eq.$profileId,user_id.eq.$profileId');
+      }
     } catch (_) {}
 
     if (effectiveUserId != profileId) {
       await LiveBookingSyncService.instance.rejectPartnerVerification(effectiveUserId);
     }
+    if (targetPartnerId != null && targetPartnerId.isNotEmpty) {
+      await LiveBookingSyncService.instance.rejectPartnerVerification(targetPartnerId);
+    }
+    if (phone != null && phone.isNotEmpty) {
+      await LiveBookingSyncService.instance.rejectPartnerVerification(phone);
+    }
 
     markPartnerResolved(profileId);
     markPartnerResolved(effectiveUserId);
     if (targetPartnerId != null && targetPartnerId.isNotEmpty) markPartnerResolved(targetPartnerId);
+    if (phone != null && phone.isNotEmpty) markPartnerResolved(phone);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

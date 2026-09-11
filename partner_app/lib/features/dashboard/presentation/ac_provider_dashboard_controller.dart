@@ -526,7 +526,7 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       if (state.partnerId.isNotEmpty) {
         await Supabase.instance.client
             .from('partners')
-            .update({'availability_status': online ? 'AVAILABLE' : 'OFFLINE'})
+            .update({'availability_status': online ? 'ONLINE' : 'OFFLINE'})
             .eq('partner_id', state.partnerId);
       }
     } catch (_) {}
