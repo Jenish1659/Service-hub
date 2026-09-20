@@ -109,6 +109,13 @@ class ProfileController extends ChangeNotifier {
   String workingEndTime = '08:00 PM';
   List<String> selectedWorkingDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   double serviceRadiusKm = 10.0;
+  List<String> operationalAreas = [
+    'Digvijay Plot',
+    'Patel Colony',
+    'Khodiyar Colony',
+    'Valkeshwari',
+    'Ranjit Road',
+  ];
   List<PartnerBreakTime> breakTimes = [
     PartnerBreakTime(
       id: 'break_1',
@@ -117,6 +124,28 @@ class ProfileController extends ChangeNotifier {
       label: 'Lunch Break',
     ),
   ];
+
+  // Settings & Preferences (Matching uploaded design)
+  bool pushNotificationsEnabled = true;
+  bool bookingRequestsEnabled = true;
+  bool paymentUpdatesEnabled = true;
+  bool serviceRemindersEnabled = true;
+
+  String appearanceMode = 'Light';
+  String selectedLanguage = 'English';
+  bool locationServicesEnabled = true;
+
+  bool privacyControlsEnabled = true;
+  bool dataPermissionsEnabled = true;
+  bool documentSecurityEnabled = true;
+
+  // KYC & Document Verification State
+  String aadhaarNumber = 'XXXX-XXXX-8921';
+  String panNumber = 'ABCDE1234F';
+  String bankAccountNumber = 'XXXX-XXXX-4321';
+  String ifscCode = 'HDFC0001234';
+  String bankName = 'HDFC Bank';
+  String tradeCertificate = 'Advanced HVAC Certification (Govt. Recognized)';
 
   // My Services List
   List<PartnerServiceItem> services = [];
@@ -231,6 +260,30 @@ class ProfileController extends ChangeNotifier {
     }
     if (data['serviceRadiusKm'] != null) {
       serviceRadiusKm = (data['serviceRadiusKm'] as num).toDouble();
+    }
+    if (data['operationalAreas'] is List) {
+      operationalAreas = List<String>.from(data['operationalAreas']);
+    }
+
+    if (data['pushNotificationsEnabled'] != null) pushNotificationsEnabled = data['pushNotificationsEnabled'] == true;
+    if (data['bookingRequestsEnabled'] != null) bookingRequestsEnabled = data['bookingRequestsEnabled'] == true;
+    if (data['paymentUpdatesEnabled'] != null) paymentUpdatesEnabled = data['paymentUpdatesEnabled'] == true;
+    if (data['serviceRemindersEnabled'] != null) serviceRemindersEnabled = data['serviceRemindersEnabled'] == true;
+    if (data['appearanceMode'] != null) appearanceMode = data['appearanceMode'].toString();
+    if (data['selectedLanguage'] != null) selectedLanguage = data['selectedLanguage'].toString();
+    if (data['locationServicesEnabled'] != null) locationServicesEnabled = data['locationServicesEnabled'] == true;
+    if (data['privacyControlsEnabled'] != null) privacyControlsEnabled = data['privacyControlsEnabled'] == true;
+    if (data['dataPermissionsEnabled'] != null) dataPermissionsEnabled = data['dataPermissionsEnabled'] == true;
+    if (data['documentSecurityEnabled'] != null) documentSecurityEnabled = data['documentSecurityEnabled'] == true;
+
+    if (data['aadhaar_number'] != null || data['aadhaarNumber'] != null) {
+      final raw = (data['aadhaar_number'] ?? data['aadhaarNumber']).toString().replaceAll(' ', '');
+      if (raw.length >= 4) {
+        aadhaarNumber = 'XXXX-XXXX-${raw.substring(raw.length - 4)}';
+      }
+    }
+    if (data['pan_number'] != null || data['panNumber'] != null) {
+      panNumber = (data['pan_number'] ?? data['panNumber']).toString().toUpperCase();
     }
   }
 
@@ -385,9 +438,101 @@ class ProfileController extends ChangeNotifier {
       'workingStartTime': workingStartTime,
       'workingEndTime': workingEndTime,
       'selectedWorkingDays': selectedWorkingDays,
-      'serviceRadiusKm': serviceRadiusKm,
       'breakTimes': breakTimes.map((b) => b.toMap()).toList(),
     });
+  }
+
+  // --- Service Area Actions ---
+  void addOperationalArea(String area) {
+    final trimmed = area.trim();
+    if (trimmed.isNotEmpty && !operationalAreas.contains(trimmed)) {
+      operationalAreas.add(trimmed);
+      notifyListeners();
+      _persistProfileUpdates({'operationalAreas': operationalAreas});
+    }
+  }
+
+  void removeOperationalArea(String area) {
+    operationalAreas.remove(area);
+    notifyListeners();
+    _persistProfileUpdates({'operationalAreas': operationalAreas});
+  }
+
+  Future<bool> saveServiceAreaSettings({
+    required String city,
+    required double radius,
+    required List<String> areas,
+  }) async {
+    serviceCity = city.trim();
+    serviceRadiusKm = radius;
+    operationalAreas = List<String>.from(areas);
+    notifyListeners();
+    return await _persistProfileUpdates({
+      'serviceCity': serviceCity,
+      'serviceRadiusKm': serviceRadiusKm,
+      'operationalAreas': operationalAreas,
+    });
+  }
+
+  // --- Settings & Preferences Actions (Matching uploaded design) ---
+  void togglePushNotifications(bool val) {
+    pushNotificationsEnabled = val;
+    notifyListeners();
+    _persistProfileUpdates({'pushNotificationsEnabled': val});
+  }
+
+  void toggleBookingRequests(bool val) {
+    bookingRequestsEnabled = val;
+    notifyListeners();
+    _persistProfileUpdates({'bookingRequestsEnabled': val});
+  }
+
+  void togglePaymentUpdates(bool val) {
+    paymentUpdatesEnabled = val;
+    notifyListeners();
+    _persistProfileUpdates({'paymentUpdatesEnabled': val});
+  }
+
+  void toggleServiceReminders(bool val) {
+    serviceRemindersEnabled = val;
+    notifyListeners();
+    _persistProfileUpdates({'serviceRemindersEnabled': val});
+  }
+
+  void setAppearanceMode(String mode) {
+    appearanceMode = mode;
+    notifyListeners();
+    _persistProfileUpdates({'appearanceMode': mode});
+  }
+
+  void setSelectedLanguage(String lang) {
+    selectedLanguage = lang;
+    notifyListeners();
+    _persistProfileUpdates({'selectedLanguage': lang});
+  }
+
+  void toggleLocationServices(bool val) {
+    locationServicesEnabled = val;
+    notifyListeners();
+    _persistProfileUpdates({'locationServicesEnabled': val});
+  }
+
+  void togglePrivacyControls(bool val) {
+    privacyControlsEnabled = val;
+    notifyListeners();
+    _persistProfileUpdates({'privacyControlsEnabled': val});
+  }
+
+  void toggleDataPermissions(bool val) {
+    dataPermissionsEnabled = val;
+    notifyListeners();
+    _persistProfileUpdates({'dataPermissionsEnabled': val});
+  }
+
+  void toggleDocumentSecurity(bool val) {
+    documentSecurityEnabled = val;
+    notifyListeners();
+    _persistProfileUpdates({'documentSecurityEnabled': val});
   }
 
   // --- Services Actions ---

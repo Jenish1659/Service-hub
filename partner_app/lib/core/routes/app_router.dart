@@ -24,6 +24,16 @@ import 'package:service_hub_partner/features/profile/presentation/screens/edit_p
 import 'package:service_hub_partner/features/profile/presentation/screens/my_services_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/availability_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/earnings_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/service_area_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/settings_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/documents_and_verification_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/help_and_support_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/report_a_problem_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/delete_account_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/login_and_security_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/terms_and_conditions_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/privacy_policy_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/about_service_hub_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/controllers/profile_controller.dart';
 
 final appRouter = GoRouter(
@@ -222,6 +232,67 @@ final appRouter = GoRouter(
         final ctrl = state.extra as ProfileController? ?? ProfileController();
         return EarningsScreen(controller: ctrl);
       },
+    ),
+    GoRoute(
+      path: '/profile/service-area',
+      builder: (context, state) {
+        final ctrl = state.extra as ProfileController? ?? ProfileController();
+        return ServiceAreaScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/settings',
+      builder: (context, state) {
+        final ctrl = state.extra as ProfileController? ?? ProfileController();
+        return SettingsScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/documents',
+      builder: (context, state) {
+        final ctrl = state.extra as ProfileController? ?? ProfileController();
+        return DocumentsAndVerificationScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/help',
+      builder: (context, state) {
+        final ctrl = state.extra as ProfileController? ?? ProfileController();
+        return HelpAndSupportScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/report-problem',
+      builder: (context, state) {
+        final ctrl = state.extra as ProfileController? ?? ProfileController();
+        return ReportAProblemScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/delete-account',
+      builder: (context, state) {
+        final ctrl = state.extra as ProfileController? ?? ProfileController();
+        return DeleteAccountScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/login-security',
+      builder: (context, state) {
+        final ctrl = state.extra as ProfileController? ?? ProfileController();
+        return LoginAndSecurityScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/terms',
+      builder: (context, state) => const TermsAndConditionsScreen(),
+    ),
+    GoRoute(
+      path: '/profile/privacy',
+      builder: (context, state) => const PrivacyPolicyScreen(),
+    ),
+    GoRoute(
+      path: '/profile/about',
+      builder: (context, state) => const AboutServiceHubScreen(),
     ),
   ],
 );

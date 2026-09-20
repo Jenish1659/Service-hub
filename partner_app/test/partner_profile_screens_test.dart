@@ -9,6 +9,7 @@ import 'package:service_hub_partner/features/profile/presentation/screens/my_pro
 import 'package:service_hub_partner/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/my_services_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/availability_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/service_area_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/earnings_screen.dart';
 
 void main() {
@@ -225,9 +226,27 @@ void main() {
       expect(find.text('Working Hours'), findsOneWidget);
       expect(find.text('Working Days'), findsOneWidget);
       expect(find.text('Break Time (Optional)'), findsOneWidget);
-      expect(find.text('Service Area'), findsOneWidget);
-      expect(find.text('Service Radius'), findsOneWidget);
+      expect(find.text('Instant & Emergency Bookings'), findsOneWidget);
       expect(find.text('Save Availability'), findsOneWidget);
+    });
+
+    testWidgets('2. ServiceAreaScreen renders base city, service radius slider, and preferred areas', (tester) async {
+      final controller = ProfileController();
+      await controller.loadProfileData();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ServiceAreaScreen(controller: controller),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Service Area'), findsOneWidget);
+      expect(find.text('Manage your working area and service radius'), findsOneWidget);
+      expect(find.text('Primary Operating City'), findsOneWidget);
+      expect(find.text('Service Radius'), findsOneWidget);
+      expect(find.text('Preferred Localities'), findsOneWidget);
+      expect(find.text('Save Service Area'), findsOneWidget);
     });
   });
 

@@ -10,6 +10,10 @@ import 'package:service_hub_partner/features/profile/presentation/screens/edit_p
 import 'package:service_hub_partner/features/profile/presentation/screens/my_services_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/availability_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/earnings_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/service_area_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/settings_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/documents_and_verification_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/help_and_support_screen.dart';
 
 class MyProfileScreen extends StatefulWidget {
   const MyProfileScreen({super.key});
@@ -72,22 +76,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
-  void _showInfoDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: Text(message, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -426,7 +415,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => AvailabilityScreen(controller: _controller)),
+                          MaterialPageRoute(builder: (_) => ServiceAreaScreen(controller: _controller)),
                         );
                       },
                     ),
@@ -448,9 +437,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         ),
                       ),
                       onTap: () {
-                        _showInfoDialog(
-                          'Documents & Verification',
-                          'Your Aadhaar and KYC credentials are fully verified by the ServiceHub Admin team.',
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => DocumentsAndVerificationScreen(controller: _controller)),
                         );
                       },
                     ),
@@ -474,7 +463,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       title: 'Settings',
                       subtitle: 'App preferences, notifications and privacy',
                       onTap: () {
-                        _showInfoDialog('Settings', 'ServiceHub Partner version 1.0.0. All notification services are active.');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => SettingsScreen(controller: _controller)),
+                        );
                       },
                     ),
                     ProfileMenuItemTile(
@@ -484,7 +476,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       title: 'Help & Support',
                       subtitle: 'Get help, FAQs and contact support',
                       onTap: () {
-                        _showInfoDialog('Help & Support', 'Support Hotline: 1800-123-SERVICE\nEmail: partner-support@servicehub.in');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => HelpAndSupportScreen(controller: _controller)),
+                        );
                       },
                     ),
                     ProfileMenuItemTile(

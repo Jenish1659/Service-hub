@@ -497,97 +497,50 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // Card 5: Service Area & Radius
+                    // Card 5: Instant & Emergency Booking Slots
                     _buildCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildCardHeader(
-                            icon: Icons.location_on_rounded,
-                            iconBg: const Color(0xFFF0FDF4),
-                            iconColor: const Color(0xFF16A34A),
-                            title: 'Service Area',
-                            subtitle: 'Set your working area and service radius',
+                            icon: Icons.bolt_rounded,
+                            iconBg: const Color(0xFFFEF3C7),
+                            iconColor: const Color(0xFFD97706),
+                            title: 'Instant & Emergency Bookings',
+                            subtitle: 'Allow customers to request immediate urgent repairs',
                           ),
-                          const SizedBox(height: 14),
-
-                          // Area Box
+                          const SizedBox(height: 12),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
+                              color: const Color(0xFFFFFBEB),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                              border: Border.all(color: const Color(0xFFFDE68A)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF64748B)),
+                                const Icon(Icons.flash_on_rounded, size: 20, color: Color(0xFFD97706)),
                                 const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    c.serviceCity,
-                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Express Dispatch Active',
+                                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                      ),
+                                      Text(
+                                        'You will receive instant high-priority service requests within your working schedule.',
+                                        style: TextStyle(fontSize: 10.5, color: Color(0xFFB45309)),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF94A3B8)),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Radius Slider Row
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Flexible(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.radar_rounded, size: 16, color: Color(0xFF2563EB)),
-                                    SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        'Service Radius',
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
-                                      ),
-                                    ),
-                                  ],
+                                Switch(
+                                  value: true,
+                                  activeThumbColor: const Color(0xFFD97706),
+                                  onChanged: (val) {},
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEFF6FF),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  '${c.serviceRadiusKm.round()} km',
-                                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Slider(
-                            value: c.serviceRadiusKm,
-                            min: 1,
-                            max: 50,
-                            divisions: 49,
-                            activeColor: const Color(0xFF2563EB),
-                            inactiveColor: const Color(0xFFE2E8F0),
-                            onChanged: (v) {
-                              c.setServiceRadius(v);
-                              setState(() {});
-                            },
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('1 km', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                                Text('50 km', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
                               ],
                             ),
                           ),
