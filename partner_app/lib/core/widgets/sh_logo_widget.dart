@@ -86,24 +86,27 @@ class ShLogoWidget extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(width: 16, height: 1.5, color: AppColors.accentGold),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
-                child: Text(
-                  'MULTIPLE SERVICES, ONE TRUST',
-                  style: TextStyle(
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMuted,
-                    letterSpacing: 1.1,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 16, height: 1.5, color: AppColors.accentGold),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    'MULTIPLE SERVICES, ONE TRUST',
+                    style: TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textMuted,
+                      letterSpacing: 1.1,
+                    ),
                   ),
                 ),
-              ),
-              Container(width: 16, height: 1.5, color: AppColors.accentGold),
-            ],
+                Container(width: 16, height: 1.5, color: AppColors.accentGold),
+              ],
+            ),
           ),
         ],
       ],

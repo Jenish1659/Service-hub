@@ -302,15 +302,6 @@ class _ProviderServiceOptionsSelectionScreenState
         _selectedOptions.add(opt.title);
       }
     }
-    if (_selectedOptions.isEmpty && config.options.isNotEmpty) {
-      _selectedOptions.add(config.options.first.title);
-      if (config.options.length > 1) {
-        _selectedOptions.add(config.options[1].title);
-      }
-    }
-    if (_otherDetailsController.text.trim().isEmpty) {
-      _otherDetailsController.text = 'Professional AC installation, deep cleaning jet wash service, compressor troubleshooting, and gas charging with guaranteed performance.';
-    }
   }
 
   @override
@@ -733,16 +724,17 @@ class _ProviderServiceOptionsSelectionScreenState
                                 ),
                               ),
                               Padding(
-                                padding: const EdgeInsets.only(right: 12, bottom: 8),
+                                padding: const EdgeInsets.only(right: 12, left: 12, bottom: 8),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 12),
+                                    Expanded(
                                       child: Text(
                                         currentLength < 50
                                             ? 'Min 50 chars required (${50 - currentLength} more needed)'
                                             : '✓ Minimum length satisfied',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.bold,
@@ -754,8 +746,9 @@ class _ProviderServiceOptionsSelectionScreenState
                                         ),
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Text(
-                                      '$currentLength / 300 characters',
+                                      '$currentLength/300',
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: isInvalid

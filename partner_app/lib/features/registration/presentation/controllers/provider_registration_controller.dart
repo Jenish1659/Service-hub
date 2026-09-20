@@ -21,7 +21,7 @@ class ProviderRegistrationController extends ChangeNotifier {
 
   String countryCode = '+91';
   String? selectedState = 'Gujarat';
-  String? selectedCity = 'Jamnagar';
+  String? selectedCity;
 
   bool isOtpSent = false;
   bool isMobileVerified = false;
@@ -30,7 +30,7 @@ class ProviderRegistrationController extends ChangeNotifier {
   bool isCheckingUsername = false;
   String? usernameError;
   List<String> usernameSuggestions = [];
-  bool agreedToTerms = true;
+  bool agreedToTerms = false;
   bool isLoading = false;
 
   List<String> availableCities = [
@@ -280,7 +280,7 @@ class ProviderRegistrationController extends ChangeNotifier {
       email: emailController.text.trim(),
       password: passwordController.text,
       state: selectedState ?? 'Gujarat',
-      city: selectedCity ?? 'Jamnagar',
+      city: selectedCity ?? '',
       termsAccepted: agreedToTerms,
     );
 

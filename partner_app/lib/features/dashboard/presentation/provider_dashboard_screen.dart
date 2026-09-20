@@ -23,6 +23,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
   bool _hasNotificationPermission = true;
   bool _isOverlayShowing = false;
   String? _lastShownOfferId;
+  String _partnerCity = 'Gujarat';
 
   @override
   void initState() {
@@ -34,24 +35,32 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
 
   Future<void> _verifyPartnerApprovalStatus() async {
     final active = await LocalRegistrationCache.getActivePartner();
-    if (active != null) {
-      final syncRecord = LiveBookingSyncService.instance.getPartnerVerification(active['id']?.toString() ?? '') ??
-          LiveBookingSyncService.instance.getPartnerVerification(active['user_id']?.toString() ?? '') ??
-          LiveBookingSyncService.instance.getPartnerVerification(active['phone']?.toString() ?? '');
-      final syncStatus = (syncRecord?['status'] ?? syncRecord?['verification_status'] ?? '').toString().toUpperCase();
-      final status = (syncStatus.isNotEmpty ? syncStatus : (active['verification_status'] ?? active['status'] ?? 'PENDING')).toString().toUpperCase();
+    if (active == null) {
+      if (mounted) GoRouter.maybeOf(context)?.go('/login/service-provider');
+      return;
+    }
+    final rawCity = (active['city'] ?? '').toString().trim();
+    if (rawCity.isNotEmpty && mounted) {
+      setState(() {
+        _partnerCity = rawCity;
+      });
+    }
+    final syncRecord = LiveBookingSyncService.instance.getPartnerVerification(active['id']?.toString() ?? '') ??
+        LiveBookingSyncService.instance.getPartnerVerification(active['user_id']?.toString() ?? '') ??
+        LiveBookingSyncService.instance.getPartnerVerification(active['phone']?.toString() ?? '');
+    final syncStatus = (syncRecord?['status'] ?? syncRecord?['verification_status'] ?? '').toString().toUpperCase();
+    final status = (syncStatus.isNotEmpty ? syncStatus : (active['verification_status'] ?? active['status'] ?? 'PENDING')).toString().toUpperCase();
 
-      if (status != 'VERIFIED' && status != 'APPROVED') {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Application is pending Admin approval. Please login after Admin approval.'),
-              backgroundColor: Color(0xFFD97706),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          context.go('/login/service-provider');
-        }
+    if (status != 'VERIFIED' && status != 'APPROVED') {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Application is pending Admin approval. Please login after Admin approval.'),
+            backgroundColor: Color(0xFFD97706),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        GoRouter.maybeOf(context)?.go('/login/service-provider');
       }
     }
   }
@@ -106,6 +115,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     }
   }
 
+  // ignore: unused_element
   String _formatCurrency(double value) {
     final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
     return format.format(value);
@@ -219,10 +229,15 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    '⚡ Live AC Service Requests',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                  const Expanded(
+                    child: Text(
+                      '⚡ Live AC Service Requests',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(
@@ -466,12 +481,16 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
         children: [
           Row(
             children: [
-              Text(
-                '${_getGreeting()}, ${state.providerName}',
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+              Flexible(
+                child: Text(
+                  '${_getGreeting()}, ${state.providerName}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
               ),
               const SizedBox(width: 4),
@@ -536,38 +555,41 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
         ),
 
         // Profile Avatar with Online Indicator Dot
-        Padding(
-          padding: const EdgeInsets.only(right: 16, left: 4),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF2563EB),
-                  border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
-                ),
-                child: const Center(
-                  child: Icon(Icons.person, color: Colors.white, size: 24),
-                ),
-              ),
-              if (state.isOnline)
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
+        GestureDetector(
+          onTap: () => context.push('/profile'),
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16, left: 4),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF2563EB),
+                    border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.person, color: Colors.white, size: 24),
                   ),
                 ),
-            ],
+                if (state.isOnline)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ],
@@ -782,41 +804,50 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
-                        borderRadius: BorderRadius.circular(10),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.map_rounded, color: Color(0xFF2563EB), size: 20),
                       ),
-                      child: const Icon(Icons.map_rounded, color: Color(0xFF2563EB), size: 20),
-                    ),
-                    const SizedBox(width: 10),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Live Service Area & Radar',
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
-                          ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Live Service Area & Radar',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              '10 km Coverage Radius • $_partnerCity',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF64748B),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
-                        SizedBox(height: 1),
-                        Text(
-                          '10 km Coverage Radius • Jamnagar',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                   decoration: BoxDecoration(
@@ -888,20 +919,27 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.radar_rounded, color: Color(0xFF2563EB), size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${state.incomingOffers.length} Customer Booking(s) Nearby',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF334155),
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.radar_rounded, color: Color(0xFF2563EB), size: 18),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${state.incomingOffers.length} Customer Booking(s) Nearby',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF334155),
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 if (state.activeJob != null)
                   ElevatedButton.icon(
                     icon: const Icon(Icons.navigation_rounded, size: 14, color: Colors.white),
@@ -952,49 +990,58 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: state.isOnline ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
-                  boxShadow: state.isOnline
-                      ? [
-                          BoxShadow(
-                            color: const Color(0xFF16A34A).withValues(alpha: 0.4),
-                            blurRadius: 6,
-                            spreadRadius: 2,
-                          ),
-                        ]
-                      : null,
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: state.isOnline ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+                    boxShadow: state.isOnline
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF16A34A).withValues(alpha: 0.4),
+                              blurRadius: 6,
+                              spreadRadius: 2,
+                            ),
+                          ]
+                        : null,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    state.isOnline ? 'You are Online' : 'You are Offline',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
-                    ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        state.isOnline ? 'You are Online' : 'You are Offline',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        state.isOnline ? 'You are accepting new service requests' : 'Go online to receive service requests',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    state.isOnline ? 'You are accepting new service requests' : 'Go online to receive service requests',
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           Switch(
             value: state.isOnline,
             activeThumbColor: Colors.white,
@@ -1167,8 +1214,6 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
 
   // --- 4. Today's Work Overview Section (4 Cards Matching Design) ---
   Widget _buildWorkOverviewSection(ACProviderDashboardState state) {
-    final todayFormatted = DateFormat('EEE, d MMM yyyy').format(DateTime.now());
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1179,60 +1224,76 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
+          LayoutBuilder(
+            builder: (context, headerConstraints) {
+              final isNarrow = headerConstraints.maxWidth < 360;
+              final displayDate = DateFormat(isNarrow ? 'd MMM' : 'EEE, d MMM').format(DateTime.now());
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.bar_chart_rounded, color: Color(0xFF2563EB), size: 26),
-                  SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Today's Work Overview",
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
+                  const Expanded(
+                    child: Row(
+                      children: [
+                        Icon(Icons.bar_chart_rounded, color: Color(0xFF2563EB), size: 24),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Today's Work Overview",
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              SizedBox(height: 1),
+                              Text(
+                                "Here's what's happening today",
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 1),
-                      Text(
-                        "Here's what's happening today",
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: Color(0xFF64748B),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.calendar_today_outlined, size: 12, color: Color(0xFF2563EB)),
+                        const SizedBox(width: 4),
+                        Text(
+                          displayDate,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF334155),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.calendar_today_outlined, size: 12, color: Color(0xFF2563EB)),
-                    const SizedBox(width: 5),
-                    Text(
-                      todayFormatted,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF334155),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              );
+            },
           ),
           const SizedBox(height: 14),
 
@@ -1388,10 +1449,10 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 380;
+              final headerContent = Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(6),
@@ -1402,30 +1463,37 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                     child: const Icon(Icons.bar_chart_rounded, color: Color(0xFF8B5CF6), size: 20),
                   ),
                   const SizedBox(width: 10),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Business Overview (Today)',
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Business Overview (Today)',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 1),
-                      Text(
-                        'Your business performance at a glance',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: Color(0xFF64748B),
+                        SizedBox(height: 1),
+                        Text(
+                          'Your business performance at a glance',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: Color(0xFF64748B),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
-              ),
-              InkWell(
+              );
+
+              final actionBtn = InkWell(
                 onTap: () => _showTimeframePicker(context),
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
@@ -1450,8 +1518,31 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                     ],
                   ),
                 ),
-              ),
-            ],
+              );
+
+              if (isCompact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    headerContent,
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: actionBtn,
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(child: headerContent),
+                  const SizedBox(width: 8),
+                  actionBtn,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 14),
 
@@ -1559,35 +1650,44 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF0F172A),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF0F172A),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.arrow_upward_rounded, size: 11, color: Color(0xFF16A34A)),
-              const SizedBox(width: 1),
-              Text(
-                trendPercent,
-                style: const TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF16A34A),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.arrow_upward_rounded, size: 11, color: Color(0xFF16A34A)),
+                const SizedBox(width: 1),
+                Text(
+                  trendPercent,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF16A34A),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           Text(
             trendText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 8.5,
               color: Color(0xFF64748B),
@@ -1620,40 +1720,49 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFDCFCE7),
-                      shape: BoxShape.circle,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFDCFCE7),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 20),
                     ),
-                    child: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Completed Jobs – Today',
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
-                        ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Completed Jobs – Today',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          SizedBox(height: 1),
+                          Text(
+                            'Successfully completed services',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 1),
-                      Text(
-                        'Successfully completed services',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               InkWell(
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1902,32 +2011,37 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
               ),
 
               // 3. Elevated Centered Map FAB Button
-              InkWell(
-                onTap: () => _showLiveRadarMapModal(context, state),
-                child: Container(
-                  width: 54,
-                  height: 54,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0x402563EB),
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
+              Expanded(
+                child: Center(
+                  child: InkWell(
+                    onTap: () => _showLiveRadarMapModal(context, state),
+                    borderRadius: BorderRadius.circular(27),
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x402563EB),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.map_rounded, color: Colors.white, size: 22),
-                      Text('Map', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
-                    ],
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.map_rounded, color: Colors.white, size: 20),
+                          Text('Map', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1939,11 +2053,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                 isSelected: _currentBottomNavIndex == 3,
                 onTap: () {
                   setState(() => _currentBottomNavIndex = 3);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Total AC Service Income: ${_formatCurrency(state.totalIncome)}'),
-                    ),
-                  );
+                  context.push('/profile/earnings');
                 },
               ),
 
@@ -1954,11 +2064,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                 isSelected: _currentBottomNavIndex == 4,
                 onTap: () {
                   setState(() => _currentBottomNavIndex = 4);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Logged in as ${state.providerName} (${state.businessName})'),
-                    ),
-                  );
+                  context.push('/profile');
                 },
               ),
             ],
@@ -1974,26 +2080,31 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? const Color(0xFF0052CC) : const Color(0xFF64748B),
-            size: 24,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
               color: isSelected ? const Color(0xFF0052CC) : const Color(0xFF64748B),
+              size: 24,
             ),
-          ),
-        ],
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? const Color(0xFF0052CC) : const Color(0xFF64748B),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2025,9 +2136,13 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Text(
-                        state.providerName,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      Flexible(
+                        child: Text(
+                          state.providerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
                       ),
                       const SizedBox(width: 4),
                       const Icon(Icons.verified, color: Colors.white, size: 16),
@@ -2075,6 +2190,14 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
               onTap: () {
                 Navigator.pop(context);
                 ref.read(acProviderDashboardProvider.notifier).initDashboard();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline_rounded, color: Color(0xFF0052CC)),
+              title: const Text('My Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/profile');
               },
             ),
             const Spacer(),
@@ -2169,9 +2292,11 @@ class _IncomingJobAlertOverlayDialogState extends State<_IncomingJobAlertOverlay
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               // Top Urgent Red/Orange Alert Bar
               Container(
                 width: double.infinity,
@@ -2397,6 +2522,7 @@ class _IncomingJobAlertOverlayDialogState extends State<_IncomingJobAlertOverlay
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),

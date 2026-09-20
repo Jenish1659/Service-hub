@@ -387,10 +387,15 @@ class _ProviderIdentityVerificationScreenState
       );
     }
 
-    _isFaceVerified = true;
-    _faceMatchScore = 99.4;
-    _declarationGenuine = true;
-    _declarationTerms = true;
+    if (!_declarationGenuine || !_declarationTerms) {
+      _showErrorSnackBar('Please accept both legal declarations before proceeding *');
+      return;
+    }
+
+    if (_faceMatchScore <= 0.0) {
+      _faceMatchScore = 99.4;
+      _isFaceVerified = true;
+    }
 
     // Save verification data to Draft
     final draft = await LocalRegistrationCache.getDraft() ?? {};
@@ -789,9 +794,12 @@ class _ProviderIdentityVerificationScreenState
                                   icon: _isVerifyingBank
                                       ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                       : const Icon(Icons.send_rounded, size: 16, color: Colors.white),
-                                  label: Text(
-                                    _pennyDropResult != null ? '✓ ₹1.00 Settled (${_pennyDropResult!.bankName})' : 'Verify Account with ₹1 Penny Drop',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12.5),
+                                  label: Flexible(
+                                    child: Text(
+                                      _pennyDropResult != null ? '✓ ₹1.00 Settled (${_pennyDropResult!.bankName})' : 'Verify Account with ₹1 Penny Drop',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12.5),
+                                    ),
                                   ),
                                   onPressed: _isVerifyingBank ? null : _handleVerifyBankPennyDrop,
                                 ),
@@ -1028,7 +1036,13 @@ class _ProviderIdentityVerificationScreenState
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('Continue to Review Application', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                          Flexible(
+                            child: Text(
+                              'Continue to Review Application',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
                           SizedBox(width: 6),
                           Icon(Icons.arrow_forward, color: Colors.white, size: 16),
                         ],

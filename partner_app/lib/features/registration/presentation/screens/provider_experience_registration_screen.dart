@@ -102,16 +102,6 @@ class _ProviderExperienceRegistrationScreenState
         ScaffoldMessenger.of(context).clearSnackBars();
       }
     });
-    _selectedExperience ??= '3 – 5 Years';
-    _selectedLanguages.addAll(['English', 'Gujarati', 'Hindi']);
-    _selectedDays.addAll(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
-    _startTime ??= '09:00 AM (09:00)';
-    _endTime ??= '07:00 PM (19:00)';
-    _acTypes.addAll(['Split AC', 'Window AC', 'Inverter AC']);
-    _acOwnTools ??= 'Yes';
-    if (_aboutController.text.trim().isEmpty) {
-      _aboutController.text = 'Experienced HVAC air conditioning specialist providing residential and commercial cooling repair and preventative maintenance for over 4 years.';
-    }
   }
 
   @override
@@ -358,38 +348,34 @@ class _ProviderExperienceRegistrationScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Top Header with Category Badge
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Tell us about your\nprofessional experience',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w900,
-                                      color: Color(0xFF0F172A),
-                                      letterSpacing: -0.5,
-                                      height: 1.2,
-                                    ),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isVeryNarrow = constraints.maxWidth < 420;
+                            const titleWidget = Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Tell us about your\nprofessional experience',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF0F172A),
+                                    letterSpacing: -0.5,
+                                    height: 1.2,
                                   ),
-                                  SizedBox(height: 6),
-                                  Text(
-                                    'Help customers understand your skills and availability.',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Color(0xFF64748B),
-                                    ),
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  'Help customers understand your skills and availability.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF64748B),
                                   ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Category Badge Container
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                ),
+                              ],
+                            );
+                            final badgeWidget = Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFEFF6FF),
                                 borderRadius: BorderRadius.circular(14),
@@ -398,160 +384,171 @@ class _ProviderExperienceRegistrationScreenState
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(_getCategoryIcon(), color: primaryBlue, size: 22),
+                                  Icon(_getCategoryIcon(), color: primaryBlue, size: 20),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    _getCategoryTitle(),
-                                    style: const TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: primaryBlue,
+                                  Flexible(
+                                    child: Text(
+                                      _getCategoryTitle(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryBlue,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
+                            );
+
+                            if (isVeryNarrow) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  badgeWidget,
+                                  const SizedBox(height: 12),
+                                  titleWidget,
+                                ],
+                              );
+                            }
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Expanded(child: titleWidget),
+                                const SizedBox(width: 12),
+                                Flexible(child: badgeWidget),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 24),
 
                         // Section 1 & Section 2 Row Layout
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isMobile = constraints.maxWidth < 500;
-                            return Flex(
-                              direction: isMobile ? Axis.vertical : Axis.horizontal,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Section 1: Years of Experience
-                                Expanded(
-                                  flex: isMobile ? 0 : 3,
-                                  child: _buildCardSection(
-                                    icon: Icons.workspace_premium_outlined,
-                                    title: '1. Years of Experience',
-                                    isRequired: true,
-                                    hasError: _hasSubmitted && _selectedExperience == null,
-                                    child: Wrap(
-                                      spacing: 8,
-                                      runSpacing: 10,
-                                      children: _experienceOptions.map((exp) {
-                                        final isSelected = _selectedExperience == exp;
-                                        return InkWell(
-                                          onTap: () {
-                                            setState(() {
-                                              _selectedExperience = exp;
-                                            });
-                                          },
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: AnimatedContainer(
-                                            duration: const Duration(milliseconds: 150),
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 14, vertical: 10),
-                                            decoration: BoxDecoration(
-                                              color: isSelected ? const Color(0xFFEFF6FF) : Colors.white,
-                                              borderRadius: BorderRadius.circular(12),
-                                              border: Border.all(
-                                                color: isSelected ? primaryBlue : borderColor,
-                                                width: isSelected ? 1.8 : 1,
+                        _buildResponsiveTwoColumns(
+                          firstFlex: 3,
+                          secondFlex: 2,
+                          first: _buildCardSection(
+                            icon: Icons.workspace_premium_outlined,
+                            title: '1. Years of Experience',
+                            isRequired: true,
+                            hasError: _hasSubmitted && _selectedExperience == null,
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 10,
+                              children: _experienceOptions.map((exp) {
+                                final isSelected = _selectedExperience == exp;
+                                return InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedExperience = exp;
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 150),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? const Color(0xFFEFF6FF) : Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isSelected ? primaryBlue : borderColor,
+                                        width: isSelected ? 1.8 : 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Flexible(
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              exp,
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: isSelected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.w500,
+                                                color: isSelected
+                                                    ? primaryBlue
+                                                    : const Color(0xFF334155),
                                               ),
                                             ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  exp,
-                                                  style: TextStyle(
-                                                    fontSize: 12.5,
-                                                    fontWeight: isSelected
-                                                        ? FontWeight.bold
-                                                        : FontWeight.w500,
-                                                    color: isSelected
-                                                        ? primaryBlue
-                                                        : const Color(0xFF334155),
-                                                  ),
-                                                ),
-                                                if (isSelected) ...[
-                                                  const SizedBox(width: 6),
-                                                  const Icon(
-                                                    Icons.radio_button_checked_rounded,
-                                                    color: primaryBlue,
-                                                    size: 14,
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
                                           ),
-                                        );
-                                      }).toList(),
+                                        ),
+                                        if (isSelected) ...[
+                                          const SizedBox(width: 6),
+                                          const Icon(
+                                            Icons.radio_button_checked_rounded,
+                                            color: primaryBlue,
+                                            size: 14,
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                   ),
-                                ),
-                                if (!isMobile) const SizedBox(width: 14),
-                                if (isMobile) const SizedBox(height: 14),
-
-                                // Section 2: Languages You Speak
-                                Expanded(
-                                  flex: isMobile ? 0 : 2,
-                                  child: _buildCardSection(
-                                    icon: Icons.chat_bubble_outline_rounded,
-                                    title: '2. Languages You Speak',
-                                    isRequired: true,
-                                    hasError: _hasSubmitted && _selectedLanguages.isEmpty,
-                                    child: Column(
-                                      children: _languageOptions.map((lang) {
-                                        final isChecked = _selectedLanguages.contains(lang);
-                                        return InkWell(
-                                          onTap: () {
-                                            setState(() {
-                                              if (isChecked) {
-                                                _selectedLanguages.remove(lang);
-                                              } else {
-                                                _selectedLanguages.add(lang);
-                                              }
-                                            });
-                                          },
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(vertical: 6),
-                                            child: Row(
-                                              children: [
-                                                AnimatedContainer(
-                                                  duration: const Duration(milliseconds: 150),
-                                                  width: 20,
-                                                  height: 20,
-                                                  decoration: BoxDecoration(
-                                                    color: isChecked ? primaryBlue : Colors.white,
-                                                    borderRadius: BorderRadius.circular(5),
-                                                    border: Border.all(
-                                                      color: isChecked ? primaryBlue : const Color(0xFFCBD5E1),
-                                                    ),
-                                                  ),
-                                                  child: isChecked
-                                                      ? const Icon(Icons.check_rounded,
-                                                          color: Colors.white, size: 14)
-                                                      : null,
-                                                ),
-                                                const SizedBox(width: 10),
-                                                Text(
-                                                  lang,
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: isChecked
-                                                        ? FontWeight.bold
-                                                        : FontWeight.w500,
-                                                    color: const Color(0xFF0F172A),
-                                                  ),
-                                                ),
-                                              ],
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                          second: _buildCardSection(
+                            icon: Icons.chat_bubble_outline_rounded,
+                            title: '2. Languages You Speak',
+                            isRequired: true,
+                            hasError: _hasSubmitted && _selectedLanguages.isEmpty,
+                            child: Column(
+                              children: _languageOptions.map((lang) {
+                                final isChecked = _selectedLanguages.contains(lang);
+                                return InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      if (isChecked) {
+                                        _selectedLanguages.remove(lang);
+                                      } else {
+                                        _selectedLanguages.add(lang);
+                                      }
+                                    });
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                    child: Row(
+                                      children: [
+                                        AnimatedContainer(
+                                          duration: const Duration(milliseconds: 150),
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            color: isChecked ? primaryBlue : Colors.white,
+                                            borderRadius: BorderRadius.circular(5),
+                                            border: Border.all(
+                                              color: isChecked ? primaryBlue : const Color(0xFFCBD5E1),
                                             ),
                                           ),
-                                        );
-                                      }).toList(),
+                                          child: isChecked
+                                              ? const Icon(Icons.check_rounded,
+                                                  color: Colors.white, size: 14)
+                                              : null,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          lang,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: isChecked
+                                                ? FontWeight.bold
+                                                : FontWeight.w500,
+                                            color: const Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                              ],
-                            );
-                          },
+                                );
+                              }).toList(),
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 14),
 
@@ -629,164 +626,144 @@ class _ProviderExperienceRegistrationScreenState
                         const SizedBox(height: 14),
 
                         // Section 4 & 5: Working Hours & Emergency Service
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isMobile = constraints.maxWidth < 550;
-                            return Flex(
-                              direction: isMobile ? Axis.vertical : Axis.horizontal,
+                        _buildResponsiveTwoColumns(
+                          first: _buildCardSection(
+                            icon: Icons.access_time_rounded,
+                            title: '4. Working Hours',
+                            isRequired: true,
+                            hasError: _hasSubmitted && (_startTime == null || _endTime == null),
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Section 4: Working Hours
-                                Expanded(
-                                  flex: isMobile ? 0 : 1,
-                                  child: _buildCardSection(
-                                    icon: Icons.access_time_rounded,
-                                    title: '4. Working Hours',
-                                    isRequired: true,
-                                    hasError: _hasSubmitted && (_startTime == null || _endTime == null),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text('Start Time',
-                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                                        const SizedBox(height: 6),
-                                        _buildTimeDropdown(_startTime, 'Select Start Time', (val) {
-                                          if (val != null) setState(() => _startTime = val);
-                                        }),
-                                        const SizedBox(height: 12),
-                                        const Text('End Time',
-                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                                        const SizedBox(height: 6),
-                                        _buildTimeDropdown(_endTime, 'Select End Time', (val) {
-                                          if (val != null) setState(() => _endTime = val);
-                                        }),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                if (!isMobile) const SizedBox(width: 14),
-                                if (isMobile) const SizedBox(height: 14),
-
-                                // Section 5: Emergency Service
-                                Expanded(
-                                  flex: isMobile ? 0 : 1,
-                                  child: _buildCardSection(
-                                    icon: Icons.notifications_active_outlined,
-                                    title: '5. Emergency Service',
-                                    isRequired: true,
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: ['Yes', 'No'].map((opt) {
-                                            final isSel = _emergencyService == opt;
-                                            return Expanded(
-                                              child: Padding(
-                                                padding: const EdgeInsets.only(right: 8),
-                                                child: InkWell(
-                                                  onTap: () => setState(() => _emergencyService = opt),
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  child: Container(
-                                                    padding: const EdgeInsets.symmetric(vertical: 10),
-                                                    decoration: BoxDecoration(
-                                                      color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
-                                                      borderRadius: BorderRadius.circular(12),
-                                                      border: Border.all(
-                                                        color: isSel ? primaryBlue : borderColor,
-                                                        width: isSel ? 1.8 : 1,
-                                                      ),
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisAlignment: MainAxisAlignment.center,
-                                                      children: [
-                                                        Icon(
-                                                          isSel
-                                                              ? Icons.radio_button_checked_rounded
-                                                              : Icons.radio_button_unchecked_rounded,
-                                                          color: isSel ? primaryBlue : const Color(0xFF94A3B8),
-                                                          size: 16,
-                                                        ),
-                                                        const SizedBox(width: 6),
-                                                        Text(
-                                                          opt,
-                                                          style: TextStyle(
-                                                            fontSize: 13,
-                                                            fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                                                            color: isSel ? primaryBlue : const Color(0xFF334155),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
-                                        ),
-
-                                        if (_emergencyService == 'Yes') ...[
-                                          const SizedBox(height: 12),
-                                          Container(
-                                            padding: const EdgeInsets.all(12),
+                                const Text('Start Time',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+                                const SizedBox(height: 6),
+                                _buildTimeDropdown(_startTime, 'Select Start Time', (val) {
+                                  if (val != null) setState(() => _startTime = val);
+                                }),
+                                const SizedBox(height: 12),
+                                const Text('End Time',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+                                const SizedBox(height: 6),
+                                _buildTimeDropdown(_endTime, 'Select End Time', (val) {
+                                  if (val != null) setState(() => _endTime = val);
+                                }),
+                              ],
+                            ),
+                          ),
+                          second: _buildCardSection(
+                            icon: Icons.notifications_active_outlined,
+                            title: '5. Emergency Service',
+                            isRequired: true,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: ['Yes', 'No'].map((opt) {
+                                    final isSel = _emergencyService == opt;
+                                    return Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(right: 8),
+                                        child: InkWell(
+                                          onTap: () => setState(() => _emergencyService = opt),
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 10),
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFFEFF6FF),
+                                              color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
                                               borderRadius: BorderRadius.circular(12),
-                                              border: Border.all(color: const Color(0xFFBFDBFE)),
+                                              border: Border.all(
+                                                color: isSel ? primaryBlue : borderColor,
+                                                width: isSel ? 1.8 : 1,
+                                              ),
                                             ),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
                                               children: [
-                                                const Text(
-                                                  'Emergency Service Available Between',
-                                                  style: TextStyle(
-                                                    fontSize: 11.5,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: primaryBlue,
-                                                  ),
+                                                Icon(
+                                                  isSel
+                                                      ? Icons.radio_button_checked_rounded
+                                                      : Icons.radio_button_unchecked_rounded,
+                                                  color: isSel ? primaryBlue : const Color(0xFF94A3B8),
+                                                  size: 16,
                                                 ),
-                                                const SizedBox(height: 8),
-                                                Row(
-                                                  children: [
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                        children: [
-                                                          const Text('Start Time',
-                                                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                                                          const SizedBox(height: 4),
-                                                          _buildTimeDropdown(_emergencyStartTime, 'Start Time', (val) {
-                                                            if (val != null) setState(() => _emergencyStartTime = val);
-                                                          }, isSmall: true),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                        children: [
-                                                          const Text('End Time',
-                                                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                                                          const SizedBox(height: 4),
-                                                          _buildTimeDropdown(_emergencyEndTime, 'End Time', (val) {
-                                                            if (val != null) setState(() => _emergencyEndTime = val);
-                                                          }, isSmall: true),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  opt,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                                                    color: isSel ? primaryBlue : const Color(0xFF334155),
+                                                  ),
                                                 ),
                                               ],
                                             ),
                                           ),
-                                        ],
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+
+                                if (_emergencyService == 'Yes') ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEFF6FF),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Emergency Service Available Between',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: primaryBlue,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text('Start Time',
+                                                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                                  const SizedBox(height: 4),
+                                                  _buildTimeDropdown(_emergencyStartTime, 'Start Time', (val) {
+                                                    if (val != null) setState(() => _emergencyStartTime = val);
+                                                  }, isSmall: true),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text('End Time',
+                                                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                                  const SizedBox(height: 4),
+                                                  _buildTimeDropdown(_emergencyEndTime, 'End Time', (val) {
+                                                    if (val != null) setState(() => _emergencyEndTime = val);
+                                                  }, isSmall: true),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ],
                                     ),
                                   ),
-                                ),
+                                ],
                               ],
-                            );
-                          },
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 14),
 
@@ -835,8 +812,11 @@ class _ProviderExperienceRegistrationScreenState
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              Wrap(
+                                alignment: WrapAlignment.spaceBetween,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 8,
+                                runSpacing: 4,
                                 children: [
                                   Text(
                                     _aboutController.text.trim().length < 50
@@ -961,6 +941,37 @@ class _ProviderExperienceRegistrationScreenState
           ],
         ),
       ),
+    );
+  }
+
+  // Responsive Two-Column Helper (Stacks vertically on compact mobile screens to prevent overflow)
+  Widget _buildResponsiveTwoColumns({
+    required Widget first,
+    required Widget second,
+    int firstFlex = 1,
+    int secondFlex = 1,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 520) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              first,
+              const SizedBox(height: 14),
+              second,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: firstFlex, child: first),
+            const SizedBox(width: 14),
+            Expanded(flex: secondFlex, child: second),
+          ],
+        );
+      },
     );
   }
 
@@ -1114,87 +1125,79 @@ class _ProviderExperienceRegistrationScreenState
       title: '6. Service Specific Details (AC Service)',
       isRequired: true,
       hasError: _hasSubmitted && (_acTypes.isEmpty || _acOwnTools == null),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Which type of ACs do you work on? *',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                const SizedBox(height: 8),
-                ...['Residential', 'Commercial', 'Industrial'].map((type) {
-                  final isChecked = _acTypes.contains(type);
-                  return InkWell(
-                    onTap: () {
-                      setState(() {
-                        if (isChecked) {
-                          _acTypes.remove(type);
-                        } else {
-                          _acTypes.add(type);
-                        }
-                      });
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isChecked ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-                            color: isChecked ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1),
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(type, style: const TextStyle(fontSize: 12.5, color: Color(0xFF334155))),
-                        ],
+      child: _buildResponsiveTwoColumns(
+        first: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Which type of ACs do you work on? *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            ...['Residential', 'Commercial', 'Industrial'].map((type) {
+              final isChecked = _acTypes.contains(type);
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    if (isChecked) {
+                      _acTypes.remove(type);
+                    } else {
+                      _acTypes.add(type);
+                    }
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isChecked ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                        color: isChecked ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1),
+                        size: 18,
                       ),
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Do you have your own professional tools? *',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                const SizedBox(height: 8),
-                Row(
-                  children: ['Yes', 'No'].map((opt) {
-                    final isSel = _acOwnTools == opt;
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: InkWell(
-                          onTap: () => setState(() => _acOwnTools = opt),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
-                            ),
-                            child: Center(
-                              child: Text(opt,
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                                      color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569))),
-                            ),
-                          ),
+                      const SizedBox(width: 8),
+                      Text(type, style: const TextStyle(fontSize: 12.5, color: Color(0xFF334155))),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+        second: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Do you have your own professional tools? *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            Row(
+              children: ['Yes', 'No'].map((opt) {
+                final isSel = _acOwnTools == opt;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: InkWell(
+                      onTap: () => setState(() => _acOwnTools = opt),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
+                        ),
+                        child: Center(
+                          child: Text(opt,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                                  color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569))),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
-              ],
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1206,82 +1209,69 @@ class _ProviderExperienceRegistrationScreenState
       title: '6. Service Specific Details (Cooking Service)',
       isRequired: true,
       hasError: _hasSubmitted && (_cookingLocation == null || _cookingCapacity == null),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Where do you provide cooking services? *',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                    const SizedBox(height: 8),
-                    ...["Customer's Home", 'My Kitchen', 'Both'].map((loc) {
-                      final isSel = _cookingLocation == loc;
-                      return InkWell(
-                        onTap: () => setState(() => _cookingLocation = loc),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
-                              Icon(
-                                isSel ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
-                                color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1),
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(loc, style: const TextStyle(fontSize: 12.5, color: Color(0xFF334155))),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
+      child: _buildResponsiveTwoColumns(
+        first: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Where do you provide cooking services? *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            ...["Customer's Home", 'My Kitchen', 'Both'].map((loc) {
+              final isSel = _cookingLocation == loc;
+              return InkWell(
+                onTap: () => setState(() => _cookingLocation = loc),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSel ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
+                        color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(loc, style: const TextStyle(fontSize: 12.5, color: Color(0xFF334155))),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Maximum people you can cook for *',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: ['1 – 5 People', '6 – 15 People', '16 – 30 People', '30+ People'].map((cap) {
-                        final isSel = _cookingCapacity == cap;
-                        return InkWell(
-                          onTap: () => setState(() => _cookingCapacity = cap),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
-                            ),
-                            child: Text(
-                              cap,
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                                color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+              );
+            }),
+          ],
+        ),
+        second: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Maximum people you can cook for *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: ['1 – 5 People', '6 – 15 People', '16 – 30 People', '30+ People'].map((cap) {
+                final isSel = _cookingCapacity == cap;
+                return InkWell(
+                  onTap: () => setState(() => _cookingCapacity = cap),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+                    child: Text(
+                      cap,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                        color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1293,100 +1283,87 @@ class _ProviderExperienceRegistrationScreenState
       title: '6. Service Specific Details (Car Service)',
       isRequired: true,
       hasError: _hasSubmitted && (_carServiceTypes.isEmpty || _vehicleTypes.isEmpty),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Service Type *',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                    const SizedBox(height: 8),
-                    ...['Doorstep Service', 'Workshop Service', 'Both (Doorstep + Workshop)'].map((type) {
-                      final isChecked = _carServiceTypes.contains(type);
-                      return InkWell(
-                        onTap: () {
-                          setState(() {
-                            if (isChecked) {
-                              _carServiceTypes.remove(type);
-                            } else {
-                              _carServiceTypes.add(type);
-                            }
-                          });
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
-                              Icon(
-                                isChecked ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-                                color: isChecked ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1),
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(type, style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
+      child: _buildResponsiveTwoColumns(
+        first: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Service Type *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            ...['Doorstep Service', 'Workshop Service', 'Both (Doorstep + Workshop)'].map((type) {
+              final isChecked = _carServiceTypes.contains(type);
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    if (isChecked) {
+                      _carServiceTypes.remove(type);
+                    } else {
+                      _carServiceTypes.add(type);
+                    }
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isChecked ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                        color: isChecked ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(type, style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Vehicle Types You Work On *',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: ['Hatchback', 'Sedan', 'SUV', 'Luxury', 'Commercial'].map((v) {
-                        final isChecked = _vehicleTypes.contains(v);
-                        return InkWell(
-                          onTap: () {
-                            setState(() {
-                              if (isChecked) {
-                                _vehicleTypes.remove(v);
-                              } else {
-                                _vehicleTypes.add(v);
-                              }
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: isChecked ? const Color(0xFFEFF6FF) : Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: isChecked ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
-                            ),
-                            child: Text(
-                              v,
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: isChecked ? FontWeight.bold : FontWeight.w500,
-                                color: isChecked ? const Color(0xFF3B82F6) : const Color(0xFF475569),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+              );
+            }),
+          ],
+        ),
+        second: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Vehicle Types You Work On *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: ['Hatchback', 'Sedan', 'SUV', 'Luxury', 'Commercial'].map((v) {
+                final isChecked = _vehicleTypes.contains(v);
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (isChecked) {
+                        _vehicleTypes.remove(v);
+                      } else {
+                        _vehicleTypes.add(v);
+                      }
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isChecked ? const Color(0xFFEFF6FF) : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: isChecked ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+                    child: Text(
+                      v,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: isChecked ? FontWeight.bold : FontWeight.w500,
+                        color: isChecked ? const Color(0xFF3B82F6) : const Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1398,88 +1375,75 @@ class _ProviderExperienceRegistrationScreenState
       title: '6. Service Specific Details (Care Taker)',
       isRequired: true,
       hasError: _hasSubmitted && (_careAvailability == null || _carePreference == null),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Availability *',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: ['Day Shift', 'Night Shift', '24 Hours'].map((av) {
-                        final isSel = _careAvailability == av;
-                        return InkWell(
-                          onTap: () => setState(() => _careAvailability = av),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
-                            ),
-                            child: Text(
-                              av,
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                                color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+      child: _buildResponsiveTwoColumns(
+        first: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Availability *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: ['Day Shift', 'Night Shift', '24 Hours'].map((av) {
+                final isSel = _careAvailability == av;
+                return InkWell(
+                  onTap: () => setState(() => _careAvailability = av),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Care Preference *',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: ['Male', 'Female', 'Both'].map((pref) {
-                        final isSel = _carePreference == pref;
-                        return InkWell(
-                          onTap: () => setState(() => _carePreference = pref),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
-                            ),
-                            child: Text(
-                              pref,
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                                color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                    child: Text(
+                      av,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                        color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569),
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+        second: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Care Preference *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: ['Male', 'Female', 'Both'].map((pref) {
+                final isSel = _carePreference == pref;
+                return InkWell(
+                  onTap: () => setState(() => _carePreference = pref),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
+                    ),
+                    child: Text(
+                      pref,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                        color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1491,79 +1455,71 @@ class _ProviderExperienceRegistrationScreenState
       title: '6. Service Specific Details (Plumber)',
       isRequired: true,
       hasError: _hasSubmitted && (_plumberCategory == null || _plumberEmergency == null),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Service Category *',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                const SizedBox(height: 8),
-                ...['Residential', 'Commercial', 'Industrial'].map((cat) {
-                  final isSel = _plumberCategory == cat;
-                  return InkWell(
-                    onTap: () => setState(() => _plumberCategory = cat),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isSel ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
-                            color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1),
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(cat, style: const TextStyle(fontSize: 12.5, color: Color(0xFF334155))),
-                        ],
+      child: _buildResponsiveTwoColumns(
+        first: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Service Category *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            ...['Residential', 'Commercial', 'Industrial'].map((cat) {
+              final isSel = _plumberCategory == cat;
+              return InkWell(
+                onTap: () => setState(() => _plumberCategory = cat),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSel ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
+                        color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1),
+                        size: 18,
                       ),
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Can you handle emergency plumbing calls? *',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                const SizedBox(height: 8),
-                Row(
-                  children: ['Yes', 'No'].map((opt) {
-                    final isSel = _plumberEmergency == opt;
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: InkWell(
-                          onTap: () => setState(() => _plumberEmergency = opt),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
-                            ),
-                            child: Center(
-                              child: Text(opt,
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                                      color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569))),
-                            ),
-                          ),
+                      const SizedBox(width: 8),
+                      Text(cat, style: const TextStyle(fontSize: 12.5, color: Color(0xFF334155))),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+        second: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Can you handle emergency plumbing calls? *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            Row(
+              children: ['Yes', 'No'].map((opt) {
+                final isSel = _plumberEmergency == opt;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: InkWell(
+                      onTap: () => setState(() => _plumberEmergency = opt),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
+                        ),
+                        child: Center(
+                          child: Text(opt,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                                  color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569))),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
-              ],
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1575,79 +1531,71 @@ class _ProviderExperienceRegistrationScreenState
       title: '6. Service Specific Details (Laundry Service)',
       isRequired: true,
       hasError: _hasSubmitted && (_laundryPickupMode == null || _laundryCapacity == null),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Service Location & Pickup Mode *',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                const SizedBox(height: 8),
-                ...['Doorstep Pickup & Drop', 'In-Store Drop Off', 'Both'].map((mode) {
-                  final isSel = _laundryPickupMode == mode;
-                  return InkWell(
-                    onTap: () => setState(() => _laundryPickupMode = mode),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isSel ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
-                            color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1),
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(mode, style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
-                          ),
-                        ],
+      child: _buildResponsiveTwoColumns(
+        first: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Service Location & Pickup Mode *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            ...['Doorstep Pickup & Drop', 'In-Store Drop Off', 'Both'].map((mode) {
+              final isSel = _laundryPickupMode == mode;
+              return InkWell(
+                onTap: () => setState(() => _laundryPickupMode = mode),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSel ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
+                        color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(mode, style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+        second: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Daily Capacity (KG / Items) *',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: ['10 – 25 KG', '25 – 50 KG', '50 – 100 KG', '100+ KG'].map((cap) {
+                final isSel = _laundryCapacity == cap;
+                return InkWell(
+                  onTap: () => setState(() => _laundryCapacity = cap),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
+                    ),
+                    child: Text(
+                      cap,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                        color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569),
                       ),
                     ),
-                  );
-                }),
-              ],
+                  ),
+                );
+              }).toList(),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Daily Capacity (KG / Items) *',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: ['10 – 25 KG', '25 – 50 KG', '50 – 100 KG', '100+ KG'].map((cap) {
-                    final isSel = _laundryCapacity == cap;
-                    return InkWell(
-                      onTap: () => setState(() => _laundryCapacity = cap),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSel ? const Color(0xFFEFF6FF) : Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: isSel ? const Color(0xFF3B82F6) : const Color(0xFFCBD5E1)),
-                        ),
-                        child: Text(
-                          cap,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                            color: isSel ? const Color(0xFF3B82F6) : const Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

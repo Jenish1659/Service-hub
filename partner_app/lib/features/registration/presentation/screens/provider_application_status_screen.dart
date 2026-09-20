@@ -65,7 +65,7 @@ class _ProviderApplicationStatusScreenState
       if (syncRecord != null) {
         final syncStatus = (syncRecord['status'] ?? syncRecord['verification_status'] ?? '').toString().toUpperCase();
         if (syncStatus == 'VERIFIED' || syncStatus == 'APPROVED') {
-          _markApprovedLocally();
+          _reflectApprovedState();
           return;
         }
       }
@@ -89,9 +89,8 @@ class _ProviderApplicationStatusScreenState
             pMap = pList as Map<String, dynamic>;
           }
           final pStatus = (pMap?['verification_status'] ?? '').toString().toUpperCase();
-          final uStatus = (userRes['account_status'] ?? '').toString().toUpperCase();
-          if (pStatus == 'VERIFIED' || pStatus == 'APPROVED' || (uStatus == 'ACTIVE' && pStatus.isNotEmpty && pStatus != 'REJECTED')) {
-            _markApprovedLocally();
+          if (pStatus == 'VERIFIED' || pStatus == 'APPROVED') {
+            _reflectApprovedState();
             return;
           }
         }
@@ -110,7 +109,7 @@ class _ProviderApplicationStatusScreenState
         if (vrRes != null) {
           final st = (vrRes['status'] ?? '').toString().toUpperCase();
           if (st == 'APPROVED' || st == 'VERIFIED') {
-            _markApprovedLocally();
+            _reflectApprovedState();
             return;
           }
         }
@@ -122,7 +121,7 @@ class _ProviderApplicationStatusScreenState
         if (pRes != null) {
           final st = (pRes['verification_status'] ?? '').toString().toUpperCase();
           if (st == 'VERIFIED' || st == 'APPROVED') {
-            _markApprovedLocally();
+            _reflectApprovedState();
             return;
           }
         }
@@ -133,7 +132,7 @@ class _ProviderApplicationStatusScreenState
         if (pRes != null) {
           final st = (pRes['verification_status'] ?? '').toString().toUpperCase();
           if (st == 'VERIFIED' || st == 'APPROVED') {
-            _markApprovedLocally();
+            _reflectApprovedState();
             return;
           }
         }
@@ -141,7 +140,7 @@ class _ProviderApplicationStatusScreenState
     } catch (_) {}
   }
 
-  void _markApprovedLocally() {
+  void _reflectApprovedState() {
     if (mounted) {
       setState(() {
         _partnerData ??= {};
@@ -150,12 +149,6 @@ class _ProviderApplicationStatusScreenState
       });
     }
     LocalRegistrationCache.updateActivePartner({'verification_status': 'VERIFIED', 'status': 'APPROVED'});
-    final pId = _partnerData?['id'] ?? _partnerData?['user_id'] ?? _appId;
-    LiveBookingSyncService.instance.approvePartnerVerification(pId.toString());
-    final phone = (_partnerData?['phone'] ?? _partnerData?['mobile'] ?? '').toString();
-    if (phone.isNotEmpty) {
-      LiveBookingSyncService.instance.approvePartnerVerification(phone);
-    }
   }
 
   Future<void> _loadPartnerData() async {
@@ -359,9 +352,12 @@ class _ProviderApplicationStatusScreenState
                                         const SizedBox(height: 2),
                                         Row(
                                           children: [
-                                            Text(
-                                              _appId,
-                                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: 0.5),
+                                            Flexible(
+                                              child: Text(
+                                                _appId,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: 0.5),
+                                              ),
                                             ),
                                             const SizedBox(width: 6),
                                             InkWell(
@@ -475,8 +471,11 @@ class _ProviderApplicationStatusScreenState
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        Wrap(
+                                          alignment: WrapAlignment.spaceBetween,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          spacing: 6,
+                                          runSpacing: 2,
                                           children: [
                                             Text(
                                               isApproved ? 'Operational Status' : 'Estimated Review Time',
@@ -499,7 +498,7 @@ class _ProviderApplicationStatusScreenState
                                         const SizedBox(height: 4),
                                         Text(
                                           isApproved
-                                              ? 'Your profile is live in Jamnagar service dispatch radius. You can now toggle Online and receive job leads.'
+                                              ? 'Your profile is live in ${(_partnerData?['city'] != null && _partnerData!['city'].toString().trim().isNotEmpty ? _partnerData!['city'] : 'your service')} dispatch radius. You can now toggle Online and receive job leads.'
                                               : 'Our AI verification engine has analyzed your documents. Admin review is pending.',
                                           style: TextStyle(
                                             fontSize: 11,
@@ -567,9 +566,12 @@ class _ProviderApplicationStatusScreenState
                                 children: [
                                   Icon(isApproved ? Icons.check_circle_rounded : Icons.lock_rounded, color: Colors.white, size: 18),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    isApproved ? 'Launch Partner Dashboard 🚀' : 'Dashboard Locked (Awaiting Admin Approval)',
-                                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.white),
+                                  Flexible(
+                                    child: Text(
+                                      isApproved ? 'Launch Partner Dashboard 🚀' : 'Dashboard Locked (Awaiting Admin Approval)',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.white),
+                                    ),
                                   ),
                                   if (isApproved) ...[
                                     const SizedBox(width: 6),
@@ -785,7 +787,6 @@ class _ProviderApplicationStatusScreenState
                             ),
                           ),
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 isApproved ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
@@ -793,12 +794,15 @@ class _ProviderApplicationStatusScreenState
                                 color: isApproved ? const Color(0xFF10B981) : const Color(0xFFD97706),
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                isApproved ? 'Admin Approval Status: APPROVED ✓' : 'Admin Approval Status: UNCHECKED (Awaiting Admin)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: isApproved ? const Color(0xFF065F46) : const Color(0xFF92400E),
+                              Expanded(
+                                child: Text(
+                                  isApproved ? 'Admin Approval Status: APPROVED ✓' : 'Admin Approval Status: UNCHECKED (Awaiting Admin)',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isApproved ? const Color(0xFF065F46) : const Color(0xFF92400E),
+                                  ),
                                 ),
                               ),
                             ],
@@ -817,7 +821,6 @@ class _ProviderApplicationStatusScreenState
                             ),
                           ),
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 isApproved ? Icons.check_circle_rounded : Icons.lock_outline_rounded,
@@ -825,12 +828,15 @@ class _ProviderApplicationStatusScreenState
                                 color: isApproved ? const Color(0xFF10B981) : const Color(0xFF64748B),
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                isApproved ? 'Dashboard Login: AUTHORIZED ✓' : 'Dashboard Login: LOCKED (Requires Admin Approval)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: isApproved ? const Color(0xFF065F46) : const Color(0xFF475569),
+                              Expanded(
+                                child: Text(
+                                  isApproved ? 'Dashboard Login: AUTHORIZED ✓' : 'Dashboard Login: LOCKED (Requires Admin Approval)',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isApproved ? const Color(0xFF065F46) : const Color(0xFF475569),
+                                  ),
                                 ),
                               ),
                             ],

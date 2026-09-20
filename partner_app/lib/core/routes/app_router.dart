@@ -19,6 +19,12 @@ import '../../features/dashboard/presentation/delivery_dashboard_screen.dart';
 import '../../features/dashboard/presentation/shopkeeper_dashboard_screen.dart';
 import '../../features/dashboard/presentation/ac_active_job_navigation_screen.dart';
 import '../../features/registration/presentation/screens/delivery_partner_registration_flow_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/my_profile_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/edit_profile_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/my_services_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/availability_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/earnings_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/controllers/profile_controller.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -182,6 +188,40 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/dashboard/shopkeeper',
       builder: (context, state) => const ShopkeeperDashboardScreen(),
+    ),
+
+    // Partner Profile Routes
+    GoRoute(
+      path: '/profile',
+      builder: (context, state) => const MyProfileScreen(),
+    ),
+    GoRoute(
+      path: '/profile/edit',
+      builder: (context, state) {
+        final ctrl = state.extra as ProfileController? ?? ProfileController();
+        return EditProfileScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/services',
+      builder: (context, state) {
+        final ctrl = state.extra as ProfileController? ?? ProfileController();
+        return MyServicesScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/availability',
+      builder: (context, state) {
+        final ctrl = state.extra as ProfileController? ?? ProfileController();
+        return AvailabilityScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/earnings',
+      builder: (context, state) {
+        final ctrl = state.extra as ProfileController? ?? ProfileController();
+        return EarningsScreen(controller: ctrl);
+      },
     ),
   ],
 );

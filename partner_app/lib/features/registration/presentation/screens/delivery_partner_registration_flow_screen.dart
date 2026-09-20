@@ -238,112 +238,119 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.borderLight,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: AppColors.deliveryOrangeLight,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.mark_email_read_rounded, color: AppColors.deliveryOrangePrimary, size: 36),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Verify Phone Number',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryNavy),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Enter the 6-digit code sent to +91 $phone',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-
-              // 6 Digit OTP Inputs
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(6, (index) {
-                  return SizedBox(
-                    width: 44,
-                    height: 52,
-                    child: TextField(
-                      controller: otpControllers[index],
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      maxLength: 1,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: InputDecoration(
-                        counterText: '',
-                        filled: true,
-                        fillColor: AppColors.bgLight,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.borderLight)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.deliveryOrangePrimary, width: 2)),
-                      ),
-                      onChanged: (val) {
-                        if (val.isNotEmpty && index < 5) {
-                          FocusScope.of(ctx).nextFocus();
-                        }
-                      },
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 20),
-
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.timer_outlined, size: 14, color: AppColors.textMuted),
-                  SizedBox(width: 4),
-                  Text('Resend code in ', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                  Text('00:28', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.deliveryOrangePrimary)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Didn\'t receive the code? Change Phone Number', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.deliveryOrangePrimary)),
-              ),
-              const SizedBox(height: 16),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.deliveryOrangePrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.borderLight,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    setState(() {
-                      _isPhoneVerified = true;
-                      _currentStep = 2; // Directly move to Screen 3 (Account Credentials)
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('✓ Phone number verified via OTP successfully!'),
-                        backgroundColor: AppColors.deliveryOrangePrimary,
-                      ),
-                    );
-                  },
-                  child: const Text('Verify & Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: AppColors.deliveryOrangeLight,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.mark_email_read_rounded, color: AppColors.deliveryOrangePrimary, size: 36),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Verify Phone Number',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryNavy),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Enter the 6-digit code sent to +91 $phone',
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
+                // 6 Digit OTP Inputs
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(6, (index) {
+                      return Container(
+                        width: 44,
+                        height: 52,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        child: TextField(
+                          controller: otpControllers[index],
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          maxLength: 1,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          decoration: InputDecoration(
+                            counterText: '',
+                            filled: true,
+                            fillColor: AppColors.bgLight,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.borderLight)),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.deliveryOrangePrimary, width: 2)),
+                          ),
+                          onChanged: (val) {
+                            if (val.isNotEmpty && index < 5) {
+                              FocusScope.of(ctx).nextFocus();
+                            }
+                          },
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.timer_outlined, size: 14, color: AppColors.textMuted),
+                    SizedBox(width: 4),
+                    Text('Resend code in ', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                    Text('00:28', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.deliveryOrangePrimary)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Didn\'t receive the code? Change Phone Number', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.deliveryOrangePrimary)),
+                ),
+                const SizedBox(height: 16),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.deliveryOrangePrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      setState(() {
+                        _isPhoneVerified = true;
+                        _currentStep = 2; // Directly move to Screen 3 (Account Credentials)
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('✓ Phone number verified via OTP successfully!'),
+                          backgroundColor: AppColors.deliveryOrangePrimary,
+                        ),
+                      );
+                    },
+                    child: const Text('Verify & Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1262,13 +1269,6 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
                       onChanged: (val) {
                         setState(() {
                           _useCurrentLocation = val;
-                          if (val) {
-                            _houseNoController.text = 'Block C-12, Green Park Society';
-                            _nearAreaController.text = 'Super Market Area';
-                            _cityController.text = 'Jamnagar';
-                            _pincodeController.text = '361005';
-                            _landmarkController.text = 'Opp. Town Hall';
-                          }
                         });
                       },
                     ),

@@ -96,6 +96,8 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
       builder: (dialogCtx) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          actionsOverflowButtonSpacing: 8,
+          actionsAlignment: MainAxisAlignment.end,
           title: Row(
             children: [
               Container(
@@ -115,15 +117,17 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Your partner registration is received and is currently pending Admin verification and approval.',
-                style: TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
-              ),
-              const SizedBox(height: 12),
+          content: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Your partner registration is received and is currently pending Admin verification and approval.',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.4),
+                ),
+                const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -150,6 +154,7 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
                 style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B), height: 1.3),
               ),
             ],
+          ),
           ),
           actions: [
             TextButton(
@@ -306,21 +311,23 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
                   children: [
                     Row(
                       children: [
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Welcome Back!',
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryNavy),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Login to continue',
-                              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                            ),
-                          ],
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Welcome Back!',
+                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryNavy),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Login to continue',
+                                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                              ),
+                            ],
+                          ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: const BoxDecoration(
@@ -369,16 +376,34 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
                     const SizedBox(height: 12),
 
                     // Remember Me & Forgot Password
-                    Row(
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
-                        Checkbox(
-                          value: _rememberMe,
-                          activeColor: AppColors.providerBluePrimary,
-                          onChanged: (val) => setState(() => _rememberMe = val ?? true),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Checkbox(
+                                value: _rememberMe,
+                                activeColor: AppColors.providerBluePrimary,
+                                onChanged: (val) => setState(() => _rememberMe = val ?? true),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text('Remember me', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
                         ),
-                        const Text('Remember me', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                        const Spacer(),
                         TextButton(
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
                           onPressed: () {},
                           child: const Text('Forgot Password?', style: TextStyle(fontSize: 12, color: AppColors.providerBluePrimary, fontWeight: FontWeight.bold)),
                         ),
@@ -438,8 +463,9 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
                     const SizedBox(height: 16),
 
                     // Register Link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         const Text("Don't have an account? ", style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
                         GestureDetector(
@@ -492,12 +518,11 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
       child: Column(
         children: [
           const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _FooterItem(icon: Icons.shield, title: '100% Secure', desc: 'Your data is safe'),
-              _FooterItem(icon: Icons.badge, title: 'Verified Partners', desc: 'Background verified'),
-              _FooterItem(icon: Icons.headset_mic, title: '24/7 Support', desc: 'Here to help'),
-              _FooterItem(icon: Icons.auto_graph, title: 'More Growth', desc: 'More services'),
+              Expanded(child: _FooterItem(icon: Icons.shield, title: '100% Secure', desc: 'Your data is safe')),
+              Expanded(child: _FooterItem(icon: Icons.badge, title: 'Verified Partners', desc: 'Background verified')),
+              Expanded(child: _FooterItem(icon: Icons.headset_mic, title: '24/7 Support', desc: 'Here to help')),
+              Expanded(child: _FooterItem(icon: Icons.auto_graph, title: 'More Growth', desc: 'More services')),
             ],
           ),
           const SizedBox(height: 14),
@@ -507,16 +532,19 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
               color: AppColors.primaryNavy,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.lock, color: AppColors.accentGold, size: 14),
-                SizedBox(width: 6),
-                Text(
-                  'Your safety is our priority',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-              ],
+            child: const FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock, color: AppColors.accentGold, size: 14),
+                  SizedBox(width: 6),
+                  Text(
+                    'Your safety is our priority',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -534,19 +562,22 @@ class _MetricBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.borderLight),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppColors.providerBluePrimary),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textDark)),
-        ],
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: AppColors.providerBluePrimary),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textDark)),
+          ],
+        ),
       ),
     );
   }
@@ -562,11 +593,28 @@ class _FooterItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 18, color: AppColors.primaryNavy),
         const SizedBox(height: 2),
-        Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textDark)),
-        Text(desc, style: const TextStyle(fontSize: 9, color: AppColors.textMuted)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textDark),
+          ),
+        ),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            desc,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 9, color: AppColors.textMuted),
+          ),
+        ),
       ],
     );
   }

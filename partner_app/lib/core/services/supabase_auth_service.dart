@@ -154,8 +154,7 @@ class SupabaseAuthService {
           vrStatus == 'APPROVED' ||
           vrStatus == 'VERIFIED' ||
           syncStatus == 'APPROVED' ||
-          syncStatus == 'VERIFIED' ||
-          (accountStatus == 'ACTIVE' && partnerVerStatus != 'PENDING' && vrStatus != 'PENDING' && syncStatus != 'PENDING');
+          syncStatus == 'VERIFIED';
 
       final bool isRejected = partnerVerStatus == 'REJECTED' ||
           vrStatus == 'REJECTED' ||

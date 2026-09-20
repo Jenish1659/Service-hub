@@ -18,8 +18,8 @@ class ProviderReviewApplicationScreen extends StatefulWidget {
 
 class _ProviderReviewApplicationScreenState
     extends State<ProviderReviewApplicationScreen> {
-  bool _declarationAccurate = true;
-  bool _declarationTerms = true;
+  bool _declarationAccurate = false;
+  bool _declarationTerms = false;
   Map<String, dynamic>? _draftData;
 
   @override
@@ -408,34 +408,10 @@ class _ProviderReviewApplicationScreenState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF9333EA),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(Icons.memory_rounded, color: Colors.white, size: 20),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '5. AI Verification Engine (Pre-Verified)',
-                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF581C87)),
-                                        ),
-                                        SizedBox(height: 2),
-                                        Text(
-                                          'Automated document authenticity, FaceRD biometric & Penny Drop active.',
-                                          style: TextStyle(fontSize: 11, color: Color(0xFF6B21A8)),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
+                              LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final isCompact = constraints.maxWidth < 420;
+                                  final badge = Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFDCFCE7),
@@ -453,8 +429,74 @@ class _ProviderReviewApplicationScreenState
                                         ),
                                       ],
                                     ),
-                                  ),
-                                ],
+                                  );
+
+                                  if (isCompact) {
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF9333EA),
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: const Icon(Icons.memory_rounded, color: Colors.white, size: 20),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            const Expanded(
+                                              child: Text(
+                                                '5. AI Verification Engine (Pre-Verified)',
+                                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF581C87)),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        badge,
+                                        const SizedBox(height: 4),
+                                        const Text(
+                                          'Automated document authenticity, FaceRD biometric & Penny Drop active.',
+                                          style: TextStyle(fontSize: 11, color: Color(0xFF6B21A8)),
+                                        ),
+                                      ],
+                                    );
+                                  }
+
+                                  return Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF9333EA),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: const Icon(Icons.memory_rounded, color: Colors.white, size: 20),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '5. AI Verification Engine (Pre-Verified)',
+                                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF581C87)),
+                                            ),
+                                            SizedBox(height: 2),
+                                            Text(
+                                              'Automated document authenticity, FaceRD biometric & Penny Drop active.',
+                                              style: TextStyle(fontSize: 11, color: Color(0xFF6B21A8)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      badge,
+                                    ],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 10),
                               const Wrap(
@@ -577,7 +619,13 @@ class _ProviderReviewApplicationScreenState
                             ),
                             onPressed: _handleSubmit,
                             icon: const Icon(Icons.send_rounded, color: Colors.white, size: 16),
-                            label: const Text('Submit for Verification', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                            label: const Flexible(
+                              child: Text(
+                                'Submit for Verification',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -819,12 +867,17 @@ class _DocBadge extends StatelessWidget {
             color: isSuccess ? const Color(0xFF10B981) : const Color(0xFF64748B),
           ),
           const SizedBox(width: 4),
-          Text(
-            '$label: $status',
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.bold,
-              color: isSuccess ? const Color(0xFF065F46) : const Color(0xFF475569),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$label: $status',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: isSuccess ? const Color(0xFF065F46) : const Color(0xFF475569),
+                ),
+              ),
             ),
           ),
         ],

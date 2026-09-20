@@ -264,12 +264,6 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
     }
 
     final List<TextEditingController> otpControllers = List.generate(6, (_) => TextEditingController());
-    otpControllers[0].text = '7';
-    otpControllers[1].text = '8';
-    otpControllers[2].text = '4';
-    otpControllers[3].text = '5';
-    otpControllers[4].text = '1';
-    otpControllers[5].text = '2';
 
     showModalBottomSheet(
       context: context,
@@ -1402,12 +1396,8 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
                         setState(() {
                           _useCurrentLocation = val;
                           if (val) {
-                            _shopAddressController.text = 'Shop #14, Digvijay Plot, Main Road';
-                            _cityController.text = 'Jamnagar';
-                            _pincodeController.text = '361005';
-                            _landmarkController.text = 'Opp. City Bus Terminal';
                             _isLocationPinned = true;
-                            _pinnedLocationText = 'Captured GPS Location: Digvijay Plot';
+                            _pinnedLocationText = 'Captured GPS Location: (${_currentLat.toStringAsFixed(4)}, ${_currentLng.toStringAsFixed(4)})';
                           }
                         });
                       },

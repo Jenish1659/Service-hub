@@ -16,6 +16,15 @@ void main() {
     await box.clear();
   });
 
+  tearDownAll(() async {
+    final file = File(r'C:\Users\Public\ServiceHub\service_hub_partner_verifications.json');
+    if (file.existsSync()) {
+      try {
+        file.writeAsStringSync('{}');
+      } catch (_) {}
+    }
+  });
+
   group('Partner Login Barrier & Tracking Checkmark Verification', () {
     final syncService = LiveBookingSyncService.instance;
     const partnerPhone = '9876543210';

@@ -26,6 +26,7 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
   @override
   void initState() {
     super.initState();
+    LocalRegistrationCache.clearDraft();
     final repo = RegistrationRepositoryImpl(remoteDataSource: RegistrationRemoteDataSource());
     _controller = ProviderRegistrationController(repository: repo);
     _controller.addListener(_onControllerUpdated);
@@ -67,86 +68,92 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.borderLight,
-                  borderRadius: BorderRadius.circular(2),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.borderLight,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEFF6FF),
-                  shape: BoxShape.circle,
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEFF6FF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.mark_email_read_rounded, color: Color(0xFF2563EB), size: 36),
                 ),
-                child: const Icon(Icons.mark_email_read_rounded, color: Color(0xFF2563EB), size: 36),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Verify Phone Number',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryNavy),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Enter the 6-digit code sent to +91 $phone',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 14),
+                const Text(
+                  'Verify Phone Number',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryNavy),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Enter the 6-digit code sent to +91 $phone',
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
 
-              // 6 Digit OTP Inputs
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(6, (index) {
-                  return SizedBox(
-                    width: 44,
-                    height: 52,
-                    child: TextField(
-                      controller: otpControllers[index],
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      maxLength: 1,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: InputDecoration(
-                        counterText: '',
-                        filled: true,
-                        fillColor: AppColors.bgLight,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.borderLight)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2)),
-                      ),
-                      onChanged: (val) {
-                        if (val.isNotEmpty && index < 5) {
-                          FocusScope.of(ctx).nextFocus();
-                        }
-                      },
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 20),
+                // 6 Digit OTP Inputs
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(6, (index) {
+                      return Container(
+                        width: 44,
+                        height: 52,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        child: TextField(
+                          controller: otpControllers[index],
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          maxLength: 1,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          decoration: InputDecoration(
+                            counterText: '',
+                            filled: true,
+                            fillColor: AppColors.bgLight,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.borderLight)),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2)),
+                          ),
+                          onChanged: (val) {
+                            if (val.isNotEmpty && index < 5) {
+                              FocusScope.of(ctx).nextFocus();
+                            }
+                          },
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 20),
 
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.timer_outlined, size: 14, color: AppColors.textMuted),
-                  SizedBox(width: 4),
-                  Text('Resend code in ', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                  Text('00:28', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Didn\'t receive the code? Change Phone Number', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-              ),
-              const SizedBox(height: 16),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.timer_outlined, size: 14, color: AppColors.textMuted),
+                    SizedBox(width: 4),
+                    Text('Resend code in ', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                    Text('00:28', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Didn\'t receive the code? Change Phone Number', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                ),
+                const SizedBox(height: 16),
 
               SizedBox(
                 width: double.infinity,
@@ -175,6 +182,7 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
               ),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -241,7 +249,7 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
         'email': _controller.emailController.text.trim(),
         'password': _controller.passwordController.text,
         'state': _controller.selectedState ?? 'Gujarat',
-        'city': _controller.selectedCity ?? 'Jamnagar',
+        'city': _controller.selectedCity ?? '',
         'terms_accepted': _controller.agreedToTerms,
       };
       await LocalRegistrationCache.saveDraft(draftData);
@@ -385,8 +393,16 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildFieldLabel('Phone Number', isRequired: true),
-                  const Text('10 digits only', style: TextStyle(fontSize: 10.5, color: AppColors.textMuted)),
+                  Flexible(child: _buildFieldLabel('Phone Number', isRequired: true)),
+                  const SizedBox(width: 8),
+                  const Flexible(
+                    child: Text(
+                      '10 digits only',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 10.5, color: AppColors.textMuted),
+                    ),
+                  ),
                 ],
               ),
               Row(
@@ -441,20 +457,24 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
                     elevation: 2,
                   ),
                   onPressed: _handleNext,
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Send OTP & Verify', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward, color: Colors.white, size: 18),
-                    ],
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Send OTP & Verify', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+                      ],
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   const Text('Already have an account? ', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
                   GestureDetector(
@@ -704,12 +724,13 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
                   Expanded(
                     flex: 3,
                     child: DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: _controller.selectedCity,
                       hint: const Text('Select City', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
                       items: _controller.availableCities.map((city) {
                         return DropdownMenuItem<String>(
                           value: city,
-                          child: Text(city, style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A))),
+                          child: Text(city, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A))),
                         );
                       }).toList(),
                       onChanged: (val) {
@@ -756,7 +777,13 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Save & Continue to Service Selection', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.white)),
+                      Flexible(
+                        child: Text(
+                          'Save & Continue to Service Selection',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
                       SizedBox(width: 8),
                       Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
                     ],

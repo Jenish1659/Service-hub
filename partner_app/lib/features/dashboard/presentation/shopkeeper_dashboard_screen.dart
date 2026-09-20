@@ -29,25 +29,27 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     setState(() => _isLoading = true);
     try {
       final activeUser = await LocalRegistrationCache.getActivePartner();
-      if (activeUser != null) {
-        final status = (activeUser['verification_status'] ?? '').toString().toUpperCase();
-        if (status != 'VERIFIED' && status != 'APPROVED') {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Application is pending Admin approval. Please login after Admin approval.'),
-                backgroundColor: Color(0xFFD97706),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-            context.go('/login/shopkeeper');
-            return;
-          }
-        }
-        setState(() {
-          _shopName = (activeUser['business_name'] ?? activeUser['name'] ?? 'Partner Store').toString();
-        });
+      if (activeUser == null) {
+        if (mounted) GoRouter.maybeOf(context)?.go('/login/shopkeeper');
+        return;
       }
+      final status = (activeUser['verification_status'] ?? '').toString().toUpperCase();
+      if (status != 'VERIFIED' && status != 'APPROVED') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Application is pending Admin approval. Please login after Admin approval.'),
+              backgroundColor: Color(0xFFD97706),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          GoRouter.maybeOf(context)?.go('/login/shopkeeper');
+          return;
+        }
+      }
+      setState(() {
+        _shopName = (activeUser['business_name'] ?? activeUser['name'] ?? 'Partner Store').toString();
+      });
 
       final client = Supabase.instance.client;
       final ordersRes = await client
