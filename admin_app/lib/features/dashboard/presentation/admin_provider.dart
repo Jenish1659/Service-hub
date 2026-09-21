@@ -259,6 +259,8 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
             'business_address': bAddr,
             'category': parsedCategory,
             'category_name': parsedCategoryName,
+            'role_name': isShop ? 'shopkeeper' : 'service_provider',
+            'role': isShop ? 'shopkeeper' : 'service_provider',
             'city': profile['city'] ?? '',
             'state': profile['state'] ?? '',
             'status': item['status'] ?? 'PENDING',
@@ -277,11 +279,11 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
       }
     } catch (_) {}
 
-    // Source D: Cloud Supabase (partners table directly with joined_at ordering)
+    // Source D: Cloud Supabase (partners table directly with joined_at ordering and shopkeeper_profiles)
     try {
       final List<dynamic> partnerRes = await client
           .from('partners')
-          .select('*, users(*, user_profiles(*))')
+          .select('*, users(*, user_profiles(*)), shopkeeper_profiles(*)')
           .or('verification_status.eq.PENDING,verification_status.eq.UNDER_REVIEW,verification_status.eq.SUBMITTED')
           .order('joined_at', ascending: false)
           .timeout(const Duration(milliseconds: 10000));
@@ -303,8 +305,16 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           final full = '$fN $lN'.trim();
           final name = full.isNotEmpty ? full : (u['username'] ?? u['email'] ?? 'Partner Candidate').toString();
           
-          final bName = (p['business_name'] ?? '').toString();
-          final isShop = bName.toLowerCase().contains('store') ||
+          final shopProf = (p['shopkeeper_profiles'] is List && (p['shopkeeper_profiles'] as List).isNotEmpty)
+              ? (p['shopkeeper_profiles'] as List).first as Map<String, dynamic>
+              : (p['shopkeeper_profiles'] is Map ? p['shopkeeper_profiles'] as Map<String, dynamic> : null);
+
+          final shopBName = (shopProf?['business_name'] ?? '').toString();
+          final bName = shopBName.isNotEmpty ? shopBName : (p['business_name'] ?? '').toString();
+          final userRoleId = (u['role_id'] ?? '').toString();
+          final isShop = shopProf != null ||
+              userRoleId == 'a96fc0d6-afd9-45a4-bab1-ee41363b033a' ||
+              bName.toLowerCase().contains('store') ||
               bName.toLowerCase().contains('shop') ||
               bName.toLowerCase().contains('electronics') ||
               (u['role_name'] ?? '').toString().toLowerCase() == 'shopkeeper';
@@ -323,6 +333,8 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
             'business_name': bName.isNotEmpty ? bName : (isShop ? '$name Store' : '$name Services'),
             'category': isShop ? 'shopkeeper' : 'ac_service',
             'category_name': isShop ? 'Shopkeeper (Store Vendor)' : 'AC Service Provider',
+            'role_name': isShop ? 'shopkeeper' : 'service_provider',
+            'role': isShop ? 'shopkeeper' : 'service_provider',
             'city': (prof['city'] ?? '').toString(),
             'state': (prof['state'] ?? '').toString(),
             'status': 'PENDING',

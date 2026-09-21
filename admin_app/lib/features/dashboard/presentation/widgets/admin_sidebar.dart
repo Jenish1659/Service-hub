@@ -75,6 +75,7 @@ class AdminSidebar extends StatelessWidget {
 
                 _buildGroupHeader('PARTNER OPERATIONS'),
                 _buildNavItem('Partner Verification', Icons.verified_user_rounded),
+                _buildNavItem('Shopkeeper Verification', Icons.storefront_rounded),
                 _buildNavItem('Service Partners', Icons.handshake_rounded),
 
                 _buildGroupHeader('PLATFORM MANAGEMENT'),

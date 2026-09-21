@@ -345,6 +345,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
     if (_activeTab == 'Partner Verification') {
       return AdminPartnersView(
+        filterRole: 'service_provider',
+        unverifiedPartners: unverifiedPartners,
+        onApprove: _approvePartnerProfile,
+        onReject: _rejectPartnerProfile,
+      );
+    }
+    if (_activeTab == 'Shopkeeper Verification') {
+      return AdminPartnersView(
+        filterRole: 'shopkeeper',
         unverifiedPartners: unverifiedPartners,
         onApprove: _approvePartnerProfile,
         onReject: _rejectPartnerProfile,
@@ -371,17 +380,92 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return _buildMainDashboardContent(stats, allBookings, unverifiedPartners);
   }
 
+  bool _isShopkeeper(Map<String, dynamic> p) {
+    final cat = (p['category'] ?? p['category_name'] ?? '').toString().toLowerCase();
+    final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
+    final bName = (p['business_name'] ?? '').toString().toLowerCase();
+    return cat.contains('shop') ||
+        cat.contains('store') ||
+        role.contains('shop') ||
+        role.contains('store') ||
+        bName.contains('store') ||
+        bName.contains('electronics') ||
+        bName.contains('shop');
+  }
+
   Widget _buildMainDashboardContent(
     Map<String, dynamic> stats,
     List<Map<String, dynamic>> allBookings,
     List<Map<String, dynamic>> unverifiedPartners,
   ) {
+    final unverifiedShopkeepers = unverifiedPartners.where(_isShopkeeper).toList();
+    final unverifiedProviders = unverifiedPartners.where((p) => !_isShopkeeper(p)).toList();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (unverifiedPartners.isNotEmpty) ...[
+          // Shopkeeper Store Approval Banner
+          if (unverifiedShopkeepers.isNotEmpty) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+                boxShadow: [
+                  BoxShadow(color: const Color(0xFF16A34A).withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 4)),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF16A34A),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${unverifiedShopkeepers.length} Store & Shopkeeper Application(s) Waiting For Approval!',
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5, color: Color(0xFF14532D)),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Store: ${unverifiedShopkeepers.first['business_name'] ?? unverifiedShopkeepers.first['name']} • Owner: ${unverifiedShopkeepers.first['full_name'] ?? unverifiedShopkeepers.first['name']} • AI Trust: 99.8%',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF16A34A)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF16A34A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.store_mall_directory_rounded, size: 16),
+                    label: const Text('Review Store Queue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                    onPressed: () => setState(() => _activeTab = 'Shopkeeper Verification'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Service Provider Partner Approval Banner
+          if (unverifiedProviders.isNotEmpty) ...[
             Container(
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.all(16),
@@ -409,12 +493,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${unverifiedPartners.length} Partner Application(s) Waiting For Admin Approval!',
+                          '${unverifiedProviders.length} Service Partner Application(s) Waiting For Admin Approval!',
                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5, color: Color(0xFF1E3A8A)),
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Candidate: ${unverifiedPartners.first['full_name'] ?? unverifiedPartners.first['name']} • App ID: ${unverifiedPartners.first['verification_id'] ?? unverifiedPartners.first['id']} • AI Trust: 99.8% (Recommended)',
+                          'Candidate: ${unverifiedProviders.first['full_name'] ?? unverifiedProviders.first['name']} • App ID: ${unverifiedProviders.first['verification_id'] ?? unverifiedProviders.first['id']} • AI Trust: 99.8% (Recommended)',
                           style: const TextStyle(fontSize: 12, color: Color(0xFF3B82F6)),
                         ),
                       ],

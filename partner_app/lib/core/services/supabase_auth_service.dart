@@ -679,7 +679,7 @@ class SupabaseAuthService {
         }
       } catch (_) {}
 
-      // 6. Insert or update partners table
+      // 6. Insert or update partners table and shopkeeper_profiles
       String? partnerId;
       try {
         final existingPartner = await client.from('partners').select('partner_id').eq('user_id', userId).maybeSingle();
@@ -688,7 +688,6 @@ class SupabaseAuthService {
           partnerId = matchedPartnerId;
           if (matchedPartnerId != null && matchedPartnerId.isNotEmpty) {
             await client.from('partners').update({
-              'business_name': cleanShopName,
               'verification_status': 'PENDING',
               'availability_status': 'OFFLINE',
             }).eq('partner_id', matchedPartnerId);
@@ -696,11 +695,21 @@ class SupabaseAuthService {
         } else {
           final partnerInsert = await client.from('partners').insert({
             'user_id': userId,
-            'business_name': cleanShopName,
             'verification_status': 'PENDING',
             'availability_status': 'OFFLINE',
           }).select().single();
           partnerId = partnerInsert['partner_id']?.toString();
+        }
+
+        if (partnerId != null && partnerId.isNotEmpty) {
+          try {
+            await client.from('shopkeeper_profiles').upsert({
+              'partner_id': partnerId,
+              'business_name': cleanShopName,
+              'business_type': category,
+              'business_experience': int.tryParse(yearsInBusiness ?? '1') ?? 1,
+            });
+          } catch (_) {}
         }
       } catch (pErr) {
         if (kDebugMode) {

@@ -4,12 +4,14 @@ class AdminPartnersView extends StatefulWidget {
   final List<Map<String, dynamic>> unverifiedPartners;
   final Function(String id, String name, [Map<String, dynamic>? partner]) onApprove;
   final Function(String id, String name, [Map<String, dynamic>? partner]) onReject;
+  final String? filterRole;
 
   const AdminPartnersView({
     super.key,
     required this.unverifiedPartners,
     required this.onApprove,
     required this.onReject,
+    this.filterRole,
   });
 
   @override
@@ -26,6 +28,19 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  bool _isShopkeeperItem(Map<String, dynamic> p) {
+    final cat = (p['category'] ?? p['category_name'] ?? '').toString().toLowerCase();
+    final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
+    final bName = (p['business_name'] ?? '').toString().toLowerCase();
+    return cat.contains('shop') ||
+        cat.contains('store') ||
+        role.contains('shop') ||
+        role.contains('store') ||
+        bName.contains('store') ||
+        bName.contains('electronics') ||
+        bName.contains('shop');
   }
 
   void _executeApprove(String id, String name, Map<String, dynamic> partner) {
@@ -180,7 +195,16 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = widget.unverifiedPartners.where((p) {
+    final isShopkeeperQueue = widget.filterRole == 'shopkeeper';
+
+    final roleFiltered = widget.unverifiedPartners.where((p) {
+      final isShop = _isShopkeeperItem(p);
+      if (widget.filterRole == 'shopkeeper') return isShop;
+      if (widget.filterRole == 'service_provider') return !isShop;
+      return true;
+    }).toList();
+
+    final filtered = roleFiltered.where((p) {
       final id = (p['id'] ?? '').toString();
       final verId = (p['verification_id'] ?? '').toString();
       final userId = (p['user_id'] ?? '').toString();
@@ -207,23 +231,50 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
           // Top Header
           Row(
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Partner Verification & KYC Queue', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
-                  SizedBox(height: 2),
-                  Text('Review and approve real candidate applications submitted from Partner App', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isShopkeeperQueue ? 'Shopkeeper Verification & Store KYC Queue' : 'Partner Verification & KYC Queue',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isShopkeeperQueue
+                          ? 'Review and approve real store and retail merchant applications submitted from Partner App'
+                          : 'Review and approve real candidate applications submitted from Partner App',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFBFDBFE))),
+                decoration: BoxDecoration(
+                  color: isShopkeeperQueue ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: isShopkeeperQueue ? const Color(0xFF86EFAC) : const Color(0xFFBFDBFE)),
+                ),
                 child: Row(
                   children: [
-                    const Icon(Icons.verified_user_rounded, color: Color(0xFF2563EB), size: 16),
+                    Icon(
+                      isShopkeeperQueue ? Icons.storefront_rounded : Icons.verified_user_rounded,
+                      color: isShopkeeperQueue ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+                      size: 16,
+                    ),
                     const SizedBox(width: 6),
-                    Text('${widget.unverifiedPartners.length} Real Application(s) Waiting', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1E40AF))),
+                    Text(
+                      isShopkeeperQueue
+                          ? '${roleFiltered.length} Real Store Application(s) Waiting'
+                          : '${roleFiltered.length} Real Application(s) Waiting',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: isShopkeeperQueue ? const Color(0xFF15803D) : const Color(0xFF1E40AF),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -236,7 +287,9 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
             controller: _searchController,
             onChanged: (v) => setState(() => _searchQuery = v),
             decoration: InputDecoration(
-              hintText: 'Search by real partner name, phone (+91), business name, or Application ID...',
+              hintText: isShopkeeperQueue
+                  ? 'Search by store name, owner, phone (+91), category, or Application ID...'
+                  : 'Search by real partner name, phone (+91), business name, or Application ID...',
               hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
               prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 18),
               filled: true,
@@ -257,11 +310,25 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.check_circle_rounded, size: 56, color: Color(0xFF10B981)),
+                          Icon(
+                            isShopkeeperQueue ? Icons.storefront_rounded : Icons.check_circle_rounded,
+                            size: 56,
+                            color: isShopkeeperQueue ? const Color(0xFF16A34A) : const Color(0xFF10B981),
+                          ),
                           const SizedBox(height: 12),
-                          const Text('No Pending Partner Applications in Queue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                          Text(
+                            isShopkeeperQueue
+                                ? 'No Pending Store Applications in Queue'
+                                : 'No Pending Partner Applications in Queue',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                          ),
                           const SizedBox(height: 4),
-                          const Text('When a service provider submits registration on the Partner App, their real application appears here instantly.', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                          Text(
+                            isShopkeeperQueue
+                                ? 'When a shopkeeper submits store registration on the Partner App, their real application appears here instantly.'
+                                : 'When a service provider submits registration on the Partner App, their real application appears here instantly.',
+                            style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                          ),
                           const SizedBox(height: 16),
                           OutlinedButton.icon(
                             icon: const Icon(Icons.refresh_rounded, size: 16),
@@ -327,11 +394,13 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Row(
+                                      Wrap(
+                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        spacing: 6,
+                                        runSpacing: 4,
                                         children: [
                                           Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
-                                          const SizedBox(width: 8),
-                                          if (isShopkeeper) ...[
+                                          if (isShopkeeper)
                                             Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                               decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFF86EFAC))),
@@ -344,14 +413,11 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                                                 ],
                                               ),
                                             ),
-                                            const SizedBox(width: 6),
-                                          ],
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                             decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(6)),
                                             child: const Text('AI Verified', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF059669))),
                                           ),
-                                          const SizedBox(width: 6),
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                             decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(6)),
@@ -389,12 +455,12 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                                 const SizedBox(width: 8),
                                 ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF10B981),
+                                    backgroundColor: isShopkeeper ? const Color(0xFF16A34A) : const Color(0xFF10B981),
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                   ),
-                                  icon: const Icon(Icons.verified_rounded, size: 16),
-                                  label: const Text('Approve & Activate'),
+                                  icon: Icon(isShopkeeper ? Icons.store_mall_directory_rounded : Icons.verified_rounded, size: 16),
+                                  label: Text(isShopkeeper ? 'Approve Store & Activate' : 'Approve & Activate'),
                                   onPressed: () => _executeApprove(id, name, p),
                                 ),
                               ],
