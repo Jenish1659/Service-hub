@@ -132,7 +132,13 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
-            onPressed: () => context.go('/role-selection'),
+            tooltip: 'Sign Out',
+            onPressed: () async {
+              await LocalRegistrationCache.logout();
+              if (context.mounted) {
+                context.go('/role-selection');
+              }
+            },
           ),
         ],
       ),

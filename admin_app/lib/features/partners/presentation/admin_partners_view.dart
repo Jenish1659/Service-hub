@@ -299,12 +299,14 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
 
                       final isExpanded = _expandedIds.contains(id);
 
+                      final isShopkeeper = category.toLowerCase().contains('shop') || (p['category'] ?? '').toString().toLowerCase().contains('shop');
+
                       return Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: isShopkeeper ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,8 +317,10 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                               children: [
                                 CircleAvatar(
                                   radius: 24,
-                                  backgroundColor: const Color(0xFFEFF6FF),
-                                  child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'P', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2563EB), fontSize: 18)),
+                                  backgroundColor: isShopkeeper ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
+                                  child: isShopkeeper
+                                      ? const Icon(Icons.storefront_rounded, color: Color(0xFF16A34A), size: 24)
+                                      : Text(name.isNotEmpty ? name[0].toUpperCase() : 'P', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2563EB), fontSize: 18)),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -327,6 +331,21 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                                         children: [
                                           Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
                                           const SizedBox(width: 8),
+                                          if (isShopkeeper) ...[
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                              decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFF86EFAC))),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.store_mall_directory_rounded, size: 12, color: Color(0xFF16A34A)),
+                                                  SizedBox(width: 4),
+                                                  Text('Shop Partner', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF15803D))),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                          ],
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                             decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(6)),

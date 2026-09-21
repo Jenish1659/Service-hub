@@ -6,7 +6,6 @@ import 'package:service_hub_partner/features/profile/presentation/screens/active
 import 'package:service_hub_partner/features/profile/presentation/screens/change_password_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/data_and_permissions_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/delete_account_screen.dart';
-import 'package:service_hub_partner/features/profile/presentation/screens/help_and_support_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/login_and_security_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/phone_and_email_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/privacy_controls_screen.dart';

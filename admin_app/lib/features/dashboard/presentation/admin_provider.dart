@@ -179,6 +179,11 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           pMap['full_name'] = (item['full_name'] ?? item['name'] ?? 'Partner Candidate').toString();
           pMap['phone'] = (item['phone'] ?? '').toString();
           pMap['email'] = (item['email'] ?? '').toString();
+          pMap['business_name'] = (item['business_name'] ?? '').toString();
+          pMap['category'] = (item['category'] ?? 'shopkeeper').toString();
+          pMap['category_name'] = (item['category_name'] ?? (pMap['category'] == 'shopkeeper' ? 'Shopkeeper (Store Vendor)' : 'Service Provider')).toString();
+          pMap['business_address'] = (item['business_address'] ?? item['address'] ?? '').toString();
+          pMap['role_name'] = (item['role_name'] ?? item['role'] ?? pMap['category']).toString();
           pMap['status'] = status;
           _persistedPendingPartners[id] = pMap;
         }
@@ -229,6 +234,17 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           final bName = (item['business_name'] ?? extractFromRemarks(remarks, 'Business')).toString();
           final bAddr = (item['business_address'] ?? extractFromRemarks(remarks, 'Address')).toString();
 
+          final roleFromRemarks = extractFromRemarks(remarks, 'Role').toLowerCase();
+          final catFromRemarks = extractFromRemarks(remarks, 'Category');
+          final isShop = roleFromRemarks == 'shopkeeper' ||
+              catFromRemarks.toLowerCase().contains('shop') ||
+              (item['verification_type']?.toString().toLowerCase().contains('shop') ?? false);
+
+          final parsedCategory = isShop ? 'shopkeeper' : (item['verification_type'] ?? 'ac_service');
+          final parsedCategoryName = isShop
+              ? (catFromRemarks.isNotEmpty ? 'Shopkeeper ($catFromRemarks)' : 'Shopkeeper (Store Vendor)')
+              : (item['category_name'] ?? 'AC Service Provider');
+
           _persistedPendingPartners[id] = {
             'id': id,
             'verification_id': id,
@@ -239,10 +255,10 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
             'last_name': lName,
             'phone': realPhone,
             'email': realEmail,
-            'business_name': bName.isNotEmpty ? bName : '$displayName Services',
+            'business_name': bName.isNotEmpty ? bName : (isShop ? '$displayName Store' : '$displayName Services'),
             'business_address': bAddr,
-            'category': item['verification_type'] ?? 'ac_service',
-            'category_name': item['category_name'] ?? 'AC Service Provider',
+            'category': parsedCategory,
+            'category_name': parsedCategoryName,
             'city': profile['city'] ?? '',
             'state': profile['state'] ?? '',
             'status': item['status'] ?? 'PENDING',
@@ -287,6 +303,12 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           final full = '$fN $lN'.trim();
           final name = full.isNotEmpty ? full : (u['username'] ?? u['email'] ?? 'Partner Candidate').toString();
           
+          final bName = (p['business_name'] ?? '').toString();
+          final isShop = bName.toLowerCase().contains('store') ||
+              bName.toLowerCase().contains('shop') ||
+              bName.toLowerCase().contains('electronics') ||
+              (u['role_name'] ?? '').toString().toLowerCase() == 'shopkeeper';
+
           _persistedPendingPartners[checkId] = {
             'id': checkId,
             'verification_id': checkId,
@@ -298,9 +320,9 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
             'last_name': lN,
             'phone': (u['phone'] ?? prof['phone'] ?? '').toString(),
             'email': (u['email'] ?? '').toString(),
-            'business_name': '$name Services',
-            'category': 'ac_service',
-            'category_name': 'AC Service Provider',
+            'business_name': bName.isNotEmpty ? bName : (isShop ? '$name Store' : '$name Services'),
+            'category': isShop ? 'shopkeeper' : 'ac_service',
+            'category_name': isShop ? 'Shopkeeper (Store Vendor)' : 'AC Service Provider',
             'city': (prof['city'] ?? '').toString(),
             'state': (prof['state'] ?? '').toString(),
             'status': 'PENDING',

@@ -97,6 +97,11 @@ class LiveBookingSyncService {
     });
   }
 
+  void stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+  }
+
   void dispose() {
     _pollingTimer?.cancel();
     _bookingsStreamController.close();

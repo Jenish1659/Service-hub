@@ -21,6 +21,7 @@ void main() async {
   );
 
   // Global Error Widget Builder to prevent red/white crash screens
+
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return Material(
       color: Colors.white,

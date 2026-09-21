@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LocalRegistrationCache {
   static const String _boxName = 'partner_cache';
@@ -157,21 +158,29 @@ class LocalRegistrationCache {
   static Future<void> updateActivePartner(Map<String, dynamic> updates) async {
     final current = await getActivePartner() ?? {};
     final updated = {...current, ...updates};
+    _memoryStorage['active_partner_session'] = jsonEncode(updated);
     try {
       final box = _getBox();
       await box.put('active_partner_session', updated);
-    } catch (_) {
-      _memoryStorage['active_partner_session'] = jsonEncode(updated);
-    }
+    } catch (_) {}
+  }
+
+  static void clearMemorySession() {
+    _memoryStorage.remove('active_partner_session');
+    _memoryStorage.remove('active_user_session');
   }
 
   static Future<void> logout() async {
     try {
       final box = _getBox();
       await box.delete('active_partner_session');
-    } catch (_) {
-      _memoryStorage.remove('active_partner_session');
-    }
+      await box.delete('active_user_session');
+    } catch (_) {}
+    clearMemorySession();
+
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } catch (_) {}
   }
 }
 

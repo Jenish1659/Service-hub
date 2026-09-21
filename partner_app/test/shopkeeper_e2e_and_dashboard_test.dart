@@ -1,0 +1,235 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+import 'package:service_hub_partner/core/services/live_booking_sync_service.dart';
+import 'package:service_hub_partner/core/services/supabase_auth_service.dart';
+import 'package:service_hub_partner/core/storage/local_registration_cache.dart';
+import 'package:service_hub_partner/features/dashboard/presentation/shopkeeper_dashboard_screen.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    final tempDir = Directory.systemTemp.createTempSync('hive_shop_test');
+    Hive.init(tempDir.path);
+    final box = await Hive.openBox('partner_cache');
+    await box.clear();
+  });
+
+  tearDownAll(() async {
+    LiveBookingSyncService.instance.stopPolling();
+    final file = File(r'C:\Users\Public\ServiceHub\service_hub_partner_verifications.json');
+    if (file.existsSync()) {
+      try {
+        file.writeAsStringSync('{}');
+      } catch (_) {}
+    }
+  });
+
+  group('Shopkeeper Registration, Admin Approval & Dashboard E2E Tests', () {
+    const testPhone = '9824411223';
+    const testUsername = 'rajesh_electronics';
+    const testPassword = 'ShopPassword@123';
+    String shopkeeperUserId = 'shop_${DateTime.now().millisecondsSinceEpoch}';
+
+    test('1. Shopkeeper registration via SupabaseAuthService sets role=shopkeeper and status=PENDING', () async {
+      final regResult = await SupabaseAuthService.registerShopkeeper(
+        username: testUsername,
+        firstName: 'Rajesh',
+        lastName: 'Kumar',
+        phone: testPhone,
+        password: testPassword,
+        shopName: 'Rajesh Electronics',
+        category: 'AC Service Parts',
+        shopAddress: 'Station Road, Rajkot',
+        city: 'Rajkot',
+        state: 'Gujarat',
+        pincode: '360001',
+        aadhaarNumber: '742918456230',
+        yearsInBusiness: '5+ years',
+      );
+
+      expect(regResult.isSuccess, isTrue);
+      expect(regResult.roleName, equals('shopkeeper'));
+      expect(regResult.userData?['role_name'], equals('shopkeeper'));
+      expect(regResult.userData?['verification_status'], equals('PENDING'));
+      expect(regResult.userData?['business_name'], equals('Rajesh Electronics'));
+
+      shopkeeperUserId = (regResult.userData?['user_id'] ?? shopkeeperUserId).toString();
+
+      // Verify LiveBookingSyncService receives the shopkeeper application
+      final syncRecord = LiveBookingSyncService.instance.getPartnerVerification(shopkeeperUserId) ??
+          LiveBookingSyncService.instance.getPartnerVerification(testPhone) ??
+          LiveBookingSyncService.instance.getPartnerVerification(testUsername);
+
+      expect(syncRecord, isNotNull);
+      expect(syncRecord!['status'], equals('PENDING'));
+      expect(syncRecord['business_name'], equals('Rajesh Electronics'));
+      expect(syncRecord['category'], equals('shopkeeper'));
+    });
+
+    test('2. Shopkeeper Login is STRICTLY BLOCKED before Admin Approval', () async {
+      final loginResult = await SupabaseAuthService.loginWithUsernameOrPhone(
+        identifier: testUsername,
+        password: testPassword,
+        expectedRole: 'shopkeeper',
+      );
+
+      // Must be rejected with PENDING_APPROVAL
+      expect(loginResult.isSuccess, isFalse);
+      expect(loginResult.errorMessage, contains('PENDING_APPROVAL'));
+    });
+
+    test('3. Admin Approves Shopkeeper in Verification Queue', () async {
+      // Simulate Admin App executing _approvePartnerProfile
+      await LiveBookingSyncService.instance.approvePartnerVerification(shopkeeperUserId);
+      await LiveBookingSyncService.instance.approvePartnerVerification(testPhone);
+
+      final updatedSync = LiveBookingSyncService.instance.getPartnerVerification(shopkeeperUserId) ??
+          LiveBookingSyncService.instance.getPartnerVerification(testPhone);
+
+      expect(updatedSync, isNotNull);
+      expect(updatedSync!['status'], anyOf(equals('APPROVED'), equals('VERIFIED')));
+    });
+
+    test('4. Shopkeeper Login SUCCEEDS after Admin Approval', () async {
+      final loginResult = await SupabaseAuthService.loginWithUsernameOrPhone(
+        identifier: testUsername,
+        password: testPassword,
+        expectedRole: 'shopkeeper',
+      );
+
+      expect(loginResult.isSuccess, isTrue);
+      expect(loginResult.roleName, equals('shopkeeper'));
+      expect(loginResult.userData?['verification_status'], anyOf(equals('VERIFIED'), equals('APPROVED')));
+    });
+
+    testWidgets('5. ShopkeeperDashboardScreen renders all visual sections from media_1789904227036.png', (WidgetTester tester) async {
+      LiveBookingSyncService.instance.stopPolling();
+
+      // Set active verified partner in cache via runAsync to handle disk I/O
+      await tester.runAsync(() async {
+        await LocalRegistrationCache.saveRegisteredPartner({
+          'user_id': shopkeeperUserId,
+          'name': 'Rajesh Kumar',
+          'full_name': 'Rajesh Kumar',
+          'business_name': 'Rajesh Electronics',
+          'business_address': 'Station Road, Rajkot',
+          'category': 'AC Service Parts',
+          'verification_status': 'VERIFIED',
+          'phone': testPhone,
+          'role_name': 'shopkeeper',
+        });
+      });
+
+      tester.view.physicalSize = const Size(1080, 2200);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: ShopkeeperDashboardScreen(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Top Header
+      expect(find.text('SERVICEHUB'), findsOneWidget);
+      expect(find.text('SHOP PARTNER'), findsOneWidget);
+
+      // Hero Greeting Card
+      expect(find.text('Good Morning, Rajesh Kumar 👋'), findsOneWidget);
+      expect(find.text('Rajesh Electronics'), findsWidgets);
+      expect(find.text('Verified Shop'), findsOneWidget);
+      expect(find.text('"Quality Products Happier Homes!"'), findsOneWidget);
+
+      // Status & Hours
+      expect(find.text('Shop Status'), findsOneWidget);
+      expect(find.text('Today\'s Hours'), findsOneWidget);
+
+      // 4 Key Metrics
+      expect(find.text('New Orders'), findsOneWidget);
+      expect(find.text('Today\'s Orders'), findsOneWidget);
+      expect(find.text('Today\'s Sales'), findsOneWidget);
+      expect(find.text('Shop Rating'), findsOneWidget);
+
+      // Quick Actions
+      expect(find.text('Add Product'), findsWidgets);
+      expect(find.text('Manage Products'), findsOneWidget);
+      expect(find.text('Inventory'), findsOneWidget);
+      expect(find.text('Offers'), findsOneWidget);
+      expect(find.text('View Earnings'), findsOneWidget);
+
+      // Stock Up Banner & Alerts
+      expect(find.text('Stock Up. Sell More.'), findsOneWidget);
+      expect(find.text('Inventory Alerts'), findsOneWidget);
+      expect(find.text('4 Low Stock Items'), findsOneWidget);
+      expect(find.text('2 Out of Stock'), findsOneWidget);
+
+      // Recent Orders Header & Items
+      expect(find.text('Recent Orders'), findsOneWidget);
+      expect(find.text('#SH1024 AC Remote'), findsOneWidget);
+      expect(find.text('#SH1023 Water Filter'), findsOneWidget);
+      expect(find.text('#SH1021 Washing Machine Belt'), findsOneWidget);
+
+      // Bottom Nav Items
+      expect(find.text('Home'), findsOneWidget);
+      expect(find.text('Orders'), findsOneWidget);
+      expect(find.text('Products'), findsOneWidget);
+      expect(find.text('Earnings'), findsOneWidget);
+      expect(find.text('Profile'), findsOneWidget);
+    });
+
+    testWidgets('6. Shopkeeper can toggle Open/Closed status and accept orders interactively', (WidgetTester tester) async {
+      LiveBookingSyncService.instance.stopPolling();
+      tester.view.physicalSize = const Size(1080, 2200);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: ShopkeeperDashboardScreen(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Toggle Open switch
+      final switchFinder = find.byType(Switch);
+      expect(switchFinder, findsOneWidget);
+      await tester.tap(switchFinder);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Expect toggle update
+      expect(find.text('Store is closed'), findsOneWidget);
+
+      // Reopen
+      await tester.tap(switchFinder);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('You are open for orders'), findsOneWidget);
+
+      // Tap Accept Order button on the first order (#SH1024)
+      final acceptBtn = find.text('Accept Order');
+      await tester.ensureVisible(acceptBtn);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(acceptBtn, findsOneWidget);
+      await tester.tap(acceptBtn);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Status should now transition to Preparing!
+      expect(find.text('Order #SH1024 marked as Preparing!'), findsOneWidget);
+    });
+  });
+}

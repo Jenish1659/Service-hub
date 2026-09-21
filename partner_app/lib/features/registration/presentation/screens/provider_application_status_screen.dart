@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/storage/local_registration_cache.dart';
@@ -148,16 +149,51 @@ class _ProviderApplicationStatusScreenState
         _partnerData!['status'] = 'APPROVED';
       });
     }
-    LocalRegistrationCache.updateActivePartner({'verification_status': 'VERIFIED', 'status': 'APPROVED'});
+    LocalRegistrationCache.updateActivePartner({
+      ...(_partnerData ?? {}),
+      'verification_status': 'VERIFIED',
+      'status': 'APPROVED',
+    });
   }
 
   Future<void> _loadPartnerData() async {
-    Map<String, dynamic>? partner = await LocalRegistrationCache.getRegisteredPartner();
+    Map<String, dynamic>? partner;
+
+    // 1. Prioritize explicit search / extra identifier
+    final searchId = _searchController.text.trim();
+    if (searchId.isNotEmpty) {
+      partner = LiveBookingSyncService.instance.getPartnerVerification(searchId);
+      if (partner == null) {
+        try {
+          if (Hive.isBoxOpen('partner_cache')) {
+            final box = Hive.box('partner_cache');
+            final List<dynamic> rawUsers = [
+              ...(box.get('registered_users_list', defaultValue: []) as List<dynamic>),
+              ...(box.get('registered_partners_list', defaultValue: []) as List<dynamic>),
+            ];
+            final clean = searchId.toLowerCase().replaceAll('@', '').replaceAll('+', '').replaceAll(' ', '');
+            for (final item in rawUsers) {
+              if (item is Map) {
+                final uName = (item['username'] ?? '').toString().toLowerCase().replaceAll('@', '').replaceAll(' ', '');
+                final uPhone = (item['phone'] ?? item['mobile'] ?? '').toString().toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+                if (uName == clean || uPhone == clean || (clean.length >= 10 && uPhone.endsWith(clean))) {
+                  partner = Map<String, dynamic>.from(item);
+                  break;
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    // 2. If not found by search query, fall back to registered / active partner session
+    partner ??= await LocalRegistrationCache.getRegisteredPartner();
     partner ??= await LocalRegistrationCache.getActivePartner();
 
-    // If still null and search text is available, look up in LiveBookingSyncService
-    if (partner == null && _searchController.text.trim().isNotEmpty) {
-      partner = LiveBookingSyncService.instance.getPartnerVerification(_searchController.text.trim());
+    // 3. Fallback to LiveBookingSyncService if still null
+    if (partner == null && searchId.isNotEmpty) {
+      partner = LiveBookingSyncService.instance.getPartnerVerification(searchId);
     }
 
     if (mounted) {
@@ -214,7 +250,7 @@ class _ProviderApplicationStatusScreenState
 
     return StreamBuilder<Map<String, dynamic>?>(
       stream: LiveBookingSyncService.instance.streamPartnerVerification(partnerId),
-      builder: (context, snapshot) {
+      builder: (ctx, snapshot) {
         final liveRecord = snapshot.data ??
             (trackedPhone.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(trackedPhone) : null) ??
             (trackedUId.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(trackedUId) : null);
@@ -223,6 +259,13 @@ class _ProviderApplicationStatusScreenState
             .toUpperCase();
         final isApproved = status == 'APPROVED' || status == 'VERIFIED';
         final isRejected = status == 'REJECTED';
+
+        final role = (liveRecord?['role_name'] ?? liveRecord?['role'] ?? _partnerData?['role_name'] ?? _partnerData?['role'] ?? _partnerData?['partner_type'] ?? '').toString().toLowerCase();
+        final category = (liveRecord?['category'] ?? liveRecord?['category_name'] ?? _partnerData?['category'] ?? _partnerData?['service_category'] ?? _partnerData?['category_name'] ?? '').toString().toLowerCase();
+        final isShopkeeper = role.contains('shop') || role.contains('store') || category.contains('shop');
+        final isDelivery = role.contains('delivery') || role.contains('agent');
+
+        final activeThemeColor = isShopkeeper ? const Color(0xFF16A34A) : (isDelivery ? const Color(0xFFEA580C) : primaryColor);
 
         return Scaffold(
           backgroundColor: Colors.white,
@@ -244,21 +287,26 @@ class _ProviderApplicationStatusScreenState
               onPressed: () {
                 if (context.canPop()) {
                   context.pop();
+                } else if (isShopkeeper) {
+                  context.go('/login/shopkeeper');
+                } else if (isDelivery) {
+                  context.go('/login/delivery');
                 } else {
                   context.go('/login/service-provider');
                 }
               },
             ),
-            title: const Text(
-              'Application Status',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+            title: Text(
+              isShopkeeper ? 'Store Application Status' : (isDelivery ? 'Delivery Partner Status' : 'Application Status'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
             ),
             centerTitle: true,
             actions: [
               IconButton(
                 tooltip: 'Refresh Status',
-                icon: const Icon(Icons.refresh_rounded, size: 20, color: primaryColor),
+                icon: Icon(Icons.refresh_rounded, size: 20, color: activeThemeColor),
                 onPressed: () {
+                  _loadPartnerData();
                   _checkRemoteSupabaseStatus();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -302,25 +350,31 @@ class _ProviderApplicationStatusScreenState
                                     child: TextField(
                                       controller: _searchController,
                                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
-                                      decoration: const InputDecoration(
-                                        hintText: 'Track by Mobile Number or Application ID',
-                                        hintStyle: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                      decoration: InputDecoration(
+                                        hintText: isShopkeeper
+                                            ? 'Track by Store Mobile Number or ID'
+                                            : (isDelivery ? 'Track by Rider Mobile or ID' : 'Track by Mobile Number or Application ID'),
+                                        hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
                                         border: InputBorder.none,
                                         isDense: true,
                                         contentPadding: EdgeInsets.zero,
                                       ),
-                                      onSubmitted: (_) => _checkRemoteSupabaseStatus(),
+                                      onSubmitted: (_) {
+                                        _loadPartnerData();
+                                        _checkRemoteSupabaseStatus();
+                                      },
                                     ),
                                   ),
                                   InkWell(
                                     onTap: () {
+                                      _loadPartnerData();
                                       _checkRemoteSupabaseStatus();
                                     },
                                     borderRadius: BorderRadius.circular(8),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                       decoration: BoxDecoration(
-                                        color: primaryColor,
+                                        color: activeThemeColor,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Text(
@@ -362,7 +416,7 @@ class _ProviderApplicationStatusScreenState
                                             const SizedBox(width: 6),
                                             InkWell(
                                               onTap: _copyAppId,
-                                              child: const Icon(Icons.copy_rounded, size: 16, color: primaryColor),
+                                              child: Icon(Icons.copy_rounded, size: 16, color: activeThemeColor),
                                             ),
                                           ],
                                         ),
@@ -406,29 +460,39 @@ class _ProviderApplicationStatusScreenState
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.all(10),
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF10B981),
+                                      decoration: BoxDecoration(
+                                        color: isShopkeeper ? const Color(0xFF16A34A) : const Color(0xFF10B981),
                                         shape: BoxShape.circle,
                                       ),
-                                      child: const Icon(Icons.verified_rounded, color: Colors.white, size: 28),
+                                      child: Icon(
+                                        isShopkeeper ? Icons.storefront_rounded : (isDelivery ? Icons.two_wheeler_rounded : Icons.verified_rounded),
+                                        color: Colors.white,
+                                        size: 28,
+                                      ),
                                     ),
                                     const SizedBox(width: 14),
-                                    const Expanded(
+                                    Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            '🎉 Account Activated & Approved!',
-                                            style: TextStyle(
+                                            isShopkeeper
+                                                ? '🎉 Store Activated & Approved!'
+                                                : (isDelivery ? '🎉 Delivery Partner Activated!' : '🎉 Account Activated & Approved!'),
+                                            style: const TextStyle(
                                               fontSize: 15,
                                               fontWeight: FontWeight.w900,
                                               color: Color(0xFF065F46),
                                             ),
                                           ),
-                                          SizedBox(height: 3),
+                                          const SizedBox(height: 3),
                                           Text(
-                                            'Admin has approved your KYC documents. You are now authorized to accept incoming service requests!',
-                                            style: TextStyle(fontSize: 11.5, color: Color(0xFF047857), height: 1.3),
+                                            isShopkeeper
+                                                ? 'Admin has verified and approved your store registration. Your shop is active and you can now open the shopkeeper dashboard!'
+                                                : (isDelivery
+                                                    ? 'Admin has approved your driver KYC. You can now accept deliveries!'
+                                                    : 'Admin has approved your KYC documents. You are now authorized to accept incoming service requests!'),
+                                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF047857), height: 1.3),
                                           ),
                                         ],
                                       ),
@@ -440,7 +504,12 @@ class _ProviderApplicationStatusScreenState
                             ],
 
                             // 3. Status Timeline Tracker
-                            _buildStatusTimeline(isApproved: isApproved, isRejected: isRejected),
+                            _buildStatusTimeline(
+                              isApproved: isApproved,
+                              isRejected: isRejected,
+                              isShopkeeper: isShopkeeper,
+                              isDelivery: isDelivery,
+                            ),
                             const SizedBox(height: 20),
 
                             // 4. Information Notice Box
@@ -462,7 +531,7 @@ class _ProviderApplicationStatusScreenState
                                     ),
                                     child: Icon(
                                       isApproved ? Icons.check_circle_outline_rounded : Icons.access_time_rounded,
-                                      color: isApproved ? const Color(0xFF16A34A) : primaryColor,
+                                      color: isApproved ? const Color(0xFF16A34A) : activeThemeColor,
                                       size: 20,
                                     ),
                                   ),
@@ -490,7 +559,7 @@ class _ProviderApplicationStatusScreenState
                                               style: TextStyle(
                                                 fontSize: 12.5,
                                                 fontWeight: FontWeight.w900,
-                                                color: isApproved ? const Color(0xFF16A34A) : primaryColor,
+                                                color: isApproved ? const Color(0xFF16A34A) : activeThemeColor,
                                               ),
                                             ),
                                           ],
@@ -498,8 +567,12 @@ class _ProviderApplicationStatusScreenState
                                         const SizedBox(height: 4),
                                         Text(
                                           isApproved
-                                              ? 'Your profile is live in ${(_partnerData?['city'] != null && _partnerData!['city'].toString().trim().isNotEmpty ? _partnerData!['city'] : 'your service')} dispatch radius. You can now toggle Online and receive job leads.'
-                                              : 'Our AI verification engine has analyzed your documents. Admin review is pending.',
+                                              ? (isShopkeeper
+                                                  ? 'Your store is live in ${(_partnerData?['city'] != null && _partnerData!['city'].toString().trim().isNotEmpty ? _partnerData!['city'] : 'your area')}. You can now manage inventory and receive orders.'
+                                                  : 'Your profile is live in ${(_partnerData?['city'] != null && _partnerData!['city'].toString().trim().isNotEmpty ? _partnerData!['city'] : 'your service')} dispatch radius. You can now toggle Online and receive job leads.')
+                                              : (isShopkeeper
+                                                  ? 'Our AI verification engine has analyzed your store documents. Admin review is pending.'
+                                                  : 'Our AI verification engine has analyzed your documents. Admin review is pending.'),
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: isApproved ? const Color(0xFF15803D) : const Color(0xFF3B82F6),
@@ -548,9 +621,31 @@ class _ProviderApplicationStatusScreenState
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 elevation: isApproved ? 2 : 0,
                               ),
-                              onPressed: () {
+                              onPressed: () async {
                                 if (isApproved) {
-                                  context.go('/dashboard');
+                                  final sessionPayload = Map<String, dynamic>.from(liveRecord ?? _partnerData ?? {});
+                                  sessionPayload['verification_status'] = 'VERIFIED';
+                                  sessionPayload['status'] = 'APPROVED';
+
+                                  if (isShopkeeper) {
+                                    sessionPayload['role_name'] = 'shopkeeper';
+                                    await LocalRegistrationCache.updateActivePartner(sessionPayload);
+                                    if (context.mounted) {
+                                      context.go('/dashboard/shopkeeper');
+                                    }
+                                  } else if (isDelivery) {
+                                    sessionPayload['role_name'] = 'delivery_agent';
+                                    await LocalRegistrationCache.updateActivePartner(sessionPayload);
+                                    if (context.mounted) {
+                                      context.go('/dashboard/delivery');
+                                    }
+                                  } else {
+                                    sessionPayload['role_name'] = 'service_provider';
+                                    await LocalRegistrationCache.updateActivePartner(sessionPayload);
+                                    if (context.mounted) {
+                                      context.go('/dashboard');
+                                    }
+                                  }
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -568,7 +663,13 @@ class _ProviderApplicationStatusScreenState
                                   const SizedBox(width: 8),
                                   Flexible(
                                     child: Text(
-                                      isApproved ? 'Launch Partner Dashboard 🚀' : 'Dashboard Locked (Awaiting Admin Approval)',
+                                      isApproved
+                                          ? (isShopkeeper
+                                              ? 'Launch Shop Dashboard 🏪'
+                                              : (isDelivery ? 'Launch Delivery Dashboard 🛵' : 'Launch Partner Dashboard 🚀'))
+                                          : (isShopkeeper
+                                              ? 'Shop Dashboard Locked (Awaiting Admin Approval)'
+                                              : 'Dashboard Locked (Awaiting Admin Approval)'),
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.white),
                                     ),
@@ -590,9 +691,22 @@ class _ProviderApplicationStatusScreenState
                                     side: const BorderSide(color: Color(0xFFCBD5E1)),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   ),
-                                  onPressed: () => context.go('/login/service-provider'),
+                                  onPressed: () {
+                                    if (isShopkeeper) {
+                                      context.go('/login/shopkeeper');
+                                    } else if (isDelivery) {
+                                      context.go('/login/delivery');
+                                    } else {
+                                      context.go('/login/service-provider');
+                                    }
+                                  },
                                   icon: const Icon(Icons.login_rounded, size: 16, color: Color(0xFF334155)),
-                                  label: const Text('Return to Provider Login', style: TextStyle(color: Color(0xFF334155), fontWeight: FontWeight.w600, fontSize: 13)),
+                                  label: Text(
+                                    isShopkeeper
+                                        ? 'Return to Shopkeeper Login'
+                                        : (isDelivery ? 'Return to Delivery Login' : 'Return to Provider Login'),
+                                    style: const TextStyle(color: Color(0xFF334155), fontWeight: FontWeight.w600, fontSize: 13),
+                                  ),
                                 ),
                               ),
                             ],
@@ -610,59 +724,174 @@ class _ProviderApplicationStatusScreenState
     );
   }
 
-  Widget _buildStatusTimeline({bool isApproved = false, bool isRejected = false}) {
-    final steps = [
-      _TimelineStepData(
-        title: '1. Registration Submitted',
-        date: 'Just Now',
-        desc: 'Your application details have been safely received.',
-        statusTag: 'Completed ✓',
-        statusColor: const Color(0xFF10B981),
-        statusBg: const Color(0xFFDCFCE7),
-        icon: Icons.check_rounded,
-        isCompleted: true,
-        isInProgress: false,
-      ),
-      _TimelineStepData(
-        title: '2. AI Verification Engine',
-        date: 'Verified (Score: 0.02 - Low Risk)',
-        desc: 'Aadhaar QR, FaceRD biometrics, and Bank Penny Drop ₹1 verified.',
-        statusTag: 'Passed ✓',
-        statusColor: const Color(0xFF10B981),
-        statusBg: const Color(0xFFDCFCE7),
-        icon: Icons.check_rounded,
-        isCompleted: true,
-        isInProgress: false,
-      ),
-      _TimelineStepData(
-        title: '3. Admin Review & Approval Request',
-        date: isApproved ? 'Approved by Admin' : (isRejected ? 'Application Rejected' : 'Awaiting Admin Approval'),
-        desc: isApproved
-            ? 'Admin verified your KYC documents and authorized partner activation.'
-            : (isRejected
-                ? 'Application requires document correction or support contact.'
-                : 'Your request is in the Admin verification queue. A check mark will appear here once Admin approves.'),
-        statusTag: isApproved ? 'Approved ✓' : (isRejected ? 'Rejected' : 'Unchecked (Pending)'),
-        statusColor: isApproved ? const Color(0xFF10B981) : (isRejected ? const Color(0xFFEF4444) : const Color(0xFFD97706)),
-        statusBg: isApproved ? const Color(0xFFDCFCE7) : (isRejected ? const Color(0xFFFEE2E2) : const Color(0xFFFEF3C7)),
-        icon: isApproved ? Icons.check_rounded : (isRejected ? Icons.close_rounded : Icons.radio_button_unchecked_rounded),
-        isCompleted: isApproved,
-        isInProgress: false,
-      ),
-      _TimelineStepData(
-        title: '4. Final Approval & Dashboard Access',
-        date: isApproved ? 'Account Activated & Dashboard Unlocked' : 'Pending Admin Approval',
-        desc: isApproved
-            ? 'Your account is active. You can now login and enter your partner dashboard.'
-            : 'Dashboard access is locked until Admin approves your request.',
-        statusTag: isApproved ? 'Unlocked ✓' : 'Locked (Unchecked)',
-        statusColor: isApproved ? const Color(0xFF10B981) : const Color(0xFF64748B),
-        statusBg: isApproved ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
-        icon: isApproved ? Icons.check_rounded : Icons.radio_button_unchecked_rounded,
-        isCompleted: isApproved,
-        isInProgress: false,
-      ),
-    ];
+  Widget _buildStatusTimeline({
+    bool isApproved = false,
+    bool isRejected = false,
+    bool isShopkeeper = false,
+    bool isDelivery = false,
+  }) {
+    List<_TimelineStepData> steps;
+
+    if (isShopkeeper) {
+      steps = [
+        _TimelineStepData(
+          title: '1. Store Registration Submitted',
+          date: 'Just Now',
+          desc: 'Your store details, address, and category have been safely submitted.',
+          statusTag: 'Completed ✓',
+          statusColor: const Color(0xFF10B981),
+          statusBg: const Color(0xFFDCFCE7),
+          icon: Icons.check_rounded,
+          isCompleted: true,
+          isInProgress: false,
+        ),
+        _TimelineStepData(
+          title: '2. Store Documents & KYC Verification',
+          date: 'Verified (Score: 0.02 - Low Risk)',
+          desc: 'Owner Aadhaar, shop licence, and storefront location verified.',
+          statusTag: 'Passed ✓',
+          statusColor: const Color(0xFF10B981),
+          statusBg: const Color(0xFFDCFCE7),
+          icon: Icons.check_rounded,
+          isCompleted: true,
+          isInProgress: false,
+        ),
+        _TimelineStepData(
+          title: '3. Admin Store Review & Approval Request',
+          date: isApproved ? 'Approved by Admin' : (isRejected ? 'Store Application Rejected' : 'Awaiting Admin Approval'),
+          desc: isApproved
+              ? 'Admin verified your shop details and authorized store activation.'
+              : (isRejected
+                  ? 'Store application requires document correction or support contact.'
+                  : 'Your shop request is in the Admin verification queue. A check mark will appear here once Admin approves.'),
+          statusTag: isApproved ? 'Approved ✓' : (isRejected ? 'Rejected' : 'Unchecked (Pending)'),
+          statusColor: isApproved ? const Color(0xFF10B981) : (isRejected ? const Color(0xFFEF4444) : const Color(0xFFD97706)),
+          statusBg: isApproved ? const Color(0xFFDCFCE7) : (isRejected ? const Color(0xFFFEE2E2) : const Color(0xFFFEF3C7)),
+          icon: isApproved ? Icons.check_rounded : (isRejected ? Icons.close_rounded : Icons.radio_button_unchecked_rounded),
+          isCompleted: isApproved,
+          isInProgress: false,
+        ),
+        _TimelineStepData(
+          title: '4. Store Dashboard Access',
+          date: isApproved ? 'Store Open & Active' : 'Pending Admin Approval',
+          desc: isApproved
+              ? 'Your shop is open! You can now manage inventory, orders, and sales in the Shopkeeper Dashboard.'
+              : 'Shop Dashboard access is locked until Admin approves your request.',
+          statusTag: isApproved ? 'Unlocked ✓' : 'Locked (Unchecked)',
+          statusColor: isApproved ? const Color(0xFF10B981) : const Color(0xFF64748B),
+          statusBg: isApproved ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+          icon: isApproved ? Icons.check_rounded : Icons.radio_button_unchecked_rounded,
+          isCompleted: isApproved,
+          isInProgress: false,
+        ),
+      ];
+    } else if (isDelivery) {
+      steps = [
+        _TimelineStepData(
+          title: '1. Delivery Agent Registration',
+          date: 'Just Now',
+          desc: 'Your rider profile and vehicle details have been safely received.',
+          statusTag: 'Completed ✓',
+          statusColor: const Color(0xFF10B981),
+          statusBg: const Color(0xFFDCFCE7),
+          icon: Icons.check_rounded,
+          isCompleted: true,
+          isInProgress: false,
+        ),
+        _TimelineStepData(
+          title: '2. Driving License & KYC Verification',
+          date: 'Verified (Score: 0.02 - Low Risk)',
+          desc: 'DL, vehicle registration, and Aadhaar verified.',
+          statusTag: 'Passed ✓',
+          statusColor: const Color(0xFF10B981),
+          statusBg: const Color(0xFFDCFCE7),
+          icon: Icons.check_rounded,
+          isCompleted: true,
+          isInProgress: false,
+        ),
+        _TimelineStepData(
+          title: '3. Admin Review & Approval',
+          date: isApproved ? 'Approved by Admin' : (isRejected ? 'Application Rejected' : 'Awaiting Admin Approval'),
+          desc: isApproved
+              ? 'Admin approved your rider application. You are ready to deliver!'
+              : (isRejected
+                  ? 'Application rejected. Please check requirements.'
+                  : 'Your rider application is in the Admin verification queue. A check mark will appear here once Admin approves.'),
+          statusTag: isApproved ? 'Approved ✓' : (isRejected ? 'Rejected' : 'Unchecked (Pending)'),
+          statusColor: isApproved ? const Color(0xFF10B981) : (isRejected ? const Color(0xFFEF4444) : const Color(0xFFD97706)),
+          statusBg: isApproved ? const Color(0xFFDCFCE7) : (isRejected ? const Color(0xFFFEE2E2) : const Color(0xFFFEF3C7)),
+          icon: isApproved ? Icons.check_rounded : (isRejected ? Icons.close_rounded : Icons.radio_button_unchecked_rounded),
+          isCompleted: isApproved,
+          isInProgress: false,
+        ),
+        _TimelineStepData(
+          title: '4. Rider Dashboard Access',
+          date: isApproved ? 'Rider Dashboard Unlocked' : 'Pending Admin Approval',
+          desc: isApproved
+              ? 'You can now view delivery requests and earn on every dispatch.'
+              : 'Delivery dashboard is locked until Admin approves your request.',
+          statusTag: isApproved ? 'Unlocked ✓' : 'Locked (Unchecked)',
+          statusColor: isApproved ? const Color(0xFF10B981) : const Color(0xFF64748B),
+          statusBg: isApproved ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+          icon: isApproved ? Icons.check_rounded : Icons.radio_button_unchecked_rounded,
+          isCompleted: isApproved,
+          isInProgress: false,
+        ),
+      ];
+    } else {
+      steps = [
+        _TimelineStepData(
+          title: '1. Registration Submitted',
+          date: 'Just Now',
+          desc: 'Your application details have been safely received.',
+          statusTag: 'Completed ✓',
+          statusColor: const Color(0xFF10B981),
+          statusBg: const Color(0xFFDCFCE7),
+          icon: Icons.check_rounded,
+          isCompleted: true,
+          isInProgress: false,
+        ),
+        _TimelineStepData(
+          title: '2. AI Verification Engine',
+          date: 'Verified (Score: 0.02 - Low Risk)',
+          desc: 'Aadhaar QR, FaceRD biometrics, and Bank Penny Drop ₹1 verified.',
+          statusTag: 'Passed ✓',
+          statusColor: const Color(0xFF10B981),
+          statusBg: const Color(0xFFDCFCE7),
+          icon: Icons.check_rounded,
+          isCompleted: true,
+          isInProgress: false,
+        ),
+        _TimelineStepData(
+          title: '3. Admin Review & Approval Request',
+          date: isApproved ? 'Approved by Admin' : (isRejected ? 'Application Rejected' : 'Awaiting Admin Approval'),
+          desc: isApproved
+              ? 'Admin verified your KYC documents and authorized partner activation.'
+              : (isRejected
+                  ? 'Application requires document correction or support contact.'
+                  : 'Your request is in the Admin verification queue. A check mark will appear here once Admin approves.'),
+          statusTag: isApproved ? 'Approved ✓' : (isRejected ? 'Rejected' : 'Unchecked (Pending)'),
+          statusColor: isApproved ? const Color(0xFF10B981) : (isRejected ? const Color(0xFFEF4444) : const Color(0xFFD97706)),
+          statusBg: isApproved ? const Color(0xFFDCFCE7) : (isRejected ? const Color(0xFFFEE2E2) : const Color(0xFFFEF3C7)),
+          icon: isApproved ? Icons.check_rounded : (isRejected ? Icons.close_rounded : Icons.radio_button_unchecked_rounded),
+          isCompleted: isApproved,
+          isInProgress: false,
+        ),
+        _TimelineStepData(
+          title: '4. Final Approval & Dashboard Access',
+          date: isApproved ? 'Account Activated & Dashboard Unlocked' : 'Pending Admin Approval',
+          desc: isApproved
+              ? 'Your account is active. You can now login and enter your partner dashboard.'
+              : 'Dashboard access is locked until Admin approves your request.',
+          statusTag: isApproved ? 'Unlocked ✓' : 'Locked (Unchecked)',
+          statusColor: isApproved ? const Color(0xFF10B981) : const Color(0xFF64748B),
+          statusBg: isApproved ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+          icon: isApproved ? Icons.check_rounded : Icons.radio_button_unchecked_rounded,
+          isCompleted: isApproved,
+          isInProgress: false,
+        ),
+      ];
+    }
 
     return Column(
       children: List.generate(steps.length, (index) {
