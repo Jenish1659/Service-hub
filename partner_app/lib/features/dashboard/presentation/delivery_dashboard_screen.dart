@@ -28,7 +28,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
   Future<void> _loadAgentData() async {
     setState(() => _isLoading = true);
     try {
-      final activeUser = await LocalRegistrationCache.getActivePartner();
+      final activeUser = await LocalRegistrationCache.getActiveDeliveryAgent();
       if (activeUser == null) {
         if (mounted) GoRouter.maybeOf(context)?.go('/login/delivery-agent');
         return;
@@ -123,18 +123,26 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
           children: [
             const Icon(Icons.two_wheeler, color: Colors.white, size: 22),
             const SizedBox(width: 8),
-            Text(
-              'Rider Portal — $_agentName',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+            Expanded(
+              child: Text(
+                'Rider Portal — $_agentName',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.person_rounded, color: Colors.white),
+            tooltip: 'Rider Profile',
+            onPressed: () => context.push('/profile/delivery'),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
             tooltip: 'Sign Out',
             onPressed: () async {
-              await LocalRegistrationCache.logout();
+              await LocalRegistrationCache.logoutDeliveryAgent();
               if (context.mounted) {
                 context.go('/role-selection');
               }

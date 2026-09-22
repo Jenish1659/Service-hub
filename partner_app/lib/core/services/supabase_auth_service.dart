@@ -152,6 +152,7 @@ class SupabaseAuthService {
 
       final bool isApproved = partnerVerStatus == 'VERIFIED' ||
           partnerVerStatus == 'APPROVED' ||
+          accountStatus == 'ACTIVE' ||
           vrStatus == 'APPROVED' ||
           vrStatus == 'VERIFIED' ||
           syncStatus == 'APPROVED' ||
@@ -172,6 +173,9 @@ class SupabaseAuthService {
         'name': usersRes['user_profiles']?['first_name'] != null
             ? '${usersRes['user_profiles']['first_name']} ${usersRes['user_profiles']['last_name'] ?? ""}'.trim()
             : usersRes['username'],
+        'business_name': (partnersData?['shopkeeper_profiles'] is Map)
+            ? partnersData['shopkeeper_profiles']['business_name']
+            : null,
         'partner_id': partnersData?['partner_id'] ?? usersRes['user_id'],
         'provider_id': partnersData?['service_provider_profiles']?['provider_id'],
         'verification_status': isApproved ? 'VERIFIED' : (isRejected ? 'REJECTED' : 'PENDING'),
@@ -855,6 +859,9 @@ class SupabaseAuthService {
 
   static Future<void> _saveActiveSession(Map<String, dynamic> session) async {
     try {
+      final role = (session['role_name'] ?? session['role'] ?? '').toString().toLowerCase();
+      await LocalRegistrationCache.updateActivePartner(session, role);
+
       if (Hive.isBoxOpen(_sessionBoxName)) {
         final box = Hive.box(_sessionBoxName);
         await box.put('active_user_session', session);

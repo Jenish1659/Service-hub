@@ -7,6 +7,14 @@ class LocalRegistrationCache {
   static const String _boxName = 'partner_cache';
   static final Map<String, String> _memoryStorage = {};
 
+  // Distinct Isolated Session Keys
+  static const String _spSessionKey = 'active_service_provider_session';
+  static const String _shopSessionKey = 'active_shopkeeper_session';
+  static const String _deliverySessionKey = 'active_delivery_agent_session';
+  static const String _activeRoleKey = 'current_active_role';
+  static const String _legacyPartnerKey = 'active_partner_session';
+  static const String _legacyUserKey = 'active_user_session';
+
   static Box _getBox() {
     if (Hive.isBoxOpen(_boxName)) {
       return Hive.box(_boxName);
@@ -59,6 +67,301 @@ class LocalRegistrationCache {
     }
   }
 
+  // --- 1. Service Provider Isolated Session Methods ---
+  static Future<Map<String, dynamic>?> getActiveServiceProvider() async {
+    final rawMem = _memoryStorage[_spSessionKey];
+    if (rawMem != null) {
+      try {
+        return jsonDecode(rawMem) as Map<String, dynamic>;
+      } catch (_) {}
+    }
+    try {
+      final box = _getBox();
+      var data = box.get(_spSessionKey);
+      if (data != null && data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+    } catch (_) {}
+    // Fallback: check legacy key only if role is service_provider
+    try {
+      final box = _getBox();
+      final legacy = box.get(_legacyPartnerKey);
+      if (legacy != null && legacy is Map) {
+        final role = (legacy['role_name'] ?? legacy['role'] ?? '').toString().toLowerCase();
+        if (role.isEmpty || role.contains('service') || role.contains('provider')) {
+          return Map<String, dynamic>.from(legacy);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  static Future<void> updateActiveServiceProvider(Map<String, dynamic> updates) async {
+    final current = await getActiveServiceProvider() ?? {};
+    final updated = {...current, ...updates, 'role_name': 'service_provider'};
+    _memoryStorage[_spSessionKey] = jsonEncode(updated);
+    _memoryStorage[_activeRoleKey] = 'service_provider';
+    _memoryStorage[_legacyPartnerKey] = jsonEncode(updated);
+    try {
+      final box = _getBox();
+      box.put(_spSessionKey, updated);
+      box.put(_activeRoleKey, 'service_provider');
+      box.put(_legacyPartnerKey, updated);
+    } catch (_) {}
+  }
+
+  static Future<void> logoutServiceProvider() async {
+    try {
+      final box = _getBox();
+      box.delete(_spSessionKey);
+      if (box.get(_activeRoleKey) == 'service_provider') {
+        box.delete(_activeRoleKey);
+        box.delete(_legacyPartnerKey);
+        box.delete(_legacyUserKey);
+      }
+    } catch (_) {}
+    _memoryStorage.remove(_spSessionKey);
+    if (_memoryStorage[_activeRoleKey] == 'service_provider') {
+      _memoryStorage.remove(_activeRoleKey);
+      _memoryStorage.remove(_legacyPartnerKey);
+      _memoryStorage.remove(_legacyUserKey);
+    }
+  }
+
+  // --- 2. Shopkeeper Isolated Session Methods ---
+  static Future<Map<String, dynamic>?> getActiveShopkeeper() async {
+    final rawMem = _memoryStorage[_shopSessionKey];
+    if (rawMem != null) {
+      try {
+        return jsonDecode(rawMem) as Map<String, dynamic>;
+      } catch (_) {}
+    }
+    try {
+      final box = _getBox();
+      var data = box.get(_shopSessionKey);
+      if (data != null && data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+    } catch (_) {}
+    // Fallback: check legacy key only if role matches shopkeeper
+    try {
+      final box = _getBox();
+      final legacy = box.get(_legacyPartnerKey);
+      if (legacy != null && legacy is Map) {
+        final role = (legacy['role_name'] ?? legacy['role'] ?? legacy['category'] ?? '').toString().toLowerCase();
+        if (role.contains('shop') || role.contains('store')) {
+          return Map<String, dynamic>.from(legacy);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  static Future<void> updateActiveShopkeeper(Map<String, dynamic> updates) async {
+    final current = await getActiveShopkeeper() ?? {};
+    final updated = {...current, ...updates, 'role_name': 'shopkeeper'};
+    _memoryStorage[_shopSessionKey] = jsonEncode(updated);
+    _memoryStorage[_activeRoleKey] = 'shopkeeper';
+    _memoryStorage[_legacyPartnerKey] = jsonEncode(updated);
+    try {
+      final box = _getBox();
+      box.put(_shopSessionKey, updated);
+      box.put(_activeRoleKey, 'shopkeeper');
+      box.put(_legacyPartnerKey, updated);
+    } catch (_) {}
+  }
+
+  static Future<void> logoutShopkeeper() async {
+    try {
+      final box = _getBox();
+      box.delete(_shopSessionKey);
+      if (box.get(_activeRoleKey) == 'shopkeeper') {
+        box.delete(_activeRoleKey);
+        box.delete(_legacyPartnerKey);
+        box.delete(_legacyUserKey);
+      }
+    } catch (_) {}
+    _memoryStorage.remove(_shopSessionKey);
+    if (_memoryStorage[_activeRoleKey] == 'shopkeeper') {
+      _memoryStorage.remove(_activeRoleKey);
+      _memoryStorage.remove(_legacyPartnerKey);
+      _memoryStorage.remove(_legacyUserKey);
+    }
+  }
+
+  // --- 3. Delivery Agent Isolated Session Methods ---
+  static Future<Map<String, dynamic>?> getActiveDeliveryAgent() async {
+    final rawMem = _memoryStorage[_deliverySessionKey];
+    if (rawMem != null) {
+      try {
+        return jsonDecode(rawMem) as Map<String, dynamic>;
+      } catch (_) {}
+    }
+    try {
+      final box = _getBox();
+      var data = box.get(_deliverySessionKey);
+      if (data != null && data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+    } catch (_) {}
+    // Fallback: check legacy key only if role matches delivery
+    try {
+      final box = _getBox();
+      final legacy = box.get(_legacyPartnerKey);
+      if (legacy != null && legacy is Map) {
+        final role = (legacy['role_name'] ?? legacy['role'] ?? '').toString().toLowerCase();
+        if (role.contains('delivery') || role.contains('agent')) {
+          return Map<String, dynamic>.from(legacy);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  static Future<void> updateActiveDeliveryAgent(Map<String, dynamic> updates) async {
+    final current = await getActiveDeliveryAgent() ?? {};
+    final updated = {...current, ...updates, 'role_name': 'delivery_agent'};
+    _memoryStorage[_deliverySessionKey] = jsonEncode(updated);
+    _memoryStorage[_activeRoleKey] = 'delivery_agent';
+    _memoryStorage[_legacyPartnerKey] = jsonEncode(updated);
+    try {
+      final box = _getBox();
+      box.put(_deliverySessionKey, updated);
+      box.put(_activeRoleKey, 'delivery_agent');
+      box.put(_legacyPartnerKey, updated);
+    } catch (_) {}
+  }
+
+  static Future<void> logoutDeliveryAgent() async {
+    try {
+      final box = _getBox();
+      await box.delete(_deliverySessionKey);
+      if (box.get(_activeRoleKey) == 'delivery_agent') {
+        await box.delete(_activeRoleKey);
+        await box.delete(_legacyPartnerKey);
+        await box.delete(_legacyUserKey);
+      }
+    } catch (_) {}
+    _memoryStorage.remove(_deliverySessionKey);
+    if (_memoryStorage[_activeRoleKey] == 'delivery_agent') {
+      _memoryStorage.remove(_activeRoleKey);
+      _memoryStorage.remove(_legacyPartnerKey);
+      _memoryStorage.remove(_legacyUserKey);
+    }
+  }
+
+  // --- Generic Partner Methods (Role-Aware Dispatcher) ---
+  static Future<Map<String, dynamic>?> getActivePartner([String? expectedRole]) async {
+    if (expectedRole != null) {
+      final cleanRole = expectedRole.toLowerCase();
+      if (cleanRole.contains('shop') || cleanRole.contains('store')) {
+        return await getActiveShopkeeper();
+      }
+      if (cleanRole.contains('delivery') || cleanRole.contains('agent')) {
+        return await getActiveDeliveryAgent();
+      }
+      return await getActiveServiceProvider();
+    }
+
+    // Inspect current active role
+    String? currentRole;
+    try {
+      final box = _getBox();
+      currentRole = box.get(_activeRoleKey)?.toString();
+    } catch (_) {
+      currentRole = _memoryStorage[_activeRoleKey];
+    }
+
+    if (currentRole == 'shopkeeper') {
+      final shop = await getActiveShopkeeper();
+      if (shop != null) return shop;
+    } else if (currentRole == 'delivery_agent') {
+      final deliv = await getActiveDeliveryAgent();
+      if (deliv != null) return deliv;
+    } else if (currentRole == 'service_provider') {
+      final sp = await getActiveServiceProvider();
+      if (sp != null) return sp;
+    }
+
+    // Fallback: check isolated keys in order
+    final shop = await getActiveShopkeeper();
+    if (shop != null) return shop;
+    final deliv = await getActiveDeliveryAgent();
+    if (deliv != null) return deliv;
+    final sp = await getActiveServiceProvider();
+    if (sp != null) return sp;
+
+    // Legacy fallback
+    try {
+      final box = _getBox();
+      var data = box.get(_legacyPartnerKey) ?? box.get(_legacyUserKey);
+      if (data != null && data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+    } catch (_) {
+      final raw = _memoryStorage[_legacyPartnerKey] ?? _memoryStorage[_legacyUserKey];
+      if (raw != null) {
+        return jsonDecode(raw) as Map<String, dynamic>;
+      }
+    }
+    return null;
+  }
+
+  static Future<Map<String, dynamic>?> getRegisteredPartner() async {
+    return await getActivePartner();
+  }
+
+  static Future<void> updateActivePartner(Map<String, dynamic> updates, [String? explicitRole]) async {
+    final role = (explicitRole ?? updates['role_name'] ?? updates['role'] ?? updates['category'] ?? '').toString().toLowerCase();
+    if (role.contains('shop') || role.contains('store')) {
+      await updateActiveShopkeeper(updates);
+    } else if (role.contains('delivery') || role.contains('agent')) {
+      await updateActiveDeliveryAgent(updates);
+    } else {
+      await updateActiveServiceProvider(updates);
+    }
+  }
+
+  static void clearMemorySession() {
+    _memoryStorage.remove(_spSessionKey);
+    _memoryStorage.remove(_shopSessionKey);
+    _memoryStorage.remove(_deliverySessionKey);
+    _memoryStorage.remove(_activeRoleKey);
+    _memoryStorage.remove(_legacyPartnerKey);
+    _memoryStorage.remove(_legacyUserKey);
+  }
+
+  static Future<void> logout([String? specificRole]) async {
+    if (specificRole != null) {
+      final clean = specificRole.toLowerCase();
+      if (clean.contains('shop') || clean.contains('store')) {
+        await logoutShopkeeper();
+        return;
+      }
+      if (clean.contains('delivery') || clean.contains('agent')) {
+        await logoutDeliveryAgent();
+        return;
+      }
+      await logoutServiceProvider();
+      return;
+    }
+
+    try {
+      final box = _getBox();
+      await box.delete(_spSessionKey);
+      await box.delete(_shopSessionKey);
+      await box.delete(_deliverySessionKey);
+      await box.delete(_activeRoleKey);
+      await box.delete(_legacyPartnerKey);
+      await box.delete(_legacyUserKey);
+    } catch (_) {}
+    clearMemorySession();
+
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } catch (_) {}
+  }
+
   // --- Registered Partners Storage & Authentication ---
   static Future<void> saveRegisteredPartner(Map<String, dynamic> partnerData) async {
     try {
@@ -74,15 +377,14 @@ class LocalRegistrationCache {
         final box = _getBox();
         final List<dynamic> rawList = box.get('registered_partners_list', defaultValue: []) as List<dynamic>;
         final List<Map<String, dynamic>> partners = rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-        
+
         // Upsert by phone or id
         partners.removeWhere((p) => p['phone'] == phone || p['id'] == id);
         partners.add(payload);
         await box.put('registered_partners_list', partners);
-        await box.put('active_partner_session', payload);
-      } catch (_) {
-        _memoryStorage['active_partner_session'] = jsonEncode(payload);
-      }
+      } catch (_) {}
+
+      await updateActivePartner(payload);
 
       if (kDebugMode) {
         debugPrint('[LocalRegistrationCache] Registered partner saved: ${partnerData['name']} ($phone)');
@@ -109,7 +411,7 @@ class LocalRegistrationCache {
 
         if ((pPhone == cleanId || pEmail == cleanId || pName == cleanId || pPhone.endsWith(cleanId)) &&
             (pPass.isEmpty || pPass == cleanPass)) {
-          await box.put('active_partner_session', p);
+          await updateActivePartner(p);
           return p;
         }
       }
@@ -133,54 +435,4 @@ class LocalRegistrationCache {
 
     return null;
   }
-
-  static Future<Map<String, dynamic>?> getActivePartner() async {
-    try {
-      final box = _getBox();
-      var data = box.get('active_partner_session');
-      data ??= box.get('active_user_session');
-      if (data != null && data is Map) {
-        return Map<String, dynamic>.from(data);
-      }
-    } catch (_) {
-      final raw = _memoryStorage['active_partner_session'] ?? _memoryStorage['active_user_session'];
-      if (raw != null) {
-        return jsonDecode(raw) as Map<String, dynamic>;
-      }
-    }
-    return null;
-  }
-
-  static Future<Map<String, dynamic>?> getRegisteredPartner() async {
-    return await getActivePartner();
-  }
-
-  static Future<void> updateActivePartner(Map<String, dynamic> updates) async {
-    final current = await getActivePartner() ?? {};
-    final updated = {...current, ...updates};
-    _memoryStorage['active_partner_session'] = jsonEncode(updated);
-    try {
-      final box = _getBox();
-      await box.put('active_partner_session', updated);
-    } catch (_) {}
-  }
-
-  static void clearMemorySession() {
-    _memoryStorage.remove('active_partner_session');
-    _memoryStorage.remove('active_user_session');
-  }
-
-  static Future<void> logout() async {
-    try {
-      final box = _getBox();
-      await box.delete('active_partner_session');
-      await box.delete('active_user_session');
-    } catch (_) {}
-    clearMemorySession();
-
-    try {
-      await Supabase.instance.client.auth.signOut();
-    } catch (_) {}
-  }
 }
-

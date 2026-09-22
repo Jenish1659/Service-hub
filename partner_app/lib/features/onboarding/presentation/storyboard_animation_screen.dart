@@ -27,9 +27,9 @@ class _StoryboardAnimationScreenState extends State<StoryboardAnimationScreen> {
     try {
       final activePartner = await LocalRegistrationCache.getActivePartner();
       if (activePartner != null && mounted) {
-        final status = (activePartner['verification_status'] ?? activePartner['status'] ?? '').toString().toUpperCase();
+        final status = (activePartner['verification_status'] ?? activePartner['status'] ?? activePartner['account_status'] ?? '').toString().toUpperCase();
         // Only auto-open dashboard if Admin has APPROVED / VERIFIED the partner
-        if (status == 'VERIFIED' || status == 'APPROVED') {
+        if (status == 'VERIFIED' || status == 'APPROVED' || status == 'ACTIVE') {
           final role = (activePartner['role_name'] ?? activePartner['role'] ?? activePartner['partner_type'] ?? 'service_provider').toString().toLowerCase();
           if (role.contains('delivery') || role.contains('agent')) {
             context.go('/dashboard/delivery');

@@ -1,4 +1,5 @@
 import '../../../../core/services/supabase_auth_service.dart';
+import '../../../../core/storage/local_registration_cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -470,8 +471,11 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
         yearsInBusiness: _yearsInBusiness,
       );
 
-      if (regResult.userData?['user_id'] != null) {
-        _submittedRegistrationId = 'SH-SHOP-2026-${regResult.userData!['user_id'].toString().replaceAll('-', '').substring(0, 6).toUpperCase()}';
+      if (regResult.userData != null) {
+        await LocalRegistrationCache.updateActiveShopkeeper(regResult.userData!);
+        if (regResult.userData!['user_id'] != null) {
+          _submittedRegistrationId = 'SH-SHOP-2026-${regResult.userData!['user_id'].toString().replaceAll('-', '').substring(0, 6).toUpperCase()}';
+        }
       }
       debugPrint('✓ Real shopkeeper registration executed via SupabaseAuthService successfully!');
     } catch (e) {

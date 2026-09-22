@@ -72,6 +72,7 @@ class _ProviderApplicationStatusScreenState
       }
 
       // 2. Query Supabase users table by Phone or Username (text comparison, never fails UUID constraint)
+      String? resolvedUserId;
       if (phone.isNotEmpty) {
         final rawDigits = phone.replaceAll(RegExp(r'\D'), '');
         final userRes = await client
@@ -82,6 +83,13 @@ class _ProviderApplicationStatusScreenState
             .maybeSingle();
 
         if (userRes != null) {
+          resolvedUserId = userRes['user_id']?.toString();
+          final accStatus = (userRes['account_status'] ?? '').toString().toUpperCase();
+          if (accStatus == 'ACTIVE') {
+            _reflectApprovedState(userId: resolvedUserId);
+            return;
+          }
+
           final pList = userRes['partners'];
           Map<String, dynamic>? pMap;
           if (pList is List && pList.isNotEmpty) {
@@ -91,14 +99,33 @@ class _ProviderApplicationStatusScreenState
           }
           final pStatus = (pMap?['verification_status'] ?? '').toString().toUpperCase();
           if (pStatus == 'VERIFIED' || pStatus == 'APPROVED') {
-            _reflectApprovedState();
+            _reflectApprovedState(userId: resolvedUserId);
             return;
+          }
+
+          if (resolvedUserId != null && _isUuid(resolvedUserId)) {
+            final vrRes = await client
+                .from('verification_requests')
+                .select('status')
+                .eq('user_id', resolvedUserId)
+                .order('submitted_at', ascending: false)
+                .limit(1)
+                .maybeSingle();
+            if (vrRes != null) {
+              final st = (vrRes['status'] ?? '').toString().toUpperCase();
+              if (st == 'APPROVED' || st == 'VERIFIED') {
+                _reflectApprovedState(userId: resolvedUserId);
+                return;
+              }
+            }
           }
         }
       }
 
       // 3. Check verification_requests table using valid UUID and submitted_at ordering
-      final checkUserId = (uId != null && _isUuid(uId)) ? uId : null;
+      final checkUserId = (resolvedUserId != null && _isUuid(resolvedUserId))
+          ? resolvedUserId
+          : ((uId != null && _isUuid(uId)) ? uId : null);
       if (checkUserId != null) {
         final vrRes = await client
             .from('verification_requests')
@@ -110,7 +137,7 @@ class _ProviderApplicationStatusScreenState
         if (vrRes != null) {
           final st = (vrRes['status'] ?? '').toString().toUpperCase();
           if (st == 'APPROVED' || st == 'VERIFIED') {
-            _reflectApprovedState();
+            _reflectApprovedState(userId: checkUserId);
             return;
           }
         }
@@ -122,7 +149,7 @@ class _ProviderApplicationStatusScreenState
         if (pRes != null) {
           final st = (pRes['verification_status'] ?? '').toString().toUpperCase();
           if (st == 'VERIFIED' || st == 'APPROVED') {
-            _reflectApprovedState();
+            _reflectApprovedState(userId: checkUserId);
             return;
           }
         }
@@ -133,7 +160,7 @@ class _ProviderApplicationStatusScreenState
         if (pRes != null) {
           final st = (pRes['verification_status'] ?? '').toString().toUpperCase();
           if (st == 'VERIFIED' || st == 'APPROVED') {
-            _reflectApprovedState();
+            _reflectApprovedState(userId: checkUserId);
             return;
           }
         }
@@ -141,19 +168,51 @@ class _ProviderApplicationStatusScreenState
     } catch (_) {}
   }
 
-  void _reflectApprovedState() {
+  void _reflectApprovedState({String? userId}) {
+    final phone = (_partnerData?['phone'] ?? _partnerData?['mobile'] ?? _searchController.text).toString().replaceAll(' ', '').trim();
+    final effectiveUid = userId ?? _partnerData?['user_id']?.toString() ?? _partnerData?['id']?.toString();
+
     if (mounted) {
       setState(() {
         _partnerData ??= {};
         _partnerData!['verification_status'] = 'VERIFIED';
         _partnerData!['status'] = 'APPROVED';
+        _partnerData!['account_status'] = 'ACTIVE';
+        if (effectiveUid != null && effectiveUid.isNotEmpty) {
+          _partnerData!['user_id'] = effectiveUid;
+        }
       });
     }
-    LocalRegistrationCache.updateActivePartner({
+
+    if (phone.isNotEmpty) {
+      LiveBookingSyncService.instance.approvePartnerVerification(phone);
+    }
+    if (effectiveUid != null && effectiveUid.isNotEmpty) {
+      LiveBookingSyncService.instance.approvePartnerVerification(effectiveUid);
+    }
+    if (_appId.isNotEmpty) {
+      LiveBookingSyncService.instance.approvePartnerVerification(_appId);
+    }
+
+    final role = (_partnerData?['role_name'] ?? _partnerData?['role'] ?? _partnerData?['partner_type'] ?? '').toString().toLowerCase();
+    final isShop = role.contains('shop') || role.contains('store');
+    final isDeliv = role.contains('delivery') || role.contains('agent');
+
+    final updated = {
       ...(_partnerData ?? {}),
       'verification_status': 'VERIFIED',
       'status': 'APPROVED',
-    });
+      'account_status': 'ACTIVE',
+      if (effectiveUid != null && effectiveUid.isNotEmpty) 'user_id': effectiveUid,
+    };
+
+    if (isShop) {
+      LocalRegistrationCache.updateActiveShopkeeper(updated);
+    } else if (isDeliv) {
+      LocalRegistrationCache.updateActiveDeliveryAgent(updated);
+    } else {
+      LocalRegistrationCache.updateActiveServiceProvider(updated);
+    }
   }
 
   Future<void> _loadPartnerData() async {
@@ -254,11 +313,20 @@ class _ProviderApplicationStatusScreenState
         final liveRecord = snapshot.data ??
             (trackedPhone.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(trackedPhone) : null) ??
             (trackedUId.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(trackedUId) : null);
-        final status = (liveRecord?['status'] ?? liveRecord?['verification_status'] ?? _partnerData?['verification_status'] ?? _partnerData?['status'] ?? 'PENDING')
-            .toString()
-            .toUpperCase();
-        final isApproved = status == 'APPROVED' || status == 'VERIFIED';
-        final isRejected = status == 'REJECTED';
+        final liveStatus = (liveRecord?['status'] ?? liveRecord?['verification_status'] ?? '').toString().toUpperCase();
+        final localVerStatus = (_partnerData?['verification_status'] ?? '').toString().toUpperCase();
+        final localStatus = (_partnerData?['status'] ?? '').toString().toUpperCase();
+        final localAccStatus = (_partnerData?['account_status'] ?? '').toString().toUpperCase();
+
+        final isApproved = liveStatus == 'APPROVED' ||
+            liveStatus == 'VERIFIED' ||
+            localVerStatus == 'VERIFIED' ||
+            localVerStatus == 'APPROVED' ||
+            localStatus == 'APPROVED' ||
+            localStatus == 'VERIFIED' ||
+            localAccStatus == 'ACTIVE';
+
+        final isRejected = liveStatus == 'REJECTED' || localStatus == 'REJECTED' || localAccStatus == 'REJECTED';
 
         final role = (liveRecord?['role_name'] ?? liveRecord?['role'] ?? _partnerData?['role_name'] ?? _partnerData?['role'] ?? _partnerData?['partner_type'] ?? '').toString().toLowerCase();
         final category = (liveRecord?['category'] ?? liveRecord?['category_name'] ?? _partnerData?['category'] ?? _partnerData?['service_category'] ?? _partnerData?['category_name'] ?? '').toString().toLowerCase();
@@ -626,22 +694,30 @@ class _ProviderApplicationStatusScreenState
                                   final sessionPayload = Map<String, dynamic>.from(liveRecord ?? _partnerData ?? {});
                                   sessionPayload['verification_status'] = 'VERIFIED';
                                   sessionPayload['status'] = 'APPROVED';
+                                  sessionPayload['account_status'] = 'ACTIVE';
+
+                                  if (trackedPhone.isNotEmpty) {
+                                    LiveBookingSyncService.instance.approvePartnerVerification(trackedPhone);
+                                  }
+                                  if (trackedUId.isNotEmpty) {
+                                    LiveBookingSyncService.instance.approvePartnerVerification(trackedUId);
+                                  }
 
                                   if (isShopkeeper) {
                                     sessionPayload['role_name'] = 'shopkeeper';
-                                    await LocalRegistrationCache.updateActivePartner(sessionPayload);
+                                    await LocalRegistrationCache.updateActiveShopkeeper(sessionPayload);
                                     if (context.mounted) {
                                       context.go('/dashboard/shopkeeper');
                                     }
                                   } else if (isDelivery) {
                                     sessionPayload['role_name'] = 'delivery_agent';
-                                    await LocalRegistrationCache.updateActivePartner(sessionPayload);
+                                    await LocalRegistrationCache.updateActiveDeliveryAgent(sessionPayload);
                                     if (context.mounted) {
                                       context.go('/dashboard/delivery');
                                     }
                                   } else {
                                     sessionPayload['role_name'] = 'service_provider';
-                                    await LocalRegistrationCache.updateActivePartner(sessionPayload);
+                                    await LocalRegistrationCache.updateActiveServiceProvider(sessionPayload);
                                     if (context.mounted) {
                                       context.go('/dashboard');
                                     }

@@ -532,12 +532,8 @@ class LiveBookingSyncService {
   }
 
   Stream<Map<String, dynamic>?> streamPartnerVerification(String partnerId) async* {
-    while (true) {
-      reloadAllFromDisk();
-      final current = getPartnerVerification(partnerId);
-      yield current;
-      await Future.delayed(const Duration(milliseconds: 200));
-    }
+    yield getPartnerVerification(partnerId);
+    yield* _verificationsStreamController.stream.map((_) => getPartnerVerification(partnerId));
   }
 
   Map<String, dynamic>? getPartnerVerification(String partnerId) {

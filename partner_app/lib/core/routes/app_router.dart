@@ -35,6 +35,11 @@ import 'package:service_hub_partner/features/profile/presentation/screens/terms_
 import 'package:service_hub_partner/features/profile/presentation/screens/privacy_policy_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/about_service_hub_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/controllers/profile_controller.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_profile_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_edit_profile_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_documents_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/controllers/shopkeeper_profile_controller.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/delivery_agent_profile_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -200,7 +205,33 @@ final appRouter = GoRouter(
       builder: (context, state) => const ShopkeeperDashboardScreen(),
     ),
 
-    // Partner Profile Routes
+    // Dedicated Shopkeeper Profile Routes (Strictly for Shopkeeper Only)
+    GoRoute(
+      path: '/profile/shopkeeper',
+      builder: (context, state) => const ShopkeeperProfileScreen(),
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/edit',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController? ?? ShopkeeperProfileController();
+        return ShopkeeperEditProfileScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/documents',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController? ?? ShopkeeperProfileController();
+        return ShopkeeperDocumentsScreen(controller: ctrl);
+      },
+    ),
+
+    // Dedicated Delivery Agent Profile Route (Strictly for Delivery Agent Only)
+    GoRoute(
+      path: '/profile/delivery',
+      builder: (context, state) => const DeliveryAgentProfileScreen(),
+    ),
+
+    // Service Provider Profile Routes (Strictly for Service Provider Only)
     GoRoute(
       path: '/profile',
       builder: (context, state) => const MyProfileScreen(),

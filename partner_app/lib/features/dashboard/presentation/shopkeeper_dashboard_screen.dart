@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
-import '../../../../core/services/supabase_auth_service.dart';
 
 class ShopkeeperDashboardScreen extends StatefulWidget {
   const ShopkeeperDashboardScreen({super.key});
@@ -88,9 +87,10 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   Future<void> _loadShopData() async {
     setState(() => _isLoading = true);
     try {
-      final activeUser = await LocalRegistrationCache.getActivePartner();
+      final activeUser = await LocalRegistrationCache.getActiveShopkeeper();
       if (activeUser != null) {
         final status = (activeUser['verification_status'] ?? '').toString().toUpperCase();
+        final accStatus = (activeUser['account_status'] ?? '').toString().toUpperCase();
         
         // Cross-check with LiveBookingSyncService
         final uId = (activeUser['user_id'] ?? '').toString();
@@ -99,7 +99,39 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
             LiveBookingSyncService.instance.getPartnerVerification(phone);
         final syncStatus = (syncRecord?['status'] ?? syncRecord?['verification_status'] ?? '').toString().toUpperCase();
 
-        final isApproved = status == 'VERIFIED' || status == 'APPROVED' || syncStatus == 'APPROVED' || syncStatus == 'VERIFIED';
+        var isApproved = status == 'VERIFIED' || status == 'APPROVED' || accStatus == 'ACTIVE' || syncStatus == 'APPROVED' || syncStatus == 'VERIFIED';
+
+        // Real-time fallback against Supabase if local state hasn't synced yet
+        if (!isApproved && phone.isNotEmpty) {
+          try {
+            final client = Supabase.instance.client;
+            final uRes = await client.from('users').select('account_status, user_id').eq('phone', phone).maybeSingle();
+            if (uRes != null) {
+              if (uRes['account_status'] == 'ACTIVE') {
+                isApproved = true;
+              } else if (uRes['user_id'] != null) {
+                final vr = await client
+                    .from('verification_requests')
+                    .select('status')
+                    .eq('user_id', uRes['user_id'])
+                    .order('submitted_at', ascending: false)
+                    .limit(1)
+                    .maybeSingle();
+                if (vr != null && (vr['status'] == 'APPROVED' || vr['status'] == 'VERIFIED')) {
+                  isApproved = true;
+                }
+              }
+            }
+            if (isApproved) {
+              await LocalRegistrationCache.updateActiveShopkeeper({
+                ...activeUser,
+                'verification_status': 'VERIFIED',
+                'status': 'APPROVED',
+                'account_status': 'ACTIVE',
+              });
+            }
+          } catch (_) {}
+        }
 
         if (!isApproved) {
           if (mounted) {
@@ -1019,30 +1051,34 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
         // Shopkeeper Avatar with green online indicator
         Padding(
           padding: const EdgeInsets.only(right: 14, left: 4),
-          child: Stack(
-            children: [
-              CircleAvatar(
-                radius: 17,
-                backgroundColor: const Color(0xFFDCFCE7),
-                child: Text(
-                  _shopkeeperName.isNotEmpty ? _shopkeeperName[0].toUpperCase() : 'R',
-                  style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF059669), fontSize: 14),
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: _isOpen ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () => context.push('/profile/shopkeeper'),
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 17,
+                  backgroundColor: const Color(0xFFDCFCE7),
+                  child: Text(
+                    _shopkeeperName.isNotEmpty ? _shopkeeperName[0].toUpperCase() : 'R',
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF059669), fontSize: 14),
                   ),
                 ),
-              ),
-            ],
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: _isOpen ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -1156,7 +1192,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
             title: const Text('Help & Support', style: TextStyle(fontWeight: FontWeight.w600)),
             onTap: () {
               Navigator.pop(context);
-              context.push('/profile/help-support');
+              context.push('/profile/shopkeeper');
             },
           ),
           ListTile(
@@ -1164,7 +1200,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
             title: const Text('Settings & Security', style: TextStyle(fontWeight: FontWeight.w600)),
             onTap: () {
               Navigator.pop(context);
-              context.push('/profile/settings');
+              context.push('/profile/shopkeeper');
             },
           ),
           const Spacer(),
@@ -1172,8 +1208,8 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
             leading: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
             title: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
             onTap: () async {
-              await SupabaseAuthService.logout();
-              if (mounted) context.go('/role-selection');
+              await LocalRegistrationCache.logoutShopkeeper();
+              if (mounted) context.go('/login/shopkeeper');
             },
           ),
           const SizedBox(height: 12),
@@ -1998,7 +2034,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
           } else if (idx == 3) {
             _showEarningsModal();
           } else if (idx == 4) {
-            context.push('/profile');
+            context.push('/profile/shopkeeper');
           }
         },
         type: BottomNavigationBarType.fixed,

@@ -157,7 +157,7 @@ class ProfileController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final cached = await LocalRegistrationCache.getActivePartner();
+      final cached = await LocalRegistrationCache.getActiveServiceProvider();
       if (cached != null) {
         partnerData = cached;
         _populateFromMap(cached);
