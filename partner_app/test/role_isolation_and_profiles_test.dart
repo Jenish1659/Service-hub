@@ -120,22 +120,24 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       // Verify Store Profile Title & Storefront Info
-      expect(find.text('Store Profile'), findsOneWidget);
+      expect(find.text('Shop Profile'), findsOneWidget);
       expect(find.text('Bheda Electronics Store'), findsOneWidget);
-      expect(find.text('Owner: Jenish Bheda'), findsOneWidget);
-      expect(find.text('Verified Merchant ✓'), findsOneWidget);
+      expect(find.text('Verified Shop'), findsOneWidget);
 
       // Verify Retail Menu items exist
-      expect(find.text('Edit Store Profile'), findsOneWidget);
-      expect(find.text('Store Operating Timings'), findsOneWidget);
-      expect(find.text('Store Documents & KYC'), findsOneWidget);
-      expect(find.text('Settlement Bank Account'), findsOneWidget);
-      expect(find.text('Sign Out from Store'), findsOneWidget);
+      expect(find.text('Shop Information'), findsOneWidget);
+      expect(find.text('Business Hours'), findsOneWidget);
+      expect(find.text('Service Area'), findsOneWidget);
+      expect(find.text('Shop Photos'), findsOneWidget);
+      expect(find.text('Documents & Verification'), findsOneWidget);
+      expect(find.text('Contact Details'), findsOneWidget);
+      expect(find.text('Bank Details'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
 
       // Verify Service Provider elements are ABSENT
       expect(find.text('Jobs Completed'), findsNothing);
       expect(find.text('My Services'), findsNothing);
-      expect(find.text('Service Area'), findsNothing);
+      expect(find.text('Service Pricing'), findsNothing);
     });
   });
 

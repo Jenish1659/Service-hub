@@ -69,6 +69,81 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
     );
   }
 
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String message,
+    String? buttonText,
+    VoidCallback? onButtonPressed,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 48.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 90,
+                      height: 90,
+                      decoration: const BoxDecoration(
+                        color: Color(0xffeff6ff),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, size: 46, color: AppTheme.primaryColor),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.textSecondaryColor,
+                        height: 1.4,
+                      ),
+                    ),
+                    if (buttonText != null && onButtonPressed != null) ...[
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: onButtonPressed,
+                        child: Text(
+                          buttonText,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildActiveTab(
     AsyncValue<List<Map<String, dynamic>>> bookingsAsync,
     AsyncValue<List<Map<String, dynamic>>> ordersAsync,
@@ -93,13 +168,18 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
             }).toList();
 
             if (activeBookings.isEmpty && activeOrders.isEmpty) {
-              return const Center(
-                child: Text('No active jobs or deliveries.', style: TextStyle(color: AppTheme.textSecondaryColor)),
+              return _buildEmptyState(
+                icon: Icons.assignment_outlined,
+                title: 'No Active Bookings or Orders',
+                message: 'You have 0 active bookings and 0 running orders right now.',
+                buttonText: 'Explore Services',
+                onButtonPressed: () => context.go('/discover'),
               );
             }
 
             return ListView(
               padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 ...activeBookings.map((b) => _buildBookingCard(b, isActive: true)),
                 ...activeOrders.map((o) => _buildOrderCard(o, isActive: true)),
@@ -135,13 +215,18 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
             }).toList();
 
             if (pastBookings.isEmpty && pastOrders.isEmpty) {
-              return const Center(
-                child: Text('No order history available.', style: TextStyle(color: AppTheme.textSecondaryColor)),
+              return _buildEmptyState(
+                icon: Icons.history_toggle_off_outlined,
+                title: 'No Past History',
+                message: 'You have 0 past bookings or orders recorded in your history.',
+                buttonText: 'Browse Services',
+                onButtonPressed: () => context.go('/discover'),
               );
             }
 
             return ListView(
               padding: const EdgeInsets.all(16),
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 ...pastBookings.map((b) => _buildBookingCard(b, isActive: false)),
                 ...pastOrders.map((o) => _buildOrderCard(o, isActive: false)),
@@ -156,9 +241,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
   Widget _buildBookingCard(Map<String, dynamic> booking, {required bool isActive}) {
     final id = booking['id'];
     final name = booking['service_name'] ?? 'Home Service';
-    final issue = booking['issue_description'] ?? '';
-    final date = booking['scheduled_date'] ?? '';
-    final time = booking['scheduled_time'] ?? '';
+    final issue = (booking['problem_description'] ?? booking['issue_description'] ?? '').toString();
+    final date = (booking['scheduled_date'] ?? '').toString();
+    final time = (booking['scheduled_time'] ?? '').toString();
     final price = (booking['price'] as num?)?.toDouble() ?? 0.0;
     final status = (booking['status'] ?? 'Pending').toString();
     final isCancelled = status.toUpperCase().contains('CANCELLED');
@@ -208,21 +293,32 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
               name,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimaryColor),
             ),
-            if (issue.isNotEmpty)
+            if (issue.isNotEmpty) ...[
+              const SizedBox(height: 4),
               Text(
                 issue,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
               ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 14, color: AppTheme.textSecondaryColor),
-                const SizedBox(width: 6),
-                Text('$date · $time', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor)),
-              ],
-            ),
+            ],
+            if (date.isNotEmpty || time.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 14, color: AppTheme.textSecondaryColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    date.isNotEmpty && time.isNotEmpty
+                        ? '$date · $time'
+                        : date.isNotEmpty
+                            ? date
+                            : time,
+                    style: const TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor),
+                  ),
+                ],
+              ),
+            ],
             const Divider(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

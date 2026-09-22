@@ -196,6 +196,52 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     ),
                   ),
                   data: (products) {
+                    if (products.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 90,
+                                height: 90,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xffeff6ff),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.storefront_outlined,
+                                  size: 46,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              const Text(
+                                'No products currently available in your 5 km area',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xff0f172a),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'We are onboarding local hardware and service partners nearby. Please check back soon!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xff64748b),
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
                     final filteredProducts = products.where((p) {
                       final cat = p['category']?.toString() ?? '';
                       final name = p['name']?.toString().toLowerCase() ?? '';
@@ -319,11 +365,17 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     final String cat = item['category'] ?? '';
 
     // Extract real photos
-    final List<String> images = (item['images'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
-        [
-          if (item['image_url'] != null) item['image_url'].toString(),
-          ..._getDefaultImagesForCategory(cat),
-        ];
+    final List<String> images = [];
+    if (item['images'] is List) {
+      for (final img in (item['images'] as List)) {
+        if (img != null && img.toString().trim().isNotEmpty) {
+          images.add(img.toString().trim());
+        }
+      }
+    }
+    if (images.isEmpty && item['image_url'] != null && item['image_url'].toString().trim().isNotEmpty) {
+      images.add(item['image_url'].toString().trim());
+    }
 
     final int stock = (item['stock'] ?? item['stock_quantity'] ?? 100) as int;
     final bool isLowStock = stock > 0 && stock <= 10;
@@ -358,19 +410,15 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     topLeft: Radius.circular(17),
                     topRight: Radius.circular(17),
                   ),
-                  child: Image.network(
-                    images.first,
-                    height: 120,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 120,
-                      color: const Color(0xffeff6ff),
-                      child: Center(
-                        child: Icon(_getIconForCategory(cat), color: AppTheme.primaryColor, size: 40),
-                      ),
-                    ),
-                  ),
+                  child: images.isNotEmpty
+                      ? Image.network(
+                          images.first,
+                          height: 120,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _buildPlaceholderImage(cat),
+                        )
+                      : _buildPlaceholderImage(cat),
                 ),
 
                 // Multi-Photo Count Badge
@@ -617,26 +665,23 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     children: [
                       SizedBox(
                         height: 220,
-                        child: PageView.builder(
-                          itemCount: images.length,
-                          onPageChanged: (idx) {
-                            setModalState(() => activePage = idx);
-                          },
-                          itemBuilder: (context, imgIdx) {
-                            return Image.network(
-                              images[imgIdx],
-                              width: double.infinity,
-                              height: 220,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: const Color(0xffeff6ff),
-                                child: Center(
-                                  child: Icon(_getIconForCategory(cat), color: AppTheme.primaryColor, size: 60),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                        child: images.isNotEmpty
+                            ? PageView.builder(
+                                itemCount: images.length,
+                                onPageChanged: (idx) {
+                                  setModalState(() => activePage = idx);
+                                },
+                                itemBuilder: (context, imgIdx) {
+                                  return Image.network(
+                                    images[imgIdx],
+                                    width: double.infinity,
+                                    height: 220,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _buildPlaceholderImage(cat, height: 220),
+                                  );
+                                },
+                              )
+                            : _buildPlaceholderImage(cat, height: 220),
                       ),
 
                       // Carousel Dots Indicator
@@ -782,41 +827,28 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     );
   }
 
-  List<String> _getDefaultImagesForCategory(String cat) {
-    final c = cat.toLowerCase();
-    if (c.contains('ac')) {
-      return [
-        'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1581094288338-2314dddb7ece?auto=format&fit=crop&w=600&q=80',
-      ];
-    }
-    if (c.contains('plumb')) {
-      return [
-        'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=600&q=80',
-      ];
-    }
-    if (c.contains('car')) {
-      return [
-        'https://images.unsplash.com/photo-1486006920555-c77dce18193b?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=600&q=80',
-      ];
-    }
-    if (c.contains('cook')) {
-      return [
-        'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=600&q=80',
-      ];
-    }
-    if (c.contains('laundry')) {
-      return [
-        'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?auto=format&fit=crop&w=600&q=80',
-      ];
-    }
-    return [
-      'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80',
-    ];
+  Widget _buildPlaceholderImage(String cat, {double height = 120}) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Color(0xfff1f5f9),
+      ),
+      child: Center(
+        child: Container(
+          padding: EdgeInsets.all(height > 150 ? 18 : 12),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withValues(alpha: 0.08),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            _getIconForCategory(cat),
+            color: AppTheme.primaryColor,
+            size: height > 150 ? 46 : 32,
+          ),
+        ),
+      ),
+    );
   }
 
   IconData _getIconForCategory(String cat) {

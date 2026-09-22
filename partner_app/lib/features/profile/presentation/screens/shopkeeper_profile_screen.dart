@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../controllers/shopkeeper_profile_controller.dart';
-import 'shopkeeper_edit_profile_screen.dart';
-import 'shopkeeper_documents_screen.dart';
 
 class ShopkeeperProfileScreen extends StatefulWidget {
   final ShopkeeperProfileController? controller;
+
   const ShopkeeperProfileScreen({super.key, this.controller});
 
   @override
@@ -14,157 +13,51 @@ class ShopkeeperProfileScreen extends StatefulWidget {
 
 class _ShopkeeperProfileScreenState extends State<ShopkeeperProfileScreen> {
   late final ShopkeeperProfileController _controller;
+  bool _createdInternally = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller ?? ShopkeeperProfileController();
-    _controller.addListener(_onControllerUpdate);
-    if (widget.controller == null) {
+    if (widget.controller != null) {
+      _controller = widget.controller!;
+    } else {
+      _controller = ShopkeeperProfileController();
+      _createdInternally = true;
       _controller.loadShopkeeperProfile();
     }
+    _controller.addListener(_onControllerChanged);
   }
 
   @override
   void dispose() {
-    _controller.removeListener(_onControllerUpdate);
-    if (widget.controller == null) {
+    _controller.removeListener(_onControllerChanged);
+    if (_createdInternally) {
       _controller.dispose();
     }
     super.dispose();
   }
 
-  void _onControllerUpdate() {
-    if (mounted) setState(() {});
+  void _onControllerChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
-  void _showTimingsModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+  void _navigateTo(String path) {
+    try {
+      context.push(path, extra: _controller);
+    } catch (e) {
+      debugPrint('[ShopkeeperProfile] Navigation failed for $path: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Opening $path'),
+            backgroundColor: const Color(0xFF047857),
+            behavior: SnackBarBehavior.floating,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(color: const Color(0xFFCBD5E1), borderRadius: BorderRadius.circular(2)),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.access_time_rounded, color: Color(0xFF16A34A), size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text('Store Operating Hours', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Current Store Status', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                        SizedBox(height: 2),
-                        Text('Open for Customers & Orders', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF15803D))),
-                      ],
-                    ),
-                    Switch(
-                      value: _controller.isOpen,
-                      activeTrackColor: const Color(0xFF16A34A),
-                      onChanged: (v) {
-                        _controller.toggleStoreStatus(v);
-                        setModalState(() {});
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Opening Time', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                          const SizedBox(height: 4),
-                          Text(_controller.openTime, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Closing Time', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                          const SizedBox(height: 4),
-                          Text(_controller.closeTime, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              const Text('Operating Days: Mon, Tue, Wed, Thu, Fri, Sat (Sunday Closed)', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF16A34A),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Save Timings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+        );
+      }
+    }
   }
 
   void _showSignOutDialog() {
@@ -173,16 +66,20 @@ class _ShopkeeperProfileScreenState extends State<ShopkeeperProfileScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: const Text('Are you sure you want to log out of your Shopkeeper account?', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+        content: const Text(
+          'Are you sure you want to log out of your Shopkeeper portal?',
+          style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
               foregroundColor: Colors.white,
+              elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () async {
@@ -191,8 +88,8 @@ class _ShopkeeperProfileScreenState extends State<ShopkeeperProfileScreen> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Logged out of Shopkeeper account successfully'),
-                    backgroundColor: Color(0xFF16A34A),
+                    content: Text('Logged out of Shopkeeper account'),
+                    backgroundColor: Color(0xFF047857),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -208,195 +105,294 @@ class _ShopkeeperProfileScreenState extends State<ShopkeeperProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const emeraldColor = Color(0xFF16A34A);
+    const emeraldGradientStart = Color(0xFF065F46);
+    const emeraldGradientEnd = Color(0xFF047857);
+    const emeraldPrimary = Color(0xFF047857);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      bottomNavigationBar: _buildBottomNavigationBar(),
       body: SafeArea(
+        top: false,
         child: Column(
           children: [
-            // Top App Bar
+            // Emerald Gradient Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              color: Colors.white,
-              child: Row(
-                children: [
-                  InkWell(
-                    onTap: () {
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      } else {
-                        context.go('/dashboard/shopkeeper');
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(12),
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [emeraldGradientStart, emeraldGradientEnd],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top Row: Back button, Title & Edit Icon
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              if (Navigator.canPop(context)) {
+                                Navigator.pop(context);
+                              } else {
+                                context.go('/dashboard/shopkeeper');
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const Text(
+                            'Shop Profile',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => _navigateTo('/profile/shopkeeper/edit'),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.edit_outlined,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Color(0xFF1E293B)),
-                    ),
+                      const SizedBox(height: 20),
+
+                      // Store Identity Content
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Store Avatar with Camera Badge
+                          Stack(
+                            children: [
+                              Container(
+                                width: 72,
+                                height: 72,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.4),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.storefront_rounded,
+                                  size: 40,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Positioned(
+                                bottom: -2,
+                                right: -2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    size: 13,
+                                    color: emeraldPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 16),
+
+                          // Details Column
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Verified Shop Badge Pill
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFECFDF5),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle_rounded,
+                                        size: 13,
+                                        color: Color(0xFF059669),
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Verified Shop',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF065F46),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+
+                                // Store Name
+                                Text(
+                                  _controller.shopName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+
+                                // Category
+                                Text(
+                                  _controller.category,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white.withValues(alpha: 0.88),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+
+                                // Rating Pill
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.22),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.star_rounded,
+                                        size: 15,
+                                        color: Color(0xFFFBBF24),
+                                      ),
+                                      const SizedBox(width: 4),
+                                        Text(
+                                          _controller.reviewCount == 0 && _controller.rating == 0.0
+                                              ? 'New Store'
+                                              : '★ ${_controller.rating.toStringAsFixed(1)} (${_controller.reviewCount} reviews)',
+                                          style: const TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Store Profile',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                        ),
-                        Text(
-                          'Manage your store and merchant preferences',
-                          style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, color: emeraldColor, size: 22),
-                    tooltip: 'Edit Store Details',
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => ShopkeeperEditProfileScreen(controller: _controller)),
-                      );
-                    },
-                  ),
-                ],
+                ),
               ),
             ),
 
-            // Profile Body Content
+            // Body Menu List
             Expanded(
               child: _controller.isLoading
-                  ? const Center(child: CircularProgressIndicator(color: emeraldColor))
+                  ? const Center(
+                      child: CircularProgressIndicator(color: emeraldPrimary),
+                    )
                   : SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                       child: Column(
                         children: [
-                          // Main Store Identity Card
+                          // Update Reminder Banner
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFECFDF5), Colors.white],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: const Color(0xFFA7F3D0), width: 1.2),
-                              boxShadow: const [
-                                BoxShadow(color: Color(0x08000000), blurRadius: 10, offset: Offset(0, 4)),
-                              ],
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFA7F3D0)),
                             ),
-                            child: Column(
+                            child: Row(
                               children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Store Avatar
-                                    Container(
-                                      width: 68,
-                                      height: 68,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFDCFCE7),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: emeraldColor, width: 2),
-                                      ),
-                                      child: const Icon(Icons.storefront_rounded, size: 36, color: emeraldColor),
-                                    ),
-                                    const SizedBox(width: 14),
-
-                                    // Store Name, Owner, Category
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  _controller.shopName,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              const Icon(Icons.verified_rounded, size: 18, color: emeraldColor),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            'Owner: ${_controller.ownerName}',
-                                            style: const TextStyle(fontSize: 12, color: Color(0xFF475569), fontWeight: FontWeight.w500),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            _controller.category,
-                                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          // Verified Status Pill
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFDCFCE7),
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Container(
-                                                  width: 6,
-                                                  height: 6,
-                                                  decoration: const BoxDecoration(color: emeraldColor, shape: BoxShape.circle),
-                                                ),
-                                                const SizedBox(width: 5),
-                                                const Text(
-                                                  'Verified Merchant ✓',
-                                                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 14),
-
-                                // Address & Years in Business Row
                                 Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  padding: const EdgeInsets.all(9),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF1F5F9).withValues(alpha: 0.6),
+                                    color: const Color(0xFFD1FAE5),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: Row(
+                                  child: const Icon(
+                                    Icons.campaign_rounded,
+                                    color: Color(0xFF047857),
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF64748B)),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          '${_controller.address}, ${_controller.city}',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF334155)),
+                                      Text(
+                                        'Keep your profile updated',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13.5,
+                                          color: Color(0xFF065F46),
                                         ),
                                       ),
-                                      const Text('|', style: TextStyle(color: Color(0xFFCBD5E1))),
-                                      const SizedBox(width: 6),
+                                      SizedBox(height: 2),
                                       Text(
-                                        _controller.yearsInBusiness,
-                                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF15803D)),
+                                        'Build trust and get more orders',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF047857),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -406,135 +402,84 @@ class _ShopkeeperProfileScreenState extends State<ShopkeeperProfileScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Store Metrics Row (4 Metrics)
-                          Row(
-                            children: [
-                              _buildMetricCard(
-                                icon: Icons.category_rounded,
-                                iconColor: const Color(0xFF2563EB),
-                                iconBg: const Color(0xFFEFF6FF),
-                                value: '${_controller.activeProductsCount}',
-                                label: 'Products',
-                              ),
-                              const SizedBox(width: 10),
-                              _buildMetricCard(
-                                icon: Icons.shopping_bag_rounded,
-                                iconColor: emeraldColor,
-                                iconBg: const Color(0xFFDCFCE7),
-                                value: '${_controller.ordersProcessedCount}',
-                                label: 'Orders',
-                              ),
-                              const SizedBox(width: 10),
-                              _buildMetricCard(
-                                icon: Icons.currency_rupee_rounded,
-                                iconColor: const Color(0xFFD97706),
-                                iconBg: const Color(0xFFFEF3C7),
-                                value: '₹34.5k',
-                                label: 'Revenue',
-                              ),
-                              const SizedBox(width: 10),
-                              _buildMetricCard(
-                                icon: Icons.star_rounded,
-                                iconColor: const Color(0xFFEAB308),
-                                iconBg: const Color(0xFFFEF9C3),
-                                value: '${_controller.rating}',
-                                label: 'Rating',
-                              ),
-                            ],
+                          // 8 Menu Tiles in White Cards (14px rounded corners, subtle shadow)
+                          _buildMenuCardTile(
+                            icon: Icons.storefront_rounded,
+                            iconBg: const Color(0xFFECFDF5),
+                            iconColor: const Color(0xFF047857),
+                            title: 'Shop Information',
+                            subtitle: 'View and manage your shop details',
+                            onTap: () => _navigateTo('/profile/shopkeeper/info'),
                           ),
-                          const SizedBox(height: 20),
-
-                          // Store Management Menu Options
-                          _buildMenuTile(
-                            icon: Icons.edit_note_rounded,
-                            iconColor: const Color(0xFF2563EB),
-                            iconBg: const Color(0xFFEFF6FF),
-                            title: 'Edit Store Profile',
-                            subtitle: 'Update shop name, contact, address & category',
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => ShopkeeperEditProfileScreen(controller: _controller)),
-                              );
-                            },
-                          ),
-                          _buildMenuTile(
+                          _buildMenuCardTile(
                             icon: Icons.access_time_rounded,
-                            iconColor: emeraldColor,
-                            iconBg: const Color(0xFFDCFCE7),
-                            title: 'Store Operating Timings',
-                            subtitle: 'Set opening/closing hours and operating days',
-                            onTap: _showTimingsModal,
-                          ),
-                          _buildMenuTile(
-                            icon: Icons.verified_user_rounded,
-                            iconColor: const Color(0xFF9333EA),
-                            iconBg: const Color(0xFFF3E8FF),
-                            title: 'Store Documents & KYC',
-                            subtitle: 'Shop Licence, Aadhaar, PAN & Storefront verification',
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => ShopkeeperDocumentsScreen(controller: _controller)),
-                              );
-                            },
-                          ),
-                          _buildMenuTile(
-                            icon: Icons.account_balance_rounded,
-                            iconColor: const Color(0xFF0D9488),
-                            iconBg: const Color(0xFFCCFBF1),
-                            title: 'Settlement Bank Account',
-                            subtitle: '${_controller.bankName} • Acc ${_controller.accountNumber}',
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Registered Account: ${_controller.accountNumber} (${_controller.bankName})'),
-                                  backgroundColor: const Color(0xFF0D9488),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
-                          ),
-                          _buildMenuTile(
-                            icon: Icons.notifications_active_outlined,
-                            iconColor: const Color(0xFFEA580C),
-                            iconBg: const Color(0xFFFFF7ED),
-                            title: 'Store Settings & Sound Alerts',
-                            subtitle: 'Order alert chimes, notifications & preferences',
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Store Sound & Order Notifications: ACTIVE ✓'),
-                                  backgroundColor: Color(0xFF16A34A),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
-                          ),
-                          _buildMenuTile(
-                            icon: Icons.support_agent_rounded,
-                            iconColor: const Color(0xFF2563EB),
                             iconBg: const Color(0xFFEFF6FF),
-                            title: 'Merchant Support & Help',
-                            subtitle: 'Contact ServiceHub Merchant Helpdesk or WhatsApp',
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Merchant Support: support@servicehub.com • +91 1800 200 4567'),
-                                  backgroundColor: Color(0xFF2563EB),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
+                            iconColor: const Color(0xFF2563EB),
+                            title: 'Business Hours',
+                            subtitle: 'Store opening & closing timings',
+                            onTap: () => _navigateTo('/profile/shopkeeper/hours'),
                           ),
-                          _buildMenuTile(
+                          _buildMenuCardTile(
+                            icon: Icons.location_on_rounded,
+                            iconBg: const Color(0xFFFEF3C7),
+                            iconColor: const Color(0xFFD97706),
+                            title: 'Service Area',
+                            subtitle: 'Delivery radius and operational area',
+                            onTap: () => _navigateTo('/profile/shopkeeper/service-area'),
+                          ),
+                          _buildMenuCardTile(
+                            icon: Icons.photo_library_rounded,
+                            iconBg: const Color(0xFFF3E8FF),
+                            iconColor: const Color(0xFF9333EA),
+                            title: 'Shop Photos',
+                            subtitle: 'Storefront and inventory images',
+                            onTap: () => _navigateTo('/profile/shopkeeper/photos'),
+                          ),
+                          _buildMenuCardTile(
+                            icon: Icons.verified_user_rounded,
+                            iconBg: const Color(0xFFCCFBF1),
+                            iconColor: const Color(0xFF0D9488),
+                            title: 'Documents & Verification',
+                            subtitle: 'GST, registration & identity proof',
+                            onTap: () => _navigateTo('/profile/shopkeeper/documents'),
+                          ),
+                          _buildMenuCardTile(
+                            icon: Icons.phone_in_talk_rounded,
+                            iconBg: const Color(0xFFE0E7FF),
+                            iconColor: const Color(0xFF4F46E5),
+                            title: 'Contact Details',
+                            subtitle: 'Phone numbers and email address',
+                            onTap: () => _navigateTo('/profile/shopkeeper/contact'),
+                          ),
+                          _buildMenuCardTile(
+                            icon: Icons.account_balance_rounded,
+                            iconBg: const Color(0xFFD1FAE5),
+                            iconColor: const Color(0xFF059669),
+                            title: 'Bank Details',
+                            subtitle: 'Payout account and IFSC information',
+                            onTap: () => _navigateTo('/profile/shopkeeper/bank'),
+                          ),
+                          _buildMenuCardTile(
+                            icon: Icons.settings_rounded,
+                            iconBg: const Color(0xFFF1F5F9),
+                            iconColor: const Color(0xFF475569),
+                            title: 'Settings',
+                            subtitle: 'Notifications, app preferences & security',
+                            onTap: () => _navigateTo('/profile/shopkeeper/settings'),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          // Sign out tile
+                          _buildMenuCardTile(
                             icon: Icons.logout_rounded,
-                            iconColor: const Color(0xFFEF4444),
                             iconBg: const Color(0xFFFEE2E2),
-                            title: 'Sign Out from Store',
-                            subtitle: 'Safely logout of your shopkeeper portal',
+                            iconColor: const Color(0xFFDC2626),
+                            title: 'Sign Out',
+                            subtitle: 'Log out of your shopkeeper account',
                             onTap: _showSignOutDialog,
                           ),
+                          const SizedBox(height: 16),
                         ],
                       ),
                     ),
@@ -545,43 +490,10 @@ class _ShopkeeperProfileScreenState extends State<ShopkeeperProfileScreen> {
     );
   }
 
-  Widget _buildMetricCard({
+  Widget _buildMenuCardTile({
     required IconData icon,
-    required Color iconColor,
     required Color iconBg,
-    required String value,
-    required String label,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
-              child: Icon(icon, color: iconColor, size: 16),
-            ),
-            const SizedBox(height: 6),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF0F172A))),
-            const SizedBox(height: 2),
-            Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuTile({
-    required IconData icon,
     required Color iconColor,
-    required Color iconBg,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
@@ -592,22 +504,115 @@ class _ShopkeeperProfileScreenState extends State<ShopkeeperProfileScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
         child: ListTile(
           onTap: onTap,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Container(
             padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Icon(icon, color: iconColor, size: 20),
           ),
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF0F172A))),
-          subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-          trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF94A3B8)),
+          title: Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          trailing: const Icon(
+            Icons.arrow_forward_ios_rounded,
+            size: 14,
+            color: Color(0xFF94A3B8),
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: 4, // Profile tab selected
+        onTap: (idx) {
+          if (idx == 0) {
+            context.go('/dashboard/shopkeeper');
+          } else if (idx == 1) {
+            context.go('/dashboard/shopkeeper');
+          } else if (idx == 2) {
+            context.go('/dashboard/shopkeeper');
+          } else if (idx == 3) {
+            context.go('/dashboard/shopkeeper');
+          } else if (idx == 4) {
+            // Already on Profile
+          }
+        },
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF047857),
+        unselectedItemColor: const Color(0xFF64748B),
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        unselectedLabelStyle: const TextStyle(fontSize: 11),
+        elevation: 0,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_rounded),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Badge(
+              label: Text('3'),
+              backgroundColor: Color(0xFFEF4444),
+              child: Icon(Icons.shopping_bag_outlined),
+            ),
+            label: 'Orders',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.category_outlined),
+            label: 'Products',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.currency_rupee_rounded),
+            label: 'Earnings',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_rounded),
+            label: 'Profile',
+          ),
+        ],
       ),
     );
   }

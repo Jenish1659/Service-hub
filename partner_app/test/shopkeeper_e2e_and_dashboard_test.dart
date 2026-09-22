@@ -121,6 +121,36 @@ void main() {
           'phone': testPhone,
           'role_name': 'shopkeeper',
         });
+        final box = Hive.box('partner_cache');
+        await box.put('shopkeeper_orders', [
+          {
+            'order_id': 'SH1024',
+            'customer_name': 'Amit Shah',
+            'item_title': 'AC Remote',
+            'item_count': 1,
+            'location': 'Rajkot (Near Kalawad Road)',
+            'amount': 450.0,
+            'status': 'New',
+          },
+          {
+            'order_id': 'SH1023',
+            'customer_name': 'Priya Patel',
+            'item_title': 'Water Filter',
+            'item_count': 2,
+            'location': 'Rajkot (150ft Ring Road)',
+            'amount': 850.0,
+            'status': 'Preparing',
+          },
+          {
+            'order_id': 'SH1021',
+            'customer_name': 'Rahul Verma',
+            'item_title': 'Washing Machine Belt',
+            'item_count': 1,
+            'location': 'Rajkot (University Road)',
+            'amount': 320.0,
+            'status': 'Completed',
+          },
+        ]);
       });
 
       tester.view.physicalSize = const Size(1080, 2200);
@@ -187,6 +217,21 @@ void main() {
 
     testWidgets('6. Shopkeeper can toggle Open/Closed status and accept orders interactively', (WidgetTester tester) async {
       LiveBookingSyncService.instance.stopPolling();
+      await tester.runAsync(() async {
+        final box = Hive.box('partner_cache');
+        await box.put('shopkeeper_orders', [
+          {
+            'order_id': 'SH1024',
+            'customer_name': 'Amit Shah',
+            'item_title': 'AC Remote',
+            'item_count': 1,
+            'location': 'Rajkot (Near Kalawad Road)',
+            'amount': 450.0,
+            'status': 'New',
+          },
+        ]);
+      });
+
       tester.view.physicalSize = const Size(1080, 2200);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(() {
@@ -230,6 +275,36 @@ void main() {
 
       // Status should now transition to Preparing!
       expect(find.text('Order #SH1024 marked as Preparing!'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('7. ShopkeeperDashboardScreen displays clean empty state when no orders exist', (WidgetTester tester) async {
+      LiveBookingSyncService.instance.stopPolling();
+      await tester.runAsync(() async {
+        final box = Hive.box('partner_cache');
+        await box.put('shopkeeper_orders', []);
+      });
+
+      tester.view.physicalSize = const Size(1080, 2200);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: ShopkeeperDashboardScreen(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Assert Empty State Content
+      expect(find.text('No incoming orders yet'), findsOneWidget);
+      expect(find.text('Your store is active and waiting for customer orders'), findsOneWidget);
+      expect(find.text('Manage Catalog'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
     });
   });
 }

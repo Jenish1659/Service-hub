@@ -5,8 +5,10 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../shared/providers/location_provider.dart';
 import '../../../shared/providers/notification_provider.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../cart/presentation/cart_provider.dart';
 import '../../location/screens/saved_locations_screen.dart';
 import '../../location/screens/map_screen.dart';
+import '../../products/presentation/products_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -62,8 +64,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final authState = ref.watch(authControllerProvider);
     final user = authState.value;
-    final String fullName = user?.userMetadata?['name'] as String? ?? user?.email?.split('@').first ?? 'Deep';
+    final String fullName = user?.userMetadata?['name'] as String? ?? user?.email?.split('@').first ?? 'Guest';
     final String firstName = fullName.split(' ').first;
+    final productsAsync = ref.watch(productsProvider);
 
     if (!locationState.isOutsideRange) {
       _outsideRangeWarningShown = false;
@@ -583,54 +586,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
               const SizedBox(height: 14),
 
-              // Products Horizontal Scroll (Strictly Fixed Heights & FittedBox to prevent 10px overflow bug)
-              SizedBox(
-                height: 240,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: [
-                    _buildProductPhotoCard(
-                      context: context,
-                      id: 'p1',
-                      name: 'AC Dust Filter (Universal)',
-                      price: '₹349',
-                      origPrice: '₹499',
-                      disc: '30% OFF',
-                      imageAsset: 'assets/images/ac_filter.png',
-                    ),
-                    const SizedBox(width: 14),
-                    _buildProductPhotoCard(
-                      context: context,
-                      id: 'p2',
-                      name: 'Pipe Repair Tape 5m',
-                      price: '₹89',
-                      origPrice: '₹120',
-                      disc: '26% OFF',
-                      imageAsset: 'assets/images/pipe_tape.png',
-                    ),
-                    const SizedBox(width: 14),
-                    _buildProductPhotoCard(
-                      context: context,
-                      id: 'p3',
-                      name: 'AC Coil Cleaner 500ml',
-                      price: '₹199',
-                      origPrice: '₹299',
-                      disc: '26% OFF',
-                      imageAsset: 'assets/images/coil_cleaner.png',
-                    ),
-                    const SizedBox(width: 14),
-                    _buildProductPhotoCard(
-                      context: context,
-                      id: 'p4',
-                      name: 'Plumbing Tool Set (10 Pcs)',
-                      price: '₹699',
-                      origPrice: '₹999',
-                      disc: '30% OFF',
-                      imageAsset: 'assets/images/toolset.png',
-                    ),
-                  ],
+              // Products Horizontal Scroll (Dynamic from productsProvider or Zero-state card)
+              productsAsync.when(
+                loading: () => const SizedBox(
+                  height: 140,
+                  child: Center(
+                    child: CircularProgressIndicator(color: Color(0xff0052cc)),
+                  ),
                 ),
+                error: (err, _) => _buildZeroStateProductsCard(context),
+                data: (products) {
+                  if (products.isEmpty) {
+                    return _buildZeroStateProductsCard(context);
+                  }
+                  return SizedBox(
+                    height: 240,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: products.length,
+                      itemBuilder: (context, index) {
+                        final product = products[index];
+                        return Padding(
+                          padding: EdgeInsets.only(right: index == products.length - 1 ? 0 : 14),
+                          child: _buildRealProductCard(context, product),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 30),
@@ -779,15 +763,90 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildProductPhotoCard({
-    required BuildContext context,
-    required String id,
-    required String name,
-    required String price,
-    required String origPrice,
-    required String disc,
-    required String imageAsset,
-  }) {
+  Widget _buildZeroStateProductsCard(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xffe2e8f0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xffeff6ff),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xffdbeafe)),
+              ),
+              child: const Icon(
+                Icons.storefront_outlined,
+                color: Color(0xff0052cc),
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'No products in your area yet • Check back soon',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.5,
+                      color: Color(0xff0f172a),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Local genuine spare parts delivered within 5 km',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xff64748b),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRealProductCard(BuildContext context, Map<String, dynamic> item) {
+    final id = item['id']?.toString() ?? '';
+    final name = item['name']?.toString() ?? 'Product';
+    final priceVal = item['price'] ?? 0;
+    final priceStr = '₹$priceVal';
+    final origPriceVal = item['original_price'];
+    final origPriceStr = origPriceVal != null ? '₹$origPriceVal' : '';
+    final disc = item['discount']?.toString() ?? '';
+    final cat = item['category']?.toString() ?? '';
+
+    // Extract real image URL if available
+    String? imageUrl;
+    if (item['images'] is List && (item['images'] as List).isNotEmpty) {
+      final first = (item['images'] as List).first?.toString();
+      if (first != null && first.trim().isNotEmpty) {
+        imageUrl = first.trim();
+      }
+    } else if (item['image_url'] != null && item['image_url'].toString().trim().isNotEmpty) {
+      imageUrl = item['image_url'].toString().trim();
+    }
+
     final bool isWishlisted = _wishlistProducts.contains(id);
 
     return Container(
@@ -827,15 +886,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     topLeft: Radius.circular(17),
                     topRight: Radius.circular(17),
                   ),
-                  child: Image.asset(
-                    imageAsset,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Center(
-                        child: Icon(Icons.shopping_bag_outlined, color: Color(0xff94a3b8), size: 36),
-                      );
-                    },
-                  ),
+                  child: imageUrl != null && imageUrl.startsWith('http')
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildProductCategoryPlaceholder(cat);
+                          },
+                        )
+                      : _buildProductCategoryPlaceholder(cat),
                 ),
               ),
 
@@ -890,43 +949,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Row(
                   children: [
                     Text(
-                      price,
+                      priceStr,
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
                         color: Color(0xff0f172a),
                         fontSize: 14,
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      origPrice,
-                      style: const TextStyle(
-                        decoration: TextDecoration.lineThrough,
-                        color: Color(0xff94a3b8),
-                        fontSize: 11,
+                    if (origPriceStr.isNotEmpty) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        origPriceStr,
+                        style: const TextStyle(
+                          decoration: TextDecoration.lineThrough,
+                          color: Color(0xff94a3b8),
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xffdcfce7),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        disc,
-                        style: const TextStyle(
-                          color: Color(0xff16a34a),
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.bold,
+                    if (disc.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xffdcfce7),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                      ),
-                    ),
+                        child: Text(
+                          disc,
+                          style: const TextStyle(
+                            color: Color(0xff16a34a),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    else
+                      const SizedBox(),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xff0052cc),
@@ -938,7 +1002,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      onPressed: () => context.push('/cart'),
+                      onPressed: () {
+                        ref.read(cartProvider.notifier).addItem(item);
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('$name added to cart!'),
+                            duration: const Duration(seconds: 2),
+                            action: SnackBarAction(
+                              label: 'View Cart',
+                              textColor: Colors.amber,
+                              onPressed: () => context.push('/cart'),
+                            ),
+                          ),
+                        );
+                      },
                       child: const Text('Add', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                   ],
@@ -949,6 +1027,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildProductCategoryPlaceholder(String cat) {
+    return Container(
+      color: const Color(0xfff1f5f9),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xff0052cc).withValues(alpha: 0.08),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            _getProductCategoryIcon(cat),
+            color: const Color(0xff0052cc),
+            size: 28,
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getProductCategoryIcon(String cat) {
+    final c = cat.toLowerCase();
+    if (c.contains('ac')) return Icons.ac_unit_rounded;
+    if (c.contains('plumb')) return Icons.plumbing_rounded;
+    if (c.contains('car')) return Icons.directions_car_rounded;
+    if (c.contains('cook')) return Icons.soup_kitchen_rounded;
+    if (c.contains('laundry')) return Icons.local_laundry_service_rounded;
+    if (c.contains('care')) return Icons.health_and_safety_rounded;
+    return Icons.shopping_bag_outlined;
   }
 
   void _showLocationPicker(BuildContext context) {

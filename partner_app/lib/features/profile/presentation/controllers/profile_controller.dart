@@ -177,6 +177,9 @@ class ProfileController extends ChangeNotifier {
         }
       }
 
+      // Query real database metrics for Technician profile (Jobs Completed, Earnings, Ratings)
+      await _loadRealTechnicianMetrics();
+
       // Initialize default services if empty
       if (services.isEmpty) {
         services = _getDefaultServices();
@@ -186,6 +189,95 @@ class ProfileController extends ChangeNotifier {
     } finally {
       isLoading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _loadRealTechnicianMetrics() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+      final partnerId = (partnerData?['partner_id'] ?? partnerData?['id'] ?? user?.id ?? '').toString();
+
+      // 1. Fetch real rating from service_provider_profiles
+      if (partnerId.isNotEmpty) {
+        try {
+          var profileRes = await supabase
+              .from('service_provider_profiles')
+              .select('rating')
+              .eq('partner_id', partnerId)
+              .maybeSingle();
+          if (profileRes == null && user != null) {
+            profileRes = await supabase
+                .from('service_provider_profiles')
+                .select('rating')
+                .eq('user_id', user.id)
+                .maybeSingle();
+          }
+          if (profileRes != null && profileRes['rating'] != null) {
+            averageRating = (profileRes['rating'] as num).toDouble();
+          }
+        } catch (_) {}
+      }
+
+      // 2. Fetch real earnings from partner_earnings table
+      if (partnerId.isNotEmpty) {
+        try {
+          final earningsRes = await supabase
+              .from('partner_earnings')
+              .select()
+              .eq('partner_id', partnerId);
+
+          double totalEarned = 0.0;
+          double monthEarned = 0.0;
+          final now = DateTime.now();
+          final monthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+          for (final earn in earningsRes) {
+            final net = (earn['net_amount'] as num?)?.toDouble() ?? (earn['gross_amount'] as num?)?.toDouble() ?? 0.0;
+            totalEarned += net;
+            final earnedAt = earn['earned_at']?.toString() ?? '';
+            if (earnedAt.startsWith(monthStr)) {
+              monthEarned += net;
+            }
+          }
+          totalEarnings = totalEarned;
+          thisMonthEarnings = monthEarned;
+          allTimeEarnings = totalEarned;
+        } catch (_) {}
+      }
+
+      // 3. Fetch completed service bookings from service_bookings table
+      if (partnerId.isNotEmpty) {
+        try {
+          final completedRes = await supabase
+              .from('service_bookings')
+              .select('booking_id, customer_id, created_at, status')
+              .filter('status', 'in', ['SERVICE_COMPLETED', 'PAYMENT_COMPLETED', 'REVIEWED', 'CLOSED']);
+
+          final now = DateTime.now();
+          final monthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+          int countMonth = 0;
+          int countAll = 0;
+          final Map<String, int> customerCounts = {};
+
+          for (final b in completedRes) {
+            countAll++;
+            final createdAtStr = b['created_at']?.toString() ?? '';
+            if (createdAtStr.startsWith(monthStr)) {
+              countMonth++;
+            }
+            final cId = b['customer_id']?.toString() ?? '';
+            if (cId.isNotEmpty) {
+              customerCounts[cId] = (customerCounts[cId] ?? 0) + 1;
+            }
+          }
+          jobsCompletedThisMonth = countMonth;
+          completedOrders = countAll;
+          repeatCustomersThisMonth = customerCounts.values.where((c) => c > 1).length;
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('[ProfileController] Error querying database metrics: $e');
     }
   }
 
@@ -345,11 +437,37 @@ class ProfileController extends ChangeNotifier {
         profilePhotoPath = picked.path;
         notifyListeners();
         await _persistProfileUpdates({'profilePhotoPath': picked.path});
+
+        // Read real file bytes and upload to Supabase Storage avatars bucket if online
+        try {
+          final bytes = await picked.readAsBytes();
+          final user = Supabase.instance.client.auth.currentUser;
+          final fileName = 'partner_${user?.id ?? "technician"}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final storagePath = 'technicians/$fileName';
+
+          final client = Supabase.instance.client;
+          await client.storage.from('avatars').uploadBinary(
+            storagePath,
+            bytes,
+            fileOptions: const FileOptions(contentType: 'image/jpeg', upsert: true),
+          );
+          final publicUrl = client.storage.from('avatars').getPublicUrl(storagePath);
+          if (publicUrl.isNotEmpty) {
+            profilePhotoPath = publicUrl;
+            notifyListeners();
+            await _persistProfileUpdates({'profilePhotoPath': publicUrl});
+          }
+        } catch (storageError) {
+          debugPrint('[ProfileController] Supabase storage upload fallback to local path: $storageError');
+        }
       }
     } catch (e) {
       debugPrint('[ProfileController] Failed to pick photo: $e');
     }
   }
+
+  /// Explicit method for picking profile image using genuine ImagePicker and uploading to Supabase
+  Future<void> pickProfileImage([ImageSource source = ImageSource.gallery]) => pickPhoto(source);
 
   Future<void> removePhoto() async {
     profilePhotoPath = null;
@@ -565,6 +683,7 @@ class ProfileController extends ChangeNotifier {
 
   Future<bool> _persistProfileUpdates(Map<String, dynamic> updates) async {
     try {
+      await LocalRegistrationCache.updateActiveServiceProvider(updates);
       await LocalRegistrationCache.updateActivePartner(updates);
 
       // Attempt remote sync if authenticated
@@ -576,6 +695,19 @@ class ProfileController extends ChangeNotifier {
             if (updates['phone'] != null) 'phone': updates['phone'],
             if (updates['email'] != null) 'email': updates['email'],
           }).eq('id', user.id);
+        }
+        if (updates.containsKey('profilePhotoPath')) {
+          final photo = updates['profilePhotoPath'];
+          try {
+            await Supabase.instance.client.from('users').update({
+              'avatar_url': photo,
+            }).eq('id', user.id);
+          } catch (_) {}
+          try {
+            await Supabase.instance.client.from('service_provider_profiles').update({
+              'profile_photo': photo,
+            }).eq('user_id', user.id);
+          } catch (_) {}
         }
       }
       return true;

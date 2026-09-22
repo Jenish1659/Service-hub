@@ -1,6 +1,8 @@
-﻿import 'dart:typed_data';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app_permissions_service.dart';
 
 /// Result container for picked images and documents
@@ -18,6 +20,8 @@ class PickedMediaFile {
     required this.sizeInBytes,
     required this.isFromCamera,
   });
+
+  File get file => File(path);
 }
 
 /// Robust Media & Document Selection Service with real Camera/Gallery interaction
@@ -177,5 +181,69 @@ class MediaDocumentPickerService {
     }
 
     return null;
+  }
+
+  /// Uploads image or document file to Supabase Storage bucket using binary bytes.
+  /// Falls back safely to storing local file path if offline or bucket is not accessible.
+  Future<String> uploadImageToSupabase({
+    required File file,
+    required String bucket,
+    required String path,
+    String? contentType,
+  }) async {
+    try {
+      if (!kIsWeb && await file.exists()) {
+        final client = Supabase.instance.client;
+        final bytes = await file.readAsBytes();
+        await client.storage.from(bucket).uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: contentType ?? _inferContentType(path),
+            upsert: true,
+          ),
+        );
+        return client.storage.from(bucket).getPublicUrl(path);
+      }
+      return file.path;
+    } catch (e) {
+      debugPrint('[MediaDocumentPickerService] Supabase upload failed, fallback to local path: $e');
+      return file.path;
+    }
+  }
+
+  /// Uploads picked media container to Supabase Storage bucket using binary bytes.
+  /// Falls back safely to storing local file path if offline or bucket is not accessible.
+  Future<String> uploadPickedMediaToSupabase({
+    required PickedMediaFile media,
+    required String bucket,
+    required String path,
+    String? contentType,
+  }) async {
+    try {
+      final client = Supabase.instance.client;
+      final Uint8List uploadBytes = media.bytes ?? (await File(media.path).readAsBytes());
+      await client.storage.from(bucket).uploadBinary(
+        path,
+        uploadBytes,
+        fileOptions: FileOptions(
+          contentType: contentType ?? _inferContentType(path),
+          upsert: true,
+        ),
+      );
+      return client.storage.from(bucket).getPublicUrl(path);
+    } catch (e) {
+      debugPrint('[MediaDocumentPickerService] Supabase upload failed, fallback to local path: $e');
+      return media.path;
+    }
+  }
+
+  String _inferContentType(String filePath) {
+    final lower = filePath.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    return 'image/jpeg';
   }
 }

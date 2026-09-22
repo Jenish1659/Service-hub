@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
@@ -13,75 +14,29 @@ class ShopkeeperDashboardScreen extends StatefulWidget {
 
 class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   bool _isOpen = true;
-  String _shopkeeperName = 'Rajesh Kumar';
-  String _shopName = 'Rajesh Electronics';
-  String _shopAddress = 'Station Road, Jamnagar';
-  String _shopCategory = 'AC Service Parts';
-  String _todayHours = '9:00 AM - 8:00 PM';
-  double _todaySales = 8450.0;
-  int _newOrdersCount = 12;
-  int _todayOrdersCount = 28;
-  final double _shopRating = 4.8;
-  final int _ratingReviewsCount = 126;
+  String _shopkeeperName = 'Store Owner';
+  String _shopName = 'ServiceHub Store';
+  String _shopAddress = '';
+  String _shopCategory = 'Store Catalog';
+  String _todayHours = '09:00 AM - 08:00 PM';
+  double _todaySales = 0.0;
+  int _newOrdersCount = 0;
+  int _todayOrdersCount = 0;
+  double _shopRating = 0.0;
+  int _ratingReviewsCount = 0;
   int _activeNavIndex = 0;
   bool _isLoading = false;
 
-  // Real stateful orders list matching the design mockup
-  late List<Map<String, dynamic>> _orders;
+  // Real dynamically queried orders list (Supabase & Hive)
+  List<Map<String, dynamic>> _orders = [];
 
-  // Catalog items for the store
-  final List<Map<String, dynamic>> _catalogProducts = [
-    {'name': 'AC Remote (Universal Multi-brand)', 'category': 'AC Service Parts', 'price': 450.0, 'stock': 8, 'sku': 'SH-AC-901'},
-    {'name': 'Water Filter Cartridge (RO 5-Stage)', 'category': 'Water Purifier', 'price': 850.0, 'stock': 3, 'sku': 'SH-RO-412'},
-    {'name': 'Washing Machine Belt (Universal)', 'category': 'Appliance Parts', 'price': 350.0, 'stock': 14, 'sku': 'SH-WM-119'},
-    {'name': 'Copper Tubing 1/4" (15 Meters Coil)', 'category': 'AC Service Parts', 'price': 1450.0, 'stock': 2, 'sku': 'SH-AC-220'},
-    {'name': 'R32 Refrigerant Gas Cylinder (1kg)', 'category': 'AC Service Parts', 'price': 1200.0, 'stock': 0, 'sku': 'SH-AC-032'},
-    {'name': 'Drain Pipe 2 Meter Flexible', 'category': 'Plumbing Parts', 'price': 180.0, 'stock': 0, 'sku': 'SH-PL-554'},
-  ];
+  // Catalog items for the store (Supabase & Hive)
+  List<Map<String, dynamic>> _catalogProducts = [];
 
   @override
   void initState() {
     super.initState();
-    _initDefaultOrders();
     _loadShopData();
-  }
-
-  void _initDefaultOrders() {
-    _orders = [
-      {
-        'order_id': 'SH1024',
-        'item_title': 'AC Remote',
-        'customer_name': 'Rahul Patel',
-        'item_count': 2,
-        'location': 'Rajkot (2.3 km)',
-        'amount': 450.0,
-        'status': 'New',
-        'status_color': const Color(0xFF10B981),
-        'status_bg': const Color(0xFFDCFCE7),
-      },
-      {
-        'order_id': 'SH1023',
-        'item_title': 'Water Filter',
-        'customer_name': 'Neha Shah',
-        'item_count': 1,
-        'location': 'Rajkot (1.8 km)',
-        'amount': 850.0,
-        'status': 'Preparing',
-        'status_color': const Color(0xFFD97706),
-        'status_bg': const Color(0xFFFEF3C7),
-      },
-      {
-        'order_id': 'SH1021',
-        'item_title': 'Washing Machine Belt',
-        'customer_name': 'Amit Joshi',
-        'item_count': 2,
-        'location': 'Rajkot (3.1 km)',
-        'amount': 350.0,
-        'status': 'Completed',
-        'status_color': const Color(0xFF2563EB),
-        'status_bg': const Color(0xFFDBEAFE),
-      },
-    ];
   }
 
   Future<void> _loadShopData() async {
@@ -156,24 +111,65 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
           if (addr.isNotEmpty) _shopAddress = addr;
           final cat = (activeUser['category'] ?? '').toString();
           if (cat.isNotEmpty) _shopCategory = cat;
+          final hrs = (activeUser['today_hours'] ?? activeUser['business_hours'] ?? '').toString();
+          if (hrs.isNotEmpty) _todayHours = hrs;
+          if (activeUser['rating'] is num) {
+            _shopRating = (activeUser['rating'] as num).toDouble();
+          } else if (activeUser['shop_rating'] is num) {
+            _shopRating = (activeUser['shop_rating'] as num).toDouble();
+          }
+          if (activeUser['review_count'] is num) {
+            _ratingReviewsCount = (activeUser['review_count'] as num).toInt();
+          } else if (activeUser['reviews_count'] is num) {
+            _ratingReviewsCount = (activeUser['reviews_count'] as num).toInt();
+          }
         });
+
+        // Query real reviews if partnerId or userId is available
+        if (uId.isNotEmpty) {
+          try {
+            final client = Supabase.instance.client;
+            final pRes = await client
+                .from('partners')
+                .select('partner_id, shopkeeper_profiles(*)')
+                .eq('user_id', uId)
+                .maybeSingle();
+            if (pRes != null) {
+              final pId = pRes['partner_id']?.toString();
+              if (pId != null && pId.isNotEmpty) {
+                final revRes = await client
+                    .from('reviews')
+                    .select('rating')
+                    .eq('partner_id', pId);
+                if (revRes.isNotEmpty) {
+                  _ratingReviewsCount = revRes.length;
+                  double totalRating = 0.0;
+                  for (final r in revRes) {
+                    totalRating += (r['rating'] as num?)?.toDouble() ?? 0.0;
+                  }
+                  _shopRating = _ratingReviewsCount > 0 ? (totalRating / _ratingReviewsCount) : 0.0;
+                }
+              }
+            }
+          } catch (_) {}
+        }
       }
 
-      // Query real store orders from Supabase if connected
+      // Query real store orders dynamically from Supabase & Hive
+      List<Map<String, dynamic>> realOrders = [];
       try {
         final client = Supabase.instance.client;
         final ordersRes = await client
             .from('orders')
             .select('*, order_items(*, products(*)), user_addresses(*)')
             .order('created_at', ascending: false)
-            .limit(5);
+            .limit(20);
 
         if (ordersRes.isNotEmpty) {
-          final List<Map<String, dynamic>> realOrders = [];
           for (final o in ordersRes) {
             final address = o['user_addresses'] as Map<String, dynamic>?;
-            final code = (o['order_code'] ?? 'SH${o['order_id'] ?? 1025}').toString();
-            final amt = (o['total_amount'] as num?)?.toDouble() ?? 450.0;
+            final code = (o['order_code'] ?? 'SH${o['order_id'] ?? ''}').toString();
+            final amt = (o['total_amount'] as num?)?.toDouble() ?? 0.0;
             final st = (o['order_status'] ?? 'New').toString();
 
             Color stColor = const Color(0xFF10B981);
@@ -191,20 +187,73 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
               'item_title': o['items_summary'] ?? 'Store Spare Parts',
               'customer_name': 'Customer',
               'item_count': 1,
-              'location': address != null ? '${address['city']} (${address['area'] ?? ""})' : 'Rajkot (Local)',
+              'location': address != null ? '${address['city']} (${address['area'] ?? ""})' : 'Local Delivery',
               'amount': amt,
               'status': st,
               'status_color': stColor,
               'status_bg': stBg,
             });
           }
-          if (mounted && realOrders.isNotEmpty) {
-            setState(() {
-              _orders = realOrders;
-            });
+        }
+      } catch (_) {}
+
+      // Fallback: Query Hive local storage if Supabase returned nothing or is offline
+      if (realOrders.isEmpty) {
+        try {
+          if (Hive.isBoxOpen('partner_cache')) {
+            final box = Hive.box('partner_cache');
+            final cached = box.get('shopkeeper_orders');
+            if (cached != null && cached is List) {
+              realOrders = cached.map((e) {
+                final m = Map<String, dynamic>.from(e as Map);
+                if (m['status_color'] is int) {
+                  m['status_color'] = Color(m['status_color'] as int);
+                } else if (m['status_color'] is! Color) {
+                  final st = (m['status'] ?? 'New').toString();
+                  m['status_color'] = st == 'New'
+                      ? const Color(0xFF10B981)
+                      : (st == 'Preparing' ? const Color(0xFFD97706) : const Color(0xFF2563EB));
+                }
+                if (m['status_bg'] is int) {
+                  m['status_bg'] = Color(m['status_bg'] as int);
+                } else if (m['status_bg'] is! Color) {
+                  final st = (m['status'] ?? 'New').toString();
+                  m['status_bg'] = st == 'New'
+                      ? const Color(0xFFDCFCE7)
+                      : (st == 'Preparing' ? const Color(0xFFFEF3C7) : const Color(0xFFDBEAFE));
+                }
+                return m;
+              }).toList();
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Query products from Hive if available
+      try {
+        if (Hive.isBoxOpen('partner_cache')) {
+          final box = Hive.box('partner_cache');
+          final pRaw = box.get('shopkeeper_products');
+          if (pRaw != null && pRaw is List) {
+            _catalogProducts = pRaw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
           }
         }
       } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _orders = realOrders;
+          if (_orders.isNotEmpty) {
+            _newOrdersCount = _orders.where((o) => (o['status'] ?? '').toString().toLowerCase() == 'new').length;
+            _todayOrdersCount = _orders.length;
+            _todaySales = _orders.fold<double>(0.0, (sum, o) => sum + ((o['amount'] as num?)?.toDouble() ?? 0.0));
+          } else {
+            _newOrdersCount = 0;
+            _todayOrdersCount = 0;
+            _todaySales = 0.0;
+          }
+        });
+      }
     } catch (_) {} finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -235,114 +284,6 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
         backgroundColor: val ? const Color(0xFF059669) : const Color(0xFF334155),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _showOperatingHoursSheet() {
-    String selectedHours = _todayHours;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (modalCtx, setModalState) {
-          final options = [
-            '8:00 AM - 7:00 PM',
-            '9:00 AM - 8:00 PM',
-            '9:30 AM - 9:00 PM',
-            '10:00 AM - 10:00 PM',
-            '24 Hours Open',
-          ];
-
-          return Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3C7),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.access_time_filled_rounded, color: Color(0xFFD97706), size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Today\'s Store Operating Hours', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
-                          Text('Customers can place orders during these working hours', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                ...options.map((opt) {
-                  final isSel = selectedHours == opt;
-                  return InkWell(
-                    onTap: () => setModalState(() => selectedHours = opt),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSel ? const Color(0xFFECFDF5) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: isSel ? const Color(0xFF059669) : const Color(0xFFE2E8F0), width: isSel ? 1.5 : 1),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isSel ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                            color: isSel ? const Color(0xFF059669) : const Color(0xFF94A3B8),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(opt, style: TextStyle(fontSize: 14, fontWeight: isSel ? FontWeight.bold : FontWeight.w500, color: const Color(0xFF0F172A))),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF059669),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      setState(() => _todayHours = selectedHours);
-                      Navigator.pop(modalCtx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Store operating hours updated to $_todayHours'),
-                          backgroundColor: const Color(0xFF059669),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                    child: const Text('Save Operating Hours', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }
@@ -576,6 +517,13 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                             });
                           });
 
+                          try {
+                            if (Hive.isBoxOpen('partner_cache')) {
+                              final box = Hive.box('partner_cache');
+                              box.put('shopkeeper_products', _catalogProducts);
+                            }
+                          } catch (_) {}
+
                           Navigator.pop(modalCtx);
 
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -638,7 +586,34 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView.separated(
+              child: _catalogProducts.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF1F5F9),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.inventory_2_outlined, size: 40, color: Color(0xFF94A3B8)),
+                          ),
+                          const SizedBox(height: 14),
+                          const Text(
+                            'No Products in Catalog',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Add your store products to start receiving customer orders.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
                 itemCount: _catalogProducts.length,
                 separatorBuilder: (_, __) => const Divider(height: 16),
                 itemBuilder: (c, i) {
@@ -876,7 +851,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Recent Payouts: Yesterday ₹14,200 (HDFC Bank • Complete)', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+            Text(_todaySales > 0 ? 'Recent Payouts: In Process' : 'No payout history yet', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
           ],
         ),
       ),
@@ -952,7 +927,10 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                     // 6. Recent Orders Section
                     _buildRecentOrdersHeader(),
                     const SizedBox(height: 12),
-                    ..._orders.asMap().entries.map((entry) => _buildOrderCard(entry.key, entry.value)),
+                    if (_orders.isEmpty)
+                      _buildEmptyOrdersState()
+                    else
+                      ..._orders.asMap().entries.map((entry) => _buildOrderCard(entry.key, entry.value)),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -1060,7 +1038,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                   radius: 17,
                   backgroundColor: const Color(0xFFDCFCE7),
                   child: Text(
-                    _shopkeeperName.isNotEmpty ? _shopkeeperName[0].toUpperCase() : 'R',
+                    _shopkeeperName.isNotEmpty ? _shopkeeperName[0].toUpperCase() : 'S',
                     style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF059669), fontSize: 14),
                   ),
                 ),
@@ -1109,7 +1087,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                   radius: 28,
                   backgroundColor: Colors.white,
                   child: Text(
-                    _shopkeeperName.isNotEmpty ? _shopkeeperName[0].toUpperCase() : 'R',
+                    _shopkeeperName.isNotEmpty ? _shopkeeperName[0].toUpperCase() : 'S',
                     style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF065F46), fontSize: 22),
                   ),
                 ),
@@ -1125,7 +1103,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '📍 $_shopAddress • $_shopCategory',
+                  '📍 ${_shopAddress.isNotEmpty ? _shopAddress : "Store Location"} • $_shopCategory',
                   style: const TextStyle(color: Color(0xFFA7F3D0), fontSize: 11),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1219,7 +1197,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   }
 
   // -------------------------------------------------------------
-  // 1. Hero Store Greeting Banner (Pixel-Perfect from Mockup)
+  // 1. Top Hero Storefront Card (Modern Emerald Gradient & CTA)
   // -------------------------------------------------------------
   Widget _buildHeroStoreCard() {
     return Container(
@@ -1227,143 +1205,354 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF0D5B56), Color(0xFF064E3B)],
+          colors: [Color(0xFF065F46), Color(0xFF0F766E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF064E3B).withValues(alpha: 0.25),
-            blurRadius: 14,
+            color: const Color(0xFF065F46).withValues(alpha: 0.28),
+            blurRadius: 16,
             offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left details
-          Expanded(
-            flex: 6,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Good Morning, $_shopkeeperName 👋',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w900,
+          // Top Row: Avatar & Greeting & Rating Pill
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Store Avatar with online dot - tap navigates to store profile
+              InkWell(
+                onTap: () => context.push('/profile/shopkeeper'),
+                borderRadius: BorderRadius.circular(28),
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.5),
                   ),
+                  child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 28),
                 ),
-                const SizedBox(height: 6),
-                Row(
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('🏪 ', style: TextStyle(fontSize: 14)),
-                    Flexible(
-                      child: Text(
-                        _shopName,
-                        style: const TextStyle(
-                          color: Color(0xFFCCFBF1),
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      'Good Morning, $_shopkeeperName 👋',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Owner: $_shopkeeperName',
+                      style: const TextStyle(
+                        color: Color(0xFFCCFBF1),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                // Verified Shop badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF34D399), width: 1.2),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.check_circle_rounded, color: Color(0xFF34D399), size: 14),
-                      SizedBox(width: 5),
-                      Text(
-                        'Verified Shop',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+              // Rating Badge: 'New' or '★ 4.8'
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFDE047).withValues(alpha: 0.4)),
                 ),
-                const SizedBox(height: 10),
-                const Text(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.star_rounded, color: Color(0xFFFDE047), size: 16),
+                    const SizedBox(width: 3),
+                    Text(
+                      _ratingReviewsCount == 0 && _shopRating == 0.0 ? 'New' : _shopRating.toStringAsFixed(1),
+                      style: const TextStyle(
+                        color: Color(0xFFFDE047),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Real Store Name
+          Row(
+            children: [
+              const Text('🏪 ', style: TextStyle(fontSize: 15)),
+              Expanded(
+                child: Text(
+                  _shopName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.3,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Category pill & Verified badge row
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // Category pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                ),
+                child: Text(
+                  _shopCategory,
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+              // Verified merchant badge: 'Verified Shop ✓'
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF34D399), width: 1.2),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, color: Color(0xFF34D399), size: 13),
+                    SizedBox(width: 4),
+                    Text(
+                      'Verified Shop',
+                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      ' ✓',
+                      style: TextStyle(color: Color(0xFF34D399), fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Tagline and Quick CTA Button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Flexible(
+                child: Text(
                   '"Quality Products Happier Homes!"',
                   style: TextStyle(
                     color: Color(0xFFA7F3D0),
                     fontSize: 11.5,
                     fontStyle: FontStyle.italic,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              // Quick CTA: 'View Store Profile'
+              InkWell(
+                onTap: () => context.push('/profile/shopkeeper'),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View Store Profile',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11.5),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 10),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------
+  // 2. Shop Status & Business Hours Section (Full-Width Container)
+  // -------------------------------------------------------------
+  Widget _buildStatusAndHoursBar() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _isOpen ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Store status row with active green glowing status dot & Switch
+          Row(
+            children: [
+              // Active green glowing status dot
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: _isOpen ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                  shape: BoxShape.circle,
+                  boxShadow: _isOpen
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.6),
+                            blurRadius: 8,
+                            spreadRadius: 2.5,
+                          ),
+                        ]
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Shop Status',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _isOpen
+                          ? 'Store Open • Accepting Customer Orders'
+                          : 'Store Closed • Incoming Orders Paused',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: _isOpen ? const Color(0xFF059669) : const Color(0xFF64748B),
+                      ),
+                    ),
+                    Text(
+                      _isOpen ? 'You are open for orders' : 'Store is closed',
+                      style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Smooth Switch with ample room
+              Switch(
+                value: _isOpen,
+                activeThumbColor: Colors.white,
+                activeTrackColor: const Color(0xFF10B981),
+                inactiveTrackColor: const Color(0xFFCBD5E1),
+                inactiveThumbColor: Colors.white,
+                onChanged: _toggleShopStatus,
+              ),
+            ],
           ),
 
-          // Right illustration (Storefront representation)
-          Expanded(
-            flex: 4,
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+          ),
+
+          // Operating Hours row: 'Today: 09:00 AM - 08:00 PM' with clock icon, tap navigates to /profile/shopkeeper/hours
+          InkWell(
+            onTap: () => context.push('/profile/shopkeeper/hours'),
+            borderRadius: BorderRadius.circular(12),
             child: Container(
-              height: 115,
-              alignment: Alignment.center,
-              child: Stack(
-                alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
                 children: [
-                  // Circular background glow
                   Container(
-                    width: 95,
-                    height: 95,
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.access_time_filled_rounded,
+                      color: Color(0xFFD97706),
+                      size: 16,
                     ),
                   ),
-                  // Stylized store front graphic
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F766E),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF34D399), width: 1.5),
+                  const Text(
+                    'Today\'s Hours',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF475569),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Awning canopy
-                        Container(
-                          width: 56,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF34D399),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: List.generate(
-                              4,
-                              (i) => Container(width: 6, color: i.isEven ? Colors.white : const Color(0xFF059669)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Icon(Icons.storefront_rounded, color: Colors.white, size: 30),
-                        const SizedBox(height: 2),
-                        const Text('PARTS', style: TextStyle(color: Color(0xFFA7F3D0), fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                      ],
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Today: $_todayHours',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 13,
+                    color: Color(0xFF94A3B8),
                   ),
                 ],
               ),
@@ -1375,177 +1564,71 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   }
 
   // -------------------------------------------------------------
-  // 2. Shop Status & Operating Hours Bar (Two equal cards)
-  // -------------------------------------------------------------
-  Widget _buildStatusAndHoursBar() {
-    return Row(
-      children: [
-        // Left: Shop Status toggle
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _isOpen ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _isOpen ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.store_rounded,
-                    color: _isOpen ? const Color(0xFF16A34A) : const Color(0xFF64748B),
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Shop Status',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                      ),
-                      Text(
-                        _isOpen ? 'You are open for orders' : 'Store is closed',
-                        style: TextStyle(fontSize: 10.5, color: _isOpen ? const Color(0xFF059669) : const Color(0xFF64748B)),
-                      ),
-                    ],
-                  ),
-                ),
-                Transform.scale(
-                  scale: 0.8,
-                  child: Switch(
-                    value: _isOpen,
-                    activeThumbColor: Colors.white,
-                    activeTrackColor: const Color(0xFF16A34A),
-                    inactiveTrackColor: const Color(0xFFCBD5E1),
-                    onChanged: _toggleShopStatus,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-
-        // Right: Today's Hours
-        Expanded(
-          child: InkWell(
-            onTap: _showOperatingHoursSheet,
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFEF3C7),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.access_time_filled_rounded,
-                      color: Color(0xFFD97706),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Today\'s Hours',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                        ),
-                        Text(
-                          '$_todayHours >',
-                          style: const TextStyle(fontSize: 10.5, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // -------------------------------------------------------------
-  // 3. Metrics 4-Card Row (Pixel-Perfect from Mockup)
+  // 3. 4 Key Metrics Cards (2x2 Grid, 16px Padding, Crisp Typography)
   // -------------------------------------------------------------
   Widget _buildMetricsRow() {
-    return LayoutBuilder(
-      builder: (ctx, constraints) {
-        final cardWidth = (constraints.maxWidth - 10 * 3) / 4;
-        final isNarrow = constraints.maxWidth < 650;
-
-        if (isNarrow) {
-          // 2x2 grid for standard mobile
-          return Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(child: _buildMetricCard(title: 'New Orders', value: '$_newOrdersCount', pillText: '↑ 20%', icon: Icons.shopping_bag_outlined, pillColor: const Color(0xFF10B981), pillBg: const Color(0xFFDCFCE7), iconColor: const Color(0xFF0284C7), iconBg: const Color(0xFFE0F2FE))),
-                  const SizedBox(width: 10),
-                  Expanded(child: _buildMetricCard(title: 'Today\'s Orders', value: '$_todayOrdersCount', pillText: '↑ 12%', icon: Icons.local_shipping_outlined, pillColor: const Color(0xFFEA580C), pillBg: const Color(0xFFFFEDD5), iconColor: const Color(0xFFEA580C), iconBg: const Color(0xFFFFF7ED))),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: _buildMetricCard(title: 'Today\'s Sales', value: '₹${_todaySales.toStringAsFixed(0)}', pillText: '↑ 18%', icon: Icons.currency_rupee_rounded, pillColor: const Color(0xFF7C3AED), pillBg: const Color(0xFFF3E8FF), iconColor: const Color(0xFF7C3AED), iconBg: const Color(0xFFFAF5FF))),
-                  const SizedBox(width: 10),
-                  Expanded(child: _buildMetricCard(title: 'Shop Rating', value: '$_shopRating', pillText: '★★★★★ ($_ratingReviewsCount)', icon: Icons.star_rounded, pillColor: const Color(0xFFCA8A04), pillBg: const Color(0xFFFEF9C3), iconColor: const Color(0xFFEAB308), iconBg: const Color(0xFFFEFCE8))),
-                ],
-              ),
-            ],
-          );
-        }
-
-        // Full 4-card row on larger views
-        return Row(
+    return Column(
+      children: [
+        Row(
           children: [
-            SizedBox(width: cardWidth, child: _buildMetricCard(title: 'New Orders', value: '$_newOrdersCount', pillText: '↑ 20%', icon: Icons.shopping_bag_outlined, pillColor: const Color(0xFF10B981), pillBg: const Color(0xFFDCFCE7), iconColor: const Color(0xFF0284C7), iconBg: const Color(0xFFE0F2FE))),
-            const SizedBox(width: 10),
-            SizedBox(width: cardWidth, child: _buildMetricCard(title: 'Today\'s Orders', value: '$_todayOrdersCount', pillText: '↑ 12%', icon: Icons.local_shipping_outlined, pillColor: const Color(0xFFEA580C), pillBg: const Color(0xFFFFEDD5), iconColor: const Color(0xFFEA580C), iconBg: const Color(0xFFFFF7ED))),
-            const SizedBox(width: 10),
-            SizedBox(width: cardWidth, child: _buildMetricCard(title: 'Today\'s Sales', value: '₹${_todaySales.toStringAsFixed(0)}', pillText: '↑ 18%', icon: Icons.currency_rupee_rounded, pillColor: const Color(0xFF7C3AED), pillBg: const Color(0xFFF3E8FF), iconColor: const Color(0xFF7C3AED), iconBg: const Color(0xFFFAF5FF))),
-            const SizedBox(width: 10),
-            SizedBox(width: cardWidth, child: _buildMetricCard(title: 'Shop Rating', value: '$_shopRating', pillText: '★★★★★ ($_ratingReviewsCount)', icon: Icons.star_rounded, pillColor: const Color(0xFFCA8A04), pillBg: const Color(0xFFFEF9C3), iconColor: const Color(0xFFEAB308), iconBg: const Color(0xFFFEFCE8))),
+            Expanded(
+              child: _buildMetricCard(
+                title: 'New Orders',
+                value: '$_newOrdersCount',
+                pillText: _newOrdersCount > 0 ? 'Action Req.' : '0 Pending',
+                icon: Icons.shopping_bag_outlined,
+                pillColor: const Color(0xFF10B981),
+                pillBg: const Color(0xFFDCFCE7),
+                iconColor: const Color(0xFF0284C7),
+                iconBg: const Color(0xFFE0F2FE),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildMetricCard(
+                title: 'Today\'s Orders',
+                value: '$_todayOrdersCount',
+                pillText: _todayOrdersCount > 0 ? '$_todayOrdersCount Today' : '0 Orders',
+                icon: Icons.local_shipping_outlined,
+                pillColor: const Color(0xFFEA580C),
+                pillBg: const Color(0xFFFFEDD5),
+                iconColor: const Color(0xFFEA580C),
+                iconBg: const Color(0xFFFFF7ED),
+              ),
+            ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCard(
+                title: 'Today\'s Sales',
+                value: '₹${_todaySales.toStringAsFixed(0)}',
+                pillText: _todaySales > 0 ? 'Live Sales' : '₹0 Today',
+                icon: Icons.currency_rupee_rounded,
+                pillColor: const Color(0xFF7C3AED),
+                pillBg: const Color(0xFFF3E8FF),
+                iconColor: const Color(0xFF7C3AED),
+                iconBg: const Color(0xFFFAF5FF),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildMetricCard(
+                title: 'Shop Rating',
+                value: _ratingReviewsCount == 0 && _shopRating == 0.0 ? 'New' : '★ ${_shopRating.toStringAsFixed(1)}',
+                pillText: _ratingReviewsCount == 0 ? '0 Reviews' : '★ ($_ratingReviewsCount)',
+                icon: Icons.star_rounded,
+                pillColor: const Color(0xFFCA8A04),
+                pillBg: const Color(0xFFFEF9C3),
+                iconColor: const Color(0xFFEAB308),
+                iconBg: const Color(0xFFFEFCE8),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -1560,7 +1643,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     required Color iconBg,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1568,8 +1651,8 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -1580,12 +1663,12 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(8)),
-                child: Icon(icon, color: iconColor, size: 18),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, color: iconColor, size: 20),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(color: pillBg, borderRadius: BorderRadius.circular(12)),
                 child: Text(
                   pillText,
@@ -1594,15 +1677,15 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Text(
             value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 3),
           Text(
             title,
-            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFF64748B)),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
           ),
         ],
       ),
@@ -1865,6 +1948,82 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // -------------------------------------------------------------
+  // Clean, Gorgeous Empty State when no orders exist
+  // -------------------------------------------------------------
+  Widget _buildEmptyOrdersState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFA7F3D0), width: 1.5),
+            ),
+            child: const Icon(
+              Icons.shopping_bag_outlined,
+              size: 36,
+              color: Color(0xFF059669),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No incoming orders yet',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Your store is active and waiting for customer orders',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF64748B),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF059669),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0.5,
+            ),
+            onPressed: _showInventorySheet,
+            icon: const Icon(Icons.inventory_2_outlined, size: 18),
+            label: const Text(
+              'Manage Catalog',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

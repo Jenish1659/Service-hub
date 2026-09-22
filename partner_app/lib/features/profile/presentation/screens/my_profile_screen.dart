@@ -171,18 +171,20 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
             // Scrollable Profile Content with Zero-Overflow Guarantee
             Expanded(
-              child: SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    // Main Partner Identity Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFEFF6FF), Colors.white],
+              child: RefreshIndicator(
+                onRefresh: () => _controller.loadProfileData(),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // Main Partner Identity Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFEFF6FF), Colors.white],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                         ),
@@ -333,7 +335,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 3 Metric Cards (Clean 0 start guarantee)
+                    // 3 Metric Cards (Real Database State: Jobs Completed, Earnings, Ratings)
                     Row(
                       children: [
                         ProfileMetricCard(
@@ -346,21 +348,21 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         ),
                         const SizedBox(width: 10),
                         ProfileMetricCard(
+                          icon: Icons.account_balance_wallet_outlined,
+                          iconBgColor: const Color(0xFFEFF6FF),
+                          iconColor: const Color(0xFF2563EB),
+                          value: '₹${_controller.totalEarnings == 0 ? "0" : _controller.totalEarnings.toStringAsFixed(0)}',
+                          label: 'Earnings',
+                          subLabel: 'Total Earned',
+                        ),
+                        const SizedBox(width: 10),
+                        ProfileMetricCard(
                           icon: Icons.star_rounded,
                           iconBgColor: const Color(0xFFFEF3C7),
                           iconColor: const Color(0xFFD97706),
                           value: _controller.averageRating.toStringAsFixed(1),
-                          label: 'Average Rating',
+                          label: 'Ratings',
                           subLabel: 'From Customers',
-                        ),
-                        const SizedBox(width: 10),
-                        ProfileMetricCard(
-                          icon: Icons.people_outline_rounded,
-                          iconBgColor: const Color(0xFFF3E8FF),
-                          iconColor: const Color(0xFF9333EA),
-                          value: '${_controller.repeatCustomersThisMonth}',
-                          label: 'Repeat Customers',
-                          subLabel: 'This Month',
                         ),
                       ],
                     ),
@@ -497,6 +499,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 ),
               ),
             ),
+          ),
 
             // Bottom Navigation Bar
             _buildBottomNavBar(context),

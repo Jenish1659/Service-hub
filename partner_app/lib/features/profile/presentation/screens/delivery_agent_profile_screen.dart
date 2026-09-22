@@ -189,32 +189,61 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            '${_controller.vehicleType} • ${_controller.vehicleRegNumber}',
+                                            _controller.vehicleRegNumber.isNotEmpty
+                                                ? '${_controller.vehicleType} • ${_controller.vehicleRegNumber}'
+                                                : '${_controller.vehicleType} • Not Linked / Upload Required',
                                             style: const TextStyle(fontSize: 12, color: Color(0xFF475569), fontWeight: FontWeight.w500),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            'DL: ${_controller.drivingLicenseNumber}',
+                                            _controller.drivingLicenseNumber.isNotEmpty
+                                                ? 'DL: ${_controller.drivingLicenseNumber}'
+                                                : 'DL: Not Linked / Upload Required',
                                             style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                                           ),
                                           const SizedBox(height: 6),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFFFEDD5),
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                            child: const Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(Icons.check_circle_rounded, color: orangeColor, size: 12),
-                                                SizedBox(width: 4),
-                                                Text(
-                                                  'Verified Rider ✓',
-                                                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: orangeColor),
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFFFEDD5),
+                                                  borderRadius: BorderRadius.circular(10),
                                                 ),
-                                              ],
-                                            ),
+                                                child: const Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(Icons.check_circle_rounded, color: orangeColor, size: 12),
+                                                    SizedBox(width: 4),
+                                                    Text(
+                                                      'Verified Rider ✓',
+                                                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: orangeColor),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFFEF9C3),
+                                                  borderRadius: BorderRadius.circular(10),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(Icons.star_rounded, color: Color(0xFFEAB308), size: 12),
+                                                    const SizedBox(width: 3),
+                                                    Text(
+                                                      _controller.reviewCount == 0 && _controller.rating == 0.0
+                                                          ? 'New Rider'
+                                                          : '${_controller.rating.toStringAsFixed(1)} (${_controller.reviewCount})',
+                                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF854D0E)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
@@ -226,7 +255,7 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
                           ),
                           const SizedBox(height: 16),
 
-                          // Delivery Metrics Row (4 Metrics)
+                          // Delivery Metrics Row (4 Metrics - Strictly Zero Dummy Data)
                           Row(
                             children: [
                               _buildMetricCard(
@@ -236,29 +265,35 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
                                 value: '${_controller.completedDeliveries}',
                                 label: 'Deliveries',
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
                               _buildMetricCard(
                                 icon: Icons.timer_rounded,
                                 iconColor: const Color(0xFF16A34A),
                                 iconBg: const Color(0xFFDCFCE7),
-                                value: '${_controller.onTimeRate}%',
+                                value: '${_controller.onTimeRate.toStringAsFixed(1)}%',
                                 label: 'On-Time',
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
                               _buildMetricCard(
                                 icon: Icons.currency_rupee_rounded,
                                 iconColor: const Color(0xFF2563EB),
                                 iconBg: const Color(0xFFEFF6FF),
-                                value: '₹12.4k',
+                                value: _controller.totalEarnings >= 1000
+                                    ? '₹${(_controller.totalEarnings / 1000).toStringAsFixed(1)}k'
+                                    : '₹${_controller.totalEarnings.toStringAsFixed(0)}',
                                 label: 'Earnings',
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
                               _buildMetricCard(
                                 icon: Icons.star_rounded,
                                 iconColor: const Color(0xFFEAB308),
                                 iconBg: const Color(0xFFFEF9C3),
-                                value: '${_controller.rating}',
-                                label: 'Rating',
+                                value: _controller.reviewCount == 0 && _controller.rating == 0.0
+                                    ? 'New Rider'
+                                    : _controller.rating.toStringAsFixed(1),
+                                label: _controller.reviewCount == 0 && _controller.rating == 0.0
+                                    ? '0.0 (0 reviews)'
+                                    : 'Rating (${_controller.reviewCount})',
                               ),
                             ],
                           ),
@@ -282,11 +317,15 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
                             iconColor: orangeColor,
                             iconBg: const Color(0xFFFFEDD5),
                             title: 'Vehicle & Driving Documents',
-                            subtitle: 'Driving License, Vehicle RC, Pollution & Insurance',
+                            subtitle: _controller.vehicleRegNumber.isNotEmpty || _controller.drivingLicenseNumber.isNotEmpty
+                                ? 'RC: ${_controller.vehicleRegNumber.isNotEmpty ? _controller.vehicleRegNumber : "Not Linked"} • DL: ${_controller.drivingLicenseNumber.isNotEmpty ? _controller.drivingLicenseNumber : "Not Linked"}'
+                                : 'Not Linked / Upload Required',
                             onTap: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Vehicle Documents: RC Book & Driving License VERIFIED ✓'),
+                                SnackBar(
+                                  content: Text(_controller.vehicleRegNumber.isNotEmpty
+                                      ? 'Vehicle Documents: RC Book & Driving License VERIFIED ✓'
+                                      : 'Vehicle Documents: Not Linked / Upload Required'),
                                   backgroundColor: orangeColor,
                                   behavior: SnackBarBehavior.floating,
                                 ),
@@ -298,11 +337,17 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
                             iconColor: const Color(0xFF0D9488),
                             iconBg: const Color(0xFFCCFBF1),
                             title: 'Weekly Payout Account',
-                            subtitle: '${_controller.bankName} • Acc ${_controller.accountNumber}',
+                            subtitle: _controller.accountNumber.isNotEmpty
+                                ? (_controller.bankName.isNotEmpty
+                                    ? '${_controller.bankName} • Acc ${_controller.accountNumber}'
+                                    : 'Acc ${_controller.accountNumber}')
+                                : 'No Bank Account Linked',
                             onTap: () {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Payout Account: ${_controller.accountNumber} (${_controller.bankName})'),
+                                  content: Text(_controller.accountNumber.isNotEmpty
+                                      ? 'Payout Account: ${_controller.accountNumber} (${_controller.bankName.isNotEmpty ? _controller.bankName : "Linked"})'
+                                      : 'Payout Account: No Bank Account Linked'),
                                   backgroundColor: const Color(0xFF0D9488),
                                   behavior: SnackBarBehavior.floating,
                                 ),
@@ -352,7 +397,7 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
   }) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -367,9 +412,19 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
               child: Icon(icon, color: iconColor, size: 16),
             ),
             const SizedBox(height: 6),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Color(0xFF0F172A))),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: Color(0xFF0F172A)),
+            ),
             const SizedBox(height: 2),
-            Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 9.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+            ),
           ],
         ),
       ),

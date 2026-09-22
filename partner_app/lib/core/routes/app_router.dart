@@ -37,8 +37,24 @@ import 'package:service_hub_partner/features/profile/presentation/screens/about_
 import 'package:service_hub_partner/features/profile/presentation/controllers/profile_controller.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_profile_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_edit_profile_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_info_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_business_hours_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_service_area_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_photos_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_documents_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_contact_details_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_bank_details_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/controllers/shopkeeper_profile_controller.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_settings_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_account_security_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_notification_settings_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_app_preferences_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_privacy_permissions_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_change_password_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_active_sessions_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_delete_account_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_help_support_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_about_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/delivery_agent_profile_screen.dart';
 
 final appRouter = GoRouter(
@@ -211,6 +227,13 @@ final appRouter = GoRouter(
       builder: (context, state) => const ShopkeeperProfileScreen(),
     ),
     GoRoute(
+      path: '/profile/shopkeeper/info',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController? ?? ShopkeeperProfileController();
+        return ShopkeeperInfoScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
       path: '/profile/shopkeeper/edit',
       builder: (context, state) {
         final ctrl = state.extra as ShopkeeperProfileController? ?? ShopkeeperProfileController();
@@ -218,10 +241,115 @@ final appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/profile/shopkeeper/hours',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController? ?? ShopkeeperProfileController();
+        return ShopkeeperBusinessHoursScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/service-area',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController? ?? ShopkeeperProfileController();
+        return ShopkeeperServiceAreaScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/photos',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController? ?? ShopkeeperProfileController();
+        return ShopkeeperPhotosScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
       path: '/profile/shopkeeper/documents',
       builder: (context, state) {
         final ctrl = state.extra as ShopkeeperProfileController? ?? ShopkeeperProfileController();
         return ShopkeeperDocumentsScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/contact',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController? ?? ShopkeeperProfileController();
+        return ShopkeeperContactDetailsScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/bank',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController? ?? ShopkeeperProfileController();
+        return ShopkeeperBankDetailsScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/settings',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController?;
+        return ShopkeeperSettingsScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/settings/security',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController?;
+        return ShopkeeperAccountSecurityScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/settings/notifications',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController?;
+        return ShopkeeperNotificationSettingsScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/settings/preferences',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController?;
+        return ShopkeeperAppPreferencesScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/settings/privacy-permissions',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController?;
+        return ShopkeeperPrivacyPermissionsScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/settings/change-password',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController?;
+        return ShopkeeperChangePasswordScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/settings/active-sessions',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController?;
+        return ShopkeeperActiveSessionsScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/settings/delete-account',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController?;
+        return ShopkeeperDeleteAccountScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/settings/help',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController?;
+        return ShopkeeperHelpSupportScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/shopkeeper/settings/about',
+      builder: (context, state) {
+        final ctrl = state.extra as ShopkeeperProfileController?;
+        return ShopkeeperAboutScreen(controller: ctrl);
       },
     ),
 

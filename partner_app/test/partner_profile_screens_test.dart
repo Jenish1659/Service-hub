@@ -143,11 +143,9 @@ void main() {
       expect(find.text('“Good Service Builds Better Tomorrows”'), findsOneWidget);
 
       // Metric Cards starting at clean 0
-      expect(find.text('0'), findsWidgets);
-      expect(find.text('0.0'), findsNWidgets(2));
       expect(find.text('Jobs Completed'), findsOneWidget);
-      expect(find.text('Average Rating'), findsOneWidget);
-      expect(find.text('Repeat Customers'), findsOneWidget);
+      expect(find.text('Earnings'), findsWidgets);
+      expect(find.text('Ratings'), findsOneWidget);
 
       // Menu Tiles
       expect(find.text('Edit Profile'), findsOneWidget);

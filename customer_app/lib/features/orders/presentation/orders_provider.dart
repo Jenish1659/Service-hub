@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,7 +23,7 @@ class OrdersService {
     try {
       if (Hive.isBoxOpen('customer_cache')) {
         final box = Hive.box('customer_cache');
-        final List<String> list = List<String>.from(box.get('cancelled_order_ids', defaultValue: []) as List<dynamic>);
+        final List<String> list = List<String>.from(box.get('cancelled_order_ids', defaultValue: <dynamic>[]) as List<dynamic>);
         if (!list.contains(orderId)) {
           list.add(orderId);
           await box.put('cancelled_order_ids', list);
@@ -40,7 +41,7 @@ class OrdersService {
     try {
       if (Hive.isBoxOpen('customer_cache')) {
         final box = Hive.box('customer_cache');
-        final List<String> list = List<String>.from(box.get('cancelled_booking_ids', defaultValue: []) as List<dynamic>);
+        final List<String> list = List<String>.from(box.get('cancelled_booking_ids', defaultValue: <dynamic>[]) as List<dynamic>);
         if (!list.contains(bookingId)) {
           list.add(bookingId);
           await box.put('cancelled_booking_ids', list);
@@ -60,17 +61,22 @@ final ordersServiceProvider = Provider<OrdersService>((ref) {
 });
 
 // Dynamic StreamProvider for Realtime Service Bookings (70-Table Schema)
-final customerBookingsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
+final customerBookingsStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   final authState = ref.watch(authControllerProvider);
   final user = authState.value;
   final client = Supabase.instance.client;
 
-  while (true) {
+  final controller = StreamController<List<Map<String, dynamic>>>();
+  Timer? timer;
+
+  Future<void> fetchBookings() async {
+    if (controller.isClosed) return;
+
     List<String> cancelledIds = [];
     try {
       if (Hive.isBoxOpen('customer_cache')) {
         final box = Hive.box('customer_cache');
-        cancelledIds = List<String>.from(box.get('cancelled_booking_ids', defaultValue: []) as List<dynamic>);
+        cancelledIds = List<String>.from(box.get('cancelled_booking_ids', defaultValue: <dynamic>[]) as List<dynamic>);
       }
     } catch (_) {}
 
@@ -91,15 +97,15 @@ final customerBookingsStreamProvider = StreamProvider<List<Map<String, dynamic>>
           result.add({
             'id': item['booking_id'],
             'booking_code': item['booking_code'],
-            'service_name': service?['name'] ?? 'AC Service & Repair',
-            'status': item['status'],
-            'scheduled_date': item['booking_date'] ?? 'Today',
-            'scheduled_time': item['scheduled_time'] ?? '10:00 AM',
-            'problem_description': item['problem_description'],
-            'price': item['final_amount'] ?? item['estimated_amount'] ?? 499.0,
-            'completion_otp': item['completion_otp'] ?? '5892',
-            'entrance_pin': item['entrance_pin'] ?? '7429',
-            'address': address != null ? '${address['area']}, ${address['city']}' : 'Gujarat',
+            'service_name': service?['name'] ?? 'Home Service',
+            'status': item['status'] ?? 'PENDING',
+            'scheduled_date': item['booking_date']?.toString() ?? '',
+            'scheduled_time': item['scheduled_time']?.toString() ?? '',
+            'problem_description': item['problem_description']?.toString() ?? '',
+            'price': ((item['final_amount'] ?? item['estimated_amount']) as num?)?.toDouble() ?? 0.0,
+            'completion_otp': (item['completion_otp']?.toString() ?? '').trim(),
+            'entrance_pin': (item['entrance_pin']?.toString() ?? '').trim(),
+            'address': address != null ? '${address['area']}, ${address['city']}' : '',
           });
         }
       } catch (_) {}
@@ -112,23 +118,42 @@ final customerBookingsStreamProvider = StreamProvider<List<Map<String, dynamic>>
       return b;
     }).toList();
 
-    yield mapped;
-    await Future.delayed(const Duration(seconds: 4));
+    if (!controller.isClosed) {
+      controller.add(mapped);
+    }
   }
+
+  fetchBookings();
+
+  timer = Timer.periodic(const Duration(seconds: 4), (_) {
+    fetchBookings();
+  });
+
+  ref.onDispose(() {
+    timer?.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
 });
 
 // Dynamic StreamProvider for Realtime Product Orders (70-Table Schema)
-final customerOrdersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) async* {
+final customerOrdersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   final authState = ref.watch(authControllerProvider);
   final user = authState.value;
   final client = Supabase.instance.client;
 
-  while (true) {
+  final controller = StreamController<List<Map<String, dynamic>>>();
+  Timer? timer;
+
+  Future<void> fetchOrders() async {
+    if (controller.isClosed) return;
+
     List<String> cancelledIds = [];
     try {
       if (Hive.isBoxOpen('customer_cache')) {
         final box = Hive.box('customer_cache');
-        cancelledIds = List<String>.from(box.get('cancelled_order_ids', defaultValue: []) as List<dynamic>);
+        cancelledIds = List<String>.from(box.get('cancelled_order_ids', defaultValue: <dynamic>[]) as List<dynamic>);
       }
     } catch (_) {}
 
@@ -147,17 +172,32 @@ final customerOrdersStreamProvider = StreamProvider<List<Map<String, dynamic>>>(
           final summary = items.isNotEmpty
               ? items.map((i) => '${i['products']?['product_name'] ?? "Item"} x${i['quantity']}').join(', ')
               : 'Product Order';
+          final address = item['user_addresses'] as Map<String, dynamic>?;
+
+          // Genuine delivery PIN or deterministically generated delivery PIN
+          String deliveryPin = (item['delivery_pin'] ?? item['delivery_otp'] ?? item['otp'])?.toString() ?? '';
+          if (deliveryPin.trim().isEmpty) {
+            final orderCode = (item['order_code'] ?? item['order_id'] ?? '').toString();
+            final numeric = orderCode.replaceAll(RegExp(r'[^0-9]'), '');
+            if (numeric.length >= 4) {
+              deliveryPin = numeric.substring(numeric.length - 4);
+            } else if (orderCode.isNotEmpty) {
+              final hash = orderCode.hashCode.abs();
+              deliveryPin = (1000 + (hash % 9000)).toString();
+            }
+          }
 
           result.add({
             'id': item['order_id'],
             'order_code': item['order_code'],
-            'status': item['order_status'],
+            'status': item['order_status'] ?? 'Placed',
             'items_summary': summary,
-            'subtotal': item['subtotal'],
-            'delivery_fee': item['delivery_charge'],
-            'grand_total': item['total_amount'],
-            'payment_status': item['payment_status'],
-            'delivery_pin': '2842',
+            'subtotal': (item['subtotal'] as num?)?.toDouble() ?? 0.0,
+            'delivery_fee': (item['delivery_charge'] as num?)?.toDouble() ?? 0.0,
+            'grand_total': (item['total_amount'] as num?)?.toDouble() ?? 0.0,
+            'payment_status': item['payment_status'] ?? 'PENDING',
+            'delivery_pin': deliveryPin,
+            'shipping_address': address != null ? '${address['area']}, ${address['city']}' : (item['shipping_address']?.toString() ?? ''),
           });
         }
       } catch (_) {}
@@ -170,9 +210,23 @@ final customerOrdersStreamProvider = StreamProvider<List<Map<String, dynamic>>>(
       return o;
     }).toList();
 
-    yield mapped;
-    await Future.delayed(const Duration(seconds: 4));
+    if (!controller.isClosed) {
+      controller.add(mapped);
+    }
   }
+
+  fetchOrders();
+
+  timer = Timer.periodic(const Duration(seconds: 4), (_) {
+    fetchOrders();
+  });
+
+  ref.onDispose(() {
+    timer?.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
 });
 
 // Compatibility aliases for orders_screen.dart

@@ -58,11 +58,13 @@ class _ReportAProblemScreenState extends State<ReportAProblemScreen> {
           _attachedImagePath = picked.path;
         });
       }
-    } catch (_) {
-      // Mock attachment in test environments
+    } catch (e) {
       setState(() {
-        _attachedImagePath = 'sample_screenshot.jpg';
+        _attachedImagePath = null;
       });
+      if (mounted) {
+        TopToast.show(context, 'Failed to pick image: ${e.toString()}', isError: true);
+      }
     }
   }
 

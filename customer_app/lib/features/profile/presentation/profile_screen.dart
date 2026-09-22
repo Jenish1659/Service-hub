@@ -146,11 +146,10 @@ class ProfileScreen extends ConsumerWidget {
       ),
       builder: (ctx) {
         final box = Hive.box('customer_cache');
-        final List<dynamic> rawPayments = box.get('saved_payment_methods', defaultValue: [
-          'Google Pay: ****@oksbi',
-          'Visa Card: **** **** **** 4321'
-        ]) as List<dynamic>;
-        final List<String> savedPayments = List<String>.from(rawPayments);
+        final List<dynamic> rawPayments = box.get('saved_payment_methods', defaultValue: <dynamic>[]) as List<dynamic>? ?? <dynamic>[];
+        final List<String> savedPayments = List<String>.from(
+          rawPayments.where((e) => e != 'Google Pay: ****@oksbi' && e != 'Visa Card: **** **** **** 4321'),
+        );
         final newPaymentController = TextEditingController();
 
         return StatefulBuilder(
@@ -181,9 +180,32 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   if (savedPayments.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Text('No saved payment methods yet.', style: TextStyle(color: AppTheme.textSecondaryColor)),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.credit_card_off_outlined, size: 44, color: AppTheme.textSecondaryColor),
+                          SizedBox(height: 8),
+                          Text(
+                            'No Saved Payment Methods',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textPrimaryColor),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Add a UPI ID or card below for swift checkout.',
+                            style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 13),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     )
                   else
                     ...savedPayments.map((pm) => ListTile(
@@ -242,8 +264,8 @@ class ProfileScreen extends ConsumerWidget {
         
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-            final int coins = box.get('wallet_coins', defaultValue: 300) as int;
-            final double balance = box.get('wallet_balance_inr', defaultValue: 30.0) as double;
+            final int coins = (box.get('wallet_coins', defaultValue: 0) as num?)?.toInt() ?? 0;
+            final double balance = (box.get('wallet_balance_inr', defaultValue: 0.0) as num?)?.toDouble() ?? 0.0;
 
             return Padding(
               padding: EdgeInsets.only(
@@ -314,6 +336,40 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+
+                  if (coins == 0 && balance == 0.0) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.account_balance_wallet_outlined, size: 28, color: AppTheme.textSecondaryColor),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Zero Balance',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textPrimaryColor),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'No funds or coins added yet. Complete bookings and orders to earn reward coins!',
+                                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   
                   const SizedBox(height: 24),
                   const Text(
@@ -354,9 +410,9 @@ class ProfileScreen extends ConsumerWidget {
                                 ),
                               );
                             },
-                      child: const Text(
-                        'Convert All Eligible Coins',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      child: Text(
+                        coins < 10 ? 'No Coins to Convert (Min. 10)' : 'Convert All Eligible Coins',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
