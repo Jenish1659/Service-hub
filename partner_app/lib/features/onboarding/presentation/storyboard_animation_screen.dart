@@ -39,15 +39,21 @@ class _StoryboardAnimationScreenState extends State<StoryboardAnimationScreen> {
         final status = (activePartner['verification_status'] ?? activePartner['status'] ?? activePartner['account_status'] ?? '').toString().toUpperCase();
         // Only auto-open dashboard if Admin has APPROVED / VERIFIED the partner
         if (status == 'VERIFIED' || status == 'APPROVED' || status == 'ACTIVE') {
-          final role = (activePartner['role_name'] ?? activePartner['role'] ?? activePartner['partner_type'] ?? 'service_provider').toString().toLowerCase();
-          if (role.contains('delivery') || role.contains('agent')) {
+          final role = (activePartner['role_name'] ?? activePartner['role'] ?? activePartner['partner_type'] ?? '').toString().toLowerCase();
+          if (role == 'delivery_agent' || (role.contains('delivery') && !role.contains('shop') && !role.contains('service'))) {
             context.go('/dashboard/delivery');
-          } else if (role.contains('shop') || role.contains('store')) {
+            return;
+          } else if (role == 'shopkeeper' || role.contains('shop') || role.contains('store')) {
             context.go('/dashboard/shopkeeper');
-          } else {
+            return;
+          } else if (role == 'service_provider' || role.contains('provider') || role.contains('expert') || role.contains('technician')) {
             context.go('/dashboard');
+            return;
+          } else {
+            // Unresolved role: do not assume a role dashboard
+            context.go('/role-selection');
+            return;
           }
-          return;
         }
       }
     } catch (_) {}

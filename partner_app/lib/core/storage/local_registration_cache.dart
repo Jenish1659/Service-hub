@@ -209,7 +209,7 @@ class LocalRegistrationCache {
       final legacy = box.get(_legacyPartnerKey);
       if (legacy != null && legacy is Map) {
         final role = (legacy['role_name'] ?? legacy['role'] ?? '').toString().toLowerCase();
-        if (role.contains('delivery') || role.contains('agent')) {
+        if (role == 'delivery_agent' || (role.contains('delivery') && !role.contains('shop') && !role.contains('service'))) {
           return Map<String, dynamic>.from(legacy);
         }
       }
@@ -238,13 +238,16 @@ class LocalRegistrationCache {
   static Future<Map<String, dynamic>?> getActivePartner([String? expectedRole]) async {
     if (expectedRole != null) {
       final cleanRole = expectedRole.toLowerCase();
-      if (cleanRole.contains('shop') || cleanRole.contains('store')) {
+      if (cleanRole == 'shopkeeper' || cleanRole.contains('shop') || cleanRole.contains('store')) {
         return await getActiveShopkeeper();
       }
-      if (cleanRole.contains('delivery') || cleanRole.contains('agent')) {
+      if (cleanRole == 'delivery_agent' || (cleanRole.contains('delivery') && !cleanRole.contains('shop') && !cleanRole.contains('service'))) {
         return await getActiveDeliveryAgent();
       }
-      return await getActiveServiceProvider();
+      if (cleanRole == 'service_provider' || cleanRole.contains('provider') || cleanRole.contains('expert') || cleanRole.contains('technician')) {
+        return await getActiveServiceProvider();
+      }
+      return null;
     }
 
     // Inspect current active role
@@ -297,10 +300,10 @@ class LocalRegistrationCache {
   }
 
   static Future<void> updateActivePartner(Map<String, dynamic> updates, [String? explicitRole]) async {
-    final role = (explicitRole ?? updates['role_name'] ?? updates['role'] ?? updates['category'] ?? '').toString().toLowerCase();
-    if (role.contains('shop') || role.contains('store')) {
+    final role = (explicitRole ?? updates['role_name'] ?? updates['role'] ?? updates['partner_type'] ?? updates['category'] ?? '').toString().toLowerCase();
+    if (role == 'shopkeeper' || role.contains('shop') || role.contains('store')) {
       await updateActiveShopkeeper(updates);
-    } else if (role.contains('delivery') || role.contains('agent')) {
+    } else if (role == 'delivery_agent' || (role.contains('delivery') && !role.contains('shop') && !role.contains('service'))) {
       await updateActiveDeliveryAgent(updates);
     } else {
       await updateActiveServiceProvider(updates);

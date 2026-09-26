@@ -48,9 +48,31 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
   Future<void> _loadAgentData() async {
     setState(() => _isLoading = true);
     try {
-      final activeUser = await LocalRegistrationCache.getActiveDeliveryAgent();
+      final activeUser = await LocalRegistrationCache.getActiveDeliveryAgent() ??
+          await LocalRegistrationCache.getActivePartner();
       if (activeUser == null) {
         if (mounted) GoRouter.maybeOf(context)?.go('/login/delivery-agent');
+        return;
+      }
+
+      final role = (activeUser['role_name'] ?? activeUser['role'] ?? '').toString().toLowerCase();
+      if (role.isNotEmpty && role != 'delivery_agent' && !role.contains('delivery') && !role.contains('rider')) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Access restricted: Logged in account is registered as $role, not Delivery Partner.'),
+              backgroundColor: const Color(0xFFDC2626),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          if (role.contains('shop') || role.contains('store')) {
+            GoRouter.maybeOf(context)?.go('/dashboard/shopkeeper');
+          } else if (role.contains('service') || role.contains('provider') || role.contains('expert')) {
+            GoRouter.maybeOf(context)?.go('/dashboard');
+          } else {
+            GoRouter.maybeOf(context)?.go('/role-selection');
+          }
+        }
         return;
       }
       final status = (activeUser['verification_status'] ?? '').toString().toUpperCase();

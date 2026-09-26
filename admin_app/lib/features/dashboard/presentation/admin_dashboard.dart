@@ -186,66 +186,73 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       debugPrint('[AdminDashboard] Partner update error: $e');
     }
 
-    // 2b. Update delivery_agent_profiles table (availability_status: 'ONLINE')
-    try {
-      final dapUpdate = {
-        'availability_status': 'ONLINE',
-      };
-      if (targetAgentId != null && _isUuid(targetAgentId)) {
-        await client
-            .from('delivery_agent_profiles')
-            .update(dapUpdate)
-            .eq('delivery_agent_id', targetAgentId);
+    final String pRole = (partnerMap?['role_name'] ?? partnerMap?['role'] ?? '').toString().toLowerCase();
+    final bool isShopkeeper = pRole == 'shopkeeper' || (partnerMap != null && _isShopkeeper(partnerMap));
+    final bool isDelivery = !isShopkeeper && (pRole == 'delivery_agent' || (partnerMap != null && _isDeliveryAgent(partnerMap)));
+    final bool isServiceProvider = !isShopkeeper && !isDelivery;
+
+    // 2b. Update delivery_agent_profiles table (availability_status: 'ONLINE') only if delivery
+    if (isDelivery) {
+      try {
+        final dapUpdate = {
+          'availability_status': 'ONLINE',
+        };
+        if (targetAgentId != null && _isUuid(targetAgentId)) {
+          await client
+              .from('delivery_agent_profiles')
+              .update(dapUpdate)
+              .eq('delivery_agent_id', targetAgentId);
+        }
+        if (targetPartnerId != null && _isUuid(targetPartnerId)) {
+          await client
+              .from('delivery_agent_profiles')
+              .update(dapUpdate)
+              .eq('partner_id', targetPartnerId);
+        }
+        if (_isUuid(effectiveUserId)) {
+          await client
+              .from('delivery_agent_profiles')
+              .update(dapUpdate)
+              .or('partner_id.eq.$effectiveUserId,delivery_agent_id.eq.$effectiveUserId');
+        }
+        if (_isUuid(profileId)) {
+          await client
+              .from('delivery_agent_profiles')
+              .update(dapUpdate)
+              .or('partner_id.eq.$profileId,delivery_agent_id.eq.$profileId');
+        }
+        if (id.isNotEmpty && id != profileId && _isUuid(id)) {
+          await client
+              .from('delivery_agent_profiles')
+              .update(dapUpdate)
+              .or('partner_id.eq.$id,delivery_agent_id.eq.$id');
+        }
+      } catch (e) {
+        debugPrint('[AdminDashboard] Delivery agent profile update error: $e');
       }
-      if (targetPartnerId != null && _isUuid(targetPartnerId)) {
-        await client
-            .from('delivery_agent_profiles')
-            .update(dapUpdate)
-            .eq('partner_id', targetPartnerId);
-      }
-      if (_isUuid(effectiveUserId)) {
-        await client
-            .from('delivery_agent_profiles')
-            .update(dapUpdate)
-            .or('partner_id.eq.$effectiveUserId,delivery_agent_id.eq.$effectiveUserId');
-      }
-      if (_isUuid(profileId)) {
-        await client
-            .from('delivery_agent_profiles')
-            .update(dapUpdate)
-            .or('partner_id.eq.$profileId,delivery_agent_id.eq.$profileId');
-      }
-      if (id.isNotEmpty && id != profileId && _isUuid(id)) {
-        await client
-            .from('delivery_agent_profiles')
-            .update(dapUpdate)
-            .or('partner_id.eq.$id,delivery_agent_id.eq.$id');
-      }
-    } catch (e) {
-      debugPrint('[AdminDashboard] Delivery agent profile update error: $e');
     }
 
-
-
-    // 2d. Update providers table
-    try {
-      final provData = {
-        'verification_status': 'VERIFIED',
-        'is_active': true,
-      };
-      if (_isUuid(effectiveUserId)) {
-        await client.from('providers').update(provData).eq('id', effectiveUserId);
-      }
-      if (_isUuid(profileId)) {
-        await client.from('providers').update(provData).eq('id', profileId);
-      }
-      if (targetPartnerId != null && _isUuid(targetPartnerId)) {
-        await client.from('service_provider_profiles').update({'rating': 5.0}).eq('partner_id', targetPartnerId);
-      }
-      if (_isUuid(effectiveUserId)) {
-        await client.from('service_provider_profiles').update({'rating': 5.0}).or('partner_id.eq.$effectiveUserId,provider_id.eq.$effectiveUserId');
-      }
-    } catch (_) {}
+    // 2d. Update providers table only if service provider
+    if (isServiceProvider) {
+      try {
+        final provData = {
+          'verification_status': 'VERIFIED',
+          'is_active': true,
+        };
+        if (_isUuid(effectiveUserId)) {
+          await client.from('providers').update(provData).eq('id', effectiveUserId);
+        }
+        if (_isUuid(profileId)) {
+          await client.from('providers').update(provData).eq('id', profileId);
+        }
+        if (targetPartnerId != null && _isUuid(targetPartnerId)) {
+          await client.from('service_provider_profiles').update({'rating': 5.0}).eq('partner_id', targetPartnerId);
+        }
+        if (_isUuid(effectiveUserId)) {
+          await client.from('service_provider_profiles').update({'rating': 5.0}).or('partner_id.eq.$effectiveUserId,provider_id.eq.$effectiveUserId');
+        }
+      } catch (_) {}
+    }
 
     // 3. Update users table
     try {
@@ -431,31 +438,37 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       debugPrint('[AdminDashboard] Partner reject error: $e');
     }
 
-    // 3. Update delivery_agent_profiles table
-    try {
-      final dapReject = {
-        'availability_status': 'OFFLINE',
-      };
-      if (targetPartnerId != null && _isUuid(targetPartnerId)) {
-        await client
-            .from('delivery_agent_profiles')
-            .update(dapReject)
-            .eq('partner_id', targetPartnerId);
+    final String rRole = (partnerMap?['role_name'] ?? partnerMap?['role'] ?? '').toString().toLowerCase();
+    final bool isShopkeeperReject = rRole == 'shopkeeper' || (partnerMap != null && _isShopkeeper(partnerMap));
+    final bool isDeliveryReject = !isShopkeeperReject && (rRole == 'delivery_agent' || (partnerMap != null && _isDeliveryAgent(partnerMap)));
+
+    // 3. Update delivery_agent_profiles table only if delivery
+    if (isDeliveryReject) {
+      try {
+        final dapReject = {
+          'availability_status': 'OFFLINE',
+        };
+        if (targetPartnerId != null && _isUuid(targetPartnerId)) {
+          await client
+              .from('delivery_agent_profiles')
+              .update(dapReject)
+              .eq('partner_id', targetPartnerId);
+        }
+        if (_isUuid(effectiveUserId)) {
+          await client
+              .from('delivery_agent_profiles')
+              .update(dapReject)
+              .or('partner_id.eq.$effectiveUserId,delivery_agent_id.eq.$effectiveUserId');
+        }
+        if (_isUuid(profileId)) {
+          await client
+              .from('delivery_agent_profiles')
+              .update(dapReject)
+              .or('partner_id.eq.$profileId,delivery_agent_id.eq.$profileId');
+        }
+      } catch (e) {
+        debugPrint('[AdminDashboard] Delivery agent reject error: $e');
       }
-      if (_isUuid(effectiveUserId)) {
-        await client
-            .from('delivery_agent_profiles')
-            .update(dapReject)
-            .or('partner_id.eq.$effectiveUserId,delivery_agent_id.eq.$effectiveUserId');
-      }
-      if (_isUuid(profileId)) {
-        await client
-            .from('delivery_agent_profiles')
-            .update(dapReject)
-            .or('partner_id.eq.$profileId,delivery_agent_id.eq.$profileId');
-      }
-    } catch (e) {
-      debugPrint('[AdminDashboard] Delivery agent reject error: $e');
     }
 
     // 4. Update users table: suspend account
@@ -637,11 +650,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   bool _isShopkeeper(Map<String, dynamic> p) {
     final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
     if (role == 'shopkeeper') return true;
+    if (role == 'delivery_agent' || role == 'service_provider') return false;
     final docType = (p['document_type'] ?? '').toString().toUpperCase();
-    if (role == 'service_provider' || docType == 'PROVIDER_ONBOARDING' || role.contains('technician') || role.contains('expert')) {
-      return false;
-    }
-    if (role == 'delivery_agent' || docType == 'DELIVERY_ONBOARDING') {
+    if (docType == 'PROVIDER_ONBOARDING' || docType == 'DELIVERY_ONBOARDING' || role.contains('technician') || role.contains('expert')) {
       return false;
     }
     final cat = (p['category'] ?? p['category_name'] ?? '').toString().toLowerCase();
@@ -662,37 +673,34 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         bName.contains('electronics') ||
         bName.contains('parts') ||
         docType.contains('SHOP') ||
-        p['shop_id'] != null ||
-        p['shop_name'] != null;
+        (p['shop_id'] != null && p['shop_id'].toString().trim().isNotEmpty) ||
+        (p['shop_name'] != null && p['shop_name'].toString().trim().isNotEmpty);
   }
 
   bool _isDeliveryAgent(Map<String, dynamic> p) {
     final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
     if (role == 'delivery_agent') return true;
+    if (role == 'shopkeeper' || role == 'service_provider') return false;
     final docType = (p['document_type'] ?? '').toString().toUpperCase();
-    if (role == 'service_provider' || docType == 'PROVIDER_ONBOARDING') {
+    final verType = (p['verification_type'] ?? '').toString().toUpperCase();
+    if (docType == 'PROVIDER_ONBOARDING' || docType.contains('SHOP') || verType == 'SHOP_LICENSE') {
       return false;
     }
     final cat = (p['category'] ?? p['category_name'] ?? '').toString().toLowerCase();
     final bName = (p['business_name'] ?? '').toString().toLowerCase();
-    final verType = (p['verification_type'] ?? '').toString().toUpperCase();
-    return cat.contains('delivery_agent') ||
-        cat.contains('delivery_partner') ||
-        cat.contains('delivery') ||
+    return cat.contains('delivery') ||
         cat.contains('rider') ||
-        role.contains('delivery_agent') ||
-        role.contains('delivery_partner') ||
         role.contains('delivery') ||
         role.contains('rider') ||
         bName.contains('delivery') ||
         bName.contains('rider') ||
         docType.contains('DELIVERY') ||
         verType == 'DRIVING_LICENSE' ||
-        p['delivery_agent_id'] != null ||
-        (p['vehicle_type'] != null && p['vehicle_type'].toString().isNotEmpty) ||
-        (p['vehicle_number'] != null && p['vehicle_number'].toString().isNotEmpty) ||
-        (p['vehicle_reg_number'] != null && p['vehicle_reg_number'].toString().isNotEmpty) ||
-        (p['driving_license_number'] != null && p['driving_license_number'].toString().isNotEmpty);
+        (p['delivery_agent_id'] != null && p['delivery_agent_id'].toString().trim().isNotEmpty) ||
+        (p['vehicle_type'] != null && p['vehicle_type'].toString().trim().isNotEmpty) ||
+        (p['vehicle_number'] != null && p['vehicle_number'].toString().trim().isNotEmpty) ||
+        (p['vehicle_reg_number'] != null && p['vehicle_reg_number'].toString().trim().isNotEmpty) ||
+        (p['driving_license_number'] != null && p['driving_license_number'].toString().trim().isNotEmpty);
   }
 
   Widget _buildMainDashboardContent(

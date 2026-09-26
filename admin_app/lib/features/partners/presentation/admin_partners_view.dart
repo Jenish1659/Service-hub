@@ -33,62 +33,45 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
   bool _isShopkeeperItem(Map<String, dynamic> p) {
     final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
     if (role == 'shopkeeper') return true;
+    if (role == 'delivery_agent' || role == 'service_provider') return false;
     final docType = (p['document_type'] ?? '').toString().toUpperCase();
-    if (role == 'service_provider' || docType == 'PROVIDER_ONBOARDING' || role.contains('technician') || role.contains('expert')) {
-      return false;
-    }
-    if (role == 'delivery_agent' || docType == 'DELIVERY_ONBOARDING') {
-      return false;
-    }
+    if (docType == 'PROVIDER_ONBOARDING' || docType == 'DELIVERY_ONBOARDING') return false;
     final cat = (p['category'] ?? p['category_name'] ?? '').toString().toLowerCase();
     final bName = (p['business_name'] ?? p['shop_name'] ?? '').toString().toLowerCase();
     return role.contains('shop') ||
         role.contains('store') ||
         cat.contains('shop') ||
         cat.contains('store') ||
-        cat.contains('parts') ||
-        cat.contains('grocery') ||
-        cat.contains('pharmacy') ||
-        cat.contains('retail') ||
-        cat.contains('hardware') ||
-        cat.contains('ac_parts') ||
-        cat.contains('laundry_supplies') ||
-        cat.contains('car_parts') ||
+        bName.contains('shop') ||
         bName.contains('store') ||
-        bName.contains('electronics') ||
         bName.contains('parts') ||
         docType.contains('SHOP') ||
-        p['shop_id'] != null ||
-        p['shop_name'] != null;
+        (p['shop_id'] != null && p['shop_id'].toString().trim().isNotEmpty) ||
+        (p['shop_name'] != null && p['shop_name'].toString().trim().isNotEmpty);
   }
 
   bool _isDeliveryAgentItem(Map<String, dynamic> p) {
     final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
     if (role == 'delivery_agent') return true;
+    if (role == 'shopkeeper' || role == 'service_provider') return false;
     final docType = (p['document_type'] ?? '').toString().toUpperCase();
-    if (role == 'service_provider' || docType == 'PROVIDER_ONBOARDING' || role.contains('technician') || role.contains('expert')) {
-      return false;
-    }
+    final verType = (p['verification_type'] ?? '').toString().toUpperCase();
+    if (docType == 'PROVIDER_ONBOARDING' || docType.contains('SHOP') || verType == 'SHOP_LICENSE') return false;
     final cat = (p['category'] ?? p['category_name'] ?? '').toString().toLowerCase();
     final bName = (p['business_name'] ?? '').toString().toLowerCase();
-    final verType = (p['verification_type'] ?? '').toString().toUpperCase();
-    return cat.contains('delivery_agent') ||
-        cat.contains('delivery_partner') ||
-        cat.contains('delivery') ||
+    return cat.contains('delivery') ||
         cat.contains('rider') ||
-        role.contains('delivery_agent') ||
-        role.contains('delivery_partner') ||
         role.contains('delivery') ||
         role.contains('rider') ||
         bName.contains('delivery') ||
         bName.contains('rider') ||
         docType.contains('DELIVERY') ||
         verType == 'DRIVING_LICENSE' ||
-        p['delivery_agent_id'] != null ||
-        p['vehicle_type'] != null ||
-        p['vehicle_number'] != null ||
-        p['vehicle_reg_number'] != null ||
-        p['driving_license_number'] != null;
+        (p['delivery_agent_id'] != null && p['delivery_agent_id'].toString().trim().isNotEmpty) ||
+        (p['vehicle_type'] != null && p['vehicle_type'].toString().trim().isNotEmpty) ||
+        (p['vehicle_number'] != null && p['vehicle_number'].toString().trim().isNotEmpty) ||
+        (p['vehicle_reg_number'] != null && p['vehicle_reg_number'].toString().trim().isNotEmpty) ||
+        (p['driving_license_number'] != null && p['driving_license_number'].toString().trim().isNotEmpty);
   }
 
   void _executeApprove(String id, String name, Map<String, dynamic> partner) {

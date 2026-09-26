@@ -249,34 +249,41 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
 
           final pId = partnerData?['partner_id']?.toString() ?? '';
 
-          // 1. Authoritative Delivery Agent check
-          final isDelivery = dbRoleName == 'delivery_agent' ||
-              deliveryProfile != null ||
-              roleFromRemarks == 'delivery_agent' ||
-              roleFromRemarks == 'delivery_partner' ||
-              roleFromRemarks.contains('rider') ||
-              item['document_type'] == 'DELIVERY_ONBOARDING' ||
-              item['verification_type']?.toString().toUpperCase() == 'DRIVING_LICENSE' ||
-              vTypeFromRemarks.isNotEmpty ||
-              vNoFromRemarks.isNotEmpty ||
-              dlFromRemarks.isNotEmpty;
+          // Authoritative Role Resolution Priority:
+          // 1. Database users.roles.role_name (Source of Truth)
+          // 2. remarks 'Role: ...'
+          // 3. verification_type / document_type
+          // 4. Clues from category or remarks
+          String parsedRole;
+          if (dbRoleName == 'delivery_agent') {
+            parsedRole = 'delivery_agent';
+          } else if (dbRoleName == 'shopkeeper') {
+            parsedRole = 'shopkeeper';
+          } else if (dbRoleName == 'service_provider') {
+            parsedRole = 'service_provider';
+          } else if (roleFromRemarks == 'delivery_agent' || roleFromRemarks == 'delivery_partner' || roleFromRemarks.contains('rider')) {
+            parsedRole = 'delivery_agent';
+          } else if (roleFromRemarks == 'shopkeeper' || roleFromRemarks.contains('shop') || roleFromRemarks.contains('store')) {
+            parsedRole = 'shopkeeper';
+          } else if (roleFromRemarks == 'service_provider' || roleFromRemarks.contains('technician') || roleFromRemarks.contains('expert')) {
+            parsedRole = 'service_provider';
+          } else if (item['verification_type']?.toString().toUpperCase() == 'DRIVING_LICENSE' || item['document_type'] == 'DELIVERY_ONBOARDING' || (vTypeFromRemarks.isNotEmpty && vNoFromRemarks.isNotEmpty)) {
+            parsedRole = 'delivery_agent';
+          } else if (item['verification_type']?.toString().toUpperCase() == 'SHOP_LICENSE' || item['document_type'] == 'SHOPKEEPER_ONBOARDING') {
+            parsedRole = 'shopkeeper';
+          } else if (catFromRemarks.toLowerCase().contains('parts') || catFromRemarks.toLowerCase().contains('store') || catFromRemarks.toLowerCase().contains('shop') || catFromRemarks.toLowerCase().contains('grocery') || catFromRemarks.toLowerCase().contains('hardware')) {
+            parsedRole = 'shopkeeper';
+          } else if (shopProfile != null && deliveryProfile == null) {
+            parsedRole = 'shopkeeper';
+          } else if (deliveryProfile != null && shopProfile == null) {
+            parsedRole = 'delivery_agent';
+          } else {
+            parsedRole = 'service_provider';
+          }
 
-          // 2. Authoritative Shopkeeper check (ensuring 'AC Service Parts' doesn't get misrouted as service provider)
-          final isShop = !isDelivery && (
-              dbRoleName == 'shopkeeper' ||
-              shopProfile != null ||
-              roleFromRemarks == 'shopkeeper' ||
-              roleFromRemarks.contains('shop') ||
-              roleFromRemarks.contains('store') ||
-              item['document_type'] == 'SHOPKEEPER_ONBOARDING' ||
-              item['verification_type']?.toString().toUpperCase() == 'SHOP_LICENSE' ||
-              catFromRemarks.toLowerCase().contains('parts') ||
-              catFromRemarks.toLowerCase().contains('store') ||
-              catFromRemarks.toLowerCase().contains('shop') ||
-              catFromRemarks.toLowerCase().contains('grocery') ||
-              catFromRemarks.toLowerCase().contains('hardware'));
+          final isDelivery = parsedRole == 'delivery_agent';
+          final isShop = parsedRole == 'shopkeeper';
 
-          final parsedRole = isDelivery ? 'delivery_agent' : (isShop ? 'shopkeeper' : 'service_provider');
           final parsedCategory = isDelivery
               ? 'delivery_agent'
               : (isShop ? (catFromRemarks.isNotEmpty ? catFromRemarks : 'shopkeeper') : (catFromRemarks.isNotEmpty ? catFromRemarks : 'ac_service'));
@@ -292,17 +299,17 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
               : (item['business_name'] ?? (bNameFromRemarks.isNotEmpty ? bNameFromRemarks : '')).toString();
           final bAddr = (item['business_address'] ?? (addrFromRemarks.isNotEmpty ? addrFromRemarks : '')).toString();
 
-          final vType = deliveryProfile?['vehicle_type']?.toString() ?? vTypeFromRemarks;
-          final vNo = deliveryProfile?['vehicle_number']?.toString() ?? vNoFromRemarks;
-          final dl = deliveryProfile?['driving_license_number']?.toString() ?? dlFromRemarks;
+          final vType = isDelivery ? (deliveryProfile?['vehicle_type']?.toString() ?? vTypeFromRemarks) : '';
+          final vNo = isDelivery ? (deliveryProfile?['vehicle_number']?.toString() ?? vNoFromRemarks) : '';
+          final dl = isDelivery ? (deliveryProfile?['driving_license_number']?.toString() ?? dlFromRemarks) : '';
 
           _persistedPendingPartners[id] = {
             'id': id,
             'verification_id': id,
             'user_id': uId,
             'partner_id': pId,
-            'shop_id': shopProfile?['shopkeeper_id']?.toString() ?? '',
-            'delivery_agent_id': deliveryProfile?['delivery_agent_id']?.toString() ?? '',
+            'shop_id': isShop ? (shopProfile?['shopkeeper_id']?.toString() ?? '') : '',
+            'delivery_agent_id': isDelivery ? (deliveryProfile?['delivery_agent_id']?.toString() ?? '') : '',
             'name': displayName,
             'full_name': displayName,
             'first_name': fName,

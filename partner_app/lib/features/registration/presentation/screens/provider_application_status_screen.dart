@@ -298,31 +298,50 @@ class _ProviderApplicationStatusScreenState
     final category = (_partnerData?['category'] ?? _partnerData?['category_name'] ?? '').toString().toLowerCase();
     final docType = (_partnerData?['document_type'] ?? '').toString().toUpperCase();
     final bName = (_partnerData?['business_name'] ?? _partnerData?['shop_name'] ?? '').toString().toLowerCase();
-    final isDeliv = role.contains('delivery') ||
-        role.contains('rider') ||
-        category.contains('delivery') ||
-        category.contains('rider') ||
-        docType.contains('DELIVERY') ||
-        bName.contains('delivery') ||
-        bName.contains('rider') ||
-        _partnerData?['vehicle_type'] != null ||
-        _partnerData?['vehicle_number'] != null ||
-        _partnerData?['delivery_agent_id'] != null;
-    final isShop = !isDeliv && (role.contains('shop') ||
-        role.contains('store') ||
-        category.contains('shop') ||
-        category.contains('store') ||
-        category.contains('parts') ||
-        category.contains('grocery') ||
-        category.contains('pharmacy') ||
-        category.contains('retail') ||
-        category.contains('hardware') ||
-        category.contains('ac_parts') ||
-        bName.contains('store') ||
-        bName.contains('shop') ||
-        docType.contains('SHOP') ||
-        _partnerData?['shop_id'] != null ||
-        _partnerData?['shop_name'] != null);
+    final bool isShop;
+    final bool isDeliv;
+    if (role == 'shopkeeper') {
+      isShop = true;
+      isDeliv = false;
+    } else if (role == 'delivery_agent') {
+      isShop = false;
+      isDeliv = true;
+    } else if (role == 'service_provider') {
+      isShop = false;
+      isDeliv = false;
+    } else {
+      final hasDeliveryId = (_partnerData?['delivery_agent_id'] ?? '').toString().trim().isNotEmpty;
+      final hasVehicle = (_partnerData?['vehicle_type'] ?? '').toString().trim().isNotEmpty ||
+          (_partnerData?['vehicle_number'] ?? '').toString().trim().isNotEmpty;
+      final hasShopId = (_partnerData?['shop_id'] ?? '').toString().trim().isNotEmpty;
+      final hasShopName = (_partnerData?['shop_name'] ?? '').toString().trim().isNotEmpty;
+
+      isDeliv = role.contains('delivery') ||
+          role.contains('rider') ||
+          category.contains('delivery') ||
+          category.contains('rider') ||
+          docType.contains('DELIVERY') ||
+          bName.contains('delivery') ||
+          bName.contains('rider') ||
+          hasDeliveryId ||
+          hasVehicle;
+
+      isShop = !isDeliv && (role.contains('shop') ||
+          role.contains('store') ||
+          category.contains('shop') ||
+          category.contains('store') ||
+          category.contains('parts') ||
+          category.contains('grocery') ||
+          category.contains('pharmacy') ||
+          category.contains('retail') ||
+          category.contains('hardware') ||
+          category.contains('ac_parts') ||
+          bName.contains('store') ||
+          bName.contains('shop') ||
+          docType.contains('SHOP') ||
+          hasShopId ||
+          hasShopName);
+    }
 
     final updated = {
       ...(_partnerData ?? {}),
@@ -458,31 +477,50 @@ class _ProviderApplicationStatusScreenState
         final category = (liveRecord?['category'] ?? liveRecord?['category_name'] ?? _partnerData?['category'] ?? _partnerData?['service_category'] ?? _partnerData?['category_name'] ?? '').toString().toLowerCase();
         final docType = (liveRecord?['document_type'] ?? _partnerData?['document_type'] ?? '').toString().toUpperCase();
         final bName = (liveRecord?['business_name'] ?? liveRecord?['shop_name'] ?? _partnerData?['business_name'] ?? _partnerData?['shop_name'] ?? '').toString().toLowerCase();
-        final isDelivery = role.contains('delivery') ||
-            role.contains('rider') ||
-            category.contains('delivery') ||
-            category.contains('rider') ||
-            docType.contains('DELIVERY') ||
-            bName.contains('delivery') ||
-            bName.contains('rider') ||
-            (liveRecord?['vehicle_type'] != null || _partnerData?['vehicle_type'] != null) ||
-            (liveRecord?['vehicle_number'] != null || _partnerData?['vehicle_number'] != null) ||
-            (liveRecord?['delivery_agent_id'] != null || _partnerData?['delivery_agent_id'] != null);
-        final isShopkeeper = !isDelivery && (role.contains('shop') ||
-            role.contains('store') ||
-            category.contains('shop') ||
-            category.contains('store') ||
-            category.contains('parts') ||
-            category.contains('grocery') ||
-            category.contains('pharmacy') ||
-            category.contains('retail') ||
-            category.contains('hardware') ||
-            category.contains('ac_parts') ||
-            bName.contains('store') ||
-            bName.contains('shop') ||
-            docType.contains('SHOP') ||
-            (liveRecord?['shop_id'] != null || _partnerData?['shop_id'] != null) ||
-            (liveRecord?['shop_name'] != null || _partnerData?['shop_name'] != null));
+        bool isShopkeeper = false;
+        bool isDelivery = false;
+        if (role == 'shopkeeper') {
+          isShopkeeper = true;
+          isDelivery = false;
+        } else if (role == 'delivery_agent') {
+          isShopkeeper = false;
+          isDelivery = true;
+        } else if (role == 'service_provider') {
+          isShopkeeper = false;
+          isDelivery = false;
+        } else {
+          final hasDeliveryId = (liveRecord?['delivery_agent_id'] ?? _partnerData?['delivery_agent_id'] ?? '').toString().trim().isNotEmpty;
+          final hasVehicle = (liveRecord?['vehicle_type'] ?? _partnerData?['vehicle_type'] ?? '').toString().trim().isNotEmpty ||
+              (liveRecord?['vehicle_number'] ?? _partnerData?['vehicle_number'] ?? '').toString().trim().isNotEmpty;
+          final hasShopId = (liveRecord?['shop_id'] ?? _partnerData?['shop_id'] ?? '').toString().trim().isNotEmpty;
+          final hasShopName = (liveRecord?['shop_name'] ?? _partnerData?['shop_name'] ?? '').toString().trim().isNotEmpty;
+
+          isDelivery = role.contains('delivery') ||
+              role.contains('rider') ||
+              category.contains('delivery') ||
+              category.contains('rider') ||
+              docType.contains('DELIVERY') ||
+              bName.contains('delivery') ||
+              bName.contains('rider') ||
+              hasDeliveryId ||
+              hasVehicle;
+
+          isShopkeeper = !isDelivery && (role.contains('shop') ||
+              role.contains('store') ||
+              category.contains('shop') ||
+              category.contains('store') ||
+              category.contains('parts') ||
+              category.contains('grocery') ||
+              category.contains('pharmacy') ||
+              category.contains('retail') ||
+              category.contains('hardware') ||
+              category.contains('ac_parts') ||
+              bName.contains('store') ||
+              bName.contains('shop') ||
+              docType.contains('SHOP') ||
+              hasShopId ||
+              hasShopName);
+        }
 
         final activeThemeColor = isShopkeeper ? const Color(0xFF16A34A) : (isDelivery ? const Color(0xFFEA580C) : primaryColor);
 

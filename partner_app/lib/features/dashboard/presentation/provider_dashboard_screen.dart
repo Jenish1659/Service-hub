@@ -31,15 +31,37 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _verifyPartnerApprovalStatus();
-    _checkAndRequestPermissions();
   }
 
   Future<void> _verifyPartnerApprovalStatus() async {
-    final active = await LocalRegistrationCache.getActivePartner();
+    final active = await LocalRegistrationCache.getActiveServiceProvider() ??
+        await LocalRegistrationCache.getActivePartner();
     if (active == null) {
       if (mounted) GoRouter.maybeOf(context)?.go('/login/service-provider');
       return;
     }
+
+    final role = (active['role_name'] ?? active['role'] ?? '').toString().toLowerCase();
+    if (role.isNotEmpty && role != 'service_provider' && !role.contains('provider') && !role.contains('expert') && !role.contains('technician')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Access restricted: Logged in account is registered as $role, not Service Provider.'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        if (role.contains('shop') || role.contains('store')) {
+          GoRouter.maybeOf(context)?.go('/dashboard/shopkeeper');
+        } else if (role.contains('delivery') || role.contains('rider')) {
+          GoRouter.maybeOf(context)?.go('/dashboard/delivery');
+        } else {
+          GoRouter.maybeOf(context)?.go('/role-selection');
+        }
+      }
+      return;
+    }
+
     final rawCity = (active['city'] ?? '').toString().trim();
     if (rawCity.isNotEmpty && mounted) {
       setState(() {
@@ -146,6 +168,8 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
         );
         GoRouter.maybeOf(context)?.go('/login/service-provider');
       }
+    } else {
+      _checkAndRequestPermissions();
     }
   }
 

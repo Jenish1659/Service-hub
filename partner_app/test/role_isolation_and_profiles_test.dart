@@ -13,10 +13,13 @@ import 'package:service_hub_partner/features/profile/presentation/screens/shopke
 import 'package:service_hub_partner/features/profile/presentation/screens/delivery_agent_profile_screen.dart';
 import 'package:service_hub_partner/features/registration/presentation/screens/provider_application_status_screen.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
     final tempDir = Directory.systemTemp.createTempSync('hive_role_isolation_test');
     Hive.init(tempDir.path);
     await Hive.openBox('partner_cache');
@@ -217,6 +220,8 @@ void main() {
       // Verify that it navigated strictly to /profile/shopkeeper
       expect(pushedRoute, equals('/profile/shopkeeper'));
       expect(find.text('SHOPKEEPER_PROFILE_DESTINATION'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 250));
       LiveBookingSyncService.instance.stopPolling();
     });
 
@@ -266,6 +271,8 @@ void main() {
 
       expect(pushedRoute, equals('/profile/delivery'));
       expect(find.text('DELIVERY_PROFILE_DESTINATION'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 250));
       LiveBookingSyncService.instance.stopPolling();
     });
   });
@@ -331,9 +338,12 @@ void main() {
       final launchBtn = find.text('Launch Shop Dashboard 🏪');
       expect(launchBtn, findsOneWidget);
 
-      await tester.tap(launchBtn);
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.pump(const Duration(milliseconds: 200));
+      await tester.runAsync(() async {
+        await tester.tap(launchBtn);
+        await Future.delayed(const Duration(milliseconds: 200));
+      });
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 250));
 
       // Verify that it went to /dashboard/shopkeeper
       expect(navigatedRoute, equals('/dashboard/shopkeeper'));
@@ -347,6 +357,10 @@ void main() {
       expect(activeShop, isNotNull);
       expect(activeShop!['role_name'], equals('shopkeeper'));
       expect(activeShop!['account_status'], equals('ACTIVE'));
+
+      // Clean unmount to cancel periodic timers
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 250));
       LiveBookingSyncService.instance.stopPolling();
     });
   });

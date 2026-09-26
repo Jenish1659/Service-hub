@@ -55,7 +55,31 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     try {
       final cachedShopkeeper = await LocalRegistrationCache.getActiveShopkeeper();
       final activeUser = cachedShopkeeper ?? await LocalRegistrationCache.getActivePartner();
-      if (activeUser != null) {
+      if (activeUser == null) {
+        if (mounted) GoRouter.maybeOf(context)?.go('/login/shopkeeper');
+        return;
+      }
+
+      final role = (activeUser['role_name'] ?? activeUser['role'] ?? activeUser['category'] ?? '').toString().toLowerCase();
+      if (role.isNotEmpty && role != 'shopkeeper' && !role.contains('shop') && !role.contains('store')) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Access restricted: Logged in account is registered as $role, not Shopkeeper.'),
+              backgroundColor: const Color(0xFFDC2626),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          if (role.contains('delivery') || role.contains('rider')) {
+            GoRouter.maybeOf(context)?.go('/dashboard/delivery');
+          } else if (role.contains('service') || role.contains('provider') || role.contains('expert')) {
+            GoRouter.maybeOf(context)?.go('/dashboard');
+          } else {
+            GoRouter.maybeOf(context)?.go('/role-selection');
+          }
+        }
+        return;
+      }
         final userMap = Map<String, dynamic>.from(activeUser);
         final status = (userMap['verification_status'] ?? '').toString().toUpperCase();
         final accStatus = (userMap['account_status'] ?? '').toString().toUpperCase();
@@ -213,7 +237,6 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
             }
           } catch (_) {}
         }
-      }
 
       // Query real store orders dynamically from Supabase & Hive
       List<Map<String, dynamic>> realOrders = [];
