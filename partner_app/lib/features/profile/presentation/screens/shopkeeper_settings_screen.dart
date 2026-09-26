@@ -127,7 +127,7 @@ class _ShopkeeperSettingsScreenState extends State<ShopkeeperSettingsScreen> {
                       Navigator.pop(ctx);
                       await _controller.logout();
                       if (!mounted) return;
-                      context.go('/login/shopkeeper');
+                      context.go('/role-selection');
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFDC2626),

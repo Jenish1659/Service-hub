@@ -280,7 +280,7 @@ class LiveBookingSyncService {
       'customer_id': customerId ?? 'cust_live_user',
       'customer_name': customerName ?? 'Verified Customer',
       'customer_phone': customerPhone ?? '+91 98980 11223',
-      'service_id': 'ac_master_service',
+      'service_id': extraData?['service_id'] ?? 'ac_service',
       'service_name': serviceName ?? 'AC Service (Split AC)',
       'category': 'AC Service',
       'category_name': 'AC Service Specialist',
@@ -294,6 +294,7 @@ class LiveBookingSyncService {
       'scheduled_date': effectiveDate,
       'scheduled_time_slot': effectiveTime,
       'scheduled_time': effectiveTime,
+      'scheduled_at': '$effectiveDate $effectiveTime'.trim(),
       'payment_method': paymentMethod ?? 'Cash after Service',
       'customer_address': customerAddress ?? address ?? 'Patel Colony, Jamnagar',
       'address': customerAddress ?? address ?? 'Patel Colony, Jamnagar',
@@ -318,24 +319,48 @@ class LiveBookingSyncService {
   Future<void> submitBooking(Map<String, dynamic> bookingData) async {
     final bId = (bookingData['id'] ?? bookingData['booking_id'] ?? 'AC_${DateTime.now().millisecondsSinceEpoch}').toString();
     final all = _readAllBookings();
+    final scheduledDate = bookingData['scheduled_date'] ?? 'Today';
+    final scheduledTime = bookingData['scheduled_time_slot'] ?? bookingData['scheduled_time'] ?? 'Immediate';
+    final scheduledAt = bookingData['scheduled_at'] ?? '$scheduledDate $scheduledTime'.trim();
+    final finalAmt = (bookingData['final_amount'] as num?)?.toDouble() ??
+        (bookingData['price'] as num?)?.toDouble() ??
+        (bookingData['estimated_amount'] as num?)?.toDouble() ??
+        499.0;
+    final addr = (bookingData['address'] ?? bookingData['customer_address'] ?? '').toString();
+
     final Map<String, dynamic> record = <String, dynamic>{
       'id': bId,
       'booking_id': bId,
       'customer_id': bookingData['customer_id'] ?? '',
       'customer_name': bookingData['customer_name'] ?? 'Customer',
       'customer_phone': bookingData['customer_phone'] ?? '',
-      'service_id': bookingData['service_id'] ?? 'ac_master_service',
+      'service_id': bookingData['service_id'] ?? 'ac_service',
       'service_name': bookingData['service_name'] ?? 'AC Service',
+      'category': bookingData['category'] ?? 'AC Service',
+      'category_name': bookingData['category_name'] ?? 'AC Service Specialist',
       'status': (bookingData['status'] ?? 'PENDING').toString().toUpperCase(),
       'service_status': (bookingData['status'] ?? 'PENDING').toString().toUpperCase(),
-      'estimated_amount': bookingData['estimated_amount'] ?? 499.0,
-      'final_amount': bookingData['final_amount'] ?? 499.0,
-      'price': bookingData['price'] ?? 499.0,
-      'scheduled_date': bookingData['scheduled_date'] ?? 'Today',
-      'scheduled_time_slot': bookingData['scheduled_time_slot'] ?? 'Immediate',
-      'address': bookingData['address'] ?? '',
-      'created_at': DateTime.now().toIso8601String(),
+      'estimated_amount': (bookingData['estimated_amount'] as num?)?.toDouble() ?? finalAmt,
+      'final_amount': finalAmt,
+      'price': (bookingData['price'] as num?)?.toDouble() ?? finalAmt,
+      'scheduled_date': scheduledDate,
+      'scheduled_time_slot': scheduledTime,
+      'scheduled_time': scheduledTime,
+      'scheduled_at': scheduledAt,
+      'address': addr,
+      'customer_address': addr,
+      'customer_lat': (bookingData['customer_lat'] as num?)?.toDouble() ?? 22.4707,
+      'customer_lng': (bookingData['customer_lng'] as num?)?.toDouble() ?? 70.0577,
+      'entrance_pin': bookingData['entrance_pin'] ?? '1234',
+      'completion_otp': bookingData['completion_otp'] ?? '5678',
+      'payment_method': bookingData['payment_method'] ?? 'Cash on Service',
+      'tracking_id': bookingData['tracking_id'] ?? 'TRK-AC-${DateTime.now().millisecondsSinceEpoch}',
+      'created_at': bookingData['created_at'] ?? DateTime.now().toIso8601String(),
     };
+
+    bookingData.forEach((k, v) {
+      record[k] = v;
+    });
 
     all[bId] = record;
     _writeAllBookings(all);

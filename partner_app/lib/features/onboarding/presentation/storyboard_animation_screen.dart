@@ -26,7 +26,16 @@ class _StoryboardAnimationScreenState extends State<StoryboardAnimationScreen> {
   Future<void> _checkActiveSession() async {
     try {
       final activePartner = await LocalRegistrationCache.getActivePartner();
-      if (activePartner != null && mounted) {
+      if (activePartner == null) {
+        if (mounted) {
+          setState(() {
+            _isCheckingSession = false;
+          });
+        }
+        return;
+      }
+
+      if (mounted) {
         final status = (activePartner['verification_status'] ?? activePartner['status'] ?? activePartner['account_status'] ?? '').toString().toUpperCase();
         // Only auto-open dashboard if Admin has APPROVED / VERIFIED the partner
         if (status == 'VERIFIED' || status == 'APPROVED' || status == 'ACTIVE') {

@@ -10,21 +10,36 @@ import 'package:service_hub_partner/features/dashboard/presentation/shopkeeper_d
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  void clearDiskJson() {
+    for (final path in [
+      r'C:\Users\Public\ServiceHub\service_hub_live_bookings.json',
+      r'C:\Users\Public\ServiceHub\service_hub_partner_verifications.json',
+    ]) {
+      final f = File(path);
+      if (f.existsSync()) {
+        try {
+          f.writeAsStringSync('{}');
+        } catch (_) {}
+      }
+    }
+  }
+
   setUpAll(() async {
+    LiveBookingSyncService.instance.stopPolling();
+    clearDiskJson();
     final tempDir = Directory.systemTemp.createTempSync('hive_shop_test');
     Hive.init(tempDir.path);
     final box = await Hive.openBox('partner_cache');
     await box.clear();
   });
 
+  setUp(() {
+    LiveBookingSyncService.instance.stopPolling();
+  });
+
   tearDownAll(() async {
     LiveBookingSyncService.instance.stopPolling();
-    final file = File(r'C:\Users\Public\ServiceHub\service_hub_partner_verifications.json');
-    if (file.existsSync()) {
-      try {
-        file.writeAsStringSync('{}');
-      } catch (_) {}
-    }
+    clearDiskJson();
   });
 
   group('Shopkeeper Registration, Admin Approval & Dashboard E2E Tests', () {
@@ -66,7 +81,8 @@ void main() {
       expect(syncRecord, isNotNull);
       expect(syncRecord!['status'], equals('PENDING'));
       expect(syncRecord['business_name'], equals('Rajesh Electronics'));
-      expect(syncRecord['category'], equals('shopkeeper'));
+      expect(syncRecord['role'], equals('shopkeeper'));
+      expect(syncRecord['category'], anyOf(equals('shopkeeper'), equals('AC Service Parts')));
     });
 
     test('2. Shopkeeper Login is STRICTLY BLOCKED before Admin Approval', () async {
@@ -269,17 +285,21 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(acceptBtn, findsOneWidget);
-      await tester.tap(acceptBtn);
+      await tester.runAsync(() async {
+        await tester.tap(acceptBtn);
+        await Future.delayed(const Duration(milliseconds: 100));
+      });
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
       // Status should now transition to Preparing!
       expect(find.text('Order #SH1024 marked as Preparing!'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 5));
     });
 
     testWidgets('7. ShopkeeperDashboardScreen displays clean empty state when no orders exist', (WidgetTester tester) async {
       LiveBookingSyncService.instance.stopPolling();
+      LiveBookingSyncService.instance.clearBookingsForTest();
+      clearDiskJson();
       await tester.runAsync(() async {
         final box = Hive.box('partner_cache');
         await box.put('shopkeeper_orders', []);
@@ -304,7 +324,6 @@ void main() {
       expect(find.text('No incoming orders yet'), findsOneWidget);
       expect(find.text('Your store is active and waiting for customer orders'), findsOneWidget);
       expect(find.text('Manage Catalog'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 5));
     });
   });
 }

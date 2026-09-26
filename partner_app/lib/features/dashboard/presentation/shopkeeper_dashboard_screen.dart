@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
@@ -26,6 +27,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   int _ratingReviewsCount = 0;
   int _activeNavIndex = 0;
   bool _isLoading = false;
+  StreamSubscription? _liveBookingSub;
 
   // Real dynamically queried orders list (Supabase & Hive)
   List<Map<String, dynamic>> _orders = [];
@@ -37,38 +39,78 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   void initState() {
     super.initState();
     _loadShopData();
+    _liveBookingSub = LiveBookingSyncService.instance.bookingsStream.listen((_) {
+      if (mounted) _loadShopData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _liveBookingSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadShopData() async {
     setState(() => _isLoading = true);
     try {
-      final activeUser = await LocalRegistrationCache.getActiveShopkeeper();
+      final cachedShopkeeper = await LocalRegistrationCache.getActiveShopkeeper();
+      final activeUser = cachedShopkeeper ?? await LocalRegistrationCache.getActivePartner();
       if (activeUser != null) {
-        final status = (activeUser['verification_status'] ?? '').toString().toUpperCase();
-        final accStatus = (activeUser['account_status'] ?? '').toString().toUpperCase();
+        final userMap = Map<String, dynamic>.from(activeUser);
+        final status = (userMap['verification_status'] ?? '').toString().toUpperCase();
+        final accStatus = (userMap['account_status'] ?? '').toString().toUpperCase();
         
         // Cross-check with LiveBookingSyncService
-        final uId = (activeUser['user_id'] ?? '').toString();
-        final phone = (activeUser['phone'] ?? '').toString();
+        final uId = (userMap['user_id'] ?? userMap['id'] ?? '').toString();
+        final pId = (userMap['partner_id'] ?? '').toString();
+        final phone = (userMap['phone'] ?? '').toString();
+        final username = (userMap['username'] ?? '').toString().trim();
         final syncRecord = LiveBookingSyncService.instance.getPartnerVerification(uId) ??
-            LiveBookingSyncService.instance.getPartnerVerification(phone);
+            (pId.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(pId) : null) ??
+            (phone.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(phone) : null);
         final syncStatus = (syncRecord?['status'] ?? syncRecord?['verification_status'] ?? '').toString().toUpperCase();
 
         var isApproved = status == 'VERIFIED' || status == 'APPROVED' || accStatus == 'ACTIVE' || syncStatus == 'APPROVED' || syncStatus == 'VERIFIED';
 
         // Real-time fallback against Supabase if local state hasn't synced yet
-        if (!isApproved && phone.isNotEmpty) {
+        if (!isApproved) {
           try {
             final client = Supabase.instance.client;
-            final uRes = await client.from('users').select('account_status, user_id').eq('phone', phone).maybeSingle();
+            final cleanDigits = phone.replaceAll(RegExp(r'\D'), '');
+            final last10 = cleanDigits.length >= 10 ? cleanDigits.substring(cleanDigits.length - 10) : '';
+
+            // 1. Check users table by user_id, phone, or username
+            Map<String, dynamic>? uRes;
+            if (uId.isNotEmpty && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(uId)) {
+              uRes = await client.from('users').select('account_status, user_id').eq('user_id', uId).maybeSingle();
+            }
+            if (uRes == null && last10.length >= 10) {
+              uRes = await client
+                  .from('users')
+                  .select('account_status, user_id')
+                  .or('phone.eq.$cleanDigits,phone.eq.+91$last10,phone.ilike.*$last10*')
+                  .limit(1)
+                  .maybeSingle();
+            }
+            if (uRes == null && username.isNotEmpty) {
+              uRes = await client
+                  .from('users')
+                  .select('account_status, user_id')
+                  .eq('username', username)
+                  .limit(1)
+                  .maybeSingle();
+            }
+
             if (uRes != null) {
-              if (uRes['account_status'] == 'ACTIVE') {
+              final userAccStatus = (uRes['account_status'] ?? '').toString().toUpperCase();
+              final targetUid = uRes['user_id']?.toString() ?? uId;
+              if (userAccStatus == 'ACTIVE') {
                 isApproved = true;
-              } else if (uRes['user_id'] != null) {
+              } else if (targetUid.isNotEmpty) {
                 final vr = await client
                     .from('verification_requests')
                     .select('status')
-                    .eq('user_id', uRes['user_id'])
+                    .eq('user_id', targetUid)
                     .order('submitted_at', ascending: false)
                     .limit(1)
                     .maybeSingle();
@@ -77,15 +119,33 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                 }
               }
             }
-            if (isApproved) {
-              await LocalRegistrationCache.updateActiveShopkeeper({
-                ...activeUser,
-                'verification_status': 'VERIFIED',
-                'status': 'APPROVED',
-                'account_status': 'ACTIVE',
-              });
+
+            // 2. Check partners table directly
+            if (!isApproved) {
+              if (pId.isNotEmpty && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(pId)) {
+                final pRes = await client.from('partners').select('verification_status').eq('partner_id', pId).maybeSingle();
+                if (pRes != null && (pRes['verification_status'] == 'VERIFIED' || pRes['verification_status'] == 'APPROVED')) {
+                  isApproved = true;
+                }
+              }
+              final checkUid = (uRes?['user_id']?.toString() ?? uId);
+              if (!isApproved && checkUid.isNotEmpty && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(checkUid)) {
+                final pRes = await client.from('partners').select('verification_status').eq('user_id', checkUid).maybeSingle();
+                if (pRes != null && (pRes['verification_status'] == 'VERIFIED' || pRes['verification_status'] == 'APPROVED')) {
+                  isApproved = true;
+                }
+              }
             }
-          } catch (_) {}
+
+            if (isApproved) {
+              userMap['verification_status'] = 'VERIFIED';
+              userMap['status'] = 'APPROVED';
+              userMap['account_status'] = 'ACTIVE';
+              await LocalRegistrationCache.updateActiveShopkeeper(userMap);
+            }
+          } catch (e) {
+            debugPrint('[ShopkeeperDashboard] Supabase verification check note: $e');
+          }
         }
 
         if (!isApproved) {
@@ -103,25 +163,25 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
         }
 
         setState(() {
-          final fullName = (activeUser['name'] ?? activeUser['full_name'] ?? '').toString();
+          final fullName = (userMap['name'] ?? userMap['full_name'] ?? '').toString();
           if (fullName.isNotEmpty) _shopkeeperName = fullName;
-          final bName = (activeUser['business_name'] ?? '').toString();
+          final bName = (userMap['business_name'] ?? '').toString();
           if (bName.isNotEmpty) _shopName = bName;
-          final addr = (activeUser['business_address'] ?? activeUser['address'] ?? '').toString();
+          final addr = (userMap['business_address'] ?? userMap['address'] ?? '').toString();
           if (addr.isNotEmpty) _shopAddress = addr;
-          final cat = (activeUser['category'] ?? '').toString();
+          final cat = (userMap['category'] ?? '').toString();
           if (cat.isNotEmpty) _shopCategory = cat;
-          final hrs = (activeUser['today_hours'] ?? activeUser['business_hours'] ?? '').toString();
+          final hrs = (userMap['today_hours'] ?? userMap['business_hours'] ?? '').toString();
           if (hrs.isNotEmpty) _todayHours = hrs;
-          if (activeUser['rating'] is num) {
-            _shopRating = (activeUser['rating'] as num).toDouble();
-          } else if (activeUser['shop_rating'] is num) {
-            _shopRating = (activeUser['shop_rating'] as num).toDouble();
+          if (userMap['rating'] is num) {
+            _shopRating = (userMap['rating'] as num).toDouble();
+          } else if (userMap['shop_rating'] is num) {
+            _shopRating = (userMap['shop_rating'] as num).toDouble();
           }
-          if (activeUser['review_count'] is num) {
-            _ratingReviewsCount = (activeUser['review_count'] as num).toInt();
-          } else if (activeUser['reviews_count'] is num) {
-            _ratingReviewsCount = (activeUser['reviews_count'] as num).toInt();
+          if (userMap['review_count'] is num) {
+            _ratingReviewsCount = (userMap['review_count'] as num).toInt();
+          } else if (userMap['reviews_count'] is num) {
+            _ratingReviewsCount = (userMap['reviews_count'] as num).toInt();
           }
         });
 
@@ -184,6 +244,9 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
 
             realOrders.add({
               'order_id': code,
+              'raw_id': o['order_id'] ?? o['id'],
+              'order_code': code,
+              'booking_id': o['order_id'] ?? o['id'] ?? code,
               'item_title': o['items_summary'] ?? 'Store Spare Parts',
               'customer_name': 'Customer',
               'item_count': 1,
@@ -228,6 +291,71 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
           }
         } catch (_) {}
       }
+
+      // Query LiveBookingSyncService for real-time customer store orders
+      try {
+        final syncBookings = LiveBookingSyncService.instance.getAllBookings();
+        for (final b in syncBookings) {
+          final isStoreOrder = b['type'] == 'DELIVERY_ORDER' ||
+              (b['service_id'] ?? '').toString().contains('delivery') ||
+              b['order_code'] != null;
+          if (!isStoreOrder) continue;
+
+          final bCode = (b['order_code'] ?? b['order_id'] ?? b['id'] ?? '').toString();
+          final bId = (b['id'] ?? b['booking_id'] ?? b['order_id'] ?? bCode).toString();
+
+          final alreadyPresent = realOrders.any((o) =>
+              (o['order_id'] != null && (o['order_id'] == bCode || o['order_id'] == bId)) ||
+              (o['raw_id'] != null && (o['raw_id'] == bId || o['raw_id'] == bCode)) ||
+              (o['order_code'] != null && (o['order_code'] == bCode || o['order_code'] == bId)));
+
+          if (!alreadyPresent) {
+            final rawStatus = (b['status'] ?? 'New').toString();
+            String displayStatus = 'New';
+            if (rawStatus.toUpperCase() == 'PACKING' || rawStatus.toUpperCase() == 'PREPARING' || rawStatus == 'Preparing') {
+              displayStatus = 'Preparing';
+            } else if (rawStatus.toUpperCase() == 'READY' || rawStatus.toUpperCase() == 'READY_FOR_PICKUP' || rawStatus == 'Ready for Pickup') {
+              displayStatus = 'Ready for Pickup';
+            } else if (rawStatus.toUpperCase() == 'DELIVERED' || rawStatus.toUpperCase() == 'COMPLETED') {
+              displayStatus = 'Completed';
+            }
+
+            Color stColor = const Color(0xFF10B981);
+            Color stBg = const Color(0xFFDCFCE7);
+            if (displayStatus == 'Preparing') {
+              stColor = const Color(0xFFD97706);
+              stBg = const Color(0xFFFEF3C7);
+            } else if (displayStatus == 'Ready for Pickup') {
+              stColor = const Color(0xFF2563EB);
+              stBg = const Color(0xFFDBEAFE);
+            } else if (displayStatus == 'Completed') {
+              stColor = const Color(0xFF059669);
+              stBg = const Color(0xFFDCFCE7);
+            }
+
+            final amt = (b['final_amount'] as num?)?.toDouble() ??
+                (b['estimated_amount'] as num?)?.toDouble() ??
+                (b['total_amount'] as num?)?.toDouble() ??
+                350.0;
+
+            realOrders.add({
+              'order_id': bCode.isNotEmpty ? bCode : bId,
+              'raw_id': bId,
+              'booking_id': bId,
+              'order_code': bCode,
+              'item_title': b['items_summary'] ?? b['service_name'] ?? 'Store Order Delivery',
+              'customer_name': b['customer_name'] ?? 'Customer',
+              'item_count': 1,
+              'location': b['customer_address'] ?? b['address'] ?? 'Local Delivery',
+              'amount': amt,
+              'status': displayStatus,
+              'status_color': stColor,
+              'status_bg': stBg,
+              'delivery_pin': b['delivery_pin'],
+            });
+          }
+        }
+      } catch (_) {}
 
       // Query products from Hive if available
       try {
@@ -858,9 +986,13 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     );
   }
 
-  void _handleOrderAction(int index, String newStatus) {
+  Future<void> _handleOrderAction(int index, String newStatus) async {
+    final ord = _orders[index];
+    final orderId = ord['order_id']?.toString() ?? '';
+    final rawId = ord['raw_id']?.toString() ?? orderId;
+    final bookingId = ord['booking_id']?.toString() ?? rawId;
+
     setState(() {
-      final ord = _orders[index];
       ord['status'] = newStatus;
       if (newStatus == 'Preparing') {
         ord['status_color'] = const Color(0xFFD97706);
@@ -885,6 +1017,64 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+
+    // Update Supabase
+    try {
+      final client = Supabase.instance.client;
+      String dbStatus = newStatus;
+      if (newStatus == 'Preparing') dbStatus = 'Packing';
+      if (newStatus == 'Completed') dbStatus = 'Delivered';
+
+      await client.from('orders').update({
+        'order_status': dbStatus,
+        'status': dbStatus,
+      }).or('order_id.eq.$rawId,order_code.eq.$orderId').timeout(const Duration(seconds: 2));
+
+      if (newStatus == 'Ready for Pickup') {
+        try {
+          await client.from('delivery_assignments').update({
+            'status': 'READY',
+          }).eq('order_id', rawId).timeout(const Duration(seconds: 2));
+        } catch (_) {}
+      }
+    } catch (_) {}
+
+    // Update LiveBookingSyncService
+    try {
+      String syncStatus = 'ASSIGNED';
+      if (newStatus == 'Preparing') {
+        syncStatus = 'PACKING';
+      } else if (newStatus == 'Ready for Pickup') {
+        syncStatus = 'READY';
+      } else if (newStatus == 'Completed') {
+        syncStatus = 'DELIVERED';
+      }
+
+      await LiveBookingSyncService.instance.updateBookingStatus(bookingId, syncStatus);
+      await LiveBookingSyncService.instance.updateMilestone(bookingId, syncStatus);
+      if (orderId.isNotEmpty && orderId != bookingId) {
+        await LiveBookingSyncService.instance.updateBookingStatus(orderId, syncStatus);
+        await LiveBookingSyncService.instance.updateMilestone(orderId, syncStatus);
+      }
+    } catch (_) {}
+
+    // Save to Hive
+    try {
+      if (Hive.isBoxOpen('partner_cache')) {
+        final box = Hive.box('partner_cache');
+        final sanitizedOrders = _orders.map((o) {
+          final copy = Map<String, dynamic>.from(o);
+          if (copy['status_color'] is Color) {
+            copy['status_color'] = (copy['status_color'] as Color).toARGB32();
+          }
+          if (copy['status_bg'] is Color) {
+            copy['status_bg'] = (copy['status_bg'] as Color).toARGB32();
+          }
+          return copy;
+        }).toList();
+        await box.put('shopkeeper_orders', sanitizedOrders).timeout(const Duration(milliseconds: 500));
+      }
+    } catch (_) {}
   }
 
   @override
@@ -1186,8 +1376,8 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
             leading: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
             title: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
             onTap: () async {
-              await LocalRegistrationCache.logoutShopkeeper();
-              if (mounted) context.go('/login/shopkeeper');
+              await LocalRegistrationCache.clearActiveSession();
+              if (mounted) context.go('/role-selection');
             },
           ),
           const SizedBox(height: 12),
@@ -2139,8 +2329,39 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  onPressed: () => _handleOrderAction(index, 'Completed'),
+                  onPressed: () => _handleOrderAction(index, 'Ready for Pickup'),
                   child: const Text('Ready for Pickup', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                ),
+              ] else if (status == 'Ready for Pickup') ...[
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    visualDensity: VisualDensity.compact,
+                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.two_wheeler_rounded, size: 14, color: Color(0xFF2563EB)),
+                  label: const Text('Awaiting Rider', style: TextStyle(fontSize: 11.5, color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Order packed and ready. Hyperlocal delivery rider dispatched for pickup.'),
+                        backgroundColor: Color(0xFF2563EB),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 6),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF059669),
+                    foregroundColor: Colors.white,
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => _handleOrderAction(index, 'Completed'),
+                  child: const Text('Dispatch / Handover', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
                 ),
               ] else ...[
                 OutlinedButton(

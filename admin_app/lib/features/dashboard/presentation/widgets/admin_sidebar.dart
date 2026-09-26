@@ -5,6 +5,9 @@ class AdminSidebar extends StatelessWidget {
   final Function(String tab) onTabSelected;
   final bool isCollapsed;
   final VoidCallback onToggleCollapse;
+  final int shopkeeperCount;
+  final int deliveryCount;
+  final int partnerCount;
 
   const AdminSidebar({
     super.key,
@@ -12,6 +15,9 @@ class AdminSidebar extends StatelessWidget {
     required this.onTabSelected,
     this.isCollapsed = false,
     required this.onToggleCollapse,
+    this.shopkeeperCount = 0,
+    this.deliveryCount = 0,
+    this.partnerCount = 0,
   });
 
   @override
@@ -74,8 +80,9 @@ class AdminSidebar extends StatelessWidget {
                 _buildNavItem('All Bookings', Icons.list_alt_rounded),
 
                 _buildGroupHeader('PARTNER OPERATIONS'),
-                _buildNavItem('Partner Verification', Icons.verified_user_rounded),
-                _buildNavItem('Shopkeeper Verification', Icons.storefront_rounded),
+                _buildNavItem('Partner Verification', Icons.verified_user_rounded, partnerCount),
+                _buildNavItem('Shopkeeper Verification', Icons.storefront_rounded, shopkeeperCount),
+                _buildNavItem('Delivery Agent Verification', Icons.two_wheeler_rounded, deliveryCount),
                 _buildNavItem('Service Partners', Icons.handshake_rounded),
 
                 _buildGroupHeader('PLATFORM MANAGEMENT'),
@@ -116,7 +123,7 @@ class AdminSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(String title, IconData icon) {
+  Widget _buildNavItem(String title, IconData icon, [int badgeCount = 0]) {
     final isSelected = activeTab == title;
     return InkWell(
       onTap: () => onTabSelected(title),
@@ -129,7 +136,25 @@ class AdminSidebar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 17, color: isSelected ? Colors.white : const Color(0xFF94A3B8)),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, size: 17, color: isSelected ? Colors.white : const Color(0xFF94A3B8)),
+                if (isCollapsed && badgeCount > 0)
+                  Positioned(
+                    right: -3,
+                    top: -3,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             if (!isCollapsed) ...[
               const SizedBox(width: 10),
               Expanded(
@@ -144,6 +169,22 @@ class AdminSidebar extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (badgeCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.white : const Color(0xFFEF4444),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    badgeCount > 99 ? '99+' : '$badgeCount',
+                    style: TextStyle(
+                      color: isSelected ? const Color(0xFF2563EB) : Colors.white,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
             ],
           ],
         ),

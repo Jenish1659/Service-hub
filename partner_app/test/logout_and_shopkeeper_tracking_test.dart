@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:service_hub_partner/core/services/live_booking_sync_service.dart';
 import 'package:service_hub_partner/core/services/supabase_auth_service.dart';
 import 'package:service_hub_partner/core/storage/local_registration_cache.dart';
@@ -13,6 +14,14 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    SharedPreferences.setMockInitialValues({
+      'partner_token': 'dummy_jwt_token',
+      'partner_role': 'shopkeeper',
+      'saved_user_id': 'user_initial_123',
+      'saved_role_id': 'role_initial_456',
+      'cached_shopkeeper_data': '{"business_name":"Old Store"}',
+      'cached_delivery_data': '{"vehicle":"bike"}',
+    });
     final tempDir = Directory.systemTemp.createTempSync('hive_logout_test');
     Hive.init(tempDir.path);
     final box = await Hive.openBox('partner_cache');
@@ -78,6 +87,87 @@ void main() {
 
       expect(box.get('active_partner_session'), isNull);
       expect(box.get('active_user_session'), isNull);
+      expect(await LocalRegistrationCache.getActivePartner(), isNull);
+    });
+
+    test('2b. clearActiveSession() and signOut() thoroughly wipe multi-role sessions and SharedPreferences', () async {
+      final box = Hive.box('partner_cache');
+
+      // Populate multi-role isolated sessions
+      await LocalRegistrationCache.updateActiveShopkeeper({
+        'user_id': 'shop_999',
+        'role_name': 'shopkeeper',
+        'business_name': 'Super Electricals',
+      });
+      await LocalRegistrationCache.updateActiveDeliveryAgent({
+        'user_id': 'deliv_888',
+        'role_name': 'delivery_agent',
+        'vehicle_number': 'GJ-03-AB-1234',
+      });
+      await LocalRegistrationCache.updateActiveServiceProvider({
+        'user_id': 'sp_777',
+        'role_name': 'service_provider',
+        'specialization': 'AC Technician',
+      });
+
+      // Populate SharedPreferences keys
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('partner_token', 'jwt_token_999');
+      await prefs.setString('partner_role', 'shopkeeper');
+      await prefs.setString('saved_user_id', 'shop_999');
+      await prefs.setString('saved_role_id', 'role_shop_001');
+      await prefs.setString('cached_shopkeeper_data', '{"shop":"Super Electricals"}');
+      await prefs.setString('cached_delivery_data', '{"agent":"deliv_888"}');
+
+      // Verify active role & sessions exist
+      expect(await LocalRegistrationCache.getActiveShopkeeper(), isNotNull);
+      expect(await LocalRegistrationCache.getActiveDeliveryAgent(), isNotNull);
+      expect(await LocalRegistrationCache.getActiveServiceProvider(), isNotNull);
+      expect(prefs.getString('partner_token'), equals('jwt_token_999'));
+
+      // Perform complete clearActiveSession
+      await LocalRegistrationCache.clearActiveSession();
+
+      // Verify all isolated role sessions are completely wiped
+      expect(await LocalRegistrationCache.getActiveShopkeeper(), isNull);
+      expect(await LocalRegistrationCache.getActiveDeliveryAgent(), isNull);
+      expect(await LocalRegistrationCache.getActiveServiceProvider(), isNull);
+      expect(await LocalRegistrationCache.getActivePartner(), isNull);
+
+      // Verify Hive keys
+      expect(box.get('active_shopkeeper_session'), isNull);
+      expect(box.get('active_delivery_agent_session'), isNull);
+      expect(box.get('active_service_provider_session'), isNull);
+      expect(box.get('current_active_role'), isNull);
+      expect(box.get('partner_token'), isNull);
+      expect(box.get('saved_user_id'), isNull);
+
+      // Verify SharedPreferences keys are completely wiped
+      expect(prefs.getString('partner_token'), isNull);
+      expect(prefs.getString('partner_role'), isNull);
+      expect(prefs.getString('saved_user_id'), isNull);
+      expect(prefs.getString('saved_role_id'), isNull);
+      expect(prefs.getString('cached_shopkeeper_data'), isNull);
+      expect(prefs.getString('cached_delivery_data'), isNull);
+    });
+
+    test('2c. SupabaseAuthService.clearActiveSession() wipes all role sessions and SharedPreferences', () async {
+      final box = Hive.box('partner_cache');
+      final prefs = await SharedPreferences.getInstance();
+
+      await box.put('active_shopkeeper_session', {'user_id': 'shop_xyz', 'role_name': 'shopkeeper'});
+      await box.put('current_active_role', 'shopkeeper');
+      await prefs.setString('partner_token', 'token_xyz');
+      await prefs.setString('partner_role', 'shopkeeper');
+      await prefs.setString('saved_user_id', 'shop_xyz');
+
+      await SupabaseAuthService.clearActiveSession();
+
+      expect(box.get('active_shopkeeper_session'), isNull);
+      expect(box.get('current_active_role'), isNull);
+      expect(prefs.getString('partner_token'), isNull);
+      expect(prefs.getString('partner_role'), isNull);
+      expect(prefs.getString('saved_user_id'), isNull);
       expect(await LocalRegistrationCache.getActivePartner(), isNull);
     });
   });

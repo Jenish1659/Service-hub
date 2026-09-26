@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthResult {
@@ -262,4 +263,34 @@ class SupabaseAuthService {
     } catch (_) {}
     return null;
   }
+
+  static Future<void> logout() async {
+    try {
+      await client.auth.signOut();
+    } catch (_) {}
+    try {
+      if (Hive.isBoxOpen(_sessionBoxName)) {
+        final box = Hive.box(_sessionBoxName);
+        await box.delete('active_customer_session');
+        await box.delete('is_logged_in');
+        await box.delete('user_id');
+        await box.delete('user_name');
+        await box.delete('user_phone');
+        await box.delete('customer_token');
+        await box.delete('saved_user_id');
+        await box.delete('saved_role_id');
+        await box.flush();
+      }
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('customer_token');
+      await prefs.remove('customer_role');
+      await prefs.remove('saved_user_id');
+      await prefs.remove('saved_role_id');
+    } catch (_) {}
+  }
+
+  static Future<void> signOut() async => logout();
+  static Future<void> clearActiveSession() async => logout();
 }

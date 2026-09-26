@@ -41,10 +41,24 @@ class SupabaseAuthService {
 
     try {
       // 1. Search users table using entered username OR phone number
+      final cleanDigits = cleanId.replaceAll(RegExp(r'\D'), '');
+      final isPhone = cleanDigits.length >= 10;
+      final last10 = isPhone ? cleanDigits.substring(cleanDigits.length - 10) : '';
+
+      final filterParts = <String>[
+        'username.ilike.$cleanId',
+        'email.ilike.$cleanId',
+        'phone.eq.$cleanId',
+      ];
+      if (isPhone) {
+        filterParts.add('phone.eq.+91$last10');
+        filterParts.add('phone.ilike.*$last10*');
+      }
+
       final usersRes = await client
           .from('users')
-          .select('*, roles!inner(*), user_profiles(*), partners(*, service_provider_profiles(*))')
-          .or('username.ilike.$cleanId,phone.eq.$cleanId,phone.eq.+91$cleanId')
+          .select('*, roles!inner(*), user_profiles(*), partners(*, service_provider_profiles(*), shopkeeper_profiles(*), delivery_agent_profiles(*))')
+          .or(filterParts.join(','))
           .maybeSingle();
 
       if (usersRes == null) {
@@ -179,6 +193,8 @@ class SupabaseAuthService {
         'partner_id': partnersData?['partner_id'] ?? usersRes['user_id'],
         'provider_id': partnersData?['service_provider_profiles']?['provider_id'],
         'verification_status': isApproved ? 'VERIFIED' : (isRejected ? 'REJECTED' : 'PENDING'),
+        'status': isApproved ? 'APPROVED' : (isRejected ? 'REJECTED' : 'PENDING'),
+        'account_status': isApproved ? 'ACTIVE' : (isRejected ? 'REJECTED' : 'PENDING_VERIFICATION'),
         'is_online': isApproved && partnersData?['availability_status'] == 'ONLINE',
       };
 
@@ -299,7 +315,7 @@ class SupabaseAuthService {
         final userMatches = await client
             .from('users')
             .select('user_id, phone, email, username')
-            .or('phone.eq.$cleanPhone,email.eq.$cleanEmail,username.eq.$cleanUsername${rawDigits.length >= 10 ? ',phone.ilike.%${rawDigits.substring(rawDigits.length - 10)}%' : ''}')
+            .or('phone.eq.$cleanPhone,email.eq.$cleanEmail,username.eq.$cleanUsername${rawDigits.length >= 10 ? ',phone.ilike.*${rawDigits.substring(rawDigits.length - 10)}*' : ''}')
             .limit(1);
 
         if (userMatches.isNotEmpty) {
@@ -436,6 +452,11 @@ class SupabaseAuthService {
       // 8. Insert into verification_requests table (Unlimited KYC applications)
       final remarksParts = <String>[
         'New registration application for $cleanUsername',
+        'Role: service_provider',
+        'Category: $serviceCategoryId',
+        'Specialization: $specialization',
+        'Phone: $cleanPhone',
+        'City: $city',
         if (aadhaarNumber != null && aadhaarNumber.isNotEmpty) 'Aadhaar: $aadhaarNumber',
         if (panNumber != null && panNumber.isNotEmpty) 'PAN: $panNumber',
         if (bankName != null && bankName.isNotEmpty) 'Bank: $bankName',
@@ -498,6 +519,41 @@ class SupabaseAuthService {
       };
 
       await _saveActiveSession(sessionData);
+
+      // Broadcast to LiveBookingSyncService for instant Admin App queue recognition
+      try {
+        final verId = 'ver_provider_$userId';
+        await LiveBookingSyncService.instance.submitPartnerVerification({
+          'id': verId,
+          'verification_id': verId,
+          'user_id': userId,
+          'partner_id': partnerId ?? '',
+          'provider_id': providerId ?? '',
+          'name': '$firstName $lastName'.trim(),
+          'full_name': '$firstName $lastName'.trim(),
+          'phone': cleanPhone,
+          'email': cleanEmail,
+          'role': 'service_provider',
+          'role_name': 'service_provider',
+          'category': serviceCategoryId,
+          'category_name': 'AC Service Provider',
+          'business_name': cleanBusinessName,
+          'business_address': cleanBusinessAddress,
+          'city': city,
+          'state': state,
+          'verification_status': 'PENDING',
+          'status': 'PENDING',
+          'document_type': 'PROVIDER_ONBOARDING',
+          'verification_type': 'AADHAAR',
+          'aadhaar_number': aadhaarNumber ?? '',
+          'pan_number': panNumber ?? '',
+          'bank_name': bankName ?? '',
+          'account_number': accountNumber ?? '',
+          'ifsc_code': ifscCode ?? '',
+          'account_holder_name': accountHolderName ?? '$firstName $lastName'.trim(),
+          'submitted_at': DateTime.now().toIso8601String(),
+        });
+      } catch (_) {}
 
       return AuthResult(
         isSuccess: true,
@@ -596,7 +652,7 @@ class SupabaseAuthService {
         final userMatches = await client
             .from('users')
             .select('user_id, phone, email, username')
-            .or('phone.eq.$cleanPhone,email.eq.$cleanEmail,username.eq.$cleanUsername${rawDigits.length >= 10 ? ',phone.ilike.%${rawDigits.substring(rawDigits.length - 10)}%' : ''}')
+            .or('phone.eq.$cleanPhone,email.eq.$cleanEmail,username.eq.$cleanUsername${rawDigits.length >= 10 ? ',phone.ilike.*${rawDigits.substring(rawDigits.length - 10)}*' : ''}')
             .limit(1);
 
         if (userMatches.isNotEmpty) {
@@ -659,7 +715,7 @@ class SupabaseAuthService {
         final existingAddr = await client.from('user_addresses').select('address_id').eq('user_id', userId).maybeSingle();
         if (existingAddr != null) {
           await client.from('user_addresses').update({
-            'address_line1': cleanAddress,
+            'street': cleanAddress,
             'area': cleanCity,
             'city': cleanCity,
             'state': cleanState,
@@ -670,8 +726,8 @@ class SupabaseAuthService {
         } else {
           await client.from('user_addresses').insert({
             'user_id': userId,
-            'address_type': 'Shop',
-            'address_line1': cleanAddress,
+            'address_type': 'Work',
+            'street': cleanAddress,
             'area': cleanCity,
             'city': cleanCity,
             'state': cleanState,
@@ -712,7 +768,7 @@ class SupabaseAuthService {
               'business_name': cleanShopName,
               'business_type': category,
               'business_experience': int.tryParse(yearsInBusiness ?? '1') ?? 1,
-            });
+            }, onConflict: 'partner_id');
           } catch (_) {}
         }
       } catch (pErr) {
@@ -737,7 +793,7 @@ class SupabaseAuthService {
       try {
         await client.from('verification_requests').insert({
           'user_id': userId,
-          'verification_type': 'AADHAAR',
+          'verification_type': 'SHOP_LICENSE',
           'status': 'PENDING',
           'remarks': kycRemarks,
         });
@@ -761,16 +817,19 @@ class SupabaseAuthService {
           'phone': cleanPhone,
           'email': cleanEmail,
           'business_name': cleanShopName,
-          'category': 'shopkeeper',
+          'shop_name': cleanShopName,
+          'category': category,
           'category_name': 'Shopkeeper ($category)',
+          'role': 'shopkeeper',
+          'role_name': 'shopkeeper',
           'city': cleanCity,
           'state': cleanState,
           'address': cleanAddress,
+          'document_type': 'SHOPKEEPER_ONBOARDING',
+          'verification_type': 'SHOP_LICENSE',
           'aadhaar_number': aadhaarNumber ?? '',
           'verification_status': 'PENDING',
           'status': 'PENDING',
-          'ai_risk_score': 0.02,
-          'trust_score': 99.8,
           'submitted_at': DateTime.now().toIso8601String(),
         });
       } catch (_) {}
@@ -836,15 +895,17 @@ class SupabaseAuthService {
           'phone': cleanPhone,
           'email': cleanEmail,
           'business_name': cleanShopName,
-          'category': 'shopkeeper',
+          'category': category,
           'category_name': 'Shopkeeper ($category)',
+          'role': 'shopkeeper',
+          'role_name': 'shopkeeper',
+          'document_type': 'SHOPKEEPER_ONBOARDING',
+          'verification_type': 'SHOP_LICENSE',
           'city': cleanCity,
           'state': cleanState,
           'address': cleanAddress,
           'verification_status': 'PENDING',
           'status': 'PENDING',
-          'ai_risk_score': 0.02,
-          'trust_score': 99.8,
           'submitted_at': DateTime.now().toIso8601String(),
         });
       } catch (_) {}
@@ -853,6 +914,329 @@ class SupabaseAuthService {
         isSuccess: true,
         userData: fallbackSession,
         roleName: 'shopkeeper',
+      );
+    }
+  }
+
+  /// Register a new Delivery Agent into the real database with full KYC and LiveBooking synchronization
+  static Future<AuthResult> registerDeliveryAgent({
+    required String username,
+    required String fullName,
+    required String phone,
+    required String password,
+    required String vehicleType,
+    required String vehicleNumber,
+    required String drivingLicenseNumber,
+    String? email,
+    String? city,
+    String? state,
+    String? fullAddress,
+    String? aadhaarNumber,
+    String? bankName,
+    String? accountNumber,
+    String? ifscCode,
+    String? accountHolderName,
+    String? photoUrl,
+    String? dlUrl,
+    String? rcUrl,
+    String? insUrl,
+  }) async {
+    final cleanUsername = username.trim().toLowerCase().replaceAll('@', '');
+    final cleanPhone = phone.trim();
+    final cleanEmail = (email != null && email.trim().isNotEmpty) ? email.trim() : '$cleanUsername@servicehub.com';
+    final cleanCity = (city != null && city.trim().isNotEmpty) ? city.trim() : 'Jamnagar';
+    final cleanState = (state != null && state.trim().isNotEmpty) ? state.trim() : 'Gujarat';
+    final cleanAddress = (fullAddress != null && fullAddress.trim().isNotEmpty) ? fullAddress.trim() : '$cleanCity, $cleanState';
+    final parts = fullName.trim().split(' ');
+    final firstName = parts.isNotEmpty ? parts.first : 'Delivery';
+    final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : 'Partner';
+
+    // Normalize vehicleType for PostgreSQL CHECK constraint: CHECK (vehicle_type IN ('Bike', 'Scooter', 'Electric Vehicle'))
+    String normalizedVehicleType = 'Bike';
+    final vLower = vehicleType.toLowerCase();
+    if (vLower.contains('scooter')) {
+      normalizedVehicleType = 'Scooter';
+    } else if (vLower.contains('electric') || vLower.contains('ev')) {
+      normalizedVehicleType = 'Electric Vehicle';
+    } else {
+      normalizedVehicleType = 'Bike';
+    }
+
+    try {
+      // 1. Create Supabase Auth User
+      String? authId;
+      try {
+        final authRes = await client.auth.signUp(email: cleanEmail, password: password);
+        authId = authRes.user?.id;
+      } catch (authErr) {
+        if (kDebugMode) {
+          debugPrint('[SupabaseAuthService] Delivery agent auth note: $authErr');
+        }
+      }
+
+      // 2. Fetch role_id for delivery_agent
+      String roleId = 'f0022394-5806-4ea7-9351-5e1b14465730';
+      try {
+        final roleRes = await client.from('roles').select('role_id').eq('role_name', 'delivery_agent').maybeSingle();
+        if (roleRes != null && roleRes['role_id'] != null) {
+          roleId = roleRes['role_id'].toString();
+        }
+      } catch (_) {}
+
+      // 3. User check / insert in users table
+      String? userId;
+      try {
+        final rawDigits = cleanPhone.replaceAll(RegExp(r'\D'), '');
+        final userMatches = await client
+            .from('users')
+            .select('user_id, phone, email, username')
+            .or('phone.eq.$cleanPhone,email.eq.$cleanEmail,username.eq.$cleanUsername${rawDigits.length >= 10 ? ',phone.ilike.*${rawDigits.substring(rawDigits.length - 10)}*' : ''}')
+            .limit(1);
+
+        if (userMatches.isNotEmpty) {
+          final matchedId = userMatches.first['user_id']?.toString();
+          if (matchedId != null && matchedId.isNotEmpty) {
+            userId = matchedId;
+            await client.from('users').update({
+              'role_id': roleId,
+              'account_status': 'PENDING_VERIFICATION',
+              'is_active': true,
+            }).eq('user_id', matchedId);
+          }
+        }
+      } catch (checkErr) {
+        if (kDebugMode) {
+          debugPrint('[SupabaseAuthService] Delivery agent user lookup note: $checkErr');
+        }
+      }
+
+      if (userId == null || userId.isEmpty) {
+        final userInsert = await client.from('users').insert({
+          'auth_id': authId,
+          'role_id': roleId,
+          'username': cleanUsername,
+          'email': cleanEmail,
+          'phone': cleanPhone,
+          'account_status': 'PENDING_VERIFICATION',
+          'is_active': true,
+        }).select().single();
+        userId = userInsert['user_id']?.toString();
+      }
+
+      if (userId == null || userId.isEmpty) {
+        throw Exception('Failed to resolve or create delivery agent user in Supabase');
+      }
+
+      // 4. Insert or update user_profiles
+      try {
+        final existingProfile = await client.from('user_profiles').select('profile_id').eq('user_id', userId).maybeSingle();
+        if (existingProfile != null) {
+          await client.from('user_profiles').update({
+            'first_name': firstName,
+            'last_name': lastName,
+            'profile_photo': photoUrl,
+          }).eq('user_id', userId);
+        } else {
+          await client.from('user_profiles').insert({
+            'user_id': userId,
+            'first_name': firstName,
+            'last_name': lastName,
+            'profile_photo': photoUrl,
+          });
+        }
+      } catch (_) {}
+
+      // 5. Insert or update user_addresses
+      try {
+        final existingAddr = await client.from('user_addresses').select('address_id').eq('user_id', userId).maybeSingle();
+        if (existingAddr != null) {
+          await client.from('user_addresses').update({
+            'street': cleanAddress,
+            'area': cleanCity,
+            'city': cleanCity,
+            'state': cleanState,
+          }).eq('user_id', userId);
+        } else {
+          await client.from('user_addresses').insert({
+            'user_id': userId,
+            'address_type': 'Work',
+            'street': cleanAddress,
+            'area': cleanCity,
+            'city': cleanCity,
+            'state': cleanState,
+            'pincode': '361001',
+            'latitude': 22.4707,
+            'longitude': 70.0577,
+            'is_default': true,
+          });
+        }
+      } catch (_) {}
+
+      // 6. Insert or update partners table
+      String? partnerId;
+      try {
+        final existingPartner = await client.from('partners').select('partner_id').eq('user_id', userId).maybeSingle();
+        if (existingPartner != null) {
+          final matchedPartnerId = existingPartner['partner_id']?.toString();
+          partnerId = matchedPartnerId;
+          if (matchedPartnerId != null && matchedPartnerId.isNotEmpty) {
+            await client.from('partners').update({
+              'verification_status': 'PENDING',
+              'availability_status': 'OFFLINE',
+            }).eq('partner_id', matchedPartnerId);
+          }
+        } else {
+          final partnerInsert = await client.from('partners').insert({
+            'user_id': userId,
+            'verification_status': 'PENDING',
+            'availability_status': 'OFFLINE',
+          }).select().single();
+          partnerId = partnerInsert['partner_id']?.toString();
+        }
+
+        // 7. Insert or update delivery_agent_profiles
+        if (partnerId != null && partnerId.isNotEmpty) {
+          try {
+            await client.from('delivery_agent_profiles').upsert({
+              'partner_id': partnerId,
+              'vehicle_type': normalizedVehicleType,
+              'vehicle_number': vehicleNumber.trim().toUpperCase(),
+              'driving_license_number': drivingLicenseNumber.trim().toUpperCase(),
+              'availability_status': 'ONLINE',
+            }, onConflict: 'partner_id');
+          } catch (_) {}
+        }
+      } catch (pErr) {
+        if (kDebugMode) {
+          debugPrint('[SupabaseAuthService] Delivery agent partner insert note: $pErr');
+        }
+      }
+
+      // 8. Insert into verification_requests
+      final remarksParts = <String>[
+        'New delivery partner registration for $cleanUsername',
+        'Role: delivery_agent',
+        'Category: delivery_agent',
+        'VehicleType: $normalizedVehicleType',
+        'VehicleNo: ${vehicleNumber.trim().toUpperCase()}',
+        'DL: ${drivingLicenseNumber.trim().toUpperCase()}',
+        'City: $cleanCity',
+        'Phone: $cleanPhone',
+        if (aadhaarNumber != null && aadhaarNumber.isNotEmpty) 'Aadhaar: $aadhaarNumber',
+        if (bankName != null && bankName.isNotEmpty) 'Bank: $bankName',
+        if (accountNumber != null && accountNumber.isNotEmpty) 'Acc: $accountNumber',
+        if (ifscCode != null && ifscCode.isNotEmpty) 'IFSC: $ifscCode',
+        if (accountHolderName != null && accountHolderName.isNotEmpty) 'Holder: $accountHolderName',
+        'Business: $fullName Express Delivery',
+        'Address: $cleanAddress',
+      ];
+      final kycRemarks = remarksParts.join(' | ');
+
+      try {
+        await client.from('verification_requests').insert({
+          'user_id': userId,
+          'verification_type': 'DRIVING_LICENSE',
+          'status': 'PENDING',
+          'remarks': kycRemarks,
+        });
+      } catch (vrErr) {
+        if (kDebugMode) {
+          debugPrint('[SupabaseAuthService] Delivery agent verification_requests insert note: $vrErr');
+        }
+      }
+
+      // 9. Broadcast to LiveBookingSyncService
+      final verId = 'ver_delivery_$userId';
+      final sessionData = {
+        'id': verId,
+        'verification_id': verId,
+        'user_id': userId,
+        'partner_id': partnerId ?? verId,
+        'name': fullName.trim(),
+        'full_name': fullName.trim(),
+        'username': cleanUsername,
+        'phone': cleanPhone,
+        'email': cleanEmail,
+        'password': password,
+        'role': 'delivery_agent',
+        'role_name': 'delivery_agent',
+        'business_name': '$fullName Express Delivery',
+        'category': 'delivery_agent',
+        'category_name': 'Delivery Partner ($normalizedVehicleType)',
+        'vehicle_type': normalizedVehicleType,
+        'vehicle_number': vehicleNumber.trim().toUpperCase(),
+        'driving_license_number': drivingLicenseNumber.trim().toUpperCase(),
+        'city': cleanCity,
+        'state': cleanState,
+        'address': cleanAddress,
+        'document_type': 'DELIVERY_ONBOARDING',
+        'verification_type': 'DRIVING_LICENSE',
+        'aadhaar_number': aadhaarNumber ?? '',
+        'verification_status': 'PENDING',
+        'status': 'PENDING',
+        'submitted_at': DateTime.now().toIso8601String(),
+        'is_online': false,
+      };
+
+      try {
+        await LiveBookingSyncService.instance.submitPartnerVerification(sessionData);
+      } catch (_) {}
+
+      await _saveActiveSession(sessionData);
+      await LocalRegistrationCache.updateActiveDeliveryAgent(sessionData);
+
+      return AuthResult(
+        isSuccess: true,
+        userData: sessionData,
+        roleName: 'delivery_agent',
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[SupabaseAuthService] Delivery agent registration error: $e');
+      }
+
+      // Offline fallback session
+      final fallbackUserId = 'delivery_${DateTime.now().millisecondsSinceEpoch}';
+      final fallbackSession = {
+        'id': fallbackUserId,
+        'verification_id': fallbackUserId,
+        'user_id': fallbackUserId,
+        'partner_id': fallbackUserId,
+        'username': cleanUsername,
+        'name': fullName.trim(),
+        'full_name': fullName.trim(),
+        'business_name': '$fullName Express Delivery',
+        'vehicle_type': normalizedVehicleType,
+        'vehicle_number': vehicleNumber,
+        'driving_license_number': drivingLicenseNumber,
+        'phone': cleanPhone,
+        'email': cleanEmail,
+        'password': password,
+        'role': 'delivery_agent',
+        'role_name': 'delivery_agent',
+        'category': 'delivery_agent',
+        'category_name': 'Delivery Partner ($normalizedVehicleType)',
+        'city': cleanCity,
+        'state': cleanState,
+        'document_type': 'DELIVERY_ONBOARDING',
+        'verification_type': 'DRIVING_LICENSE',
+        'verification_status': 'PENDING',
+        'status': 'PENDING',
+        'submitted_at': DateTime.now().toIso8601String(),
+        'is_online': false,
+      };
+
+      await _saveActiveSession(fallbackSession);
+      await LocalRegistrationCache.updateActiveDeliveryAgent(fallbackSession);
+
+      try {
+        await LiveBookingSyncService.instance.submitPartnerVerification(fallbackSession);
+      } catch (_) {}
+
+      return AuthResult(
+        isSuccess: true,
+        userData: fallbackSession,
+        roleName: 'delivery_agent',
       );
     }
   }
@@ -953,8 +1337,25 @@ class SupabaseAuthService {
         final box = Hive.box(_sessionBoxName);
         await box.delete('active_user_session');
         await box.delete('active_partner_session');
+        await box.delete('active_service_provider_session');
+        await box.delete('active_shopkeeper_session');
+        await box.delete('active_delivery_agent_session');
+        await box.delete('current_active_role');
+        await box.delete('partner_registration_draft');
+        await box.delete('partner_token');
+        await box.delete('partner_role');
+        await box.delete('saved_user_id');
+        await box.delete('saved_role_id');
+        await box.delete('cached_shopkeeper_data');
+        await box.delete('cached_delivery_data');
+        await box.delete('cached_credentials');
+        await box.delete('user_credentials');
+        await box.flush();
       }
     } catch (_) {}
-    LocalRegistrationCache.clearMemorySession();
+    await LocalRegistrationCache.clearActiveSession();
   }
+
+  static Future<void> signOut() async => logout();
+  static Future<void> clearActiveSession() async => logout();
 }

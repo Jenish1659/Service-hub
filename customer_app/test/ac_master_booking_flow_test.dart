@@ -10,6 +10,7 @@ import 'package:service_hub_customer/features/services/presentation/ac_booking_c
 import 'package:service_hub_customer/core/services/live_booking_sync_service.dart';
 import 'package:service_hub_customer/features/services/services/ac_availability_service.dart';
 import 'package:service_hub_customer/features/services/services/ac_booking_service.dart';
+import 'package:service_hub_customer/features/bookings/presentation/screens/ac_booking_flow_screen.dart';
 
 void main() {
   test('WalletRewardService coin allocation rules: 300 initial, +200 on 1st service, +100 on 2nd, <=80 on 3rd+', () {
@@ -356,5 +357,113 @@ void main() {
     expect(completed!['status'], equals('SERVICE_COMPLETED'));
     expect(completed['final_amount'], equals(498.0));
   });
+
+  testWidgets('ACBookingFlowScreen renders with multi-step stepper, issue options, and navigation buttons',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          home: ACBookingFlowScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify Title & Stepper
+    expect(find.text('AC Service Booking Flow'), findsOneWidget);
+    expect(find.text('Issue'), findsOneWidget);
+    expect(find.text('Schedule'), findsOneWidget);
+    expect(find.text('Address'), findsOneWidget);
+    expect(find.text('Confirm'), findsOneWidget);
+
+    // Verify Step 1: AC Type chips
+    expect(find.text('Split AC'), findsOneWidget);
+    expect(find.text('Window AC'), findsOneWidget);
+    expect(find.text('Daikin'), findsOneWidget);
+    expect(find.text('Voltas'), findsOneWidget);
+
+    // Tap Continue to Step 2
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Select Date & Time'), findsOneWidget);
+    expect(find.text('Available Dates'), findsOneWidget);
+    expect(find.text('Preferred Time Slot'), findsOneWidget);
+  });
+
+  test('ACBookingFlowScreen.submitACBooking generates complete payload and broadcasts to LiveBookingSyncService', () async {
+    final syncService = LiveBookingSyncService.instance;
+
+    final booking = await ACBookingFlowScreen.submitACBooking(
+      customerName: 'Rajiv Patel',
+      customerPhone: '+91 98251 99887',
+      address: '42, Sunset Drive, Bodakdev, Ahmedabad, Gujarat 380054',
+      finalAmount: 498.0,
+      scheduledAt: '2026-09-05 10:00 AM',
+      serviceId: 'ac_service',
+      serviceName: 'AC Service (Split AC)',
+      status: 'PENDING',
+      acBrand: 'Daikin',
+      acType: 'Split AC',
+      problemDescription: 'Split AC cooling gas top-up and jet cleaning',
+    );
+
+    // 1. Verify required payload fields according to lifecycle specifications
+    expect(booking['id'], isNotNull);
+    expect(booking['booking_id'], equals(booking['id']));
+    expect(booking['service_id'], equals('ac_service'));
+    expect(booking['service_name'], equals('AC Service (Split AC)'));
+    expect(booking['status'], anyOf(equals('PENDING'), equals('CONFIRMED')));
+    expect(booking['customer_name'], equals('Rajiv Patel'));
+    expect(booking['address'], equals('42, Sunset Drive, Bodakdev, Ahmedabad, Gujarat 380054'));
+    expect(booking['final_amount'], equals(498.0));
+    expect(booking['scheduled_at'], equals('2026-09-05 10:00 AM'));
+    expect(booking['created_at'], isNotNull);
+
+    // 2. Verify broadcast to LiveBookingSyncService
+    final retrieved = syncService.getBooking(booking['id']);
+    expect(retrieved, isNotNull);
+    expect(retrieved!['id'], equals(booking['id']));
+    expect(retrieved['service_id'], equals('ac_service'));
+    expect(retrieved['customer_name'], equals('Rajiv Patel'));
+    expect(retrieved['final_amount'], equals(498.0));
+    expect(retrieved['scheduled_at'], equals('2026-09-05 10:00 AM'));
+  });
+
+  test('Technician status transitions: ACCEPTED -> ONGOING / SERVICE_STARTED -> COMPLETED with LiveBookingSyncService sync', () async {
+    final syncService = LiveBookingSyncService.instance;
+
+    // 1. Create booking
+    final booking = await ACBookingFlowScreen.submitACBooking(
+      customerName: 'Kavita Joshi',
+      address: 'B-201, Green City, Jamnagar, Gujarat',
+      finalAmount: 449.0,
+      scheduledAt: '2026-09-10 02:00 PM',
+      status: 'PENDING',
+    );
+    final bookingId = booking['id'];
+    expect(syncService.getBooking(bookingId)!['status'], equals('PENDING'));
+
+    // 2. Technician accepts job -> transitions to ACCEPTED / ASSIGNED
+    await syncService.acceptBooking(bookingId, {
+      'partner_id': 'tech_gujarat_01',
+      'partner_name': 'Amit Dave (Senior AC Engineer)',
+      'partner_phone': '+91 94260 11223',
+    });
+    await syncService.updateBookingStatus(bookingId, 'ACCEPTED');
+    expect(syncService.getBooking(bookingId)!['status'], anyOf(equals('ACCEPTED'), equals('ASSIGNED'), equals('CONFIRMED')));
+
+    // 3. Technician arrives & starts service -> transitions to ONGOING / SERVICE_STARTED
+    await syncService.updateMilestone(bookingId, 'SERVICE_STARTED');
+    expect(syncService.getBooking(bookingId)!['status'], anyOf(equals('ONGOING'), equals('SERVICE_STARTED')));
+
+    // 4. Technician completes service -> transitions to COMPLETED
+    await syncService.completeBooking(bookingId, 449.0);
+    await syncService.updateBookingStatus(bookingId, 'COMPLETED');
+    final completedBooking = syncService.getBooking(bookingId);
+    expect(completedBooking!['status'], anyOf(equals('COMPLETED'), equals('SERVICE_COMPLETED')));
+    expect(completedBooking['final_amount'], equals(449.0));
+  });
 }
+
 

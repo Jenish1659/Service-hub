@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LocalRegistrationCache {
@@ -14,6 +15,39 @@ class LocalRegistrationCache {
   static const String _activeRoleKey = 'current_active_role';
   static const String _legacyPartnerKey = 'active_partner_session';
   static const String _legacyUserKey = 'active_user_session';
+
+  // SharedPreferences keys to wipe on session clear
+  static const List<String> _sharedPrefKeys = [
+    'partner_token',
+    'partner_role',
+    'saved_user_id',
+    'saved_role_id',
+    'cached_shopkeeper_data',
+    'cached_delivery_data',
+  ];
+
+  // Hive cache keys to wipe on session clear
+  static const List<String> _hiveSessionKeys = [
+    _shopSessionKey,
+    _spSessionKey,
+    _deliverySessionKey,
+    _activeRoleKey,
+    _legacyPartnerKey,
+    _legacyUserKey,
+    'partner_registration_draft',
+    'active_shopkeeper_session',
+    'active_partner_session',
+    'active_user_session',
+    'current_active_role',
+    'partner_token',
+    'partner_role',
+    'saved_user_id',
+    'saved_role_id',
+    'cached_shopkeeper_data',
+    'cached_delivery_data',
+    'cached_credentials',
+    'user_credentials',
+  ];
 
   static Box _getBox() {
     if (Hive.isBoxOpen(_boxName)) {
@@ -110,47 +144,28 @@ class LocalRegistrationCache {
     } catch (_) {}
   }
 
-  static Future<void> logoutServiceProvider() async {
-    try {
-      final box = _getBox();
-      box.delete(_spSessionKey);
-      if (box.get(_activeRoleKey) == 'service_provider') {
-        box.delete(_activeRoleKey);
-        box.delete(_legacyPartnerKey);
-        box.delete(_legacyUserKey);
-      }
-    } catch (_) {}
-    _memoryStorage.remove(_spSessionKey);
-    if (_memoryStorage[_activeRoleKey] == 'service_provider') {
-      _memoryStorage.remove(_activeRoleKey);
-      _memoryStorage.remove(_legacyPartnerKey);
-      _memoryStorage.remove(_legacyUserKey);
-    }
-  }
+  static Future<void> logoutServiceProvider() async => clearActiveSession();
 
   // --- 2. Shopkeeper Isolated Session Methods ---
   static Future<Map<String, dynamic>?> getActiveShopkeeper() async {
     final rawMem = _memoryStorage[_shopSessionKey];
     if (rawMem != null) {
       try {
-        return jsonDecode(rawMem) as Map<String, dynamic>;
+        final map = jsonDecode(rawMem) as Map<String, dynamic>;
+        final role = (map['role_name'] ?? map['role'] ?? map['category'] ?? '').toString().toLowerCase();
+        if (role.isEmpty || role.contains('shop') || role.contains('store')) {
+          return map;
+        }
       } catch (_) {}
     }
     try {
       final box = _getBox();
       var data = box.get(_shopSessionKey);
       if (data != null && data is Map) {
-        return Map<String, dynamic>.from(data);
-      }
-    } catch (_) {}
-    // Fallback: check legacy key only if role matches shopkeeper
-    try {
-      final box = _getBox();
-      final legacy = box.get(_legacyPartnerKey);
-      if (legacy != null && legacy is Map) {
-        final role = (legacy['role_name'] ?? legacy['role'] ?? legacy['category'] ?? '').toString().toLowerCase();
-        if (role.contains('shop') || role.contains('store')) {
-          return Map<String, dynamic>.from(legacy);
+        final map = Map<String, dynamic>.from(data);
+        final role = (map['role_name'] ?? map['role'] ?? map['category'] ?? '').toString().toLowerCase();
+        if (role.isEmpty || role.contains('shop') || role.contains('store')) {
+          return map;
         }
       }
     } catch (_) {}
@@ -171,23 +186,7 @@ class LocalRegistrationCache {
     } catch (_) {}
   }
 
-  static Future<void> logoutShopkeeper() async {
-    try {
-      final box = _getBox();
-      box.delete(_shopSessionKey);
-      if (box.get(_activeRoleKey) == 'shopkeeper') {
-        box.delete(_activeRoleKey);
-        box.delete(_legacyPartnerKey);
-        box.delete(_legacyUserKey);
-      }
-    } catch (_) {}
-    _memoryStorage.remove(_shopSessionKey);
-    if (_memoryStorage[_activeRoleKey] == 'shopkeeper') {
-      _memoryStorage.remove(_activeRoleKey);
-      _memoryStorage.remove(_legacyPartnerKey);
-      _memoryStorage.remove(_legacyUserKey);
-    }
-  }
+  static Future<void> logoutShopkeeper() async => clearActiveSession();
 
   // --- 3. Delivery Agent Isolated Session Methods ---
   static Future<Map<String, dynamic>?> getActiveDeliveryAgent() async {
@@ -232,23 +231,8 @@ class LocalRegistrationCache {
     } catch (_) {}
   }
 
-  static Future<void> logoutDeliveryAgent() async {
-    try {
-      final box = _getBox();
-      await box.delete(_deliverySessionKey);
-      if (box.get(_activeRoleKey) == 'delivery_agent') {
-        await box.delete(_activeRoleKey);
-        await box.delete(_legacyPartnerKey);
-        await box.delete(_legacyUserKey);
-      }
-    } catch (_) {}
-    _memoryStorage.remove(_deliverySessionKey);
-    if (_memoryStorage[_activeRoleKey] == 'delivery_agent') {
-      _memoryStorage.remove(_activeRoleKey);
-      _memoryStorage.remove(_legacyPartnerKey);
-      _memoryStorage.remove(_legacyUserKey);
-    }
-  }
+  static Future<void> logoutDeliveryAgent() async => clearActiveSession();
+
 
   // --- Generic Partner Methods (Role-Aware Dispatcher) ---
   static Future<Map<String, dynamic>?> getActivePartner([String? expectedRole]) async {
@@ -273,17 +257,14 @@ class LocalRegistrationCache {
     }
 
     if (currentRole == 'shopkeeper') {
-      final shop = await getActiveShopkeeper();
-      if (shop != null) return shop;
+      return await getActiveShopkeeper();
     } else if (currentRole == 'delivery_agent') {
-      final deliv = await getActiveDeliveryAgent();
-      if (deliv != null) return deliv;
+      return await getActiveDeliveryAgent();
     } else if (currentRole == 'service_provider') {
-      final sp = await getActiveServiceProvider();
-      if (sp != null) return sp;
+      return await getActiveServiceProvider();
     }
 
-    // Fallback: check isolated keys in order
+    // Fallback: check isolated keys in order if no active role specified
     final shop = await getActiveShopkeeper();
     if (shop != null) return shop;
     final deliv = await getActiveDeliveryAgent();
@@ -291,7 +272,7 @@ class LocalRegistrationCache {
     final sp = await getActiveServiceProvider();
     if (sp != null) return sp;
 
-    // Legacy fallback
+    // Legacy fallback only if a valid legacy session is present
     try {
       final box = _getBox();
       var data = box.get(_legacyPartnerKey) ?? box.get(_legacyUserKey);
@@ -301,9 +282,13 @@ class LocalRegistrationCache {
     } catch (_) {
       final raw = _memoryStorage[_legacyPartnerKey] ?? _memoryStorage[_legacyUserKey];
       if (raw != null) {
-        return jsonDecode(raw) as Map<String, dynamic>;
+        try {
+          return jsonDecode(raw) as Map<String, dynamic>;
+        } catch (_) {}
       }
     }
+
+    // If no active session exists, return null
     return null;
   }
 
@@ -323,44 +308,37 @@ class LocalRegistrationCache {
   }
 
   static void clearMemorySession() {
-    _memoryStorage.remove(_spSessionKey);
-    _memoryStorage.remove(_shopSessionKey);
-    _memoryStorage.remove(_deliverySessionKey);
-    _memoryStorage.remove(_activeRoleKey);
-    _memoryStorage.remove(_legacyPartnerKey);
-    _memoryStorage.remove(_legacyUserKey);
+    _memoryStorage.clear();
   }
 
-  static Future<void> logout([String? specificRole]) async {
-    if (specificRole != null) {
-      final clean = specificRole.toLowerCase();
-      if (clean.contains('shop') || clean.contains('store')) {
-        await logoutShopkeeper();
-        return;
+  /// Completely purge active multi-role session, credentials, cache, and SharedPreferences
+  static Future<void> clearActiveSession() async {
+    try {
+      if (Hive.isBoxOpen(_boxName)) {
+        final box = Hive.box(_boxName);
+        for (final key in _hiveSessionKeys) {
+          await box.delete(key);
+        }
+        await box.flush(); // CRITICAL: Flushes changes to disk before process death
       }
-      if (clean.contains('delivery') || clean.contains('agent')) {
-        await logoutDeliveryAgent();
-        return;
-      }
-      await logoutServiceProvider();
-      return;
-    }
+    } catch (_) {}
+    _memoryStorage.clear();
 
     try {
-      final box = _getBox();
-      await box.delete(_spSessionKey);
-      await box.delete(_shopSessionKey);
-      await box.delete(_deliverySessionKey);
-      await box.delete(_activeRoleKey);
-      await box.delete(_legacyPartnerKey);
-      await box.delete(_legacyUserKey);
+      final prefs = await SharedPreferences.getInstance();
+      for (final key in _sharedPrefKeys) {
+        await prefs.remove(key);
+      }
     } catch (_) {}
-    clearMemorySession();
 
     try {
       await Supabase.instance.client.auth.signOut();
     } catch (_) {}
   }
+
+  static Future<void> signOut() async => clearActiveSession();
+
+  static Future<void> logout([String? specificRole]) async => clearActiveSession();
 
   // --- Registered Partners Storage & Authentication ---
   static Future<void> saveRegisteredPartner(Map<String, dynamic> partnerData) async {

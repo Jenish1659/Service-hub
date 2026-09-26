@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../location/providers/location_provider.dart';
 import 'cart_provider.dart';
@@ -80,16 +81,60 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           'total_amount': total.toDouble(),
           'payment_status': 'PAID',
         }).select().single();
+        final generatedOrderCode = 'ORD-${DateTime.now().millisecondsSinceEpoch}';
+        final orderId = (response['order_id'] ?? response['id'] ?? 'ord_${DateTime.now().millisecondsSinceEpoch}').toString();
+        final orderCode = (response['order_code'] ?? generatedOrderCode).toString();
         responseData = {
-          'id': response['order_id'] ?? response['id'],
-          'order_code': response['order_code'] ?? 'SHO12345678',
+          'id': orderId,
+          'order_id': orderId,
+          'order_code': orderCode,
           'delivery_pin': otpPin,
           'grand_total': total.toDouble(),
           'shipping_address': shippingAddress,
         };
+
+        try {
+          await client.from('delivery_assignments').insert({
+            'order_id': responseData['id'],
+            'status': 'ASSIGNED',
+            'assigned_at': DateTime.now().toIso8601String(),
+          });
+        } catch (e) {
+          debugPrint('Error inserting delivery assignment: $e');
+        }
+
+        try {
+          await LiveBookingSyncService.instance.submitBooking({
+            'id': responseData['id'],
+            'booking_id': responseData['id'],
+            'order_id': responseData['id'],
+            'type': 'DELIVERY_ORDER',
+            'status': 'ASSIGNED',
+            'order_code': orderCode,
+            'customer_id': customerId,
+            'customer_name': 'Customer',
+            'service_id': 'food_grocery_delivery',
+            'service_name': 'Store Order Delivery',
+            'address': shippingAddress,
+            'customer_address': shippingAddress,
+            'estimated_amount': total.toDouble(),
+            'final_amount': total.toDouble(),
+            'delivery_charge': deliveryFee.toDouble(),
+            'customer_lat': lat,
+            'customer_lng': lng,
+            'delivery_pin': otpPin,
+            'created_at': DateTime.now().toIso8601String(),
+          });
+        } catch (e) {
+          debugPrint('Error broadcasting to LiveBookingSyncService: $e');
+        }
       } catch (e) {
+        final fallbackOrderCode = 'ORD-${DateTime.now().millisecondsSinceEpoch}';
+        final fallbackOrderId = 'ord_${DateTime.now().millisecondsSinceEpoch}';
         responseData = {
-          'id': 'ord_${DateTime.now().millisecondsSinceEpoch}',
+          'id': fallbackOrderId,
+          'order_id': fallbackOrderId,
+          'order_code': fallbackOrderCode,
           'customer_id': customerId,
           'status': 'Placed',
           'items_summary': itemsSummary,
@@ -101,6 +146,32 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           'customer_lat': lat,
           'customer_lng': lng,
         };
+
+        try {
+          await LiveBookingSyncService.instance.submitBooking({
+            'id': responseData['id'],
+            'booking_id': responseData['id'],
+            'order_id': responseData['id'],
+            'type': 'DELIVERY_ORDER',
+            'status': 'ASSIGNED',
+            'order_code': fallbackOrderCode,
+            'customer_id': customerId,
+            'customer_name': 'Customer',
+            'service_id': 'food_grocery_delivery',
+            'service_name': 'Store Order Delivery',
+            'address': shippingAddress,
+            'customer_address': shippingAddress,
+            'estimated_amount': total.toDouble(),
+            'final_amount': total.toDouble(),
+            'delivery_charge': deliveryFee.toDouble(),
+            'customer_lat': lat,
+            'customer_lng': lng,
+            'delivery_pin': otpPin,
+            'created_at': DateTime.now().toIso8601String(),
+          });
+        } catch (e) {
+          debugPrint('Error broadcasting fallback to LiveBookingSyncService: $e');
+        }
       }
 
       // Mark applied promo code as used permanently for this user account

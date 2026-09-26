@@ -68,17 +68,66 @@ class _ProviderApplicationStatusScreenState
         if (syncStatus == 'VERIFIED' || syncStatus == 'APPROVED') {
           _reflectApprovedState();
           return;
+        } else if (syncStatus == 'REJECTED') {
+          _reflectRejectedState(reason: syncRecord['remarks']?.toString() ?? syncRecord['rejection_reason']?.toString());
+          return;
         }
       }
 
-      // 2. Query Supabase users table by Phone or Username (text comparison, never fails UUID constraint)
+      // 2. Query Supabase users table by user_id first (if known UUID)
       String? resolvedUserId;
+      if (uId != null && _isUuid(uId)) {
+        try {
+          final directUserRes = await client
+              .from('users')
+              .select('user_id, username, phone, account_status, partners(partner_id, verification_status, availability_status)')
+              .eq('user_id', uId)
+              .maybeSingle();
+          if (directUserRes != null) {
+            resolvedUserId = uId;
+            final accStatus = (directUserRes['account_status'] ?? '').toString().toUpperCase();
+            if (accStatus == 'ACTIVE') {
+              _reflectApprovedState(userId: uId);
+              return;
+            }
+            final pData = directUserRes['partners'];
+            Map<String, dynamic>? pMap;
+            if (pData is List && pData.isNotEmpty) {
+              pMap = pData.first as Map<String, dynamic>;
+            } else if (pData is Map) {
+              pMap = pData as Map<String, dynamic>;
+            }
+            final pStatus = (pMap?['verification_status'] ?? '').toString().toUpperCase();
+            if (pStatus == 'VERIFIED' || pStatus == 'APPROVED') {
+              _reflectApprovedState(userId: uId);
+              return;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Query Supabase users table by Phone, Username or Email
       if (phone.isNotEmpty) {
         final rawDigits = phone.replaceAll(RegExp(r'\D'), '');
+        final isPhone = rawDigits.length >= 10;
+        final clean10 = isPhone ? rawDigits.substring(rawDigits.length - 10) : '';
+        final filterParts = <String>[
+          'username.ilike.$phone',
+          'email.ilike.$phone',
+        ];
+        if (isPhone) {
+          filterParts.add('phone.eq.$phone');
+          filterParts.add('phone.eq.$rawDigits');
+          filterParts.add('phone.eq.+91$clean10');
+          filterParts.add('phone.ilike.*$clean10*');
+        } else {
+          filterParts.add('phone.eq.$phone');
+        }
+
         final userRes = await client
             .from('users')
             .select('user_id, username, phone, account_status, partners(partner_id, verification_status, availability_status)')
-            .or('phone.eq.$phone,phone.ilike.%${rawDigits.length >= 10 ? rawDigits.substring(rawDigits.length - 10) : rawDigits}%,username.ilike.$phone')
+            .or(filterParts.join(','))
             .limit(1)
             .maybeSingle();
 
@@ -88,25 +137,31 @@ class _ProviderApplicationStatusScreenState
           if (accStatus == 'ACTIVE') {
             _reflectApprovedState(userId: resolvedUserId);
             return;
+          } else if (accStatus == 'SUSPENDED' || accStatus == 'REJECTED') {
+            _reflectRejectedState(userId: resolvedUserId, reason: 'Account suspended/rejected by administrator.');
+            return;
           }
 
-          final pList = userRes['partners'];
+          final pData = userRes['partners'];
           Map<String, dynamic>? pMap;
-          if (pList is List && pList.isNotEmpty) {
-            pMap = pList.first as Map<String, dynamic>;
-          } else if (pList is Map) {
-            pMap = pList as Map<String, dynamic>;
+          if (pData is List && pData.isNotEmpty) {
+            pMap = pData.first as Map<String, dynamic>;
+          } else if (pData is Map) {
+            pMap = pData as Map<String, dynamic>;
           }
           final pStatus = (pMap?['verification_status'] ?? '').toString().toUpperCase();
           if (pStatus == 'VERIFIED' || pStatus == 'APPROVED') {
             _reflectApprovedState(userId: resolvedUserId);
+            return;
+          } else if (pStatus == 'REJECTED') {
+            _reflectRejectedState(userId: resolvedUserId);
             return;
           }
 
           if (resolvedUserId != null && _isUuid(resolvedUserId)) {
             final vrRes = await client
                 .from('verification_requests')
-                .select('status')
+                .select('status, remarks')
                 .eq('user_id', resolvedUserId)
                 .order('submitted_at', ascending: false)
                 .limit(1)
@@ -115,6 +170,9 @@ class _ProviderApplicationStatusScreenState
               final st = (vrRes['status'] ?? '').toString().toUpperCase();
               if (st == 'APPROVED' || st == 'VERIFIED') {
                 _reflectApprovedState(userId: resolvedUserId);
+                return;
+              } else if (st == 'REJECTED') {
+                _reflectRejectedState(userId: resolvedUserId, reason: vrRes['remarks']?.toString());
                 return;
               }
             }
@@ -129,7 +187,7 @@ class _ProviderApplicationStatusScreenState
       if (checkUserId != null) {
         final vrRes = await client
             .from('verification_requests')
-            .select('status')
+            .select('status, remarks')
             .eq('user_id', checkUserId)
             .order('submitted_at', ascending: false)
             .limit(1)
@@ -139,17 +197,23 @@ class _ProviderApplicationStatusScreenState
           if (st == 'APPROVED' || st == 'VERIFIED') {
             _reflectApprovedState(userId: checkUserId);
             return;
+          } else if (st == 'REJECTED') {
+            _reflectRejectedState(userId: checkUserId, reason: vrRes['remarks']?.toString());
+            return;
           }
         }
       }
 
-      // 4. Check partners table with valid UUID
+      // 4. Check partners table directly with valid UUID
       if (partnerId != null && _isUuid(partnerId)) {
         final pRes = await client.from('partners').select('verification_status').eq('partner_id', partnerId).maybeSingle();
         if (pRes != null) {
           final st = (pRes['verification_status'] ?? '').toString().toUpperCase();
           if (st == 'VERIFIED' || st == 'APPROVED') {
             _reflectApprovedState(userId: checkUserId);
+            return;
+          } else if (st == 'REJECTED') {
+            _reflectRejectedState(userId: checkUserId);
             return;
           }
         }
@@ -162,10 +226,46 @@ class _ProviderApplicationStatusScreenState
           if (st == 'VERIFIED' || st == 'APPROVED') {
             _reflectApprovedState(userId: checkUserId);
             return;
+          } else if (st == 'REJECTED') {
+            _reflectRejectedState(userId: checkUserId);
+            return;
           }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[StatusScreen] Supabase check error: $e');
+    }
+  }
+
+  void _reflectRejectedState({String? userId, String? reason}) {
+    final phone = (_partnerData?['phone'] ?? _partnerData?['mobile'] ?? _searchController.text).toString().replaceAll(' ', '').trim();
+    final effectiveUid = userId ?? _partnerData?['user_id']?.toString() ?? _partnerData?['id']?.toString();
+
+    if (mounted) {
+      setState(() {
+        _partnerData ??= {};
+        _partnerData!['verification_status'] = 'REJECTED';
+        _partnerData!['status'] = 'REJECTED';
+        _partnerData!['account_status'] = 'SUSPENDED';
+        if (reason != null && reason.isNotEmpty) {
+          _partnerData!['remarks'] = reason;
+          _partnerData!['rejection_reason'] = reason;
+        }
+        if (effectiveUid != null && effectiveUid.isNotEmpty) {
+          _partnerData!['user_id'] = effectiveUid;
+        }
+      });
+    }
+
+    if (phone.isNotEmpty) {
+      LiveBookingSyncService.instance.rejectPartnerVerification(phone, reason);
+    }
+    if (effectiveUid != null && effectiveUid.isNotEmpty) {
+      LiveBookingSyncService.instance.rejectPartnerVerification(effectiveUid, reason);
+    }
+    if (_appId.isNotEmpty) {
+      LiveBookingSyncService.instance.rejectPartnerVerification(_appId, reason);
+    }
   }
 
   void _reflectApprovedState({String? userId}) {
@@ -195,8 +295,34 @@ class _ProviderApplicationStatusScreenState
     }
 
     final role = (_partnerData?['role_name'] ?? _partnerData?['role'] ?? _partnerData?['partner_type'] ?? '').toString().toLowerCase();
-    final isShop = role.contains('shop') || role.contains('store');
-    final isDeliv = role.contains('delivery') || role.contains('agent');
+    final category = (_partnerData?['category'] ?? _partnerData?['category_name'] ?? '').toString().toLowerCase();
+    final docType = (_partnerData?['document_type'] ?? '').toString().toUpperCase();
+    final bName = (_partnerData?['business_name'] ?? _partnerData?['shop_name'] ?? '').toString().toLowerCase();
+    final isDeliv = role.contains('delivery') ||
+        role.contains('rider') ||
+        category.contains('delivery') ||
+        category.contains('rider') ||
+        docType.contains('DELIVERY') ||
+        bName.contains('delivery') ||
+        bName.contains('rider') ||
+        _partnerData?['vehicle_type'] != null ||
+        _partnerData?['vehicle_number'] != null ||
+        _partnerData?['delivery_agent_id'] != null;
+    final isShop = !isDeliv && (role.contains('shop') ||
+        role.contains('store') ||
+        category.contains('shop') ||
+        category.contains('store') ||
+        category.contains('parts') ||
+        category.contains('grocery') ||
+        category.contains('pharmacy') ||
+        category.contains('retail') ||
+        category.contains('hardware') ||
+        category.contains('ac_parts') ||
+        bName.contains('store') ||
+        bName.contains('shop') ||
+        docType.contains('SHOP') ||
+        _partnerData?['shop_id'] != null ||
+        _partnerData?['shop_name'] != null);
 
     final updated = {
       ...(_partnerData ?? {}),
@@ -206,10 +332,10 @@ class _ProviderApplicationStatusScreenState
       if (effectiveUid != null && effectiveUid.isNotEmpty) 'user_id': effectiveUid,
     };
 
-    if (isShop) {
-      LocalRegistrationCache.updateActiveShopkeeper(updated);
-    } else if (isDeliv) {
+    if (isDeliv) {
       LocalRegistrationCache.updateActiveDeliveryAgent(updated);
+    } else if (isShop) {
+      LocalRegistrationCache.updateActiveShopkeeper(updated);
     } else {
       LocalRegistrationCache.updateActiveServiceProvider(updated);
     }
@@ -330,8 +456,33 @@ class _ProviderApplicationStatusScreenState
 
         final role = (liveRecord?['role_name'] ?? liveRecord?['role'] ?? _partnerData?['role_name'] ?? _partnerData?['role'] ?? _partnerData?['partner_type'] ?? '').toString().toLowerCase();
         final category = (liveRecord?['category'] ?? liveRecord?['category_name'] ?? _partnerData?['category'] ?? _partnerData?['service_category'] ?? _partnerData?['category_name'] ?? '').toString().toLowerCase();
-        final isShopkeeper = role.contains('shop') || role.contains('store') || category.contains('shop');
-        final isDelivery = role.contains('delivery') || role.contains('agent');
+        final docType = (liveRecord?['document_type'] ?? _partnerData?['document_type'] ?? '').toString().toUpperCase();
+        final bName = (liveRecord?['business_name'] ?? liveRecord?['shop_name'] ?? _partnerData?['business_name'] ?? _partnerData?['shop_name'] ?? '').toString().toLowerCase();
+        final isDelivery = role.contains('delivery') ||
+            role.contains('rider') ||
+            category.contains('delivery') ||
+            category.contains('rider') ||
+            docType.contains('DELIVERY') ||
+            bName.contains('delivery') ||
+            bName.contains('rider') ||
+            (liveRecord?['vehicle_type'] != null || _partnerData?['vehicle_type'] != null) ||
+            (liveRecord?['vehicle_number'] != null || _partnerData?['vehicle_number'] != null) ||
+            (liveRecord?['delivery_agent_id'] != null || _partnerData?['delivery_agent_id'] != null);
+        final isShopkeeper = !isDelivery && (role.contains('shop') ||
+            role.contains('store') ||
+            category.contains('shop') ||
+            category.contains('store') ||
+            category.contains('parts') ||
+            category.contains('grocery') ||
+            category.contains('pharmacy') ||
+            category.contains('retail') ||
+            category.contains('hardware') ||
+            category.contains('ac_parts') ||
+            bName.contains('store') ||
+            bName.contains('shop') ||
+            docType.contains('SHOP') ||
+            (liveRecord?['shop_id'] != null || _partnerData?['shop_id'] != null) ||
+            (liveRecord?['shop_name'] != null || _partnerData?['shop_name'] != null));
 
         final activeThemeColor = isShopkeeper ? const Color(0xFF16A34A) : (isDelivery ? const Color(0xFFEA580C) : primaryColor);
 
@@ -358,7 +509,7 @@ class _ProviderApplicationStatusScreenState
                 } else if (isShopkeeper) {
                   context.go('/login/shopkeeper');
                 } else if (isDelivery) {
-                  context.go('/login/delivery');
+                  context.go('/login/delivery-agent');
                 } else {
                   context.go('/login/service-provider');
                 }
@@ -571,6 +722,67 @@ class _ProviderApplicationStatusScreenState
                               const SizedBox(height: 16),
                             ],
 
+                            // 2b. Rejection Alert Card when Rejected
+                            if (!isApproved && isRejected) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(color: const Color(0xFFFECACA), width: 1.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFEF4444),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        color: Colors.white,
+                                        size: 28,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Application Rejected by Admin',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFF991B1B),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            (_partnerData?['remarks'] ?? _partnerData?['rejection_reason'] ?? liveRecord?['remarks'] ?? 'The submitted verification details did not meet criteria. Please re-check and contact support.')
+                                                .toString()
+                                                .replaceAll('REJECTED: ', ''),
+                                            style: const TextStyle(fontSize: 12, color: Color(0xFFB91C1C), height: 1.3, fontWeight: FontWeight.w600),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+
                             // 3. Status Timeline Tracker
                             _buildStatusTimeline(
                               isApproved: isApproved,
@@ -684,7 +896,9 @@ class _ProviderApplicationStatusScreenState
                           children: [
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: isApproved ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                                backgroundColor: isApproved
+                                    ? const Color(0xFF16A34A)
+                                    : (isRejected ? const Color(0xFFDC2626) : const Color(0xFF64748B)),
                                 padding: const EdgeInsets.symmetric(vertical: 14),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 elevation: isApproved ? 2 : 0,
@@ -722,6 +936,14 @@ class _ProviderApplicationStatusScreenState
                                       context.go('/dashboard');
                                     }
                                   }
+                                } else if (isRejected) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Your application was rejected by Admin. Please check the remarks above or contact support.'),
+                                      backgroundColor: Color(0xFFDC2626),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -735,7 +957,7 @@ class _ProviderApplicationStatusScreenState
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(isApproved ? Icons.check_circle_rounded : Icons.lock_rounded, color: Colors.white, size: 18),
+                                  Icon(isApproved ? Icons.check_circle_rounded : (isRejected ? Icons.cancel_rounded : Icons.lock_rounded), color: Colors.white, size: 18),
                                   const SizedBox(width: 8),
                                   Flexible(
                                     child: Text(
@@ -743,9 +965,11 @@ class _ProviderApplicationStatusScreenState
                                           ? (isShopkeeper
                                               ? 'Launch Shop Dashboard 🏪'
                                               : (isDelivery ? 'Launch Delivery Dashboard 🛵' : 'Launch Partner Dashboard 🚀'))
-                                          : (isShopkeeper
-                                              ? 'Shop Dashboard Locked (Awaiting Admin Approval)'
-                                              : 'Dashboard Locked (Awaiting Admin Approval)'),
+                                          : (isRejected
+                                              ? 'Application Rejected by Admin'
+                                              : (isShopkeeper
+                                                  ? 'Shop Dashboard Locked (Awaiting Admin Approval)'
+                                                  : 'Dashboard Locked (Awaiting Admin Approval)')),
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Colors.white),
                                     ),
@@ -771,7 +995,7 @@ class _ProviderApplicationStatusScreenState
                                     if (isShopkeeper) {
                                       context.go('/login/shopkeeper');
                                     } else if (isDelivery) {
-                                      context.go('/login/delivery');
+                                      context.go('/login/delivery-agent');
                                     } else {
                                       context.go('/login/service-provider');
                                     }

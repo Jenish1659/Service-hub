@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/routes/app_router.dart';
 import '../data/auth_repository.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -34,10 +37,23 @@ class AuthController extends StateNotifier<AsyncValue<User?>> {
     state = const AsyncLoading();
     try {
       await _repository.signOut();
-      state = const AsyncValue.data(null);
-    } catch (e, stack) {
-      state = AsyncError(e, stack);
-    }
+    } catch (_) {}
+    adminBypassLoggedIn = false;
+    try {
+      if (Hive.isBoxOpen('admin_cache')) {
+        final box = Hive.box('admin_cache');
+        await box.clear();
+        await box.flush();
+      }
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('admin_token');
+      await prefs.remove('admin_role');
+      await prefs.remove('saved_user_id');
+      await prefs.remove('saved_role_id');
+    } catch (_) {}
+    state = const AsyncValue.data(null);
   }
 }
 

@@ -58,13 +58,13 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
         case 'Booking Requests':
           return status == 'PENDING' || status == 'SEARCHING_PROVIDER';
         case 'Assigned Bookings':
-          return status == 'ASSIGNED';
+          return status == 'ASSIGNED' || status == 'CONFIRMED' || status == 'ACCEPTED';
         case 'Ongoing Services':
-          return status == 'ONGOING' || status == 'SERVICE_STARTED';
+          return status == 'ONGOING' || status == 'SERVICE_STARTED' || status == 'ARRIVED' || status == 'ON_THE_WAY' || status == 'IN_TRANSIT';
         case 'Completed Services':
-          return status == 'COMPLETED';
+          return status == 'COMPLETED' || status == 'SERVICE_COMPLETED';
         case 'Cancelled Bookings':
-          return status == 'CANCELLED';
+          return status == 'CANCELLED' || status == 'REJECTED';
         default:
           return true;
       }
@@ -82,17 +82,35 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
               children: [
                 _buildFilterChip('All Bookings', widget.allBookings.length),
                 const SizedBox(width: 8),
-                _buildFilterChip('AC Service Bookings', widget.allBookings.where((b) => (b['service_name'] ?? '').toString().toLowerCase().contains('ac')).length),
+                _buildFilterChip('AC Service Bookings', widget.allBookings.where((b) {
+                  final s = (b['service_name'] ?? '').toString().toLowerCase();
+                  return s.contains('ac') || s.contains('air');
+                }).length),
                 const SizedBox(width: 8),
-                _buildFilterChip('Booking Requests', widget.allBookings.where((b) => (b['status'] ?? '').toString().toUpperCase() == 'PENDING').length),
+                _buildFilterChip('Booking Requests', widget.allBookings.where((b) {
+                  final s = (b['status'] ?? '').toString().toUpperCase();
+                  return s == 'PENDING' || s == 'SEARCHING_PROVIDER';
+                }).length),
                 const SizedBox(width: 8),
-                _buildFilterChip('Assigned Bookings', widget.allBookings.where((b) => (b['status'] ?? '').toString().toUpperCase() == 'ASSIGNED').length),
+                _buildFilterChip('Assigned Bookings', widget.allBookings.where((b) {
+                  final s = (b['status'] ?? '').toString().toUpperCase();
+                  return s == 'ASSIGNED' || s == 'CONFIRMED' || s == 'ACCEPTED';
+                }).length),
                 const SizedBox(width: 8),
-                _buildFilterChip('Ongoing Services', widget.allBookings.where((b) => (b['status'] ?? '').toString().toUpperCase() == 'ONGOING').length),
+                _buildFilterChip('Ongoing Services', widget.allBookings.where((b) {
+                  final s = (b['status'] ?? '').toString().toUpperCase();
+                  return s == 'ONGOING' || s == 'SERVICE_STARTED' || s == 'ARRIVED' || s == 'ON_THE_WAY' || s == 'IN_TRANSIT';
+                }).length),
                 const SizedBox(width: 8),
-                _buildFilterChip('Completed Services', widget.allBookings.where((b) => (b['status'] ?? '').toString().toUpperCase() == 'COMPLETED').length),
+                _buildFilterChip('Completed Services', widget.allBookings.where((b) {
+                  final s = (b['status'] ?? '').toString().toUpperCase();
+                  return s == 'COMPLETED' || s == 'SERVICE_COMPLETED';
+                }).length),
                 const SizedBox(width: 8),
-                _buildFilterChip('Cancelled Bookings', widget.allBookings.where((b) => (b['status'] ?? '').toString().toUpperCase() == 'CANCELLED').length),
+                _buildFilterChip('Cancelled Bookings', widget.allBookings.where((b) {
+                  final s = (b['status'] ?? '').toString().toUpperCase();
+                  return s == 'CANCELLED' || s == 'REJECTED';
+                }).length),
               ],
             ),
           ),
@@ -277,6 +295,9 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
         break;
       case 'ONGOING':
       case 'SERVICE_STARTED':
+      case 'ARRIVED':
+      case 'ON_THE_WAY':
+      case 'IN_TRANSIT':
         bg = const Color(0xFFFFFBEB);
         fg = const Color(0xFFF59E0B);
         break;
@@ -286,6 +307,7 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
         fg = const Color(0xFF0284C7);
         break;
       case 'COMPLETED':
+      case 'SERVICE_COMPLETED':
         bg = const Color(0xFFECFDF5);
         fg = const Color(0xFF059669);
         break;

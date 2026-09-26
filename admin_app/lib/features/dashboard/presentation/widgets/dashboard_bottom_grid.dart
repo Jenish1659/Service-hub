@@ -20,54 +20,76 @@ class DashboardBottomGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Row 1: Top Services, Partners Overview, Partner Performance
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 900;
+
+        if (isCompact) {
+          return Column(
+            children: [
+              _buildTopServicesCard(),
+              const SizedBox(height: 14),
+              _buildPartnersOverviewCard(),
+              const SizedBox(height: 14),
+              _buildPartnerPerformanceCard(),
+              const SizedBox(height: 14),
+              _buildRecentReviewsCard(),
+              const SizedBox(height: 14),
+              _buildSystemNotificationsCard(),
+            ],
+          );
+        }
+
+        return Column(
           children: [
-            // 1. Top Services Card
-            Expanded(
-              flex: 4,
-              child: _buildTopServicesCard(),
-            ),
-            const SizedBox(width: 14),
+            // Row 1: Top Services, Partners Overview, Partner Performance
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Top Services Card
+                Expanded(
+                  flex: 4,
+                  child: _buildTopServicesCard(),
+                ),
+                const SizedBox(width: 14),
 
-            // 2. Partners Overview Card
-            Expanded(
-              flex: 3,
-              child: _buildPartnersOverviewCard(),
-            ),
-            const SizedBox(width: 14),
+                // 2. Partners Overview Card
+                Expanded(
+                  flex: 3,
+                  child: _buildPartnersOverviewCard(),
+                ),
+                const SizedBox(width: 14),
 
-            // 3. Partner Performance Card
-            Expanded(
-              flex: 4,
-              child: _buildPartnerPerformanceCard(),
+                // 3. Partner Performance Card
+                Expanded(
+                  flex: 4,
+                  child: _buildPartnerPerformanceCard(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Row 2: Recent Reviews & System Notifications
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 4. Recent Reviews
+                Expanded(
+                  flex: 5,
+                  child: _buildRecentReviewsCard(),
+                ),
+                const SizedBox(width: 14),
+
+                // 5. System Notifications
+                Expanded(
+                  flex: 5,
+                  child: _buildSystemNotificationsCard(),
+                ),
+              ],
             ),
           ],
-        ),
-        const SizedBox(height: 14),
-
-        // Row 2: Recent Reviews & System Notifications
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 4. Recent Reviews
-            Expanded(
-              flex: 5,
-              child: _buildRecentReviewsCard(),
-            ),
-            const SizedBox(width: 14),
-
-            // 5. System Notifications
-            Expanded(
-              flex: 5,
-              child: _buildSystemNotificationsCard(),
-            ),
-          ],
-        ),
-      ],
+        );
+      },
     );
   }
 

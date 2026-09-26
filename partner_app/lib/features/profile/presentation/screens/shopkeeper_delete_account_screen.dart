@@ -109,7 +109,7 @@ class _ShopkeeperDeleteAccountScreenState
                   ),
                 );
 
-                context.go('/login/shopkeeper');
+                context.go('/role-selection');
               } catch (e) {
                 if (!mounted) return;
                 setState(() => _isDeleting = false);

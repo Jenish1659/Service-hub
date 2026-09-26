@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/storage/local_registration_cache.dart';
 import '../../../core/services/live_booking_sync_service.dart';
@@ -51,7 +52,90 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     final syncStatus = (syncRecord?['status'] ?? syncRecord?['verification_status'] ?? '').toString().toUpperCase();
     final status = (syncStatus.isNotEmpty ? syncStatus : (active['verification_status'] ?? active['status'] ?? 'PENDING')).toString().toUpperCase();
 
-    if (status != 'VERIFIED' && status != 'APPROVED') {
+    var isApproved = status == 'VERIFIED' || status == 'APPROVED';
+
+    if (!isApproved) {
+      try {
+        final client = Supabase.instance.client;
+        final uId = (active['user_id'] ?? active['id'] ?? '').toString();
+        final pId = (active['partner_id'] ?? '').toString();
+        final phone = (active['phone'] ?? '').toString();
+        final username = (active['username'] ?? '').toString().trim();
+        final cleanDigits = phone.replaceAll(RegExp(r'\D'), '');
+        final last10 = cleanDigits.length >= 10 ? cleanDigits.substring(cleanDigits.length - 10) : '';
+
+        // 1. Check users table
+        Map<String, dynamic>? uRes;
+        if (uId.isNotEmpty && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(uId)) {
+          uRes = await client.from('users').select('account_status, user_id').eq('user_id', uId).maybeSingle();
+        }
+        if (uRes == null && last10.length >= 10) {
+          uRes = await client
+              .from('users')
+              .select('account_status, user_id')
+              .or('phone.eq.$cleanDigits,phone.eq.+91$last10,phone.ilike.*$last10*')
+              .limit(1)
+              .maybeSingle();
+        }
+        if (uRes == null && username.isNotEmpty) {
+          uRes = await client
+              .from('users')
+              .select('account_status, user_id')
+              .eq('username', username)
+              .limit(1)
+              .maybeSingle();
+        }
+
+        if (uRes != null) {
+          final userAccStatus = (uRes['account_status'] ?? '').toString().toUpperCase();
+          final targetUid = uRes['user_id']?.toString() ?? uId;
+          if (userAccStatus == 'ACTIVE') {
+            isApproved = true;
+          } else if (targetUid.isNotEmpty) {
+            final vr = await client
+                .from('verification_requests')
+                .select('status')
+                .eq('user_id', targetUid)
+                .order('submitted_at', ascending: false)
+                .limit(1)
+                .maybeSingle();
+            if (vr != null && (vr['status'] == 'APPROVED' || vr['status'] == 'VERIFIED')) {
+              isApproved = true;
+            }
+          }
+        }
+
+        // 2. Check partners table directly
+        if (!isApproved) {
+          if (pId.isNotEmpty && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(pId)) {
+            final pRes = await client.from('partners').select('verification_status').eq('partner_id', pId).maybeSingle();
+            if (pRes != null && (pRes['verification_status'] == 'VERIFIED' || pRes['verification_status'] == 'APPROVED')) {
+              isApproved = true;
+            }
+          }
+          final checkUid = (uRes?['user_id']?.toString() ?? uId);
+          if (!isApproved && checkUid.isNotEmpty && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(checkUid)) {
+            final pRes = await client.from('partners').select('verification_status').eq('user_id', checkUid).maybeSingle();
+            if (pRes != null && (pRes['verification_status'] == 'VERIFIED' || pRes['verification_status'] == 'APPROVED')) {
+              isApproved = true;
+            }
+          }
+        }
+
+        if (isApproved) {
+          await LocalRegistrationCache.updateActiveServiceProvider({
+            ...active,
+            'verification_status': 'VERIFIED',
+            'status': 'APPROVED',
+            'account_status': 'ACTIVE',
+          });
+        }
+      } catch (e) {
+        debugPrint('[ProviderDashboard] Live Supabase verification error: $e');
+      }
+    }
+
+    if (!isApproved) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

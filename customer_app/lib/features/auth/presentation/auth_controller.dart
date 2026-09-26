@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/services/supabase_auth_service.dart';
 import '../data/auth_repository.dart';
 
 // Provide the AuthRepository instance
@@ -209,12 +210,18 @@ class AuthController extends StateNotifier<AsyncValue<User?>> {
     try {
       await _repository.signOut();
     } catch (_) {}
+    try {
+      await SupabaseAuthService.logout();
+    } catch (_) {}
     
-    final box = Hive.box('customer_cache');
-    box.put('is_logged_in', false);
-    box.delete('user_id');
-    box.delete('user_name');
-    box.delete('user_phone');
+    try {
+      final box = Hive.box('customer_cache');
+      box.put('is_logged_in', false);
+      box.delete('user_id');
+      box.delete('user_name');
+      box.delete('user_phone');
+      box.delete('active_customer_session');
+    } catch (_) {}
     
     state = const AsyncValue.data(null);
   }

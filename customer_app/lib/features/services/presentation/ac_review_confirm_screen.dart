@@ -192,6 +192,8 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
     final pin = (1000 + DateTime.now().millisecond % 9000).toString();
     final otp = (1000 + (DateTime.now().microsecondsSinceEpoch % 9000)).toString();
 
+    final scheduledAtFormatted = '${widget.issueDetails['booking_date_formatted'] ?? widget.selectedDate.formattedIso} ${widget.selectedTime}'.trim();
+
     // 3. Store into permanent database ONLY upon confirmation!
     final createdBooking = await LiveBookingSyncService.instance.createACBooking(
       customerId: userId,
@@ -208,7 +210,51 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
       customerLng: lng,
       entrancePin: pin,
       completionOtp: otp,
+      extraData: {
+        'service_id': 'ac_service',
+        'scheduled_at': scheduledAtFormatted,
+        'final_amount': finalPrice,
+        'address': address,
+      },
     );
+
+    // Write to Supabase bookings table
+    try {
+      final supabase = Supabase.instance.client;
+      await supabase.from('bookings').insert({
+        'id': createdBooking['id'],
+        'booking_id': createdBooking['id'],
+        'service_id': 'ac_service',
+        'service_name': createdBooking['service_name'],
+        'status': 'PENDING',
+        'customer_name': createdBooking['customer_name'],
+        'customer_phone': createdBooking['customer_phone'],
+        'customer_address': address,
+        'address': address,
+        'final_amount': finalPrice,
+        'price': finalPrice,
+        'scheduled_at': scheduledAtFormatted,
+        'scheduled_date': widget.issueDetails['booking_date_formatted'] ?? widget.selectedDate.formattedIso,
+        'scheduled_time': widget.selectedTime,
+        'customer_lat': lat,
+        'customer_lng': lng,
+        'entrance_pin': pin,
+        'completion_otp': otp,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      debugPrint('Successfully written AC booking to Supabase bookings table.');
+    } catch (e) {
+      debugPrint('Supabase bookings insert note (offline/simulated): $e');
+    }
+
+    // Broadcast to LiveBookingSyncService.instance.submitBooking(...)
+    await LiveBookingSyncService.instance.submitBooking({
+      ...createdBooking,
+      'service_id': 'ac_service',
+      'scheduled_at': scheduledAtFormatted,
+      'final_amount': finalPrice,
+      'address': address,
+    });
 
     // 4. Clear unconfirmed draft from local cache
     await ACIssueBookingService.instance.clearDraft();

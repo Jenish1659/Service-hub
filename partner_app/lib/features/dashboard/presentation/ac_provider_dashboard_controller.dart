@@ -615,7 +615,7 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       try {
         await Supabase.instance.client
             .from('bookings')
-            .update({'status': 'CONFIRMED'})
+            .update({'status': 'ACCEPTED'})
             .eq('id', bookingId);
       } catch (_) {}
     } catch (_) {}
@@ -726,7 +726,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
         await supabase
             .from('bookings')
             .update({
-              'status': 'Completed',
+              'status': 'COMPLETED',
+              'final_amount': grossAmount,
               'price': grossAmount,
             })
             .eq('id', bookingId);

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/storage/local_registration_cache.dart';
 import '../data/auth_repository.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -70,10 +71,11 @@ class AuthController extends StateNotifier<AsyncValue<User?>> {
     state = const AsyncLoading();
     try {
       await _repository.signOut();
-      state = const AsyncValue.data(null);
-    } catch (e, stack) {
-      state = AsyncError(e, stack);
-    }
+    } catch (_) {}
+    try {
+      await LocalRegistrationCache.clearActiveSession();
+    } catch (_) {}
+    state = const AsyncValue.data(null);
   }
 }
 

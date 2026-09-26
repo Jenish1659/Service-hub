@@ -80,16 +80,11 @@ void main() {
       expect(deliv['vehicle_reg_number'], equals('GJ-10-XY-9999'));
       expect(deliv['role_name'], equals('delivery_agent'));
 
-      // 4. Logging out from Shopkeeper does NOT erase Service Provider or Delivery Agent!
+      // 4. Strict session deletion on logout: Logging out purges all keys unconditionally
       await LocalRegistrationCache.logoutShopkeeper();
       expect(await LocalRegistrationCache.getActiveShopkeeper(), isNull);
-      expect(await LocalRegistrationCache.getActiveServiceProvider(), isNotNull);
-      expect(await LocalRegistrationCache.getActiveDeliveryAgent(), isNotNull);
-
-      // 5. Logging out from Delivery Agent does NOT erase Service Provider!
-      await LocalRegistrationCache.logoutDeliveryAgent();
+      expect(await LocalRegistrationCache.getActiveServiceProvider(), isNull);
       expect(await LocalRegistrationCache.getActiveDeliveryAgent(), isNull);
-      expect(await LocalRegistrationCache.getActiveServiceProvider(), isNotNull);
     });
   });
 
