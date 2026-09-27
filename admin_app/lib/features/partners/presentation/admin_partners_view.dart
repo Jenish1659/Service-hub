@@ -77,12 +77,26 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
   void _executeApprove(String id, String name, Map<String, dynamic> partner) {
     setState(() {
       _locallyRemovedIds.add(id);
-      final verId = (partner['verification_id'] ?? '').toString();
-      final userId = (partner['user_id'] ?? '').toString();
-      final partId = (partner['partner_id'] ?? '').toString();
+      final verId = (partner['verification_id'] ?? '').toString().trim();
+      final userId = (partner['user_id'] ?? '').toString().trim();
+      final partId = (partner['partner_id'] ?? '').toString().trim();
+      final phone = (partner['phone'] ?? '').toString().trim();
+      final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
+      final phone10 = phoneDigits.length >= 10 ? phoneDigits.substring(phoneDigits.length - 10) : '';
+
       if (verId.isNotEmpty) _locallyRemovedIds.add(verId);
       if (userId.isNotEmpty) _locallyRemovedIds.add(userId);
       if (partId.isNotEmpty) _locallyRemovedIds.add(partId);
+      if (phone.isNotEmpty) _locallyRemovedIds.add(phone);
+      if (phoneDigits.isNotEmpty) _locallyRemovedIds.add(phoneDigits);
+      if (phone10.isNotEmpty) {
+        _locallyRemovedIds.add(phone10);
+        _locallyRemovedIds.add('+91$phone10');
+      }
+      final allVerIds = (partner['all_verification_ids'] as List?)?.map((e) => e.toString().trim()) ?? [];
+      for (final vid in allVerIds) {
+        if (vid.isNotEmpty) _locallyRemovedIds.add(vid);
+      }
     });
     widget.onApprove(id, name, partner);
   }
@@ -90,12 +104,26 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
   void _executeReject(String id, String name, Map<String, dynamic> partner, [String? reason]) {
     setState(() {
       _locallyRemovedIds.add(id);
-      final verId = (partner['verification_id'] ?? '').toString();
-      final userId = (partner['user_id'] ?? '').toString();
-      final partId = (partner['partner_id'] ?? '').toString();
+      final verId = (partner['verification_id'] ?? '').toString().trim();
+      final userId = (partner['user_id'] ?? '').toString().trim();
+      final partId = (partner['partner_id'] ?? '').toString().trim();
+      final phone = (partner['phone'] ?? '').toString().trim();
+      final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
+      final phone10 = phoneDigits.length >= 10 ? phoneDigits.substring(phoneDigits.length - 10) : '';
+
       if (verId.isNotEmpty) _locallyRemovedIds.add(verId);
       if (userId.isNotEmpty) _locallyRemovedIds.add(userId);
       if (partId.isNotEmpty) _locallyRemovedIds.add(partId);
+      if (phone.isNotEmpty) _locallyRemovedIds.add(phone);
+      if (phoneDigits.isNotEmpty) _locallyRemovedIds.add(phoneDigits);
+      if (phone10.isNotEmpty) {
+        _locallyRemovedIds.add(phone10);
+        _locallyRemovedIds.add('+91$phone10');
+      }
+      final allVerIds = (partner['all_verification_ids'] as List?)?.map((e) => e.toString().trim()) ?? [];
+      for (final vid in allVerIds) {
+        if (vid.isNotEmpty) _locallyRemovedIds.add(vid);
+      }
     });
     try {
       (widget.onReject as dynamic)(id, name, partner, reason);
@@ -427,26 +455,68 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
       return true;
     }).toList();
 
-    final filtered = roleFiltered.where((p) {
-      final id = (p['id'] ?? '').toString();
-      final verId = (p['verification_id'] ?? '').toString();
-      final userId = (p['user_id'] ?? '').toString();
-      final partId = (p['partner_id'] ?? '').toString();
+    // Canonical Single Partner Deduplication: strictly 1 card per partner candidate
+    final List<Map<String, dynamic>> deduplicated = [];
+    final Set<String> seenUserIds = {};
+    final Set<String> seenPartnerIds = {};
+    final Set<String> seenPhones = {};
+    final Set<String> seenVerIds = {};
+
+    for (final p in roleFiltered) {
+      final uId = (p['user_id'] ?? '').toString().trim();
+      final pId = (p['partner_id'] ?? '').toString().trim();
+      final verId = (p['verification_id'] ?? p['id'] ?? '').toString().trim();
+      final phone = (p['phone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
+      final phone10 = phone.length >= 10 ? phone.substring(phone.length - 10) : phone;
+
+      final bool isDuplicate = (uId.isNotEmpty && seenUserIds.contains(uId)) ||
+          (pId.isNotEmpty && seenPartnerIds.contains(pId)) ||
+          (phone10.isNotEmpty && seenPhones.contains(phone10)) ||
+          (verId.isNotEmpty && seenVerIds.contains(verId));
+
+      if (isDuplicate) {
+        continue; // Strictly one card per partner candidate
+      }
+
+      if (uId.isNotEmpty) seenUserIds.add(uId);
+      if (pId.isNotEmpty) seenPartnerIds.add(pId);
+      if (phone10.isNotEmpty) seenPhones.add(phone10);
+      if (verId.isNotEmpty) seenVerIds.add(verId);
+
+      deduplicated.add(p);
+    }
+
+    final filtered = deduplicated.where((p) {
+      final id = (p['id'] ?? '').toString().trim();
+      final verId = (p['verification_id'] ?? '').toString().trim();
+      final userId = (p['user_id'] ?? '').toString().trim();
+      final partId = (p['partner_id'] ?? '').toString().trim();
+      final phone = (p['phone'] ?? '').toString().trim();
+      final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
+      final phone10 = phoneDigits.length >= 10 ? phoneDigits.substring(phoneDigits.length - 10) : '';
+
       if (_locallyRemovedIds.contains(id) ||
           _locallyRemovedIds.contains(verId) ||
           _locallyRemovedIds.contains(userId) ||
-          _locallyRemovedIds.contains(partId)) {
+          _locallyRemovedIds.contains(partId) ||
+          (phone.isNotEmpty && _locallyRemovedIds.contains(phone)) ||
+          (phoneDigits.isNotEmpty && _locallyRemovedIds.contains(phoneDigits)) ||
+          (phone10.isNotEmpty && _locallyRemovedIds.contains(phone10))) {
         return false;
+      }
+      final allVerIds = (p['all_verification_ids'] as List?)?.map((e) => e.toString().trim()) ?? [];
+      for (final vid in allVerIds) {
+        if (_locallyRemovedIds.contains(vid)) return false;
       }
       if (_searchQuery.isEmpty) return true;
       final query = _searchQuery.toLowerCase();
       final name = (p['name'] ?? p['full_name'] ?? '').toString().toLowerCase();
-      final phone = (p['phone'] ?? '').toString().toLowerCase();
+      final pLower = phone.toLowerCase();
       final business = (p['business_name'] ?? '').toString().toLowerCase();
       final vNum = (p['vehicle_number'] ?? p['registration_number'] ?? '').toString().toLowerCase();
       final dl = (p['driving_license_number'] ?? p['driving_license'] ?? '').toString().toLowerCase();
       return name.contains(query) ||
-          phone.contains(query) ||
+          pLower.contains(query) ||
           id.contains(query) ||
           verId.contains(query) ||
           business.contains(query) ||

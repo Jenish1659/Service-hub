@@ -225,6 +225,7 @@ void main() {
     const shopkeeperName = 'Jay Ambe Stores';
 
     setUp(() async {
+      LiveBookingSyncService.instance.clearVerificationsForTest();
       await LiveBookingSyncService.instance.submitPartnerVerification({
         'id': 'ver_shop_$shopkeeperPhone',
         'verification_id': 'ver_shop_$shopkeeperPhone',

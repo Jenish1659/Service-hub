@@ -86,6 +86,7 @@ class AdminSidebar extends StatelessWidget {
                 _buildNavItem('Service Partners', Icons.handshake_rounded),
 
                 _buildGroupHeader('PLATFORM MANAGEMENT'),
+                _buildNavItem('Database Explorer', Icons.storage_rounded),
                 _buildNavItem('Customers', Icons.people_rounded),
                 _buildNavItem('Services', Icons.home_repair_service_rounded),
                 _buildNavItem('Finance', Icons.account_balance_wallet_rounded),

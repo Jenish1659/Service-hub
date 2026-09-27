@@ -18,6 +18,7 @@ import '../../finance/presentation/admin_finance_view.dart';
 import '../../support/presentation/admin_support_view.dart';
 import '../../settings/presentation/admin_settings_view.dart';
 import '../../ai_operations/presentation/admin_ai_operations_view.dart';
+import '../../database_explorer/presentation/admin_database_explorer_view.dart';
 import '../../../core/services/live_booking_sync_service.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
@@ -48,6 +49,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     String? targetAgentId = partnerMap?['delivery_agent_id']?.toString();
     final phone = partnerMap?['phone']?.toString().replaceAll(' ', '');
     final verId = partnerMap?['verification_id']?.toString();
+
+    // If targetUserId is not directly in partnerMap, extract UUID from prefix if present
+    if ((targetUserId == null || targetUserId.isEmpty) && profileId.contains('_')) {
+      final possibleUuid = profileId.substring(profileId.lastIndexOf('_') + 1);
+      if (_isUuid(possibleUuid)) {
+        targetUserId = possibleUuid;
+      }
+    }
+    if ((targetUserId == null || targetUserId.isEmpty) && id.contains('_')) {
+      final possibleUuid = id.substring(id.lastIndexOf('_') + 1);
+      if (_isUuid(possibleUuid)) {
+        targetUserId = possibleUuid;
+      }
+    }
 
     // If targetUserId is not directly in partnerMap, look it up by phone first
     if ((targetUserId == null || targetUserId.isEmpty) && phone != null && phone.isNotEmpty) {
@@ -123,31 +138,38 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final effectiveUserId = (targetUserId != null && targetUserId.isNotEmpty) ? targetUserId : profileId;
     final nowIso = DateTime.now().toIso8601String();
 
-    // 1. Update verification_requests table
+    // 1. Update verification_requests table: Resolve ALL requests for this user simultaneously
     try {
+      final vrUpdate = {'status': 'APPROVED', 'reviewed_at': nowIso};
       if (_isUuid(effectiveUserId)) {
         await client
             .from('verification_requests')
-            .update({'status': 'APPROVED', 'reviewed_at': nowIso})
+            .update(vrUpdate)
             .eq('user_id', effectiveUserId);
       }
       if (_isUuid(profileId)) {
         await client
             .from('verification_requests')
-            .update({'status': 'APPROVED', 'reviewed_at': nowIso})
+            .update(vrUpdate)
             .or('verification_id.eq.$profileId,user_id.eq.$profileId');
       }
       if (id.isNotEmpty && id != profileId && _isUuid(id)) {
         await client
             .from('verification_requests')
-            .update({'status': 'APPROVED', 'reviewed_at': nowIso})
+            .update(vrUpdate)
             .or('verification_id.eq.$id,user_id.eq.$id');
       }
       if (verId != null && _isUuid(verId)) {
         await client
             .from('verification_requests')
-            .update({'status': 'APPROVED', 'reviewed_at': nowIso})
+            .update(vrUpdate)
             .eq('verification_id', verId);
+      }
+      final allVerIds = (partnerMap?['all_verification_ids'] as List?)?.map((e) => e.toString()).toList() ?? [];
+      for (final vid in allVerIds) {
+        if (_isUuid(vid)) {
+          await client.from('verification_requests').update(vrUpdate).eq('verification_id', vid);
+        }
       }
     } catch (_) {}
 
@@ -291,6 +313,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (verId != null && verId.isNotEmpty) {
       await LiveBookingSyncService.instance.approvePartnerVerification(verId);
     }
+    final allVerIds = (partnerMap?['all_verification_ids'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    for (final vid in allVerIds) {
+      await LiveBookingSyncService.instance.approvePartnerVerification(vid);
+    }
 
     markPartnerResolved(id);
     markPartnerResolved(profileId);
@@ -300,6 +326,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (targetShopId != null && targetShopId.isNotEmpty) markPartnerResolved(targetShopId);
     if (phone != null && phone.isNotEmpty) markPartnerResolved(phone);
     if (verId != null && verId.isNotEmpty) markPartnerResolved(verId);
+    for (final vid in allVerIds) {
+      markPartnerResolved(vid);
+    }
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -319,6 +348,22 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     String? targetPartnerId = partnerMap?['partner_id']?.toString();
     final phone = partnerMap?['phone']?.toString().replaceAll(' ', '');
     final verId = partnerMap?['verification_id']?.toString();
+
+    final String id = (partnerMap?['id'] ?? profileId).toString();
+
+    // If targetUserId is not directly in partnerMap, extract UUID from prefix if present
+    if ((targetUserId == null || targetUserId.isEmpty) && profileId.contains('_')) {
+      final possibleUuid = profileId.substring(profileId.lastIndexOf('_') + 1);
+      if (_isUuid(possibleUuid)) {
+        targetUserId = possibleUuid;
+      }
+    }
+    if ((targetUserId == null || targetUserId.isEmpty) && id.contains('_')) {
+      final possibleUuid = id.substring(id.lastIndexOf('_') + 1);
+      if (_isUuid(possibleUuid)) {
+        targetUserId = possibleUuid;
+      }
+    }
 
     if ((targetUserId == null || targetUserId.isEmpty) && phone != null && phone.isNotEmpty) {
       try {
@@ -381,7 +426,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ? 'REJECTED: ${reason.trim()}'
         : 'REJECTED: Verification documents or information provided did not meet requirements.';
 
-    // 1. Update verification_requests table
+    // 1. Update verification_requests table: Resolve ALL requests for this user simultaneously
     try {
       final vrReject = {
         'status': 'REJECTED',
@@ -400,11 +445,23 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             .update(vrReject)
             .or('verification_id.eq.$profileId,user_id.eq.$profileId');
       }
+      if (id.isNotEmpty && id != profileId && _isUuid(id)) {
+        await client
+            .from('verification_requests')
+            .update(vrReject)
+            .or('verification_id.eq.$id,user_id.eq.$id');
+      }
       if (verId != null && _isUuid(verId)) {
         await client
             .from('verification_requests')
             .update(vrReject)
             .eq('verification_id', verId);
+      }
+      final allVerIds = (partnerMap?['all_verification_ids'] as List?)?.map((e) => e.toString()).toList() ?? [];
+      for (final vid in allVerIds) {
+        if (_isUuid(vid)) {
+          await client.from('verification_requests').update(vrReject).eq('verification_id', vid);
+        }
       }
     } catch (e) {
       debugPrint('[AdminDashboard] Verification request reject error: $e');
@@ -433,6 +490,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             .from('partners')
             .update(pReject)
             .or('partner_id.eq.$profileId,user_id.eq.$profileId');
+      }
+      if (id.isNotEmpty && id != profileId && _isUuid(id)) {
+        await client
+            .from('partners')
+            .update(pReject)
+            .or('partner_id.eq.$id,user_id.eq.$id');
       }
     } catch (e) {
       debugPrint('[AdminDashboard] Partner reject error: $e');
@@ -482,7 +545,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     } catch (_) {}
 
     // 5. Broadcast across LiveBookingSyncService with rejection reason
-    final String id = (partnerMap?['id'] ?? profileId).toString();
     await LiveBookingSyncService.instance.rejectPartnerVerification(id, reason);
     if (effectiveUserId != profileId && effectiveUserId != id) {
       await LiveBookingSyncService.instance.rejectPartnerVerification(effectiveUserId, reason);
@@ -496,6 +558,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (verId != null && verId.isNotEmpty) {
       await LiveBookingSyncService.instance.rejectPartnerVerification(verId, reason);
     }
+    final allVerIds = (partnerMap?['all_verification_ids'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    for (final vid in allVerIds) {
+      await LiveBookingSyncService.instance.rejectPartnerVerification(vid, reason);
+    }
 
     markPartnerResolved(id);
     markPartnerResolved(profileId);
@@ -503,6 +569,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (targetPartnerId != null && targetPartnerId.isNotEmpty) markPartnerResolved(targetPartnerId);
     if (phone != null && phone.isNotEmpty) markPartnerResolved(phone);
     if (verId != null && verId.isNotEmpty) markPartnerResolved(verId);
+    for (final vid in allVerIds) {
+      markPartnerResolved(vid);
+    }
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -625,6 +694,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         onApprove: _approvePartnerProfile,
         onReject: _rejectPartnerProfile,
       );
+    }
+    if (_activeTab == 'Database Explorer') {
+      return const AdminDatabaseExplorerView();
     }
     if (_activeTab == 'Customers') {
       return AdminCustomersView(customerCount: stats['totalCustomers'] ?? 0);

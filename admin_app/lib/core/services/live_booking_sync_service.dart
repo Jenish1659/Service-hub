@@ -97,6 +97,24 @@ class LiveBookingSyncService {
     });
   }
 
+  void clearBookingsForTest() {
+    _inMemoryBookings.clear();
+  }
+
+  void clearVerificationsForTest() {
+    _inMemoryVerifications.clear();
+    if (!kIsWeb) {
+      for (final file in _getVerificationFiles()) {
+        try {
+          if (file is File && file.existsSync()) {
+            file.writeAsStringSync('{}', flush: true);
+          }
+        } catch (_) {}
+      }
+    }
+    _broadcastVerificationChanges();
+  }
+
   void dispose() {
     _pollingTimer?.cancel();
     _bookingsStreamController.close();
@@ -623,7 +641,30 @@ class LiveBookingSyncService {
     record['aadhaar_number'] = (partnerData['aadhaar_number'] ?? '').toString();
     record['pan_number'] = (partnerData['pan_number'] ?? '').toString();
 
+    // Canonical Deduplication: Remove all existing verifications sharing user_id or phone
+    final uId = (record['user_id'] ?? '').toString().trim();
+    final phone = (record['phone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
+    final last10 = phone.length >= 10 ? phone.substring(phone.length - 10) : phone;
+
+    for (final existingKey in all.keys.toList()) {
+      final existing = all[existingKey];
+      if (existing is Map) {
+        final exUid = (existing['user_id'] ?? '').toString().trim();
+        final exPhone = (existing['phone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
+        final exLast10 = exPhone.length >= 10 ? exPhone.substring(exPhone.length - 10) : exPhone;
+
+        final isMatch = (uId.isNotEmpty && exUid.isNotEmpty && uId == exUid) ||
+            (last10.isNotEmpty && exLast10.isNotEmpty && last10 == exLast10);
+
+        if (isMatch) {
+          all.remove(existingKey);
+          _inMemoryVerifications.remove(existingKey);
+        }
+      }
+    }
+
     all[verId] = record;
+    _inMemoryVerifications[verId] = record;
     _writeAllVerifications(all);
     await _broadcastToHttpBridge('/api/verifications', record);
   }
@@ -631,10 +672,24 @@ class LiveBookingSyncService {
   List<Map<String, dynamic>> getPendingPartnerVerifications() {
     _readAllVerifications();
     final pending = <Map<String, dynamic>>[];
+    final Set<String> seenUids = {};
+    final Set<String> seenPhones = {};
+
     _inMemoryVerifications.forEach((id, val) {
       final status = (val['status'] ?? val['verification_status'] ?? '').toString().toUpperCase();
       if (status == 'PENDING' || status == 'PENDING_APPROVAL' || status == 'SUBMITTED' || status == 'UNDER_REVIEW') {
-        pending.add(val);
+        final uId = (val['user_id'] ?? '').toString().trim();
+        final phone = (val['phone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
+        final last10 = phone.length >= 10 ? phone.substring(phone.length - 10) : phone;
+
+        final isDup = (uId.isNotEmpty && seenUids.contains(uId)) ||
+            (last10.isNotEmpty && seenPhones.contains(last10));
+
+        if (!isDup) {
+          if (uId.isNotEmpty) seenUids.add(uId);
+          if (last10.isNotEmpty) seenPhones.add(last10);
+          pending.add(val);
+        }
       }
     });
     return pending;
