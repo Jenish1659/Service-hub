@@ -13,6 +13,8 @@ import '../../features/services/presentation/ac_select_time_screen.dart';
 import '../../features/services/presentation/ac_service_details_screen.dart';
 import '../../features/services/presentation/ac_review_confirm_screen.dart';
 import '../../features/services/presentation/ac_booking_confirmed_screen.dart';
+import '../../features/services/presentation/ac_finding_technician_screen.dart';
+import '../../features/services/presentation/ac_technician_details_screen.dart';
 import '../../features/services/services/ac_availability_service.dart';
 import '../../features/products/presentation/products_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
@@ -191,6 +193,43 @@ final GoRouter appRouter = GoRouter(
           serviceTitle: extra['service_title'] as String? ?? 'AC Service',
           address: extra['address'] as String? ?? '',
           partnerCount: extra['partner_count'] as int? ?? 3,
+        );
+      },
+    ),
+
+    // AC Service Finding Technician Route (Screen 7)
+    GoRoute(
+      path: '/services/ac/finding-technician',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final bookingData = extra['booking_data'] as Map<String, dynamic>? ?? {};
+        final bookingId = (extra['booking_id'] ?? bookingData['id'] ?? bookingData['booking_id'] ?? '').toString();
+        return ACFindingTechnicianScreen(
+          bookingId: bookingId,
+          bookingData: bookingData,
+          serviceTitle: extra['service_title'] as String? ?? 'AC Service',
+          address: extra['address'] as String? ?? '',
+          selectedDateFormatted: extra['selected_date_formatted'] as String? ?? 'Tomorrow',
+          selectedTime: extra['selected_time'] as String? ?? '02:00 PM',
+        );
+      },
+    ),
+    GoRoute(
+      path: '/services/ac/technician-details',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final bookingData = extra['booking_data'] as Map<String, dynamic>? ?? {};
+        final bookingId = (extra['booking_id'] ?? bookingData['id'] ?? bookingData['booking_id'] ?? '').toString();
+        return ACTechnicianDetailsScreen(
+          bookingId: bookingId,
+          bookingData: bookingData,
+          partnerData: extra['partner_data'] as Map<String, dynamic>?,
+          serviceTitle: extra['service_title'] as String? ?? 'AC Service',
+          address: extra['address'] as String? ?? '',
+          selectedDateFormatted: extra['selected_date_formatted'] as String?,
+          selectedTime: extra['selected_time'] as String?,
         );
       },
     ),

@@ -91,14 +91,27 @@ class LiveBookingSyncService {
   void _initializeSync() {
     reloadAllFromDisk();
 
+    if (!kIsWeb) {
+      try {
+        if (Platform.environment.containsKey('FLUTTER_TEST')) {
+          return;
+        }
+      } catch (_) {}
+    }
+
     _pollingTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
       reloadAllFromDisk();
       _pollHttpBridge();
     });
   }
 
-  void dispose() {
+  void stopPolling() {
     _pollingTimer?.cancel();
+    _pollingTimer = null;
+  }
+
+  void dispose() {
+    stopPolling();
     _bookingsStreamController.close();
     _verificationsStreamController.close();
   }

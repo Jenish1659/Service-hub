@@ -497,18 +497,60 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // View My Bookings Button
+              // Primary: Find Technician Now Button
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B49DF),
+                    backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                     elevation: 2,
+                  ),
+                  onPressed: () {
+                    context.push('/services/ac/finding-technician', extra: {
+                      'booking_id': bookingId,
+                      'booking_data': bookingData,
+                      'service_title': serviceTitle,
+                      'address': address,
+                      'selected_date_formatted': selectedDateFormatted,
+                      'selected_time': selectedTime,
+                    });
+                  },
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Find Technician Now',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Secondary: View My Bookings
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   onPressed: () {
                     Navigator.popUntil(context, (route) => route.isFirst);
@@ -521,9 +563,8 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
                   child: const Text(
                     'View My Bookings',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
                     ),
                   ),
                 ),
