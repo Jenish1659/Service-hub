@@ -280,7 +280,7 @@ void main() {
       expect(find.text('You are open for orders'), findsOneWidget);
 
       // Tap Accept Order button on the first order (#SH1024)
-      final acceptBtn = find.text('Accept Order');
+      final acceptBtn = find.text('Accept Order').first;
       await tester.ensureVisible(acceptBtn);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));

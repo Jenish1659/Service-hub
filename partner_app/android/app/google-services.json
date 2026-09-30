@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1059432857421",
+    "project_id": "service-hub-5fcd1",
+    "storage_bucket": "service-hub-5fcd1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1059432857421:android:3e5c9b74301fa7d82910ba",
+        "android_client_info": {
+          "package_name": "com.example.service_hub_partner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_service_hub_5fcd1_partner_key"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

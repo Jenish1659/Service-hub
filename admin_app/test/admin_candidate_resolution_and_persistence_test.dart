@@ -4,7 +4,7 @@ import 'package:service_hub_admin/features/dashboard/presentation/admin_provider
 void main() {
   group('Admin Candidate Resolution and Persistence Tests', () {
     test('1. Actively pending candidate is NOT suppressed even if user had older resolved requests', () {
-      final oldResolvedId = 'ver_old_resolved_123';
+      const oldResolvedId = 'ver_old_resolved_123';
       markPartnerResolved(oldResolvedId);
 
       // Pending candidate with different verification_id for the same user
@@ -27,7 +27,7 @@ void main() {
     });
 
     test('2. Candidate is correctly suppressed once its specific verification_id is resolved', () {
-      final candidateVerId = 'ver_to_resolve_789';
+      const candidateVerId = 'ver_to_resolve_789';
       markPartnerResolved(candidateVerId);
 
       final resolvedCandidate = {

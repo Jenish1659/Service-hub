@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'firebase_otp_service.dart';
 
 class OtpResult {
   final bool success;
@@ -17,42 +18,29 @@ class OtpResult {
 
 class OtpService {
   static const int maxVerificationAttempts = 5;
-  static const int maxResendAttempts = 3;
+  static const int maxResendAttempts = 4;
 
-  int _resendCount = 0;
+  final FirebaseOtpService _firebaseOtpService = FirebaseOtpService.instance;
 
   Future<OtpResult> sendOtp(String mobileNumber) async {
-    if (mobileNumber.length != 10) {
-      return OtpResult(success: false, message: 'Please enter a valid 10-digit mobile number.');
-    }
-
-    if (_resendCount >= maxResendAttempts) {
-      return OtpResult(
-        success: false,
-        message: 'Maximum resend attempts reached. Please try again after 15 minutes.',
-      );
-    }
-
-    _resendCount++;
+    final response = await _firebaseOtpService.sendOtp(mobileNumber);
     if (kDebugMode) {
-      debugPrint('[OtpService] Sending OTP to +91 $mobileNumber (Attempt #$_resendCount)');
+      debugPrint('[OtpService] sendOtp result: ${response.success} - ${response.message}');
     }
-
-    // Simulate server API call delay
-    await Future.delayed(const Duration(milliseconds: 600));
-
     return OtpResult(
-      success: true,
-      message: 'OTP sent successfully to +91 $mobileNumber',
-      otpReference: 'OTP_${DateTime.now().millisecondsSinceEpoch}',
+      success: response.success,
+      message: response.message,
+      otpReference: response.verificationId,
       expiresInSeconds: 60,
     );
   }
 
   Future<bool> verifyOtp(String mobileNumber, String otpCode) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    // In demo/production backend validation:
-    // OTP code validation engine (accept 123456 or any 6 digit input for test session)
-    return otpCode.length == 6;
+    final response = await _firebaseOtpService.verifyOtp(mobileNumber, otpCode);
+    return response.success;
+  }
+
+  Future<OtpVerificationResponse> verifyOtpDetailed(String mobileNumber, String otpCode) async {
+    return await _firebaseOtpService.verifyOtp(mobileNumber, otpCode);
   }
 }

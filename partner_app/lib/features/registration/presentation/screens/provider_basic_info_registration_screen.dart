@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/firebase_otp_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/sh_logo_widget.dart';
 import '../../../../core/widgets/vector_avatar_widgets.dart';
@@ -55,137 +57,236 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
     }
 
     final List<TextEditingController> otpControllers = List.generate(6, (_) => TextEditingController());
+    final List<FocusNode> focusNodes = List.generate(6, (_) => FocusNode());
+    int secondsRemaining = 60;
+    Timer? countdownTimer;
+    bool isVerifying = false;
+    String? errorMessage;
+
+    // Trigger Firebase OTP and device notification immediately
+    FirebaseOtpService.instance.sendOtp(phone);
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.borderLight,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEFF6FF),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.mark_email_read_rounded, color: Color(0xFF2563EB), size: 36),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Verify Phone Number',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryNavy),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Enter the 6-digit code sent to +91 $phone',
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+            if (secondsRemaining > 0) {
+              setSheetState(() => secondsRemaining--);
+            } else {
+              t.cancel();
+            }
+          });
 
-                // 6 Digit OTP Inputs
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(6, (index) {
-                      return Container(
-                        width: 44,
-                        height: 52,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        child: TextField(
-                          controller: otpControllers[index],
-                          keyboardType: TextInputType.number,
-                          textAlign: TextAlign.center,
-                          maxLength: 1,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          decoration: InputDecoration(
-                            counterText: '',
-                            filled: true,
-                            fillColor: AppColors.bgLight,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.borderLight)),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2)),
-                          ),
-                          onChanged: (val) {
-                            if (val.isNotEmpty && index < 5) {
-                              FocusScope.of(ctx).nextFocus();
-                            }
-                          },
-                        ),
-                      );
-                    }),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.timer_outlined, size: 14, color: AppColors.textMuted),
-                    SizedBox(width: 4),
-                    Text('Resend code in ', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                    Text('00:28', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.borderLight,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEFF6FF),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.mark_email_read_rounded, color: Color(0xFF2563EB), size: 36),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Verify Phone Number',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primaryNavy),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Enter the 6-digit code sent via Firebase notification to +91 $phone',
+                      style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 6 Digit OTP Inputs
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(6, (index) {
+                          return Container(
+                            width: 44,
+                            height: 52,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            child: TextField(
+                              controller: otpControllers[index],
+                              focusNode: focusNodes[index],
+                              keyboardType: TextInputType.number,
+                              textAlign: TextAlign.center,
+                              maxLength: 1,
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              decoration: InputDecoration(
+                                counterText: '',
+                                filled: true,
+                                fillColor: AppColors.bgLight,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.borderLight)),
+                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2)),
+                              ),
+                              onChanged: (val) {
+                                if (val.isNotEmpty && index < 5) {
+                                  focusNodes[index + 1].requestFocus();
+                                } else if (val.isEmpty && index > 0) {
+                                  focusNodes[index - 1].requestFocus();
+                                }
+                              },
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (errorMessage != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFFCA5A5)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.timer_outlined, size: 14, color: AppColors.textMuted),
+                        const SizedBox(width: 4),
+                        const Text('Resend code in ', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                        Text(
+                          '00:${secondsRemaining.toString().padLeft(2, '0')}',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (secondsRemaining == 0)
+                      TextButton.icon(
+                        icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF2563EB)),
+                        label: const Text('Resend OTP via Notification', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                        onPressed: () async {
+                          setSheetState(() {
+                            secondsRemaining = 60;
+                            errorMessage = null;
+                          });
+                          await FirebaseOtpService.instance.sendOtp(phone);
+                        },
+                      ),
+                    TextButton(
+                      onPressed: () {
+                        countdownTimer?.cancel();
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('Didn\'t receive the code? Change Phone Number', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                    ),
+                    const SizedBox(height: 16),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: isVerifying
+                            ? null
+                            : () async {
+                                final otpCode = otpControllers.map((c) => c.text).join();
+                                if (otpCode.length != 6) {
+                                  setSheetState(() {
+                                    errorMessage = 'Please enter all 6 digits of the OTP.';
+                                  });
+                                  return;
+                                }
+
+                                setSheetState(() {
+                                  isVerifying = true;
+                                  errorMessage = null;
+                                });
+
+                                final res = await FirebaseOtpService.instance.verifyOtp(phone, otpCode);
+
+                                if (!res.success) {
+                                  setSheetState(() {
+                                    isVerifying = false;
+                                    errorMessage = res.message;
+                                  });
+                                  return;
+                                }
+
+                                if (!ctx.mounted || !mounted) return;
+                                countdownTimer?.cancel();
+                                Navigator.pop(ctx);
+                                _controller.onMobileVerified(true);
+                                setState(() {
+                                  _currentSubStep = 1; // Advance to Step 2 (Account Credentials)
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('✓ Phone number verified via Firebase OTP successfully!'),
+                                    backgroundColor: Color(0xFF10B981),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                        child: isVerifying
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Verify & Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Didn\'t receive the code? Change Phone Number', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                ),
-                const SizedBox(height: 16),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _controller.onMobileVerified(true);
-                    setState(() {
-                      _currentSubStep = 1; // Advance directly to Step 2 (Account Credentials)
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('✓ Phone number verified via OTP successfully!'),
-                        backgroundColor: Color(0xFF10B981),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                  child: const Text('Verify & Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                ),
               ),
-            ],
-          ),
-        ),
-        ),
+            ),
+          );
+        },
       ),
-    );
+    ).whenComplete(() {
+      countdownTimer?.cancel();
+    });
   }
 
   void _handleNext() async {

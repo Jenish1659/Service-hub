@@ -31,7 +31,12 @@ class _OtpVerificationWidgetState extends State<OtpVerificationWidget> {
   @override
   void initState() {
     super.initState();
+    _sendOtpAndStartTimer();
+  }
+
+  void _sendOtpAndStartTimer() {
     _startTimer();
+    _otpService.sendOtp(widget.mobileNumber);
   }
 
   void _startTimer() {
@@ -76,13 +81,13 @@ class _OtpVerificationWidgetState extends State<OtpVerificationWidget> {
         _errorMessage = null;
       });
 
-      final success = await _otpService.verifyOtp(widget.mobileNumber, code);
+      final res = await _otpService.verifyOtpDetailed(widget.mobileNumber, code);
       if (mounted) {
         setState(() {
           _isVerifying = false;
-          _isVerified = success;
-          if (!success) {
-            _errorMessage = 'Incorrect OTP. Please try again.';
+          _isVerified = res.success;
+          if (!res.success) {
+            _errorMessage = res.message;
           }
         });
         widget.onVerificationChanged(_isVerified);
@@ -251,7 +256,7 @@ class _OtpVerificationWidgetState extends State<OtpVerificationWidget> {
                 style: TextStyle(fontSize: 11, color: AppColors.textMuted),
               ),
               GestureDetector(
-                onTap: _timerSeconds == 0 ? _startTimer : null,
+                onTap: _timerSeconds == 0 ? _sendOtpAndStartTimer : null,
                 child: Text(
                   'Resend OTP',
                   style: TextStyle(

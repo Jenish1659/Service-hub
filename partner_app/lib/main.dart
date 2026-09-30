@@ -2,14 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'package:flutter/services.dart';
 
+import 'core/config/firebase_options.dart';
+import 'core/services/firebase_notification_service.dart';
 import 'core/routes/app_router.dart';
 import 'core/theme/app_colors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase Cloud Services & Real Notification Engine
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await FirebaseNotificationService.instance.initialize();
+  } catch (e) {
+    debugPrint('[Firebase] Initialization notice: $e');
+  }
 
   // Set Mobile-First Portrait Orientation & Status Bar Styling
   await SystemChrome.setPreferredOrientations([

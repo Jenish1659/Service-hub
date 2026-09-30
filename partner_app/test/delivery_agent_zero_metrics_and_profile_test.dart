@@ -21,6 +21,8 @@ void main() {
     final box = Hive.box('partner_cache');
     await box.clear();
     LocalRegistrationCache.clearMemorySession();
+    LiveBookingSyncService.instance.clearBookingsForTest();
+    LiveBookingSyncService.instance.stopPolling();
   });
 
   tearDown(() async {
