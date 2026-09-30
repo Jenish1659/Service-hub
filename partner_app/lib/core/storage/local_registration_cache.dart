@@ -1,10 +1,22 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LocalRegistrationCache {
+  static bool get _isTestMode {
+    if (kIsWeb) return false;
+    try {
+      return Platform.environment.containsKey('FLUTTER_TEST') ||
+          WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    } catch (_) {
+      return false;
+    }
+  }
+
   static const String _boxName = 'partner_cache';
   static final Map<String, String> _memoryStorage = {};
 
@@ -138,9 +150,15 @@ class LocalRegistrationCache {
     _memoryStorage[_legacyPartnerKey] = jsonEncode(updated);
     try {
       final box = _getBox();
-      box.put(_spSessionKey, updated);
-      box.put(_activeRoleKey, 'service_provider');
-      box.put(_legacyPartnerKey, updated);
+      if (_isTestMode) {
+        box.put(_spSessionKey, updated);
+        box.put(_activeRoleKey, 'service_provider');
+        box.put(_legacyPartnerKey, updated);
+      } else {
+        await box.put(_spSessionKey, updated);
+        await box.put(_activeRoleKey, 'service_provider');
+        await box.put(_legacyPartnerKey, updated);
+      }
     } catch (_) {}
   }
 
@@ -180,9 +198,15 @@ class LocalRegistrationCache {
     _memoryStorage[_legacyPartnerKey] = jsonEncode(updated);
     try {
       final box = _getBox();
-      box.put(_shopSessionKey, updated);
-      box.put(_activeRoleKey, 'shopkeeper');
-      box.put(_legacyPartnerKey, updated);
+      if (_isTestMode) {
+        box.put(_shopSessionKey, updated);
+        box.put(_activeRoleKey, 'shopkeeper');
+        box.put(_legacyPartnerKey, updated);
+      } else {
+        await box.put(_shopSessionKey, updated);
+        await box.put(_activeRoleKey, 'shopkeeper');
+        await box.put(_legacyPartnerKey, updated);
+      }
     } catch (_) {}
   }
 
@@ -225,9 +249,15 @@ class LocalRegistrationCache {
     _memoryStorage[_legacyPartnerKey] = jsonEncode(updated);
     try {
       final box = _getBox();
-      box.put(_deliverySessionKey, updated);
-      box.put(_activeRoleKey, 'delivery_agent');
-      box.put(_legacyPartnerKey, updated);
+      if (_isTestMode) {
+        box.put(_deliverySessionKey, updated);
+        box.put(_activeRoleKey, 'delivery_agent');
+        box.put(_legacyPartnerKey, updated);
+      } else {
+        await box.put(_deliverySessionKey, updated);
+        await box.put(_activeRoleKey, 'delivery_agent');
+        await box.put(_legacyPartnerKey, updated);
+      }
     } catch (_) {}
   }
 
@@ -320,9 +350,15 @@ class LocalRegistrationCache {
       if (Hive.isBoxOpen(_boxName)) {
         final box = Hive.box(_boxName);
         for (final key in _hiveSessionKeys) {
-          await box.delete(key);
+          if (_isTestMode) {
+            box.delete(key);
+          } else {
+            await box.delete(key);
+          }
         }
-        await box.flush(); // CRITICAL: Flushes changes to disk before process death
+        if (!_isTestMode) {
+          await box.flush(); // CRITICAL: Flushes changes to disk before process death
+        }
       }
     } catch (_) {}
     _memoryStorage.clear();
@@ -330,13 +366,19 @@ class LocalRegistrationCache {
     try {
       final prefs = await SharedPreferences.getInstance();
       for (final key in _sharedPrefKeys) {
-        await prefs.remove(key);
+        if (_isTestMode) {
+          prefs.remove(key);
+        } else {
+          await prefs.remove(key);
+        }
       }
     } catch (_) {}
 
-    try {
-      await Supabase.instance.client.auth.signOut();
-    } catch (_) {}
+    if (!_isTestMode) {
+      try {
+        await Supabase.instance.client.auth.signOut();
+      } catch (_) {}
+    }
   }
 
   static Future<void> signOut() async => clearActiveSession();

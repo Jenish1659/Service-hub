@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:service_hub_partner/core/routes/app_router.dart';
 import 'package:service_hub_partner/core/services/live_booking_sync_service.dart';
 import 'package:service_hub_partner/core/storage/local_registration_cache.dart';
 import 'package:service_hub_partner/features/dashboard/presentation/delivery_dashboard_screen.dart';
@@ -21,6 +23,14 @@ void main() {
     final box = Hive.box('partner_cache');
     await box.clear();
     LocalRegistrationCache.clearMemorySession();
+  });
+
+  tearDown(() async {
+    LiveBookingSyncService.instance.stopPolling();
+  });
+
+  tearDownAll(() async {
+    LiveBookingSyncService.instance.stopPolling();
   });
 
   group('DeliveryDashboardScreen Layout & Zero Dummy Data Tests', () {
@@ -50,7 +60,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 200));
 
-      // No overflow exceptions on 320px
       expect(tester.takeException(), isNull);
 
       // Verify Header & Greeting
@@ -139,6 +148,40 @@ void main() {
 
       // Elevated map button is present
       expect(find.byKey(const Key('elevated_map_circle_button')), findsOneWidget);
+    });
+
+    testWidgets('4. Tapping center Map button invokes _openLiveMap and navigates to Live Courier Radar without crashing when tasks are empty', (tester) async {
+      await tester.runAsync(() async {
+        await LocalRegistrationCache.updateActiveDeliveryAgent({
+          'user_id': 'deliv_rider_04',
+          'name': 'Rider Nav Test',
+          'verification_status': 'VERIFIED',
+        });
+      });
+
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerConfig: appRouter,
+        ),
+      );
+      appRouter.go('/dashboard/delivery');
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Tap center elevated Map button
+      final mapBtnFinder = find.byKey(const Key('elevated_map_circle_button'));
+      expect(mapBtnFinder, findsOneWidget);
+
+      await tester.tap(mapBtnFinder);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // Verify that DeliveryLiveMapScreen opened in Radar Mode without crashing
+      expect(find.text('DELIVERY ZONE RADAR'), findsOneWidget);
+      expect(find.text('Live Courier Radar & Fleet View'), findsOneWidget);
+      expect(find.byType(FlutterMap), findsOneWidget);
+      expect(find.text('Orders Queue'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

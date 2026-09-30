@@ -25,13 +25,11 @@ void main() {
     await Hive.openBox('partner_cache');
   });
 
-  setUp(() async {
-    final box = Hive.box('partner_cache');
-    await box.clear();
+  setUp(() {
     LocalRegistrationCache.clearMemorySession();
   });
 
-  tearDown(() async {
+  tearDown(() {
     LiveBookingSyncService.instance.stopPolling();
   });
 
@@ -238,6 +236,7 @@ void main() {
           'user_id': 'rider_999',
           'name': 'Rider Test',
           'verification_status': 'VERIFIED',
+          'account_status': 'ACTIVE',
         });
       });
 
@@ -289,6 +288,10 @@ void main() {
       const uniquePhone = '9988776655';
 
       await tester.runAsync(() async {
+        if (Hive.isBoxOpen('partner_cache')) {
+          final box = Hive.box('partner_cache');
+          await box.deleteAll(box.keys.toList());
+        }
         await LiveBookingSyncService.instance.submitPartnerVerification({
           'id': 'ver_shop_unique_9988',
           'user_id': 'shop_user_unique_9988',
@@ -340,10 +343,9 @@ void main() {
 
       await tester.runAsync(() async {
         await tester.tap(launchBtn);
-        await Future.delayed(const Duration(milliseconds: 200));
+        await Future.delayed(const Duration(milliseconds: 500));
       });
-      await tester.pump(const Duration(milliseconds: 250));
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pumpAndSettle();
 
       // Verify that it went to /dashboard/shopkeeper
       expect(navigatedRoute, equals('/dashboard/shopkeeper'));

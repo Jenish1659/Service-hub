@@ -611,7 +611,10 @@ class DeliveryBottomCurvedNavBar extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
-                      colors: centerButtonGradientColors ?? [centerButtonColor, const Color(0xFFF97316)],
+                      colors: centerButtonGradientColors ??
+                          (centerButtonColor == const Color(0xFFEA580C)
+                              ? const [Color(0xFFEA580C), Color(0xFFC2410C)]
+                              : [centerButtonColor, const Color(0xFF1D4ED8)]),
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),

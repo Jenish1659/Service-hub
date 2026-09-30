@@ -224,5 +224,50 @@ void main() {
       );
       expect(mapRoute.path, equals('/delivery/map'));
     });
+
+    testWidgets('5. Empty task renders clean Delivery Zone Radar mode with rider position and nearby hubs', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2200);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: DeliveryLiveMapScreen(task: {}),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // 1. Verify FlutterMap is rendered with OSM TileLayer
+      expect(find.byType(FlutterMap), findsOneWidget);
+      final tileLayer = tester.widget<TileLayer>(find.byType(TileLayer));
+      expect(tileLayer.urlTemplate, equals('https://tile.openstreetmap.org/{z}/{x}/{y}.png'));
+
+      // 2. Verify Delivery Zone Radar header and sub-titles
+      expect(find.text('DELIVERY ZONE RADAR'), findsOneWidget);
+      expect(find.text('Live Courier Radar & Fleet View'), findsOneWidget);
+      expect(find.text('3 Nearby Hubs'), findsOneWidget);
+
+      // 3. Verify Rider pulse marker and Hub markers
+      expect(find.byIcon(Icons.two_wheeler_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.hub_rounded), findsWidgets);
+      expect(find.textContaining('Central Dispatch Hub'), findsOneWidget);
+
+      // 4. Verify no dummy store/customer markers exist in radar mode
+      expect(find.text('STORE PICKUP'), findsNothing);
+      expect(find.text('CUSTOMER DROP'), findsNothing);
+
+      // 5. Verify Radar Bottom Bar controls
+      expect(find.text('Focus My GPS'), findsOneWidget);
+      expect(find.text('Orders Queue'), findsOneWidget);
+
+      // Test tapping Focus My GPS
+      await tester.tap(find.text('Focus My GPS'));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(tester.takeException(), isNull);
+    });
   });
 }

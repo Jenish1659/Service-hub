@@ -430,7 +430,7 @@ class DeliveryQuickShortcutsGrid extends StatelessWidget {
         ],
         LayoutBuilder(
           builder: (context, constraints) {
-            final use2x2 = is2x2Grid || constraints.maxWidth < 280;
+            final use2x2 = is2x2Grid || constraints.maxWidth < 340;
 
             final tileOrders = _ShortcutTileItem(
               label: 'My Orders',

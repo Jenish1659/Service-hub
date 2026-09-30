@@ -9,6 +9,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/theme/app_colors.dart';
 
+/// Represents a nearby logistics/fulfillment dispatch hub displayed on the radar map.
+class DeliveryHubInfo {
+  final String id;
+  final String name;
+  final LatLng location;
+  final String demandLevel;
+  final int activeCouriers;
+
+  const DeliveryHubInfo({
+    required this.id,
+    required this.name,
+    required this.location,
+    required this.demandLevel,
+    required this.activeCouriers,
+  });
+}
+
 class DeliveryLiveMapScreen extends StatefulWidget {
   final Map<String, dynamic> task;
 
@@ -37,7 +54,18 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
   late String _customerAddress;
   late String _customerPhone;
   late double _earning;
-  late String _deliveryStatus; // 'ON_THE_WAY_TO_STORE', 'ARRIVED_AT_STORE', 'OUT_FOR_DELIVERY', 'DELIVERED'
+  late String _deliveryStatus; // 'ON_THE_WAY_TO_STORE', 'ARRIVED_AT_STORE', 'OUT_FOR_DELIVERY', 'DELIVERED', 'STANDBY'
+
+  List<DeliveryHubInfo> _nearbyHubs = [];
+
+  bool get _isRadarMode {
+    if (widget.task.isEmpty) return true;
+    if (widget.task['is_radar_mode'] == true || widget.task['mode'] == 'radar') return true;
+    final hasActiveOrder = widget.task['order_code'] != null ||
+        widget.task['order_id'] != null ||
+        widget.task['assignment_id'] != null;
+    return !hasActiveOrder;
+  }
 
   Timer? _simulationTimer;
   bool _isActionProcessing = false;
@@ -65,9 +93,48 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
     const baseLat = 22.4707;
     const baseLng = 70.0577;
 
-    final riderLat = (t['rider_lat'] as num?)?.toDouble() ?? (baseLat - 0.005);
-    final riderLng = (t['rider_lng'] as num?)?.toDouble() ?? (baseLng - 0.007);
+    final riderLat = (t['rider_lat'] as num?)?.toDouble() ?? baseLat;
+    final riderLng = (t['rider_lng'] as num?)?.toDouble() ?? baseLng;
     _riderLocation = LatLng(riderLat, riderLng);
+
+    // Initialize nearby delivery hubs around rider location
+    _nearbyHubs = [
+      DeliveryHubInfo(
+        id: 'HUB-01',
+        name: 'Central Dispatch Hub (Zone A)',
+        location: LatLng(riderLat + 0.0055, riderLng + 0.0050),
+        demandLevel: 'High Demand',
+        activeCouriers: 6,
+      ),
+      DeliveryHubInfo(
+        id: 'HUB-02',
+        name: 'East Express Station (Zone B)',
+        location: LatLng(riderLat - 0.0062, riderLng + 0.0130),
+        demandLevel: 'Normal Demand',
+        activeCouriers: 3,
+      ),
+      DeliveryHubInfo(
+        id: 'HUB-03',
+        name: 'West Fulfillment Center',
+        location: LatLng(riderLat + 0.0028, riderLng - 0.0125),
+        demandLevel: 'Surge Demand',
+        activeCouriers: 8,
+      ),
+    ];
+
+    if (_isRadarMode) {
+      _orderCode = 'ZONE-RADAR';
+      _storeName = 'Nearby Delivery Hubs';
+      _storePhone = '+91 1800 200 9999';
+      _customerName = 'Zone Standby';
+      _customerAddress = 'Within active service perimeter';
+      _customerPhone = '';
+      _earning = 0.0;
+      _deliveryStatus = 'STANDBY';
+      _storeLocation = _nearbyHubs.first.location;
+      _customerLocation = _nearbyHubs[1].location;
+      return;
+    }
 
     final storeLat = (t['store_lat'] as num?)?.toDouble() ?? (baseLat + 0.004);
     final storeLng = (t['store_lng'] as num?)?.toDouble() ?? (baseLng + 0.003);
@@ -115,6 +182,31 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
         if (mounted) {
           setState(() {
             _riderLocation = LatLng(pos.latitude, pos.longitude);
+            if (_isRadarMode) {
+              _nearbyHubs = [
+                DeliveryHubInfo(
+                  id: 'HUB-01',
+                  name: 'Central Dispatch Hub (Zone A)',
+                  location: LatLng(pos.latitude + 0.0055, pos.longitude + 0.0050),
+                  demandLevel: 'High Demand',
+                  activeCouriers: 6,
+                ),
+                DeliveryHubInfo(
+                  id: 'HUB-02',
+                  name: 'East Express Station (Zone B)',
+                  location: LatLng(pos.latitude - 0.0062, pos.longitude + 0.0130),
+                  demandLevel: 'Normal Demand',
+                  activeCouriers: 3,
+                ),
+                DeliveryHubInfo(
+                  id: 'HUB-03',
+                  name: 'West Fulfillment Center',
+                  location: LatLng(pos.latitude + 0.0028, pos.longitude - 0.0125),
+                  demandLevel: 'Surge Demand',
+                  activeCouriers: 8,
+                ),
+              ];
+            }
           });
         }
       }
@@ -124,6 +216,8 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
   }
 
   void _startSimulatedMovement() {
+    if (_isRadarMode) return;
+
     _simulationTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (!mounted || _deliveryStatus == 'DELIVERED') return;
 
@@ -177,6 +271,7 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
   }
 
   double get _totalDistanceKm {
+    if (_isRadarMode) return 0.0;
     if (_deliveryStatus == 'ON_THE_WAY_TO_STORE' || _deliveryStatus == 'ARRIVED_AT_STORE') {
       final leg1 = _calculateDistanceKm(_riderLocation, _storeLocation);
       final leg2 = _calculateDistanceKm(_storeLocation, _customerLocation);
@@ -187,6 +282,7 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
   }
 
   int get _calculatedEtaMins {
+    if (_isRadarMode) return 0;
     // Average urban courier speed ~22 km/h
     final mins = (_totalDistanceKm / 22.0 * 60.0).round();
     return mins.clamp(2, 60);
@@ -201,13 +297,24 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
   }
 
   void _recenterMap() {
-    final bounds = LatLngBounds.fromPoints([_riderLocation, _storeLocation, _customerLocation]);
-    _mapController.fitCamera(
-      CameraFit.bounds(
-        bounds: bounds,
-        padding: const EdgeInsets.only(top: 140, bottom: 220, left: 45, right: 45),
-      ),
-    );
+    if (_isRadarMode) {
+      final points = [_riderLocation, ..._nearbyHubs.map((h) => h.location)];
+      final bounds = LatLngBounds.fromPoints(points);
+      _mapController.fitCamera(
+        CameraFit.bounds(
+          bounds: bounds,
+          padding: const EdgeInsets.only(top: 140, bottom: 200, left: 45, right: 45),
+        ),
+      );
+    } else {
+      final bounds = LatLngBounds.fromPoints([_riderLocation, _storeLocation, _customerLocation]);
+      _mapController.fitCamera(
+        CameraFit.bounds(
+          bounds: bounds,
+          padding: const EdgeInsets.only(top: 140, bottom: 220, left: 45, right: 45),
+        ),
+      );
+    }
   }
 
   void _centerOnRider() {
@@ -686,6 +793,457 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
     );
   }
 
+  Widget _buildHubMarker(DeliveryHubInfo hub) {
+    return GestureDetector(
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${hub.name}: ${hub.demandLevel} • ${hub.activeCouriers} active couriers'),
+            backgroundColor: const Color(0xFF4F46E5),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+            ),
+            child: Text(
+              hub.name,
+              style: const TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFF4F46E5),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2.2),
+              boxShadow: const [
+                BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
+              ],
+            ),
+            child: const Icon(Icons.hub_rounded, color: Colors.white, size: 19),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveOrderTopCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Order code & ETA/Distance chip row
+          Row(
+            children: [
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.inventory_2_rounded, size: 14, color: AppColors.deliveryOrangePrimary),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          _orderCode,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: AppColors.deliveryOrangePrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${_totalDistanceKm.toStringAsFixed(1)} km',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11.5,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '$_calculatedEtaMins min ETA',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11.5,
+                          color: Color(0xFF16A34A),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Store name
+          Row(
+            children: [
+              const Icon(Icons.storefront_rounded, size: 16, color: Color(0xFF2563EB)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Pickup: $_storeName',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Color(0xFF0F172A),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+
+          // Customer address
+          Row(
+            children: [
+              const Icon(Icons.location_on_rounded, size: 16, color: Color(0xFFEF4444)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Dropoff: $_customerAddress',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRadarTopCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.radar_rounded, size: 14, color: Color(0xFF16A34A)),
+                    SizedBox(width: 4),
+                    Text(
+                      'DELIVERY ZONE RADAR',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: Color(0xFF16A34A),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.hub_rounded, size: 13, color: Color(0xFF2563EB)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_nearbyHubs.length} Nearby Hubs',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: Color(0xFF2563EB),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Live Courier Radar & Fleet View',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Row(
+            children: [
+              Icon(Icons.location_searching_rounded, size: 14, color: Color(0xFF64748B)),
+              SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  'Monitoring active coverage zone • Ready to accept new orders',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveOrderBottomBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Call Customer / Store Action Button
+          Expanded(
+            flex: 4,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF0F172A),
+                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.phone_in_talk_rounded, size: 16, color: Color(0xFF2563EB)),
+              label: const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'Call Support',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                ),
+              ),
+              onPressed: _showCallBottomSheet,
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Complete Delivery / Milestone Action Button
+          Expanded(
+            flex: 6,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _deliveryStatus == 'ARRIVED_AT_STORE'
+                    ? const Color(0xFF2563EB)
+                    : AppColors.deliveryOrangePrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: _isActionProcessing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : Icon(
+                      _deliveryStatus == 'ARRIVED_AT_STORE'
+                          ? Icons.shopping_bag_outlined
+                          : Icons.check_circle_rounded,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _isActionProcessing
+                      ? 'Processing...'
+                      : (_deliveryStatus == 'ARRIVED_AT_STORE' ? 'Confirm Store Pickup' : 'Complete Delivery'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              onPressed: _isActionProcessing
+                  ? null
+                  : () {
+                      if (_deliveryStatus == 'ARRIVED_AT_STORE') {
+                        setState(() {
+                          _deliveryStatus = 'OUT_FOR_DELIVERY';
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Order picked up! En route to customer dropoff.'),
+                            backgroundColor: Color(0xFF2563EB),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      } else if (widget.task['require_otp'] == false) {
+                        _completeDeliveryAction();
+                      } else {
+                        _showCompleteDeliveryOtpDialog();
+                      }
+                    },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRadarBottomBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Focus GPS
+          Expanded(
+            flex: 5,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF0F172A),
+                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.my_location_rounded, size: 16, color: AppColors.deliveryOrangePrimary),
+              label: const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'Focus My GPS',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                ),
+              ),
+              onPressed: _centerOnRider,
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Return to Orders / Dashboard
+          Expanded(
+            flex: 5,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.deliveryOrangePrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.dashboard_rounded, size: 16, color: Colors.white),
+              label: const FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  'Orders Queue',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else {
+                  context.go('/dashboard/delivery');
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final routePoints = [_riderLocation, _storeLocation, _customerLocation];
@@ -715,50 +1273,71 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
               ),
 
               // 4. Route polyline connecting rider -> store -> destination
-              PolylineLayer(
-                polylines: [
-                  // High contrast road casing polyline
-                  Polyline(
-                    points: routePoints,
-                    strokeWidth: 8.0,
-                    color: const Color(0x33EA580C),
-                  ),
-                  // Core navigation route line
-                  Polyline(
-                    points: routePoints,
-                    strokeWidth: 4.5,
-                    color: AppColors.deliveryOrangePrimary,
-                  ),
-                ],
+              PolylineLayer<Object>(
+                polylines: _isRadarMode
+                    ? <Polyline<Object>>[]
+                    : <Polyline<Object>>[
+                        // High contrast road casing polyline
+                        Polyline<Object>(
+                          points: routePoints,
+                          strokeWidth: 8.0,
+                          color: const Color(0x33EA580C),
+                        ),
+                        // Core navigation route line
+                        Polyline<Object>(
+                          points: routePoints,
+                          strokeWidth: 4.5,
+                          color: AppColors.deliveryOrangePrimary,
+                        ),
+                      ],
               ),
 
               // 3. Real markers
               MarkerLayer(
-                markers: [
-                  // Rider live location marker with delivery scooter icon and pulse ring
-                  Marker(
-                    point: _riderLocation,
-                    width: 76,
-                    height: 76,
-                    child: _buildPulseRiderMarker(),
-                  ),
+                markers: _isRadarMode
+                    ? [
+                        // Rider live location marker with delivery scooter icon and pulse ring
+                        Marker(
+                          point: _riderLocation,
+                          width: 76,
+                          height: 76,
+                          child: _buildPulseRiderMarker(),
+                        ),
 
-                  // Store pickup location marker
-                  Marker(
-                    point: _storeLocation,
-                    width: 90,
-                    height: 80,
-                    child: _buildStoreMarker(),
-                  ),
+                        // Nearby delivery hubs
+                        for (final hub in _nearbyHubs)
+                          Marker(
+                            point: hub.location,
+                            width: 130,
+                            height: 64,
+                            child: _buildHubMarker(hub),
+                          ),
+                      ]
+                    : [
+                        // Rider live location marker with delivery scooter icon and pulse ring
+                        Marker(
+                          point: _riderLocation,
+                          width: 76,
+                          height: 76,
+                          child: _buildPulseRiderMarker(),
+                        ),
 
-                  // Customer dropoff location marker (destination flag/pin)
-                  Marker(
-                    point: _customerLocation,
-                    width: 96,
-                    height: 80,
-                    child: _buildCustomerMarker(),
-                  ),
-                ],
+                        // Store pickup location marker
+                        Marker(
+                          point: _storeLocation,
+                          width: 90,
+                          height: 80,
+                          child: _buildStoreMarker(),
+                        ),
+
+                        // Customer dropoff location marker (destination flag/pin)
+                        Marker(
+                          point: _customerLocation,
+                          width: 96,
+                          height: 80,
+                          child: _buildCustomerMarker(),
+                        ),
+                      ],
               ),
             ],
           ),
@@ -836,137 +1415,8 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
                 ),
                 const SizedBox(height: 10),
 
-                // Top Card showing active order code, store name, customer address, ETA, and distance
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4)),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Order code & ETA/Distance chip row
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF7ED),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.inventory_2_rounded, size: 14, color: AppColors.deliveryOrangePrimary),
-                                  const SizedBox(width: 4),
-                                  Flexible(
-                                    child: Text(
-                                      _orderCode,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                        color: AppColors.deliveryOrangePrimary,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEFF6FF),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    '${_totalDistanceKm.toStringAsFixed(1)} km',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 11.5,
-                                      color: Color(0xFF2563EB),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFECFDF5),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    '$_calculatedEtaMins min ETA',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 11.5,
-                                      color: Color(0xFF16A34A),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Store name
-                      Row(
-                        children: [
-                          const Icon(Icons.storefront_rounded, size: 16, color: Color(0xFF2563EB)),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Pickup: $_storeName',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: Color(0xFF0F172A),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-
-                      // Customer address
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on_rounded, size: 16, color: Color(0xFFEF4444)),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Dropoff: $_customerAddress',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF64748B),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+                // Top Card showing active order code OR Delivery Zone Radar
+                _isRadarMode ? _buildRadarTopCard() : _buildActiveOrderTopCard(),
               ],
             ),
           ),
@@ -1045,111 +1495,12 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
             ),
           ),
 
-          // 5. Bottom Action Bar: "Call Customer / Store" and "Complete Delivery"
+          // 5. Bottom Action Bar: "Call Customer / Store" and "Complete Delivery" (or Radar Controls)
           Positioned(
             left: 16,
             right: 16,
             bottom: MediaQuery.of(context).padding.bottom + 14,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 16, offset: Offset(0, 4)),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Call Customer / Store Action Button
-                  Expanded(
-                    flex: 4,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0F172A),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      icon: const Icon(Icons.phone_in_talk_rounded, size: 16, color: Color(0xFF2563EB)),
-                      label: const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          'Call Support',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
-                        ),
-                      ),
-                      onPressed: _showCallBottomSheet,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-
-                  // Complete Delivery / Milestone Action Button
-                  Expanded(
-                    flex: 6,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _deliveryStatus == 'ARRIVED_AT_STORE'
-                            ? const Color(0xFF2563EB)
-                            : AppColors.deliveryOrangePrimary,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      icon: _isActionProcessing
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                            )
-                          : Icon(
-                              _deliveryStatus == 'ARRIVED_AT_STORE'
-                                  ? Icons.shopping_bag_outlined
-                                  : Icons.check_circle_rounded,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                      label: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          _isActionProcessing
-                              ? 'Processing...'
-                              : (_deliveryStatus == 'ARRIVED_AT_STORE' ? 'Confirm Store Pickup' : 'Complete Delivery'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      onPressed: _isActionProcessing
-                          ? null
-                          : () {
-                              if (_deliveryStatus == 'ARRIVED_AT_STORE') {
-                                setState(() {
-                                  _deliveryStatus = 'OUT_FOR_DELIVERY';
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Order picked up! En route to customer dropoff.'),
-                                    backgroundColor: Color(0xFF2563EB),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              } else if (widget.task['require_otp'] == false) {
-                                _completeDeliveryAction();
-                              } else {
-                                _showCompleteDeliveryOtpDialog();
-                              }
-                            },
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            child: _isRadarMode ? _buildRadarBottomBar() : _buildActiveOrderBottomBar(),
           ),
         ],
       ),

@@ -248,5 +248,57 @@ void main() {
 
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('4. Elevated circular Map button uses Vivid Orange gradient (#EA580C to #C2410C), Icons.map_rounded, label Map, and triggers _handleMapTap', (tester) async {
+      int selectedTab = -1;
+      bool mapOpened = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            bottomNavigationBar: DeliveryBottomCurvedNavBar(
+              currentIndex: 0,
+              onTabSelected: (idx) => selectedTab = idx,
+              onOpenMap: () => mapOpened = true,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find elevated center button
+      final elevatedFinder = find.byKey(const Key('elevated_map_circle_button'));
+      expect(elevatedFinder, findsOneWidget);
+
+      // Verify Container with Vivid Orange gradient decoration
+      final containerFinder = find.descendant(of: elevatedFinder, matching: find.byType(Container)).first;
+      final container = tester.widget<Container>(containerFinder);
+      final decoration = container.decoration as BoxDecoration?;
+      expect(decoration, isNotNull);
+      expect(decoration?.shape, equals(BoxShape.circle));
+      final gradient = decoration?.gradient as LinearGradient?;
+      expect(gradient, isNotNull);
+      expect(gradient?.colors, equals(const [Color(0xFFEA580C), Color(0xFFC2410C)]));
+
+      // Verify Icons.map_rounded and 'Map' label
+      expect(find.descendant(of: elevatedFinder, matching: find.byIcon(Icons.map_rounded)), findsOneWidget);
+      expect(find.text('Map'), findsOneWidget);
+
+      // Tap elevated center button and verify tab selection + map handler trigger
+      await tester.tap(elevatedFinder);
+      await tester.pump();
+
+      expect(selectedTab, equals(2));
+      expect(mapOpened, isTrue);
+
+      // Also tap the 'Map' text label slot below the button
+      selectedTab = -1;
+      mapOpened = false;
+      await tester.tap(find.text('Map'));
+      await tester.pump();
+
+      expect(selectedTab, equals(2));
+      expect(mapOpened, isTrue);
+    });
   });
 }

@@ -199,5 +199,85 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 200));
     });
+
+    testWidgets('5. Renders Urban Company-style Entrance PIN & Safety Card with default codes and copy actions', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2200);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: ACTechnicianDetailsScreen(
+            bookingId: 'bk_safety_test_01',
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Header & Security Badges
+      expect(find.text('Safety Handshake'), findsOneWidget);
+      expect(find.text('2-Step Security'), findsOneWidget);
+
+      // Entrance PIN Card
+      expect(find.text('🔑 Entrance PIN: 7429'), findsOneWidget);
+      expect(find.text('Share this PIN with your technician before allowing entry.'), findsOneWidget);
+
+      // Completion OTP Card
+      expect(find.text('🔒 Completion OTP: 5892'), findsOneWidget);
+      expect(find.text('Share this OTP only after the service is fully completed.'), findsOneWidget);
+
+      // Copy Entrance PIN
+      final copyButtons = find.text('Copy');
+      expect(copyButtons, findsNWidgets(2));
+
+      await tester.ensureVisible(copyButtons.first);
+      await tester.tap(copyButtons.first);
+      await tester.pump();
+      expect(find.text('Entrance PIN (7429) copied to clipboard!'), findsOneWidget);
+
+      // Copy Completion OTP
+      await tester.ensureVisible(copyButtons.last);
+      await tester.tap(copyButtons.last);
+      await tester.pump();
+      expect(find.text('Completion OTP (5892) copied to clipboard!'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 200));
+    });
+
+    testWidgets('6. Supports custom Entrance PIN and Completion OTP from bookingData', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2200);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: ACTechnicianDetailsScreen(
+            bookingId: 'bk_custom_pin_02',
+            bookingData: {
+              'entrance_pin': '9182',
+              'completion_otp': '4321',
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('🔑 Entrance PIN: 9182'), findsOneWidget);
+      expect(find.text('Share this PIN with your technician before allowing entry.'), findsOneWidget);
+      expect(find.text('🔒 Completion OTP: 4321'), findsOneWidget);
+      expect(find.text('Share this OTP only after the service is fully completed.'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 200));
+    });
   });
 }

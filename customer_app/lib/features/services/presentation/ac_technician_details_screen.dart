@@ -48,6 +48,8 @@ class _ACTechnicianDetailsScreenState extends State<ACTechnicianDetailsScreen> {
   String _vehicleModel = 'Honda Activa 6G';
   String _vehicleType = 'Scooter';
   String _about = 'Certified AC Maintenance & Deep Cleaning Technician with 3+ years experience.';
+  String _entrancePin = '7429';
+  String _completionOtp = '5892';
 
   late String _dateFormatted;
   late String _timeFormatted;
@@ -55,6 +57,9 @@ class _ACTechnicianDetailsScreenState extends State<ACTechnicianDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.bookingData.isNotEmpty) {
+      _populateFromMap(widget.bookingData);
+    }
     _initDateTime();
     _initializeData();
   }
@@ -122,6 +127,16 @@ class _ACTechnicianDetailsScreenState extends State<ACTechnicianDetailsScreen> {
     if (data['vehicle_model'] != null && data['vehicle_model'].toString().isNotEmpty) {
       _vehicleModel = data['vehicle_model'].toString();
     }
+    if (data['entrance_pin'] != null && data['entrance_pin'].toString().isNotEmpty) {
+      _entrancePin = data['entrance_pin'].toString();
+    } else if (data['start_otp'] != null && data['start_otp'].toString().isNotEmpty) {
+      _entrancePin = data['start_otp'].toString();
+    }
+    if (data['completion_otp'] != null && data['completion_otp'].toString().isNotEmpty) {
+      _completionOtp = data['completion_otp'].toString();
+    } else if (data['otp'] != null && data['otp'].toString().isNotEmpty) {
+      _completionOtp = data['otp'].toString();
+    }
   }
 
   Future<void> _fetchRealPartnerDetails() async {
@@ -154,6 +169,16 @@ class _ACTechnicianDetailsScreenState extends State<ACTechnicianDetailsScreen> {
           }
           if (booking['scheduled_time'] != null && booking['scheduled_time'].toString().isNotEmpty) {
             _timeFormatted = booking['scheduled_time'].toString();
+          }
+          if (booking['entrance_pin'] != null && booking['entrance_pin'].toString().isNotEmpty) {
+            _entrancePin = booking['entrance_pin'].toString();
+          } else if (booking['start_otp'] != null && booking['start_otp'].toString().isNotEmpty) {
+            _entrancePin = booking['start_otp'].toString();
+          }
+          if (booking['completion_otp'] != null && booking['completion_otp'].toString().isNotEmpty) {
+            _completionOtp = booking['completion_otp'].toString();
+          } else if (booking['otp'] != null && booking['otp'].toString().isNotEmpty) {
+            _completionOtp = booking['otp'].toString();
           }
         }
       }
@@ -262,6 +287,10 @@ class _ACTechnicianDetailsScreenState extends State<ACTechnicianDetailsScreen> {
 
             // Card 1: Technician Profile Card
             _buildTechnicianProfileCard(),
+            const SizedBox(height: 16),
+
+            // Urban Company-style Safety Handshake & Entrance PIN Card
+            _buildSafetyHandshakeCard(),
             const SizedBox(height: 16),
 
             // Card 2: Appointment Details & 3 Quick Actions Card
@@ -478,6 +507,263 @@ class _ACTechnicianDetailsScreenState extends State<ACTechnicianDetailsScreen> {
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Urban Company-Style Safety Handshake & Entrance PIN Card ---
+  Widget _buildSafetyHandshakeCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Shield Icon + "Safety Handshake" + 2-Step Security badge
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFECFDF5),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.verified_user_rounded, color: Color(0xFF10B981), size: 18),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Safety Handshake',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFDBEAFE)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.shield_outlined, size: 12, color: Color(0xFF2563EB)),
+                    SizedBox(width: 4),
+                    Text(
+                      '2-Step Security',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2563EB),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Entrance PIN card: Emerald (#10B981) themed
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFA7F3D0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '🔑 Entrance PIN: $_entrancePin',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF065F46),
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: _entrancePin));
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Entrance PIN ($_entrancePin) copied to clipboard!'),
+                            backgroundColor: const Color(0xFF065F46),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.copy_rounded, size: 14, color: Color(0xFF059669)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Copy',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Share this PIN with your technician before allowing entry.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF047857),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Completion OTP card/info: Blue (#2563EB) themed
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '🔒 Completion OTP: $_completionOtp',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E40AF),
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: _completionOtp));
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Completion OTP ($_completionOtp) copied to clipboard!'),
+                            backgroundColor: const Color(0xFF1E40AF),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.copy_rounded, size: 14, color: Color(0xFF2563EB)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Copy',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF2563EB),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Share this OTP only after the service is fully completed.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF1D4ED8),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Footnote / helper notice
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.shield_rounded, size: 15, color: Color(0xFF10B981)),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Safety Handshake protects you from unauthorized visits and unfinished work.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Color(0xFF64748B),
+                      height: 1.3,
+                    ),
+                  ),
                 ),
               ],
             ),

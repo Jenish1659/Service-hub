@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:service_hub_customer/features/services/presentation/ac_finding_technician_screen.dart';
 import 'package:service_hub_customer/features/services/presentation/ac_booking_confirmed_screen.dart';
 import 'package:service_hub_customer/features/services/presentation/ac_technician_details_screen.dart';
+import 'package:service_hub_customer/core/services/live_booking_sync_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -217,6 +218,51 @@ void main() {
       // Verify transitioned to Finding a Technician Screen!
       expect(find.text('Finding a Technician'), findsOneWidget);
       expect(find.text('Searching nearby technicians'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 200));
+    });
+
+    testWidgets('5. Fallback timer is strictly cancelled when real partner assignment arrives via LiveBookingSyncService', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2200);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: ACFindingTechnicianScreen(
+            bookingId: 'bk_real_cancel_timer_99',
+            serviceTitle: 'AC Jet Clean',
+            address: '77, Lake View Road',
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Emit real partner assignment via LiveBookingSyncService
+      await LiveBookingSyncService.instance.submitBooking({
+        'id': 'bk_real_cancel_timer_99',
+        'booking_id': 'bk_real_cancel_timer_99',
+        'status': 'ASSIGNED',
+        'partner_id': 'partner_real_test_99',
+        'partner_name': 'Vikram Rathore',
+        'partner_phone': '+91 98989 77665',
+      });
+
+      // Pump to process stream update and assignment
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Advance time well beyond fallback timers (which run at 700ms intervals)
+      await tester.pump(const Duration(seconds: 3));
+
+      // Confirm assignment is reached ('Technician Found!') and fallback timer was strictly cancelled
+      expect(find.text('Technician Found!'), findsOneWidget);
+      expect(find.text('View Technicians Details'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 200));

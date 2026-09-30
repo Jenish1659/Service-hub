@@ -223,11 +223,11 @@ void main() {
       expect(find.text('#SH1023 Water Filter'), findsOneWidget);
       expect(find.text('#SH1021 Washing Machine Belt'), findsOneWidget);
 
-      // Bottom Nav Items
+      // Bottom Nav Items (5 items with Elevated Emerald Map at Center)
       expect(find.text('Home'), findsOneWidget);
       expect(find.text('Orders'), findsOneWidget);
+      expect(find.text('Map'), findsOneWidget);
       expect(find.text('Products'), findsOneWidget);
-      expect(find.text('Earnings'), findsOneWidget);
       expect(find.text('Profile'), findsOneWidget);
     });
 

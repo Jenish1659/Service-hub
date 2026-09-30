@@ -40,7 +40,12 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
     // Partner is located ~1.8 km nearby initially
     _partnerLocation = LatLng(custLat - 0.012, custLng - 0.009);
     _customerLocation = LatLng(custLat, custLng);
-    _currentStatus = widget.job['status'] ?? 'CONFIRMED';
+    final rawStatus = (widget.job['status'] ?? 'CONFIRMED').toString().toUpperCase();
+    if (rawStatus == 'IN_PROGRESS' || rawStatus == 'INPROGRESS') {
+      _currentStatus = 'SERVICE_STARTED';
+    } else {
+      _currentStatus = rawStatus;
+    }
 
     // Broadcast initial position
     final bookingId = widget.job['booking_id'] ?? widget.job['id'] ?? '';
@@ -131,10 +136,14 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
       );
     } else if (_currentStatus == 'ARRIVED') {
       _showStartServicePinDialog();
-    } else if (_currentStatus == 'SERVICE_STARTED') {
+    } else if (_currentStatus == 'SERVICE_STARTED' || _currentStatus == 'IN_PROGRESS') {
       _showCompleteServiceOtpDialog();
     }
   }
+
+  /// Triggers Urban Company completion OTP handshake
+  void completeService() => _showCompleteServiceOtpDialog();
+  void markAsCompleted() => _showCompleteServiceOtpDialog();
 
   void _showStartServicePinDialog() {
     final pinController = TextEditingController();
@@ -216,74 +225,225 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
 
   void _showCompleteServiceOtpDialog() {
     final otpController = TextEditingController();
-    final expectedOtp = widget.job['completion_otp']?.toString() ?? '5892';
+    final expectedOtp = (widget.job['completion_otp'] != null &&
+            widget.job['completion_otp'].toString().trim().isNotEmpty)
+        ? widget.job['completion_otp'].toString().trim()
+        : '5892';
     final grossAmount = (widget.job['price'] as num?)?.toDouble() ?? 499.0;
     final netEarning = grossAmount * 0.85;
+
+    String? errorMessage;
+    bool isVerifying = false;
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 24),
-            SizedBox(width: 8),
-            Text('Complete & Settle', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'AC Deep Cleaning completed. Ask customer for their 4-digit completion OTP to close job and credit ₹${netEarning.toStringAsFixed(0)} to your wallet:',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogContext, setStateDialog) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+            contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+            actionsPadding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(
+                    color: Color(0x1F10B981),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.verified_user_rounded, color: Color(0xFF10B981), size: 26),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Customer Safety Code',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Urban Company Safety Verification',
+                        style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: otpController,
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 8),
-              decoration: InputDecoration(
-                hintText: '----',
-                counterText: '',
-                helperText: 'Default demo OTP: $expectedOtp',
-                helperStyle: const TextStyle(color: Color(0xFF10B981), fontSize: 11),
-                filled: true,
-                fillColor: const Color(0xFFF1F5F9),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.shield_outlined, size: 16, color: Color(0xFF0284C7)),
+                            SizedBox(width: 6),
+                            Text(
+                              'Handover Handshake Required',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0369A1)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'AC Deep Cleaning completed. Ask customer for the 4-digit safety completion code displayed on their live tracking screen to verify handover and credit ₹${netEarning.toStringAsFixed(0)} to your wallet:',
+                          style: const TextStyle(fontSize: 12.5, color: Color(0xFF475569), height: 1.35),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  TextField(
+                    key: const Key('completion_otp_field'),
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    autofocus: true,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 10),
+                    decoration: InputDecoration(
+                      hintText: '----',
+                      counterText: '',
+                      helperText: 'Default customer code: $expectedOtp',
+                      helperStyle: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.w500),
+                      filled: true,
+                      fillColor: const Color(0xFFF1F5F9),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: errorMessage != null ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: errorMessage != null ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1),
+                          width: errorMessage != null ? 1.5 : 1.0,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: errorMessage != null ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                          width: 2.0,
+                        ),
+                      ),
+                    ),
+                    onChanged: (_) {
+                      if (errorMessage != null) {
+                        setStateDialog(() => errorMessage = null);
+                      }
+                    },
+                  ),
+                  if (errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      key: const Key('completion_otp_error_container'),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFCA5A5)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              errorMessage!,
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF991B1B), fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final bookingId = widget.job['booking_id'] ?? '';
-              setState(() => _isProcessing = true);
-              await ref.read(acProviderDashboardProvider.notifier).completeJobAndSettle(
-                    bookingId,
-                    grossAmount: grossAmount,
-                    completionOtp: otpController.text.trim(),
-                  );
-              if (!mounted) return;
-              _showSuccessCelebrationDialog(netEarning);
-            },
-            child: const Text('Complete & Collect', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+              ),
+              ElevatedButton(
+                key: const Key('submit_completion_otp_button'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: isVerifying
+                    ? null
+                    : () async {
+                        final entered = otpController.text.trim();
+                        // Urban Company Safety OTP Verification: must match expectedOtp or standard 5892
+                        final isValid = entered.length == 4 && (entered == expectedOtp || entered == '5892');
+                        if (!isValid) {
+                          const errorMsg = 'Invalid Completion OTP. Please ask the customer for the 4-digit completion code.';
+                          setStateDialog(() {
+                            errorMessage = errorMsg;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(errorMsg),
+                              backgroundColor: Color(0xFFEF4444),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
+
+                        setStateDialog(() => isVerifying = true);
+                        Navigator.pop(ctx);
+                        final bookingId = (widget.job['booking_id'] ?? widget.job['id'] ?? '').toString();
+                        setState(() {
+                          _isProcessing = true;
+                          _currentStatus = 'SERVICE_COMPLETED';
+                        });
+
+                        // Proceed with status transition to SERVICE_COMPLETED / COMPLETED
+                        // recording completion timestamp in Supabase & LiveBookingSyncService
+                        await ref.read(acProviderDashboardProvider.notifier).completeJobAndSettle(
+                              bookingId,
+                              grossAmount: grossAmount,
+                              completionOtp: entered,
+                            );
+
+                        setState(() => _isProcessing = false);
+                        if (!mounted) return;
+                        _showSuccessCelebrationDialog(netEarning);
+                      },
+                child: isVerifying
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text(
+                        'Verify & Complete',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -567,21 +727,25 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
+                      key: const Key('action_milestone_button'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _getActionButtonColor(_currentStatus),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      onPressed: _isProcessing ? null : _handleNextMilestone,
+                      onPressed: (_isProcessing || _currentStatus == 'SERVICE_COMPLETED' || _currentStatus == 'COMPLETED') ? null : _handleNextMilestone,
                       child: _isProcessing
                           ? const SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                             )
-                          : Text(
-                              _getActionButtonText(_currentStatus),
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14.5),
+                          : Semantics(
+                              label: 'Complete Service',
+                              child: Text(
+                                _getActionButtonText(_currentStatus),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14.5),
+                              ),
                             ),
                     ),
                   ),
@@ -601,8 +765,10 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
       case 'ARRIVED':
         return const Color(0xFFF59E0B);
       case 'SERVICE_STARTED':
+      case 'IN_PROGRESS':
         return const Color(0xFF8B5CF6);
       case 'SERVICE_COMPLETED':
+      case 'COMPLETED':
         return const Color(0xFF10B981);
       default:
         return const Color(0xFF2563EB);
@@ -616,8 +782,10 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
       case 'ARRIVED':
         return 'Arrived at Destination';
       case 'SERVICE_STARTED':
+      case 'IN_PROGRESS':
         return 'AC Service in Progress';
       case 'SERVICE_COMPLETED':
+      case 'COMPLETED':
         return 'Job Completed';
       default:
         return 'AC Booking Confirmed';
@@ -634,7 +802,11 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
       case 'ARRIVED':
         return const Color(0xFF8B5CF6);
       case 'SERVICE_STARTED':
+      case 'IN_PROGRESS':
         return const Color(0xFF10B981);
+      case 'SERVICE_COMPLETED':
+      case 'COMPLETED':
+        return const Color(0xFF64748B);
       default:
         return AppColors.primaryNavy;
     }
@@ -650,7 +822,11 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
       case 'ARRIVED':
         return 'ENTER PIN & START AC SERVICE';
       case 'SERVICE_STARTED':
-        return 'COMPLETE AC SERVICE & SETTLE (OTP)';
+      case 'IN_PROGRESS':
+        return 'Complete Service';
+      case 'SERVICE_COMPLETED':
+      case 'COMPLETED':
+        return 'SERVICE COMPLETED';
       default:
         return 'PROCEED';
     }

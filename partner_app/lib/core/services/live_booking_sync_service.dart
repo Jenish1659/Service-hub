@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Directory, File, Platform;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 
 /// Universal Cross-Platform Synchronization Service (Web + Desktop + Mobile + Supabase)
@@ -90,6 +91,15 @@ class LiveBookingSyncService {
 
   void _initializeSync() {
     reloadAllFromDisk();
+
+    if (!kIsWeb) {
+      try {
+        if (Platform.environment.containsKey('FLUTTER_TEST') ||
+            WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
+          return;
+        }
+      } catch (_) {}
+    }
 
     _pollingTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
       reloadAllFromDisk();

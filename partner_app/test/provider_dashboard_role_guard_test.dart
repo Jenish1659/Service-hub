@@ -15,8 +15,6 @@ class DummyACProviderDashboardNotifier extends ACProviderDashboardNotifier {
   DummyACProviderDashboardNotifier() : super();
   @override
   Future<void> initDashboard() async {}
-  @override
-  void dispose() {}
 }
 
 void main() {

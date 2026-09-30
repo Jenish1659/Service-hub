@@ -19,6 +19,8 @@ import '../../features/dashboard/presentation/delivery_dashboard_screen.dart';
 import '../../features/dashboard/presentation/shopkeeper_dashboard_screen.dart';
 import '../../features/dashboard/presentation/ac_active_job_navigation_screen.dart';
 import '../../features/dashboard/presentation/delivery_live_map_screen.dart';
+import '../../features/dashboard/presentation/shopkeeper_store_map_screen.dart';
+import '../../features/dashboard/presentation/provider_live_radar_map_screen.dart';
 import '../../features/registration/presentation/screens/delivery_partner_registration_flow_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/my_profile_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/edit_profile_screen.dart';
@@ -214,6 +216,12 @@ final appRouter = GoRouter(
       builder: (context, state) => const ProviderDashboardScreen(),
     ),
 
+    // Provider Live Radar Map Route
+    GoRoute(
+      path: '/dashboard/provider/map',
+      builder: (context, state) => const ProviderLiveRadarMapScreen(),
+    ),
+
     // Delivery Agent Main Dashboard Route
     GoRoute(
       path: '/dashboard/delivery',
@@ -233,6 +241,12 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/dashboard/shopkeeper',
       builder: (context, state) => const ShopkeeperDashboardScreen(),
+    ),
+
+    // Shopkeeper Store Live Map Route
+    GoRoute(
+      path: '/dashboard/shopkeeper/map',
+      builder: (context, state) => const ShopkeeperStoreMapScreen(),
     ),
 
     // Dedicated Shopkeeper Profile Routes (Strictly for Shopkeeper Only)

@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/routing_service.dart';
 import '../../../core/storage/local_registration_cache.dart';
 
 class ACProviderDashboardState {
@@ -267,6 +269,9 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
               final lat = (address?['latitude'] as num?)?.toDouble() ?? 22.4707;
               final lng = (address?['longitude'] as num?)?.toDouble() ?? 70.0577;
 
+              final distKm = OsrmRoutingService.computeHaversineDistanceKm(22.4707, 70.0650, lat, lng) * 1.35;
+              final etaMin = (distKm / 25.0 * 60.0).round().clamp(5, 45);
+
               offersList.add({
                 'request_id': req['request_id'],
                 'booking_id': bId,
@@ -277,6 +282,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
                 'customer_address': address != null ? '${address['area'] ?? ""}, ${address['city'] ?? ""}'.trim() : '',
                 'customer_lat': lat,
                 'customer_lng': lng,
+                'distance_km': distKm,
+                'eta_minutes': etaMin,
                 'scheduled_time': booking['scheduled_time'] ?? '',
                 'problem_description': booking['problem_description'] ?? 'Service Request',
                 'entrance_pin': booking['entrance_pin'] ?? '',
@@ -310,6 +317,9 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
               final lat = (address?['latitude'] as num?)?.toDouble() ?? 22.4707;
               final lng = (address?['longitude'] as num?)?.toDouble() ?? 70.0577;
 
+              final distKm = OsrmRoutingService.computeHaversineDistanceKm(22.4707, 70.0650, lat, lng) * 1.35;
+              final etaMin = (distKm / 25.0 * 60.0).round().clamp(5, 45);
+
               offersList.add({
                 'request_id': null,
                 'booking_id': bId,
@@ -320,6 +330,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
                 'customer_address': address != null ? '${address['area'] ?? ""}, ${address['city'] ?? ""}'.trim() : '',
                 'customer_lat': lat,
                 'customer_lng': lng,
+                'distance_km': distKm,
+                'eta_minutes': etaMin,
                 'scheduled_time': b['scheduled_time'] ?? '',
                 'problem_description': b['problem_description'] ?? 'Service Request',
                 'entrance_pin': b['entrance_pin'] ?? '',
@@ -346,6 +358,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
               seenBookingIds.add(bId);
               final lat = (b['customer_lat'] as num?)?.toDouble() ?? 22.4707;
               final lng = (b['customer_lng'] as num?)?.toDouble() ?? 70.0577;
+              final distKm = OsrmRoutingService.computeHaversineDistanceKm(22.4707, 70.0650, lat, lng) * 1.35;
+              final etaMin = (distKm / 25.0 * 60.0).round().clamp(5, 45);
 
               offersList.add({
                 'request_id': null,
@@ -357,6 +371,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
                 'customer_address': b['customer_address'] ?? '',
                 'customer_lat': lat,
                 'customer_lng': lng,
+                'distance_km': distKm,
+                'eta_minutes': etaMin,
                 'scheduled_time': '${b['scheduled_date'] ?? ""} ${b['scheduled_time'] ?? ""}'.trim(),
                 'problem_description': b['issue_description'] ?? 'Service Request',
                 'entrance_pin': b['entrance_pin'] ?? '',
@@ -376,6 +392,10 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
             seenBookingIds.add(bId);
             final lat = (b['customer_lat'] as num?)?.toDouble() ?? 22.4707;
             final lng = (b['customer_lng'] as num?)?.toDouble() ?? 70.0577;
+            final distKm = (b['distance_km'] as num?)?.toDouble() ??
+                (OsrmRoutingService.computeHaversineDistanceKm(22.4707, 70.0650, lat, lng) * 1.35);
+            final etaMin = (b['eta_minutes'] as num?)?.toInt() ??
+                ((distKm / 25.0 * 60.0).round().clamp(5, 45));
 
             offersList.add({
               'request_id': null,
@@ -387,6 +407,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
               'customer_address': b['customer_address'] ?? '',
               'customer_lat': lat,
               'customer_lng': lng,
+              'distance_km': distKm,
+              'eta_minutes': etaMin,
               'scheduled_time': '${b['scheduled_date'] ?? ""} ${b['scheduled_time'] ?? ""}'.trim(),
               'problem_description': b['problem_description'] ?? 'AC Service Request',
               'entrance_pin': b['entrance_pin'] ?? '',
@@ -577,6 +599,29 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
     final requestId = offer['request_id'];
     final bookingId = offer['booking_id'];
 
+    // 1. Verify and claim atomically via PostgreSQL transaction if request_id is present
+    if (requestId != null && state.providerId.isNotEmpty) {
+      try {
+        final res = await Supabase.instance.client.rpc('atomic_accept_booking_request', params: {
+          'p_request_id': requestId,
+          'p_provider_id': state.providerId,
+        });
+
+        if (res is Map && res['success'] == false) {
+          // Contested job was claimed by another partner or expired
+          state = state.copyWith(
+            incomingOffers: state.incomingOffers.where((o) => o['booking_id'] != bookingId).toList(),
+          );
+          return {
+            'success': false,
+            'message': res['message']?.toString() ?? 'This job was already accepted by another technician.',
+          };
+        }
+      } catch (e) {
+        debugPrint('[ACProviderDashboardController] atomic_accept RPC note: $e');
+      }
+    }
+
     final activeJobData = {
       ...offer,
       'status': 'CONFIRMED',
@@ -589,7 +634,7 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       activeBookings: [...state.activeBookings, activeJobData],
     );
 
-    // 1. Update Local IPC Relay
+    // 2. Update Local IPC Relay
     if (bookingId != null) {
       await LiveBookingSyncService.instance.acceptBooking(bookingId, {
         'partner_id': state.partnerId,
@@ -598,29 +643,37 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       });
     }
 
-    // 2. Update Supabase
+    // 3. Update Supabase service_bookings & bookings tables
     try {
-      if (requestId != null && state.providerId.isNotEmpty) {
-        await Supabase.instance.client.rpc('atomic_accept_booking_request', params: {
-          'p_request_id': requestId,
-          'p_provider_id': state.providerId,
-        });
+      if (bookingId != null) {
+        try {
+          await Supabase.instance.client
+              .from('service_bookings')
+              .update({
+                'status': 'ACCEPTED',
+                'partner_id': state.partnerId,
+                'technician_name': state.providerName,
+                'technician_phone': Supabase.instance.client.auth.currentUser?.phone ?? '',
+                'updated_at': DateTime.now().toIso8601String(),
+              })
+              .eq('booking_id', bookingId);
+        } catch (_) {}
+        try {
+          await Supabase.instance.client
+              .from('bookings')
+              .update({
+                'status': 'ACCEPTED',
+                'partner_id': state.partnerId,
+                'partner_name': state.providerName,
+                'partner_phone': Supabase.instance.client.auth.currentUser?.phone ?? '',
+                'updated_at': DateTime.now().toIso8601String(),
+              })
+              .eq('id', bookingId);
+        } catch (_) {}
       }
-      try {
-        await Supabase.instance.client
-            .from('service_bookings')
-            .update({'status': 'ACCEPTED'})
-            .eq('booking_id', bookingId);
-      } catch (_) {}
-      try {
-        await Supabase.instance.client
-            .from('bookings')
-            .update({'status': 'ACCEPTED'})
-            .eq('id', bookingId);
-      } catch (_) {}
     } catch (_) {}
 
-    return activeJobData;
+    return {'success': true, 'activeJob': activeJobData};
   }
 
   Future<void> declineOffer(Map<String, dynamic> offer) async {
@@ -686,10 +739,13 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
     final platformFee = grossAmount * 0.15;
     final netAmount = grossAmount - platformFee;
 
+    final now = DateTime.now();
+    final nowIso = now.toIso8601String();
+
     final completedJobRecord = {
       'booking_id': bookingId,
       'customer_name': state.activeJob?['customer_name'] ?? 'Customer',
-      'completed_at': DateFormat('hh:mm a').format(DateTime.now()),
+      'completed_at': DateFormat('hh:mm a').format(now),
       'price': grossAmount,
       'payment_status': 'Paid',
     };
@@ -710,14 +766,14 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
     try {
       final supabase = Supabase.instance.client;
 
-      // 2. Update Booking Status in Supabase
+      // 2. Update Booking Status in Supabase service_bookings & bookings
       try {
         await supabase
             .from('service_bookings')
             .update({
               'status': 'SERVICE_COMPLETED',
               'final_amount': grossAmount,
-              'completed_at': DateTime.now().toIso8601String(),
+              'completed_at': nowIso,
             })
             .eq('booking_id', bookingId);
       } catch (_) {}
@@ -729,8 +785,29 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
               'status': 'COMPLETED',
               'final_amount': grossAmount,
               'price': grossAmount,
+              'completed_at': nowIso,
             })
             .eq('id', bookingId);
+      } catch (_) {}
+
+      try {
+        await supabase
+            .from('booking_assignment')
+            .update({
+              'status': 'COMPLETED',
+            })
+            .eq('booking_id', bookingId);
+      } catch (_) {}
+
+      try {
+        await supabase
+            .from('booking_status_history')
+            .insert({
+              'booking_id': bookingId,
+              'status': 'SERVICE_COMPLETED',
+              'notes': 'Job completed and validated via Customer Safety Completion OTP',
+              'created_at': nowIso,
+            });
       } catch (_) {}
 
       // 3. Insert into partner_earnings

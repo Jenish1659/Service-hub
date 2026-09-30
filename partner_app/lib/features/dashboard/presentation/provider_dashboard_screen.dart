@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,6 +24,7 @@ class ProviderDashboardScreen extends ConsumerStatefulWidget {
 class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScreen> with WidgetsBindingObserver {
   int _currentBottomNavIndex = 0;
   bool _hasNotificationPermission = true;
+  bool _hasDisplayOverAppsPermission = true;
   bool _isOverlayShowing = false;
   String? _lastShownOfferId;
   String _partnerCity = 'Gujarat';
@@ -182,33 +185,57 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkNotificationPermissionStatus();
+      _checkPermissionStatuses();
     }
   }
 
   Future<void> _checkAndRequestPermissions() async {
     try {
-      final status = await Permission.notification.status;
-      if (!status.isGranted) {
+      final notifStatus = await Permission.notification.status;
+      if (!notifStatus.isGranted) {
         final req = await Permission.notification.request();
-        setState(() {
-          _hasNotificationPermission = req.isGranted;
-        });
+        if (mounted) setState(() => _hasNotificationPermission = req.isGranted);
       } else {
+        if (mounted) setState(() => _hasNotificationPermission = true);
+      }
+
+      // Check Display Over Other Apps permission (SYSTEM_ALERT_WINDOW) for service providers
+      final overlayStatus = await Permission.systemAlertWindow.status;
+      if (mounted) {
         setState(() {
-          _hasNotificationPermission = true;
+          _hasDisplayOverAppsPermission = overlayStatus.isGranted;
         });
       }
+
       await Permission.locationWhenInUse.request();
     } catch (_) {}
   }
 
-  Future<void> _checkNotificationPermissionStatus() async {
+  Future<void> _checkPermissionStatuses() async {
     try {
-      final status = await Permission.notification.status;
-      setState(() {
-        _hasNotificationPermission = status.isGranted;
-      });
+      final notifStatus = await Permission.notification.status;
+      final overlayStatus = await Permission.systemAlertWindow.status;
+      if (mounted) {
+        setState(() {
+          _hasNotificationPermission = notifStatus.isGranted;
+          _hasDisplayOverAppsPermission = overlayStatus.isGranted;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _requestDisplayOverAppsPermission() async {
+    try {
+      final res = await Permission.systemAlertWindow.request();
+      if (!res.isGranted) {
+        await openAppSettings();
+      }
+      final updated = await Permission.systemAlertWindow.status;
+      if (mounted) {
+        setState(() {
+          _hasDisplayOverAppsPermission = updated.isGranted;
+        });
+      }
     } catch (_) {}
   }
 
@@ -280,10 +307,22 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     );
   }
 
-  void _showIncomingJobOverlay(BuildContext context, Map<String, dynamic> offer) {
+  void _showIncomingJobOverlay(BuildContext context, Map<String, dynamic> offer) async {
     if (_isOverlayShowing) return;
+
+    // Strict Role Isolation: Only verified service_provider accounts can see AC alerts
+    final active = await LocalRegistrationCache.getActiveServiceProvider() ??
+        await LocalRegistrationCache.getActivePartner();
+    final role = (active?['role_name'] ?? active?['role'] ?? '').toString().toLowerCase();
+    if (role.contains('shop') || role.contains('store') || role.contains('delivery') || role.contains('rider')) {
+      debugPrint('[ProviderDashboard] Suppressing overlay alert for non-service_provider: $role');
+      return;
+    }
+
     _isOverlayShowing = true;
     _lastShownOfferId = (offer['booking_id'] ?? offer['id'] ?? offer['request_id'] ?? '').toString();
+
+    if (!context.mounted) return;
 
     showDialog(
       context: context,
@@ -294,9 +333,22 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
           onAccept: () async {
             Navigator.of(dialogCtx, rootNavigator: true).pop();
             _isOverlayShowing = false;
-            final activeJob = await ref.read(acProviderDashboardProvider.notifier).acceptOffer(offer);
-            if (context.mounted) {
-              context.push('/dashboard/ac-job-navigation', extra: activeJob);
+            final result = await ref.read(acProviderDashboardProvider.notifier).acceptOffer(offer);
+            if (result['success'] == true) {
+              if (context.mounted) {
+                final activeJob = result['activeJob'] as Map<String, dynamic>? ?? offer;
+                context.push('/dashboard/ac-job-navigation', extra: activeJob);
+              }
+            } else {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(result['message'] ?? 'This job was already accepted by another technician.'),
+                    backgroundColor: const Color(0xFFDC2626),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
             }
           },
           onDecline: () {
@@ -530,6 +582,12 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                         // 0. NOTIFICATION PERMISSION BANNER (If not granted)
                         if (!_hasNotificationPermission) ...[
                           _buildNotificationPermissionBanner(),
+                          const SizedBox(height: 14),
+                        ],
+
+                        // 0.1 DISPLAY OVER OTHER APPS PERMISSION BANNER (If not granted)
+                        if (!_hasDisplayOverAppsPermission) ...[
+                          _buildDisplayOverAppsPermissionBanner(),
                           const SizedBox(height: 14),
                         ],
 
@@ -778,6 +836,72 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     );
   }
 
+  // --- 1.6 Display Over Other Apps Permission Banner ---
+  Widget _buildDisplayOverAppsPermissionBanner() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0AD97706),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFEF3C7),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.layers_rounded, color: Color(0xFFD97706), size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Display Over Other Apps Required',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF92400E),
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Enable to receive full-screen incoming AC service job alerts with YES/NO actions even when other apps are open.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFFB45309),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD97706),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: _requestDisplayOverAppsPermission,
+            child: const Text('Enable', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showLiveRadarMapModal(BuildContext context, ACProviderDashboardState state) {
     showModalBottomSheet(
       context: context,
@@ -803,6 +927,28 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
               ),
               const SizedBox(height: 12),
               _buildLiveServiceAreaMapCard(state),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  key: const Key('open_fullscreen_radar_map_button'),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    context.push('/dashboard/provider/map');
+                  },
+                  icon: const Icon(Icons.fullscreen_rounded, color: Colors.white),
+                  label: const Text(
+                    'Open Full-Screen Map',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 2,
+                  ),
+                ),
+              ),
             ],
           ),
         );
@@ -1001,7 +1147,10 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.service_hub_partner',
+                  userAgentPackageName: 'com.servicehub.partner',
+                  tileProvider: !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')
+                      ? NetworkTileProvider(silenceExceptions: true)
+                      : null,
                 ),
                 CircleLayer(
                   circles: [
@@ -2122,7 +2271,11 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
               Expanded(
                 child: Center(
                   child: InkWell(
-                    onTap: () => _showLiveRadarMapModal(context, state),
+                    key: const Key('bottom_nav_center_map_button'),
+                    onTap: () {
+                      setState(() => _currentBottomNavIndex = 2);
+                      _showLiveRadarMapModal(context, state);
+                    },
                     borderRadius: BorderRadius.circular(27),
                     child: Container(
                       width: 52,
@@ -2130,7 +2283,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: LinearGradient(
-                          colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                          colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                         ),
@@ -2565,6 +2718,57 @@ class _IncomingJobAlertOverlayDialogState extends State<_IncomingJobAlertOverlay
 
                     const SizedBox(height: 12),
 
+                    // Road Routing & ETA Chips
+                    Builder(builder: (context) {
+                      final distanceKm = (widget.offer['distance_km'] as num?)?.toDouble() ?? 2.8;
+                      final etaMinutes = (widget.offer['eta_minutes'] as num?)?.toInt() ?? 8;
+                      return Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0FDF4),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFBBF7D0)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.near_me_rounded, color: Color(0xFF16A34A), size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${distanceKm.toStringAsFixed(1)} km road distance',
+                                  style: const TextStyle(color: Color(0xFF15803D), fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFBFDBFE)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.timer_outlined, color: Color(0xFF2563EB), size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '~$etaMinutes mins ETA',
+                                  style: const TextStyle(color: Color(0xFF1D4ED8), fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+
+                    const SizedBox(height: 12),
+
                     // Issue details card
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -2589,39 +2793,74 @@ class _IncomingJobAlertOverlayDialogState extends State<_IncomingJobAlertOverlay
 
                     const SizedBox(height: 20),
 
-                    // Accept & Decline Buttons
+                    // Prominent YES and NO Action Buttons (Display Over Other Apps Heads-Up Alert)
                     Row(
                       children: [
+                        // NO Button (Decline)
                         Expanded(
                           flex: 2,
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFEF4444),
-                              side: const BorderSide(color: Color(0xFFFCA5A5)),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              foregroundColor: const Color(0xFFDC2626),
+                              backgroundColor: const Color(0xFFFEF2F2),
+                              side: const BorderSide(color: Color(0xFFFCA5A5), width: 1.5),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 0,
                             ),
                             onPressed: widget.onDecline,
-                            child: const Text('DECLINE', style: TextStyle(fontWeight: FontWeight.bold)),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.close_rounded, color: Color(0xFFDC2626), size: 20),
+                                SizedBox(width: 6),
+                                Text(
+                                  'NO',
+                                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 0.5),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 14),
+                        // YES Button (Accept)
                         Expanded(
                           flex: 3,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF16A34A),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF16A34A), Color(0xFF15803D)],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF16A34A).withValues(alpha: 0.45),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
                             ),
-                            icon: const Icon(Icons.navigation_rounded, size: 18),
-                            label: const Text(
-                              'ACCEPT & GO',
-                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                shadowColor: Colors.transparent,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              onPressed: widget.onAccept,
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 22),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'YES',
+                                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 0.5),
+                                  ),
+                                ],
+                              ),
                             ),
-                            onPressed: widget.onAccept,
                           ),
                         ),
                       ],

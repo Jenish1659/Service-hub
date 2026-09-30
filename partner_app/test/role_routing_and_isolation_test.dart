@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:service_hub_partner/core/services/live_booking_sync_service.dart';
 import 'package:service_hub_partner/core/storage/local_registration_cache.dart';
 import 'package:service_hub_partner/features/dashboard/presentation/shopkeeper_dashboard_screen.dart';
-import 'package:service_hub_partner/features/dashboard/presentation/delivery_dashboard_screen.dart';
 import 'package:service_hub_partner/features/registration/presentation/screens/provider_application_status_screen.dart';
 
 void main() {
@@ -228,8 +227,6 @@ void main() {
       // Must redirect to delivery dashboard because role is delivery_agent
       expect(redirectedRoute, equals('/dashboard/delivery'));
       expect(find.text('REDIRECTED_TO_DELIVERY'), findsOneWidget);
-
-
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 100));
