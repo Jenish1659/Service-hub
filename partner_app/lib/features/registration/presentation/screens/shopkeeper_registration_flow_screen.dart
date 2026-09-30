@@ -708,6 +708,8 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
     }
 
     String? createdUserId;
+    String? createdPartnerId;
+    String? createdVerId;
     try {
       final regResult = await SupabaseAuthService.registerShopkeeper(
         username: username.isNotEmpty ? username : 'shop_${DateTime.now().millisecondsSinceEpoch % 100000}',
@@ -732,6 +734,8 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
         await LocalRegistrationCache.updateActiveShopkeeper(regResult.userData!);
         if (regResult.userData!['user_id'] != null) {
           createdUserId = regResult.userData!['user_id'].toString();
+          createdPartnerId = regResult.userData!['partner_id']?.toString();
+          createdVerId = regResult.userData!['verification_id']?.toString();
           _submittedRegistrationId = 'SH-SHOP-2026-${createdUserId.replaceAll('-', '').substring(0, 6).toUpperCase()}';
         }
       }
@@ -741,9 +745,9 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
     }
 
     final userId = createdUserId ?? '00000000-0000-0000-0001-${DateTime.now().millisecondsSinceEpoch.toString().padLeft(12, '0').substring(0, 12)}';
-    String partnerId = '00000000-0000-0000-0002-${DateTime.now().millisecondsSinceEpoch.toString().padLeft(12, '0').substring(0, 12)}';
+    String partnerId = createdPartnerId ?? '00000000-0000-0000-0002-${DateTime.now().millisecondsSinceEpoch.toString().padLeft(12, '0').substring(0, 12)}';
     final shopId = '00000000-0000-0000-0003-${DateTime.now().millisecondsSinceEpoch.toString().padLeft(12, '0').substring(0, 12)}';
-    final verId = 'ver_shop_$userId';
+    final verId = createdVerId ?? 'ver_shop_$userId';
 
     // Retrieve active partner ID if resolved
     try {

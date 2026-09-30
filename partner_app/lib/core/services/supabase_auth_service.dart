@@ -404,6 +404,7 @@ class SupabaseAuthService {
             await client.from('partners').update({
               'verification_status': 'PENDING',
               'availability_status': 'OFFLINE',
+              'approved_at': null,
             }).eq('partner_id', matchedPartnerId);
           }
         } else {
@@ -468,13 +469,15 @@ class SupabaseAuthService {
       ];
       final kycRemarks = remarksParts.join(' | ');
 
+      String? createdVerId;
       try {
-        await client.from('verification_requests').insert({
+        final vrInsert = await client.from('verification_requests').insert({
           'user_id': userId,
           'verification_type': 'AADHAAR',
           'status': 'PENDING',
           'remarks': kycRemarks,
-        });
+        }).select().single();
+        createdVerId = vrInsert['verification_id']?.toString();
       } catch (vrErr) {
         if (kDebugMode) {
           debugPrint('[SupabaseAuthService] verification_requests insert note: $vrErr');
@@ -503,7 +506,10 @@ class SupabaseAuthService {
         } catch (_) {}
       }
 
+      final verId = createdVerId ?? 'ver_provider_$userId';
       final sessionData = {
+        'id': verId,
+        'verification_id': verId,
         'user_id': userId,
         'username': cleanUsername,
         'email': cleanEmail,
@@ -515,6 +521,7 @@ class SupabaseAuthService {
         'partner_id': partnerId ?? '',
         'provider_id': providerId ?? '',
         'verification_status': 'PENDING',
+        'status': 'PENDING',
         'is_online': false,
       };
 
@@ -522,7 +529,6 @@ class SupabaseAuthService {
 
       // Broadcast to LiveBookingSyncService for instant Admin App queue recognition
       try {
-        final verId = 'ver_provider_$userId';
         await LiveBookingSyncService.instance.submitPartnerVerification({
           'id': verId,
           'verification_id': verId,
@@ -750,6 +756,7 @@ class SupabaseAuthService {
             await client.from('partners').update({
               'verification_status': 'PENDING',
               'availability_status': 'OFFLINE',
+              'approved_at': null,
             }).eq('partner_id', matchedPartnerId);
           }
         } else {
@@ -790,13 +797,15 @@ class SupabaseAuthService {
       ];
       final kycRemarks = remarksParts.join(' | ');
 
+      String? createdVerId;
       try {
-        await client.from('verification_requests').insert({
+        final vrInsert = await client.from('verification_requests').insert({
           'user_id': userId,
           'verification_type': 'SHOP_LICENSE',
           'status': 'PENDING',
           'remarks': kycRemarks,
-        });
+        }).select().single();
+        createdVerId = vrInsert['verification_id']?.toString();
       } catch (vrErr) {
         if (kDebugMode) {
           debugPrint('[SupabaseAuthService] Shopkeeper verification_requests insert note: $vrErr');
@@ -804,7 +813,7 @@ class SupabaseAuthService {
       }
 
       // 8. Broadcast to LiveBookingSyncService (disk cache + HTTP port 8088 bridge)
-      final verId = 'ver_shop_$userId';
+      final verId = createdVerId ?? 'ver_shop_$userId';
       try {
         await LiveBookingSyncService.instance.submitPartnerVerification({
           'id': verId,
@@ -836,18 +845,22 @@ class SupabaseAuthService {
 
       // 9. Save active session & local credentials
       final sessionData = {
+        'id': verId,
+        'verification_id': verId,
         'user_id': userId,
         'username': cleanUsername,
         'email': cleanEmail,
         'phone': cleanPhone,
         'password': password,
         'role_name': 'shopkeeper',
+        'role': 'shopkeeper',
         'name': '$firstName $lastName'.trim(),
         'business_name': cleanShopName,
         'business_address': cleanAddress,
         'category': category,
         'partner_id': partnerId ?? userId,
         'verification_status': 'PENDING',
+        'status': 'PENDING',
         'is_online': false,
       };
 
@@ -1083,6 +1096,7 @@ class SupabaseAuthService {
             await client.from('partners').update({
               'verification_status': 'PENDING',
               'availability_status': 'OFFLINE',
+              'approved_at': null,
             }).eq('partner_id', matchedPartnerId);
           }
         } else {
@@ -1132,13 +1146,15 @@ class SupabaseAuthService {
       ];
       final kycRemarks = remarksParts.join(' | ');
 
+      String? createdVerId;
       try {
-        await client.from('verification_requests').insert({
+        final vrInsert = await client.from('verification_requests').insert({
           'user_id': userId,
           'verification_type': 'DRIVING_LICENSE',
           'status': 'PENDING',
           'remarks': kycRemarks,
-        });
+        }).select().single();
+        createdVerId = vrInsert['verification_id']?.toString();
       } catch (vrErr) {
         if (kDebugMode) {
           debugPrint('[SupabaseAuthService] Delivery agent verification_requests insert note: $vrErr');
@@ -1146,7 +1162,7 @@ class SupabaseAuthService {
       }
 
       // 9. Broadcast to LiveBookingSyncService
-      final verId = 'ver_delivery_$userId';
+      final verId = createdVerId ?? 'ver_delivery_$userId';
       final sessionData = {
         'id': verId,
         'verification_id': verId,

@@ -590,6 +590,7 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
 
     String? createdUserId;
     String? createdPartnerId;
+    String? createdVerId;
     try {
       final regResult = await SupabaseAuthService.registerDeliveryAgent(
         username: username.isNotEmpty ? username : 'rider_${phone.replaceAll(RegExp(r'\D'), '')}',
@@ -617,6 +618,7 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
       if (regResult.userData != null) {
         createdUserId = regResult.userData!['user_id']?.toString();
         createdPartnerId = regResult.userData!['partner_id']?.toString();
+        createdVerId = regResult.userData!['verification_id']?.toString();
         await LocalRegistrationCache.updateActiveDeliveryAgent(regResult.userData!);
       }
       debugPrint('✓ Real delivery partner registration executed via SupabaseAuthService successfully!');
@@ -627,7 +629,7 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
     final String userId = createdUserId ?? '00000000-0000-0000-0000-${DateTime.now().millisecondsSinceEpoch.toString().padLeft(12, '0').substring(0, 12)}';
     final String partnerId = createdPartnerId ?? '00000000-0000-0000-0001-${DateTime.now().millisecondsSinceEpoch.toString().padLeft(12, '0').substring(0, 12)}';
     final String agentId = '00000000-0000-0000-0002-${DateTime.now().millisecondsSinceEpoch.toString().padLeft(12, '0').substring(0, 12)}';
-    final String verId = 'ver_del_$userId';
+    final String verId = createdVerId ?? 'ver_del_$userId';
 
     // 3. Broadcast to LiveBookingSyncService and update local session
     try {

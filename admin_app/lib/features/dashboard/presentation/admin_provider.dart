@@ -133,23 +133,26 @@ void markPartnerResolved(String id) {
     if (k == cleanId) return true;
     final vId = (v['id'] ?? '').toString();
     final vVerId = (v['verification_id'] ?? '').toString();
-    final vUserId = (v['user_id'] ?? '').toString();
-    final vPartId = (v['partner_id'] ?? '').toString();
-    final vPhone10 = _clean10DigitPhone(v['phone']);
-
-    if (vId == cleanId || vVerId == cleanId || vUserId == cleanId || vPartId == cleanId) {
-      return true;
-    }
-    if (digits.length >= 10 && vPhone10 == digits.substring(digits.length - 10)) {
-      return true;
-    }
-    return false;
+    return vId == cleanId || vVerId == cleanId;
   });
 }
 
 bool _isPartnerResolved(Map<String, dynamic> candidate) {
+  final status = (candidate['status'] ?? candidate['verification_status'] ?? '').toString().toUpperCase();
+  final isPending = status == 'PENDING' || status == 'IN_REVIEW' || status == 'UNDER_REVIEW' || status == 'SUBMITTED';
+
   final id = (candidate['id'] ?? '').toString().trim();
   final verId = (candidate['verification_id'] ?? '').toString().trim();
+
+  // If this candidate has an active pending status, it is an active request that must be reviewed.
+  // It is ONLY resolved if this specific verification request was explicitly approved or rejected in this session.
+  if (isPending) {
+    if (id.isNotEmpty && _resolvedPartnerIds.contains(id)) return true;
+    if (verId.isNotEmpty && _resolvedPartnerIds.contains(verId)) return true;
+    return false;
+  }
+
+  // For non-pending candidates (already resolved in DB)
   final uId = (candidate['user_id'] ?? '').toString().trim();
   final pId = (candidate['partner_id'] ?? '').toString().trim();
   final phone10 = _clean10DigitPhone(candidate['phone']);
@@ -163,14 +166,15 @@ bool _isPartnerResolved(Map<String, dynamic> candidate) {
 }
 
 String _canonicalPartnerKey(Map<String, dynamic> candidate) {
+  final verId = (candidate['verification_id'] ?? candidate['id'] ?? '').toString().trim();
+  if (verId.isNotEmpty) return 'ver:$verId';
   final uId = (candidate['user_id'] ?? '').toString().trim();
-  if (uId.isNotEmpty) return 'user:$uId';
+  final role = (candidate['role_name'] ?? candidate['role'] ?? '').toString().toLowerCase();
+  if (uId.isNotEmpty) return 'user:${uId}_role:$role';
   final pId = (candidate['partner_id'] ?? '').toString().trim();
   if (pId.isNotEmpty) return 'partner:$pId';
   final phone10 = _clean10DigitPhone(candidate['phone']);
-  if (phone10.isNotEmpty) return 'phone:$phone10';
-  final id = (candidate['verification_id'] ?? candidate['id'] ?? '').toString().trim();
-  if (id.isNotEmpty) return 'id:$id';
+  if (phone10.isNotEmpty) return 'phone:${phone10}_role:$role';
   return 'unknown:${DateTime.now().microsecondsSinceEpoch}';
 }
 
@@ -182,17 +186,24 @@ Map<String, dynamic>? _findExistingCandidate(
   final pId = (candidate['partner_id'] ?? '').toString().trim();
   final verId = (candidate['verification_id'] ?? candidate['id'] ?? '').toString().trim();
   final phone10 = _clean10DigitPhone(candidate['phone']);
+  final cRole = (candidate['role_name'] ?? candidate['role'] ?? '').toString().toLowerCase();
 
   for (final existing in store.values) {
     final eUid = (existing['user_id'] ?? '').toString().trim();
     final ePid = (existing['partner_id'] ?? '').toString().trim();
     final eVerId = (existing['verification_id'] ?? existing['id'] ?? '').toString().trim();
     final ePhone10 = _clean10DigitPhone(existing['phone']);
+    final eRole = (existing['role_name'] ?? existing['role'] ?? '').toString().toLowerCase();
 
+    // If roles are explicitly different (e.g. shopkeeper vs service_provider application), do not merge them
+    if (cRole.isNotEmpty && eRole.isNotEmpty && cRole != eRole) {
+      continue;
+    }
+
+    if (verId.isNotEmpty && eVerId.isNotEmpty && verId == eVerId) return existing;
     if (uId.isNotEmpty && eUid.isNotEmpty && uId == eUid) return existing;
     if (pId.isNotEmpty && ePid.isNotEmpty && pId == ePid) return existing;
     if (phone10.isNotEmpty && ePhone10.isNotEmpty && phone10 == ePhone10) return existing;
-    if (verId.isNotEmpty && eVerId.isNotEmpty && verId == eVerId) return existing;
   }
   return null;
 }
@@ -329,9 +340,8 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           .limit(100);
       for (var r in resolvedRows) {
         final rId = r['verification_id']?.toString() ?? '';
-        final rUid = r['user_id']?.toString() ?? '';
         if (rId.isNotEmpty) markPartnerResolved(rId);
-        if (rUid.isNotEmpty) markPartnerResolved(rUid);
+        // Note: Do NOT mark user_id resolved here, as a user may have a new active pending verification request!
       }
     } catch (_) {}
 
@@ -344,9 +354,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           .limit(100);
       for (var p in resolvedPartners) {
         final pId = p['partner_id']?.toString() ?? '';
-        final pUid = p['user_id']?.toString() ?? '';
         if (pId.isNotEmpty) markPartnerResolved(pId);
-        if (pUid.isNotEmpty) markPartnerResolved(pUid);
       }
     } catch (_) {}
 
@@ -459,22 +467,23 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
         final pId = partnerData?['partner_id']?.toString() ?? '';
 
         String parsedRole;
-        if (dbRoleName == 'delivery_agent') {
+        final vTypeUpper = (item['verification_type'] ?? '').toString().toUpperCase();
+        final docTypeUpper = (item['document_type'] ?? '').toString().toUpperCase();
+
+        if (vTypeUpper == 'SHOP_LICENSE' || docTypeUpper == 'SHOPKEEPER_ONBOARDING' || roleFromRemarks == 'shopkeeper') {
+          parsedRole = 'shopkeeper';
+        } else if (vTypeUpper == 'DRIVING_LICENSE' || docTypeUpper == 'DELIVERY_ONBOARDING' || roleFromRemarks == 'delivery_agent' || roleFromRemarks == 'delivery_partner') {
+          parsedRole = 'delivery_agent';
+        } else if (docTypeUpper == 'PROVIDER_ONBOARDING' || roleFromRemarks == 'service_provider') {
+          parsedRole = 'service_provider';
+        } else if (dbRoleName == 'delivery_agent') {
           parsedRole = 'delivery_agent';
         } else if (dbRoleName == 'shopkeeper') {
           parsedRole = 'shopkeeper';
         } else if (dbRoleName == 'service_provider') {
           parsedRole = 'service_provider';
-        } else if (roleFromRemarks == 'delivery_agent' || roleFromRemarks == 'delivery_partner' || roleFromRemarks.contains('rider')) {
+        } else if (vTypeFromRemarks.isNotEmpty && vNoFromRemarks.isNotEmpty) {
           parsedRole = 'delivery_agent';
-        } else if (roleFromRemarks == 'shopkeeper' || roleFromRemarks.contains('shop') || roleFromRemarks.contains('store')) {
-          parsedRole = 'shopkeeper';
-        } else if (roleFromRemarks == 'service_provider' || roleFromRemarks.contains('technician') || roleFromRemarks.contains('expert')) {
-          parsedRole = 'service_provider';
-        } else if (item['verification_type']?.toString().toUpperCase() == 'DRIVING_LICENSE' || item['document_type'] == 'DELIVERY_ONBOARDING' || (vTypeFromRemarks.isNotEmpty && vNoFromRemarks.isNotEmpty)) {
-          parsedRole = 'delivery_agent';
-        } else if (item['verification_type']?.toString().toUpperCase() == 'SHOP_LICENSE' || item['document_type'] == 'SHOPKEEPER_ONBOARDING') {
-          parsedRole = 'shopkeeper';
         } else if (catFromRemarks.toLowerCase().contains('parts') || catFromRemarks.toLowerCase().contains('store') || catFromRemarks.toLowerCase().contains('shop') || catFromRemarks.toLowerCase().contains('grocery') || catFromRemarks.toLowerCase().contains('hardware')) {
           parsedRole = 'shopkeeper';
         } else if (shopProfile != null && deliveryProfile == null) {

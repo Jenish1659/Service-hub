@@ -139,7 +139,7 @@ class _ProviderReviewApplicationScreenState
 
     try {
       final expInt = int.tryParse(experience.replaceAll(RegExp(r'\D'), '')) ?? 3;
-      await SupabaseAuthService.registerServiceProvider(
+      final regResult = await SupabaseAuthService.registerServiceProvider(
         username: username.isNotEmpty ? username : 'provider_${DateTime.now().millisecondsSinceEpoch % 10000}',
         firstName: firstName,
         lastName: lastName,
@@ -160,6 +160,15 @@ class _ProviderReviewApplicationScreenState
         businessAddress: businessAddress,
         experienceYears: expInt,
       );
+
+      if (regResult.userData != null) {
+        partnerRecord['user_id'] = regResult.userData!['user_id'] ?? partnerRecord['user_id'];
+        partnerRecord['partner_id'] = regResult.userData!['partner_id'] ?? partnerRecord['partner_id'];
+        partnerRecord['verification_id'] = regResult.userData!['verification_id'] ?? partnerRecord['verification_id'];
+        partnerRecord['id'] = regResult.userData!['verification_id'] ?? partnerRecord['id'];
+        await LocalRegistrationCache.saveRegisteredPartner(partnerRecord);
+        await LiveBookingSyncService.instance.submitPartnerVerification(partnerRecord);
+      }
     } catch (err) {
       debugPrint('[ProviderReview] Supabase registration note: $err');
     }
