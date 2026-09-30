@@ -22,8 +22,8 @@ class OtpService {
 
   final FirebaseOtpService _firebaseOtpService = FirebaseOtpService.instance;
 
-  Future<OtpResult> sendOtp(String mobileNumber) async {
-    final response = await _firebaseOtpService.sendOtp(mobileNumber);
+  Future<OtpResult> sendOtp(String mobileNumber, {int digits = 6}) async {
+    final response = await _firebaseOtpService.sendOtp(mobileNumber, digits: digits);
     if (kDebugMode) {
       debugPrint('[OtpService] sendOtp result: ${response.success} - ${response.message}');
     }

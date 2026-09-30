@@ -83,5 +83,41 @@ void main() {
       final correctRes = await otpService.verifyOtp('9123456780', realOtp);
       expect(correctRes, isTrue);
     });
+
+    test('Supports dynamic 4-digit OTP generation and verification', () async {
+      final res = await FirebaseOtpService.instance.sendOtp('9876543210', digits: 4);
+      expect(res.success, isTrue);
+
+      final realOtp = FirebaseOtpService.instance.testActiveOtp;
+      expect(realOtp, isNotNull);
+      expect(realOtp!.length, 4);
+      expect(int.tryParse(realOtp), isNotNull);
+
+      // Verify wrong 4-digit fails
+      final wrongRes = await FirebaseOtpService.instance.verifyOtp('9876543210', '0000');
+      expect(wrongRes.success, isFalse);
+      expect(wrongRes.message, contains('Invalid OTP'));
+
+      // Verify correct 4-digit succeeds
+      final correctRes = await FirebaseOtpService.instance.verifyOtp('9876543210', realOtp);
+      expect(correctRes.success, isTrue);
+    });
+
+    test('Guarantees non-repetition per user across consecutive generations', () async {
+      const userPhone = '9988776655';
+      final generatedCodes = <String>{};
+
+      for (int i = 0; i < 40; i++) {
+        // Reset attempts count to simulate multiple requests over time
+        FirebaseOtpService.instance.resetForTesting();
+        await FirebaseOtpService.instance.sendOtp(userPhone, digits: 6);
+        final code = FirebaseOtpService.instance.testActiveOtp!;
+
+        expect(generatedCodes.contains(code), isFalse,
+            reason: 'Code $code was generated more than once within the history window for $userPhone');
+        generatedCodes.add(code);
+      }
+      expect(generatedCodes.length, 40);
+    });
   });
 }

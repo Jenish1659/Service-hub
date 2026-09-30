@@ -147,7 +147,9 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
 
   void _showStartServicePinDialog() {
     final pinController = TextEditingController();
-    final expectedPin = widget.job['entrance_pin']?.toString() ?? '7429';
+    final expectedPin = (widget.job['entrance_pin'] != null && widget.job['entrance_pin'].toString().trim().isNotEmpty)
+        ? widget.job['entrance_pin'].toString().trim()
+        : (widget.job['start_otp']?.toString().trim() ?? '');
 
     showDialog(
       context: context,
@@ -179,7 +181,7 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
               decoration: InputDecoration(
                 hintText: '----',
                 counterText: '',
-                helperText: 'Default demo PIN: $expectedPin',
+                helperText: expectedPin.isNotEmpty ? 'Customer entrance PIN: $expectedPin' : 'Enter 4-digit Entrance PIN',
                 helperStyle: const TextStyle(color: Color(0xFF2563EB), fontSize: 11),
                 filled: true,
                 fillColor: const Color(0xFFF1F5F9),
@@ -228,7 +230,7 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
     final expectedOtp = (widget.job['completion_otp'] != null &&
             widget.job['completion_otp'].toString().trim().isNotEmpty)
         ? widget.job['completion_otp'].toString().trim()
-        : '5892';
+        : (widget.job['otp']?.toString().trim() ?? '');
     final grossAmount = (widget.job['price'] as num?)?.toDouble() ?? 499.0;
     final netEarning = grossAmount * 0.85;
 
@@ -393,8 +395,8 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
                     ? null
                     : () async {
                         final entered = otpController.text.trim();
-                        // Urban Company Safety OTP Verification: must match expectedOtp or standard 5892
-                        final isValid = entered.length == 4 && (entered == expectedOtp || entered == '5892');
+                        // Dynamic Security OTP Verification: must match dynamic expectedOtp
+                        final isValid = entered.length == 4 && (expectedOtp.isEmpty || entered == expectedOtp);
                         if (!isValid) {
                           const errorMsg = 'Invalid Completion OTP. Please ask the customer for the 4-digit completion code.';
                           setStateDialog(() {

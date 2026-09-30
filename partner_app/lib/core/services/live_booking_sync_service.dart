@@ -4,6 +4,7 @@ import 'dart:io' show Directory, File, Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
+import 'secure_otp_engine.dart';
 
 /// Universal Cross-Platform Synchronization Service (Web + Desktop + Mobile + Supabase)
 class LiveBookingSyncService {
@@ -338,8 +339,8 @@ class LiveBookingSyncService {
       'address': customerAddress ?? address ?? 'Patel Colony, Jamnagar',
       'customer_lat': customerLat ?? 22.4707,
       'customer_lng': customerLng ?? 70.0577,
-      'entrance_pin': entrancePin ?? '1234',
-      'completion_otp': completionOtp ?? '5678',
+      'entrance_pin': entrancePin ?? SecureOtpEngine.instance.generateOtp(userIdOrPhone: customerPhone ?? bId, digits: 4),
+      'completion_otp': completionOtp ?? SecureOtpEngine.instance.generateOtp(userIdOrPhone: customerPhone ?? bId, digits: 4),
       'created_at': DateTime.now().toIso8601String(),
     };
     if (extraData != null) {
@@ -389,8 +390,8 @@ class LiveBookingSyncService {
       'customer_address': addr,
       'customer_lat': (bookingData['customer_lat'] as num?)?.toDouble() ?? 22.4707,
       'customer_lng': (bookingData['customer_lng'] as num?)?.toDouble() ?? 70.0577,
-      'entrance_pin': bookingData['entrance_pin'] ?? '1234',
-      'completion_otp': bookingData['completion_otp'] ?? '5678',
+      'entrance_pin': bookingData['entrance_pin'] ?? SecureOtpEngine.instance.generateOtp(userIdOrPhone: bId, digits: 4),
+      'completion_otp': bookingData['completion_otp'] ?? SecureOtpEngine.instance.generateOtp(userIdOrPhone: bId, digits: 4),
       'payment_method': bookingData['payment_method'] ?? 'Cash on Service',
       'tracking_id': bookingData['tracking_id'] ?? 'TRK-AC-${DateTime.now().millisecondsSinceEpoch}',
       'created_at': bookingData['created_at'] ?? DateTime.now().toIso8601String(),

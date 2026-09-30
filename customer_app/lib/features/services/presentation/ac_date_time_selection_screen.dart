@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/secure_otp_engine.dart';
 import '../../location/providers/location_provider.dart';
 import '../services/ac_availability_service.dart';
 import 'ac_date_time_ai_chatbot_sheet.dart';
@@ -202,8 +203,8 @@ class _ACDateTimeSelectionScreenState extends ConsumerState<ACDateTimeSelectionS
       customerAddress: serviceAddress,
       customerLat: serviceLat,
       customerLng: serviceLng,
-      entrancePin: '7429',
-      completionOtp: '5892',
+      entrancePin: SecureOtpEngine.instance.generateOtp(userIdOrPhone: userPhone, digits: 4),
+      completionOtp: SecureOtpEngine.instance.generateOtp(userIdOrPhone: userPhone, digits: 4),
     );
 
     setState(() {

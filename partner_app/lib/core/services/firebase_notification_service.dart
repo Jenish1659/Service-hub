@@ -136,6 +136,9 @@ class FirebaseNotificationService {
     String? payload,
   }) async {
     try {
+      if (!_isInitialized) {
+        await initialize();
+      }
       final androidDetails = AndroidNotificationDetails(
         _securityChannel.id,
         _securityChannel.name,

@@ -19,9 +19,14 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    await FirebaseNotificationService.instance.initialize();
   } catch (e) {
     debugPrint('[Firebase] Initialization notice: $e');
+  }
+
+  try {
+    await FirebaseNotificationService.instance.initialize();
+  } catch (e) {
+    debugPrint('[FirebaseNotificationService] Initialization notice: $e');
   }
 
   // Set Mobile-First Portrait Orientation & Status Bar Styling
