@@ -10,7 +10,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Local Hive Cache
-  await Hive.initFlutter();y
+  await Hive.initFlutter();
   await Hive.openBox('customer_cache');
 
   // Initialize Supabase Client

@@ -521,10 +521,23 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                     ),
                                     onPressed: () async {
-                                      final activeJob = await ref.read(acProviderDashboardProvider.notifier).acceptOffer(offer);
+                                      final result = await ref.read(acProviderDashboardProvider.notifier).acceptOffer(offer);
                                       if (ctx.mounted) Navigator.pop(ctx);
-                                      if (context.mounted) {
-                                        context.push('/dashboard/ac-job-navigation', extra: activeJob);
+                                      if (result['success'] == true) {
+                                        if (context.mounted) {
+                                          final activeJob = result['activeJob'] as Map<String, dynamic>? ?? offer;
+                                          context.push('/dashboard/ac-job-navigation', extra: activeJob);
+                                        }
+                                      } else {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(result['message'] ?? 'This job was already accepted by another technician.'),
+                                              backgroundColor: const Color(0xFFDC2626),
+                                              behavior: SnackBarBehavior.floating,
+                                            ),
+                                          );
+                                        }
                                       }
                                     },
                                     child: const Text('ACCEPT & NAVIGATE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

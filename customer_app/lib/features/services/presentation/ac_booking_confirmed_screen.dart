@@ -17,6 +17,7 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
   final String? couponCode;
   final double walletDeduction;
   final double finalPayable;
+  final bool isFutureDate;
 
   const ACBookingConfirmedScreen({
     super.key,
@@ -32,6 +33,7 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
     this.couponCode,
     this.walletDeduction = 0.0,
     this.finalPayable = 498.0,
+    this.isFutureDate = false,
   });
 
   String _getFormattedTrackingId(String rawId) {
@@ -74,7 +76,7 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
                           color: const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF3B49DF), size: 20),
+                        child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF2563EB), size: 20),
                       ),
                       const SizedBox(width: 10),
                       const Text(
@@ -124,7 +126,7 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF3B49DF),
+                      color: Color(0xFF2563EB),
                     ),
                   ),
                 ],
@@ -172,7 +174,7 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bookingId = bookingData['id']?.toString() ?? '';
+    final bookingId = (bookingData['id'] ?? bookingData['booking_id'] ?? '').toString();
     final trackingId = _getFormattedTrackingId(bookingId);
 
     return Scaffold(
@@ -180,7 +182,15 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        centerTitle: true,
+        title: const Text(
+          'Booking Scheduled',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF0F172A),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.home_outlined, color: Color(0xFF0F172A), size: 24),
@@ -193,22 +203,22 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
-              // Confetti Checkmark Badge
+              // Calendar & Success Checkmark Badge with Confetti
               Stack(
                 alignment: Alignment.center,
                 children: [
                   ...List.generate(8, (index) {
                     final colors = [
                       const Color(0xFFF59E0B),
-                      const Color(0xFF3B49DF),
+                      const Color(0xFF2563EB),
                       const Color(0xFF10B981),
-                      const Color(0xFFEC4899),
+                      const Color(0xFF6366F1),
                     ];
                     final x = 45.0 * (index % 2 == 0 ? 1 : -1) * (1 + (index % 3) * 0.2);
                     final y = 45.0 * (index < 4 ? -1 : 1) * (1 + (index % 2) * 0.2);
@@ -225,21 +235,25 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
                     );
                   }),
                   Container(
-                    width: 76,
-                    height: 76,
+                    width: 78,
+                    height: 78,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF22C55E).withValues(alpha: 0.35),
-                          blurRadius: 16,
+                          color: const Color(0xFF2563EB).withValues(alpha: 0.35),
+                          blurRadius: 18,
                           offset: const Offset(0, 6),
                         ),
                       ],
                     ),
                     child: const Center(
-                      child: Icon(Icons.check_rounded, color: Colors.white, size: 44),
+                      child: Icon(Icons.event_available_rounded, color: Colors.white, size: 42),
                     ),
                   ),
                 ],
@@ -247,7 +261,7 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
 
               const SizedBox(height: 20),
 
-              // Title & Subtitle
+              // Title & Subtitle (Matches both 'Booking Confirmed!' and 'Booking Scheduled!')
               const Text(
                 'Booking Confirmed!',
                 style: TextStyle(
@@ -255,6 +269,15 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF0F172A),
                   letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Booking Scheduled!',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2563EB),
                 ),
               ),
               const SizedBox(height: 6),
@@ -284,7 +307,7 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF3B49DF),
+                        color: const Color(0xFF2563EB),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 20),
@@ -337,14 +360,14 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.copy_rounded, color: Color(0xFF3B49DF), size: 20),
+                      icon: const Icon(Icons.copy_rounded, color: Color(0xFF2563EB), size: 20),
                       tooltip: 'Copy Tracking ID',
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: trackingId));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('✓ Tracking ID copied to clipboard!'),
-                            backgroundColor: Color(0xFF3B49DF),
+                            backgroundColor: Color(0xFF2563EB),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
@@ -399,10 +422,9 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
 
-              // Arrival Time Notice Banner (20-25 min)
+              // Estimated Technician Arrival Banner
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
@@ -412,7 +434,7 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.directions_car_rounded, color: Color(0xFF3B49DF), size: 22),
+                    Icon(Icons.directions_car_rounded, color: Color(0xFF2563EB), size: 22),
                     SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -440,64 +462,75 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
 
               const SizedBox(height: 16),
 
-              // View Raw Bill Button
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF3B49DF),
-                    elevation: 0,
-                    side: const BorderSide(color: Color(0xFFBFDBFE), width: 1.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon: const Icon(Icons.receipt_long_rounded, color: Color(0xFF3B49DF), size: 18),
-                  label: const Text(
-                    'View Raw Bill',
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF3B49DF),
-                    ),
-                  ),
-                  onPressed: () => _showRawBillModal(context),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Verified Technician Guarantee Banner
+              // Info Notice Box (Matching Image 2 Screen 1 Core Requirement)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF0FDF4),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFDCFCE7)),
                 ),
                 child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 20),
+                    Icon(Icons.info_outline_rounded, color: Color(0xFF16A34A), size: 22),
                     SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'An expert technician has been assigned and will attend your service.',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF15803D),
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Matching starts on service date morning',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF14532D),
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'A certified technician will be assigned 2 hours before your scheduled slot. You will receive an SMS and push notification once assigned.',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF15803D), height: 1.35),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              // Primary: Find Technician Now Button
+              // View Itemized Raw Bill Button
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF2563EB),
+                    elevation: 0,
+                    side: const BorderSide(color: Color(0xFFBFDBFE), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(Icons.receipt_long_rounded, color: Color(0xFF2563EB), size: 18),
+                  label: const Text(
+                    'View Raw Bill',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2563EB),
+                    ),
+                  ),
+                  onPressed: () => _showRawBillModal(context),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Find Technician Now Button
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -540,7 +573,7 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
 
               const SizedBox(height: 12),
 
-              // Secondary: View My Bookings
+              // View My Bookings / View Booking
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -553,11 +586,10 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
                     ),
                   ),
                   onPressed: () {
-                    Navigator.popUntil(context, (route) => route.isFirst);
                     if (bookingId.isNotEmpty) {
                       context.push('/track-booking/$bookingId');
                     } else {
-                      context.push('/bookings');
+                      context.push('/orders');
                     }
                   },
                   child: const Text(
@@ -565,6 +597,41 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Secondary: Add to Calendar
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('✓ Service reminder added to your device calendar!'),
+                        backgroundColor: Color(0xFF10B981),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.event_note_rounded, color: Color(0xFF2563EB), size: 18),
+                  label: const Text(
+                    'Add to Calendar',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
                 ),
@@ -586,7 +653,7 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: const Color(0xFF3B49DF), size: 20),
+        Icon(icon, color: const Color(0xFF2563EB), size: 20),
         const SizedBox(width: 12),
         SizedBox(
           width: 70,
@@ -613,5 +680,3 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
     );
   }
 }
-
-

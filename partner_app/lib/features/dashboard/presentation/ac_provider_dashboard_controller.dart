@@ -598,13 +598,14 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
   Future<Map<String, dynamic>> acceptOffer(Map<String, dynamic> offer) async {
     final requestId = offer['request_id'];
     final bookingId = offer['booking_id'];
+    final effectiveProviderId = state.providerId.isNotEmpty ? state.providerId : state.partnerId;
 
     // 1. Verify and claim atomically via PostgreSQL transaction if request_id is present
-    if (requestId != null && state.providerId.isNotEmpty) {
+    if (requestId != null && effectiveProviderId.isNotEmpty) {
       try {
         final res = await Supabase.instance.client.rpc('atomic_accept_booking_request', params: {
           'p_request_id': requestId,
-          'p_provider_id': state.providerId,
+          'p_provider_id': effectiveProviderId,
         });
 
         if (res is Map && res['success'] == false) {
@@ -620,6 +621,47 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       } catch (e) {
         debugPrint('[ACProviderDashboardController] atomic_accept RPC note: $e');
       }
+    } else if (bookingId != null) {
+      // 1b. Direct database check if another partner already claimed this booking
+      try {
+        final currentBooking = await Supabase.instance.client
+            .from('service_bookings')
+            .select('status, partner_id')
+            .eq('booking_id', bookingId)
+            .maybeSingle();
+
+        if (currentBooking != null) {
+          final bPartner = currentBooking['partner_id']?.toString() ?? '';
+          if (bPartner.isNotEmpty && bPartner != state.partnerId && bPartner != state.providerId) {
+            state = state.copyWith(
+              incomingOffers: state.incomingOffers.where((o) => o['booking_id'] != bookingId).toList(),
+            );
+            return {
+              'success': false,
+              'message': 'This job has already been accepted by another technician.',
+            };
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 2. Update Local IPC Relay with concurrency protection
+    if (bookingId != null) {
+      final acceptedLocally = await LiveBookingSyncService.instance.acceptBooking(bookingId, {
+        'partner_id': state.partnerId,
+        'partner_name': state.providerName.isNotEmpty ? state.providerName : 'Service Partner',
+        'partner_phone': Supabase.instance.client.auth.currentUser?.phone ?? '',
+      });
+
+      if (!acceptedLocally && requestId == null) {
+        state = state.copyWith(
+          incomingOffers: state.incomingOffers.where((o) => o['booking_id'] != bookingId).toList(),
+        );
+        return {
+          'success': false,
+          'message': 'This job has already been accepted by another technician.',
+        };
+      }
     }
 
     final activeJobData = {
@@ -633,15 +675,6 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       activeJob: activeJobData,
       activeBookings: [...state.activeBookings, activeJobData],
     );
-
-    // 2. Update Local IPC Relay
-    if (bookingId != null) {
-      await LiveBookingSyncService.instance.acceptBooking(bookingId, {
-        'partner_id': state.partnerId,
-        'partner_name': state.providerName.isNotEmpty ? state.providerName : 'Service Partner',
-        'partner_phone': Supabase.instance.client.auth.currentUser?.phone ?? '',
-      });
-    }
 
     // 3. Update Supabase service_bookings & bookings tables
     try {

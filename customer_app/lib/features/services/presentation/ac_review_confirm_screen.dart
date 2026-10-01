@@ -9,6 +9,7 @@ import '../../location/providers/location_provider.dart';
 import '../services/ac_availability_service.dart';
 import '../services/ac_booking_service.dart';
 import 'ac_booking_confirmed_screen.dart';
+import 'ac_finding_technician_screen.dart';
 
 class ACReviewConfirmScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> issueDetails;
@@ -194,6 +195,13 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
 
     final scheduledAtFormatted = '${widget.issueDetails['booking_date_formatted'] ?? widget.selectedDate.formattedIso} ${widget.selectedTime}'.trim();
 
+    // Check if selected booking date is TODAY (Path A) or FUTURE DATE (Path B)
+    final now = DateTime.now();
+    final isToday = widget.selectedDate.date.year == now.year &&
+        widget.selectedDate.date.month == now.month &&
+        widget.selectedDate.date.day == now.day;
+    final initialStatus = isToday ? 'SEARCHING_PROVIDER' : 'SCHEDULED';
+
     // 3. Store into permanent database ONLY upon confirmation!
     final createdBooking = await LiveBookingSyncService.instance.createACBooking(
       customerId: userId,
@@ -215,8 +223,36 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
         'scheduled_at': scheduledAtFormatted,
         'final_amount': finalPrice,
         'address': address,
+        'status': initialStatus,
+        'service_status': initialStatus,
+        'is_today': isToday,
       },
     );
+
+    // Write to Supabase service_bookings table
+    try {
+      final supabase = Supabase.instance.client;
+      await supabase.from('service_bookings').insert({
+        'booking_id': createdBooking['id'],
+        'customer_id': userId,
+        'service_id': 'ac_service',
+        'status': initialStatus,
+        'service_status': initialStatus,
+        'booking_date': widget.selectedDate.formattedIso,
+        'scheduled_time': widget.selectedTime,
+        'problem_description': acBrand.isNotEmpty ? '$acType ($acBrand) - $problemDesc' : problemDesc,
+        'estimated_amount': finalPrice,
+        'final_amount': finalPrice,
+        'customer_latitude': lat,
+        'customer_longitude': lng,
+        'entrance_pin': pin,
+        'completion_otp': otp,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      debugPrint('Successfully written AC booking to Supabase service_bookings table.');
+    } catch (e) {
+      debugPrint('Supabase service_bookings insert note: $e');
+    }
 
     // Write to Supabase bookings table
     try {
@@ -226,7 +262,7 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
         'booking_id': createdBooking['id'],
         'service_id': 'ac_service',
         'service_name': createdBooking['service_name'],
-        'status': 'PENDING',
+        'status': initialStatus,
         'customer_name': createdBooking['customer_name'],
         'customer_phone': createdBooking['customer_phone'],
         'customer_address': address,
@@ -247,6 +283,18 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
       debugPrint('Supabase bookings insert note (offline/simulated): $e');
     }
 
+    // For Same-Day booking (Path A), trigger real partner matching immediately!
+    if (isToday) {
+      try {
+        final supabase = Supabase.instance.client;
+        await supabase.rpc('dispatch_eligible_service_providers', params: {
+          'p_booking_id': createdBooking['id'],
+        });
+      } catch (e) {
+        debugPrint('Dispatch eligible providers RPC note: $e');
+      }
+    }
+
     // Broadcast to LiveBookingSyncService.instance.submitBooking(...)
     await LiveBookingSyncService.instance.submitBooking({
       ...createdBooking,
@@ -254,6 +302,9 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
       'scheduled_at': scheduledAtFormatted,
       'final_amount': finalPrice,
       'address': address,
+      'status': initialStatus,
+      'service_status': initialStatus,
+      'is_today': isToday,
     });
 
     // 4. Clear unconfirmed draft from local cache
@@ -266,31 +317,50 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('✓ Booking confirmed successfully!'),
+      SnackBar(
+        content: Text(isToday
+            ? '✓ Booking confirmed! Finding the best partner for your service today...'
+            : '✓ Booking scheduled for ${widget.issueDetails['booking_date_formatted'] ?? widget.selectedDate.formattedIso}!'),
         backgroundColor: AppTheme.successColor,
         behavior: SnackBarBehavior.floating,
       ),
     );
 
-    // Navigate to Screen 6: Booking Confirmed!
-    Navigator.of(context, rootNavigator: true).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => ACBookingConfirmedScreen(
-          bookingData: createdBooking,
-          selectedDateFormatted: widget.issueDetails['booking_date_formatted'] ?? widget.selectedDate.formattedIso,
-          selectedTime: widget.selectedTime,
-          serviceTitle: 'AC Service ($acType)',
-          address: address,
-          visitingCharge: visitingCharge,
-          protectionFee: protectionFee,
-          couponDiscount: _couponDiscount,
-          couponCode: _appliedCoupon,
-          walletDeduction: walletDeduction,
-          finalPayable: finalPrice,
+    // SEPARATE PATHS:
+    if (isToday) {
+      // PATH A: SAME-DAY BOOKING -> Screen 1: "Finding the Best Partner" (Image 1)
+      Navigator.of(context, rootNavigator: true).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => ACFindingTechnicianScreen(
+            bookingId: createdBooking['id'],
+            bookingData: createdBooking,
+            serviceTitle: 'AC Service ($acType)',
+            address: address,
+            selectedDateFormatted: widget.issueDetails['booking_date_formatted'] ?? widget.selectedDate.formattedIso,
+            selectedTime: widget.selectedTime,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      // PATH B: FUTURE-DATE PRE-BOOKING -> Screen 1: "Booking Scheduled (Future Date)" (Image 2)
+      Navigator.of(context, rootNavigator: true).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => ACBookingConfirmedScreen(
+            bookingData: createdBooking,
+            selectedDateFormatted: widget.issueDetails['booking_date_formatted'] ?? widget.selectedDate.formattedIso,
+            selectedTime: widget.selectedTime,
+            serviceTitle: 'AC Service ($acType)',
+            address: address,
+            visitingCharge: visitingCharge,
+            protectionFee: protectionFee,
+            couponDiscount: _couponDiscount,
+            couponCode: _appliedCoupon,
+            walletDeduction: walletDeduction,
+            finalPayable: finalPrice,
+          ),
+        ),
+      );
+    }
   }
 
   @override

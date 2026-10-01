@@ -542,7 +542,7 @@ class _ProviderLiveRadarMapScreenState extends ConsumerState<ProviderLiveRadarMa
                                     setSheetState(() => _isAcceptingJob = true);
                                     setState(() => _isAcceptingJob = true);
 
-                                    final acceptedRecord =
+                                    final result =
                                         await ref.read(acProviderDashboardProvider.notifier).acceptOffer(offer);
 
                                     setSheetState(() => _isAcceptingJob = false);
@@ -551,16 +551,25 @@ class _ProviderLiveRadarMapScreenState extends ConsumerState<ProviderLiveRadarMa
                                     if (sheetCtx.mounted) Navigator.pop(sheetCtx);
 
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Job accepted! Routing to $customerName...'),
-                                          backgroundColor: const Color(0xFF10B981),
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-
-                                      // Push to AC Job Navigation Screen
-                                      context.push('/dashboard/ac-job-navigation', extra: acceptedRecord);
+                                      if (result['success'] == true) {
+                                        final activeJob = result['activeJob'] as Map<String, dynamic>? ?? offer;
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Job accepted! Routing to $customerName...'),
+                                            backgroundColor: const Color(0xFF10B981),
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                        context.push('/dashboard/ac-job-navigation', extra: activeJob);
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(result['message'] ?? 'This job was already accepted by another technician.'),
+                                            backgroundColor: const Color(0xFFDC2626),
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      }
                                     }
                                   },
                           ),

@@ -488,10 +488,15 @@ class LiveBookingSyncService {
     }
   }
 
-  Future<void> acceptBooking(String bookingId, dynamic partnerDataOrId, [String? partnerName, String? partnerPhone]) async {
+  Future<bool> acceptBooking(String bookingId, dynamic partnerDataOrId, [String? partnerName, String? partnerPhone]) async {
     final all = _readAllBookings();
     final booking = all[bookingId] as Map<String, dynamic>? ?? _inMemoryBookings[bookingId];
     if (booking != null) {
+      final existingPartner = booking['partner_id']?.toString() ?? '';
+      final newPartnerId = (partnerDataOrId is Map ? (partnerDataOrId['partner_id'] ?? '').toString() : partnerDataOrId.toString());
+      if (existingPartner.isNotEmpty && existingPartner != newPartnerId) {
+        return false;
+      }
       if (partnerDataOrId is Map<String, dynamic>) {
         booking['partner_id'] = (partnerDataOrId['partner_id'] ?? '').toString();
         booking['partner_name'] = (partnerDataOrId['partner_name'] ?? partnerDataOrId['name'] ?? '').toString();
@@ -507,7 +512,9 @@ class LiveBookingSyncService {
       all[bookingId] = booking;
       _writeAllBookings(all);
       await _broadcastToHttpBridge('/api/bookings', booking);
+      return true;
     }
+    return false;
   }
 
   Future<void> declineBooking(String bookingId) async {
@@ -520,6 +527,10 @@ class LiveBookingSyncService {
       _writeAllBookings(all);
       await _broadcastToHttpBridge('/api/bookings', booking);
     }
+  }
+
+  Future<void> cancelBooking(String bookingId) async {
+    await declineBooking(bookingId);
   }
 
   Future<void> updateMilestone(String bookingId, String milestone) async {
