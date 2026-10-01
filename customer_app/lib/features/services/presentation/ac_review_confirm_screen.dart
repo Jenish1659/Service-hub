@@ -5,7 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/h3_geospatial_service.dart';
 import '../../location/providers/location_provider.dart';
+import '../../location/widgets/gps_enforcement_dialog.dart';
 import '../services/ac_availability_service.dart';
 import '../services/ac_booking_service.dart';
 import 'ac_booking_confirmed_screen.dart';
@@ -120,6 +122,15 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
   }
 
   Future<void> _handleConfirmBooking() async {
+    // 0. Mandatory Location & GPS Check
+    final isGpsActive = await GpsEnforcementDialog.ensureGpsActive(context);
+    if (!isGpsActive) {
+      if (mounted) {
+        _showWarningSnackBar('Please enable device location (GPS) to find nearby service partners.');
+      }
+      return;
+    }
+
     setState(() {
       _isConfirming = true;
     });
@@ -187,8 +198,9 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
 
     final locState = ref.read(locationProvider);
     final activeLoc = locState.selectedLocation ?? locState.currentLocation;
-    final lat = activeLoc?.latitude ?? 23.0225;
-    final lng = activeLoc?.longitude ?? 72.5714;
+    final lat = activeLoc?.latitude ?? 22.4707;
+    final lng = activeLoc?.longitude ?? 70.0577;
+    final h3Index = H3GeospatialService.instance.latLngToH3Index(lat, lng, resolution: 8);
 
     final pin = (1000 + DateTime.now().millisecond % 9000).toString();
     final otp = (1000 + (DateTime.now().microsecondsSinceEpoch % 9000)).toString();
@@ -226,6 +238,7 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
         'status': initialStatus,
         'service_status': initialStatus,
         'is_today': isToday,
+        'customer_h3_res8': h3Index,
       },
     );
 
@@ -245,6 +258,7 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
         'final_amount': finalPrice,
         'customer_latitude': lat,
         'customer_longitude': lng,
+        'customer_h3_res8': h3Index,
         'entrance_pin': pin,
         'completion_otp': otp,
         'created_at': DateTime.now().toIso8601String(),

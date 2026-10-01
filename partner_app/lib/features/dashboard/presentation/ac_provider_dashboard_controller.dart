@@ -304,6 +304,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
 
         for (final b in pendingServiceBookings) {
           final bId = b['booking_id']?.toString() ?? '';
+          final pId = (b['partner_id'] ?? '').toString();
+          if (pId.isNotEmpty) continue;
           if (bId.isNotEmpty && !seenBookingIds.contains(bId)) {
             final service = b['services'] as Map<String, dynamic>?;
             final sName = (service?['name'] ?? b['problem_description'] ?? '').toString();
@@ -352,6 +354,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
 
         for (final b in directBookings) {
           final bId = b['id']?.toString() ?? '';
+          final pId = (b['partner_id'] ?? '').toString();
+          if (pId.isNotEmpty) continue;
           if (bId.isNotEmpty && !seenBookingIds.contains(bId)) {
             final sName = (b['service_name'] ?? '').toString();
             if (sName.toLowerCase().contains('ac') || sName.toLowerCase().contains('air') || sName.isEmpty) {

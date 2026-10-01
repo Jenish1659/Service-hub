@@ -12,9 +12,12 @@ ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS partner_id UUID;
 ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS service_status TEXT DEFAULT 'SEARCHING_PROVIDER';
 ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS customer_latitude DOUBLE PRECISION;
 ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS customer_longitude DOUBLE PRECISION;
+ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS customer_h3_res8 TEXT;
 ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS entrance_pin TEXT DEFAULT '7429';
 ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS completion_otp TEXT DEFAULT '5892';
 ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+CREATE INDEX IF NOT EXISTS idx_service_bookings_customer_h3 ON public.service_bookings(customer_h3_res8);
 
 -- Safely allow 'SCHEDULED' in status check constraint
 ALTER TABLE public.service_bookings DROP CONSTRAINT IF EXISTS service_bookings_status_check;
@@ -266,16 +269,31 @@ BEGIN
         RETURN json_build_object('success', false, 'message', 'Booking not found');
     END IF;
 
-    -- 2. Find eligible verified service providers (exclude shopkeepers & delivery agents)
+    -- 2. Find eligible verified service providers (exclude shopkeepers & delivery agents) ranked by H3 & proximity
     FOR v_candidate IN
         SELECT 
             spp.provider_id,
             p.partner_id,
-            p.user_id
+            p.user_id,
+            COALESCE(
+                CASE 
+                    WHEN v_booking.customer_latitude IS NOT NULL 
+                     AND v_booking.customer_longitude IS NOT NULL 
+                     AND pll.latitude IS NOT NULL 
+                     AND pll.longitude IS NOT NULL THEN
+                        (6371000.0 * 2.0 * asin(sqrt(
+                            power(sin(radians(pll.latitude - v_booking.customer_latitude) / 2.0), 2) +
+                            cos(radians(v_booking.customer_latitude)) * cos(radians(pll.latitude)) *
+                            power(sin(radians(pll.longitude - v_booking.customer_longitude) / 2.0), 2)
+                        )))
+                    ELSE 1200.0
+                END, 1200.0
+            ) AS distance_meters
         FROM public.service_provider_profiles spp
         JOIN public.partners p ON p.partner_id = spp.partner_id
         JOIN public.users u ON u.user_id = p.user_id
         JOIN public.roles r ON r.role_id = u.role_id
+        LEFT JOIN public.partner_live_locations pll ON pll.partner_id = p.partner_id
         WHERE r.role_name = 'service_provider'
           AND p.verification_status IN ('VERIFIED', 'APPROVED')
           AND p.availability_status IN ('ONLINE', 'AVAILABLE')
@@ -286,6 +304,9 @@ BEGIN
               SELECT 1 FROM public.booking_requests br
               WHERE br.booking_id = p_booking_id AND br.provider_id = spp.provider_id
           )
+        ORDER BY 
+            (CASE WHEN v_booking.customer_h3_res8 IS NOT NULL AND pll.h3_index_res8 = v_booking.customer_h3_res8 THEN 0 ELSE 1 END),
+            distance_meters ASC
         LIMIT 10
     LOOP
         -- Insert real partner request

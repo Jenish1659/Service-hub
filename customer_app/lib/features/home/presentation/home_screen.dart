@@ -8,6 +8,8 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../cart/presentation/cart_provider.dart';
 import '../../location/screens/saved_locations_screen.dart';
 import '../../location/screens/map_screen.dart';
+import '../../location/services/location_permission_service.dart';
+import '../../location/widgets/gps_enforcement_dialog.dart';
 import '../../products/presentation/products_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -20,6 +22,28 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _outsideRangeWarningShown = false;
   final Set<String> _wishlistProducts = {};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkLocationOnAppEntry();
+    });
+  }
+
+  Future<void> _checkLocationOnAppEntry() async {
+    try {
+      final service = LocationPermissionService();
+      final status = await service.checkPermission();
+      if (status == LocationPermissionStatus.serviceDisabled) {
+        if (mounted) {
+          await GpsEnforcementDialog.ensureGpsActive(context);
+        }
+      } else if (status == LocationPermissionStatus.denied) {
+        await service.requestPermission();
+      }
+    } catch (_) {}
+  }
 
   void _showOutsideRangeDialog(BuildContext context) {
     showDialog(

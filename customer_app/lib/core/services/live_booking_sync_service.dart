@@ -22,7 +22,9 @@ class LiveBookingSyncService {
   Stream<List<Map<String, dynamic>>> get incomingOffersStream => _bookingsStreamController.stream.map((list) {
     return list.where((b) {
       final s = (b['status'] ?? '').toString().toUpperCase();
-      return s == 'PENDING' || s == 'BROADCASTED' || s == 'CONFIRMED';
+      final partnerId = (b['partner_id'] ?? '').toString();
+      return (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'OFFERED_TO_PROVIDERS') &&
+          partnerId.isEmpty;
     }).toList();
   });
 
@@ -385,7 +387,9 @@ class LiveBookingSyncService {
     reloadAllFromDisk();
     return getAllBookings().where((b) {
       final status = (b['status'] ?? '').toString().toUpperCase();
-      return status == 'PENDING' || status == 'CONFIRMED' || status == 'BROADCASTED';
+      final partnerId = (b['partner_id'] ?? '').toString();
+      return (status == 'PENDING' || status == 'SEARCHING_PROVIDER' || status == 'OFFERED_TO_PROVIDERS' || status == 'BROADCASTED') &&
+          partnerId.isEmpty;
     }).toList();
   }
 
