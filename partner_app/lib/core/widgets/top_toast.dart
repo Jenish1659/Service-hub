@@ -3,6 +3,17 @@ import 'package:flutter/material.dart';
 
 class TopToast {
   static OverlayEntry? _currentEntry;
+  static _TopToastWidgetState? _currentState;
+
+  static void dismiss() {
+    try {
+      _currentState?._dismissTimer?.cancel();
+      _currentState?._animController.stop();
+      _currentEntry?.remove();
+    } catch (_) {}
+    _currentState = null;
+    _currentEntry = null;
+  }
 
   static void show(
     BuildContext context,
@@ -11,10 +22,7 @@ class TopToast {
     Duration duration = const Duration(seconds: 3),
   }) {
     // Dismiss any existing toast
-    try {
-      _currentEntry?.remove();
-    } catch (_) {}
-    _currentEntry = null;
+    dismiss();
 
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
@@ -25,10 +33,7 @@ class TopToast {
         message: message,
         isError: isError,
         onDismiss: () {
-          try {
-            entry.remove();
-            if (_currentEntry == entry) _currentEntry = null;
-          } catch (_) {}
+          dismiss();
         },
         duration: duration,
       ),
@@ -60,10 +65,12 @@ class _TopToastWidgetState extends State<_TopToastWidget> with SingleTickerProvi
   late AnimationController _animController;
   late Animation<Offset> _offsetAnimation;
   late Animation<double> _fadeAnimation;
+  Timer? _dismissTimer;
 
   @override
   void initState() {
     super.initState();
+    TopToast._currentState = this;
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -86,8 +93,6 @@ class _TopToastWidgetState extends State<_TopToastWidget> with SingleTickerProvi
       }
     });
   }
-
-  Timer? _dismissTimer;
 
   @override
   void dispose() {

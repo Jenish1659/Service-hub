@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/secure_otp_engine.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../services/services/ac_booking_service.dart';
 
@@ -29,7 +30,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
   bool _serviceCompleted = false;
 
   final TextEditingController _pinController = TextEditingController();
-  final String _correctPin = '7429';
+  String _correctPin = SecureOtpEngine.instance.generateOtp(userIdOrPhone: 'track_entrance_pin', digits: 4);
 
   int _userRating = 5;
   final TextEditingController _reviewController = TextEditingController();
@@ -81,6 +82,12 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
     setState(() {
       _bookingData = data;
       _loading = false;
+
+      if (data['entrance_pin'] != null && data['entrance_pin'].toString().isNotEmpty) {
+        _correctPin = data['entrance_pin'].toString();
+      } else if (data['start_otp'] != null && data['start_otp'].toString().isNotEmpty) {
+        _correctPin = data['start_otp'].toString();
+      }
       
       final status = (data['status'] ?? 'Pending').toString().toUpperCase();
       final pLat = (data['partner_lat'] as num?)?.toDouble();
@@ -279,8 +286,8 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid PIN. Please enter "7429" to simulate.'),
+        SnackBar(
+          content: Text('Invalid PIN. Please enter "$_correctPin" to simulate.'),
           backgroundColor: AppTheme.dangerColor,
         ),
       );
@@ -816,9 +823,9 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          const Text(
-                            'Provider must enter the secure PIN (7429) to start work.',
-                            style: TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
+                          Text(
+                            'Provider must enter the secure PIN ($_correctPin) to start work.',
+                            style: const TextStyle(color: AppTheme.textSecondaryColor, fontSize: 12),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 12),
@@ -934,7 +941,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                   _buildTimelineStep('Booking Confirmed', 'Provider accepted your request', true, true),
                   _buildTimelineStep('Provider En Route', 'Travelling to customer location', _providerArrived || _workCommenced || _serviceCompleted, false),
                   _buildTimelineStep('Work Commenced', 'Provider starts service with secure PIN verification', _workCommenced || _serviceCompleted, false),
-                  _buildTimelineStep('Service Completed', 'Verify with OTP code 5892', _serviceCompleted, false),
+                  _buildTimelineStep('Service Completed', 'Verify with OTP code ${_bookingData?['completion_otp'] ?? '••••'}', _serviceCompleted, false),
                 ],
               ),
             ),

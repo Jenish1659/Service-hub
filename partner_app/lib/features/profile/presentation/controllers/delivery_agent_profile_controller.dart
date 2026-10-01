@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/supabase_auth_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 
 class DeliveryAgentProfileController extends ChangeNotifier {
@@ -27,26 +28,38 @@ class DeliveryAgentProfileController extends ChangeNotifier {
   String accountNumber = '';
   String ifscCode = '';
 
-  Future<void> loadDeliveryProfile() async {
-    isLoading = true;
-    notifyListeners();
+  // Identity & KYC (Real data only - Strictly empty if unprovided)
+  String aadhaarNumber = '';
+  String panNumber = '';
+  String upiId = '';
+  String address = '';
+  String city = '';
+  String state = '';
+  String insuranceExpiry = '';
 
+  Future<void> loadDeliveryProfile() async {
     try {
       final cached = await LocalRegistrationCache.getActiveDeliveryAgent();
       if (cached != null) {
         agentData = cached;
         _populateFromMap(cached);
       }
-
-      final userId = cached?['user_id'] ?? cached?['id'];
-      if (userId != null) {
-        await _loadFromSupabase(userId.toString(), cached);
-      }
     } catch (e) {
-      debugPrint('[DeliveryAgentProfileController] Error loading profile: $e');
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      debugPrint('[DeliveryAgentProfileController] Local cache read error: $e');
+    }
+
+    // Instantly reveal cached profile to UI without any delay (< 20ms)
+    isLoading = false;
+    notifyListeners();
+
+    // Fetch live Supabase updates in the background with strict timeouts
+    final userId = agentData?['user_id'] ?? agentData?['id'];
+    if (userId != null) {
+      _loadFromSupabase(userId.toString(), agentData).then((_) {
+        notifyListeners();
+      }).catchError((e) {
+        debugPrint('[DeliveryAgentProfileController] Background sync note: $e');
+      });
     }
   }
 
@@ -57,7 +70,8 @@ class DeliveryAgentProfileController extends ChangeNotifier {
           .from('partners')
           .select('partner_id, verification_status, availability_status')
           .eq('user_id', userId)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 3));
 
       final partnerId = partnerRes?['partner_id']?.toString() ?? cached?['partner_id']?.toString();
       String? agentId = cached?['delivery_agent_id']?.toString();
@@ -67,7 +81,8 @@ class DeliveryAgentProfileController extends ChangeNotifier {
             .from('delivery_agent_profiles')
             .select('*')
             .eq('partner_id', partnerId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 3));
 
         if (agentRes != null) {
           agentId = agentRes['delivery_agent_id']?.toString();
@@ -88,7 +103,8 @@ class DeliveryAgentProfileController extends ChangeNotifier {
               .from('delivery_vehicles')
               .select('*')
               .eq('delivery_agent_id', agentId)
-              .maybeSingle();
+              .maybeSingle()
+              .timeout(const Duration(seconds: 3));
           if (vehRes != null) {
             final vReg = vehRes['registration_number']?.toString().trim();
             if (vReg != null && vReg.isNotEmpty) vehicleRegNumber = vReg;
@@ -97,54 +113,94 @@ class DeliveryAgentProfileController extends ChangeNotifier {
           }
         }
 
-        // Query real delivery_assignments metrics for this agent
-        if (agentId != null) {
-          final assignmentsRes = await client
-              .from('delivery_assignments')
-              .select('status, assigned_at, delivered_at')
-              .eq('delivery_agent_id', agentId);
-
-          if (assignmentsRes.isNotEmpty) {
-            int completed = 0;
-            int onTimeCount = 0;
-            for (final a in assignmentsRes) {
-              if (a['status'] == 'DELIVERED') {
-                completed++;
-                onTimeCount++;
+        // Query verification_requests for real Aadhaar, PAN, and Bank details if needed
+        if (aadhaarNumber.isEmpty || accountNumber.isEmpty || panNumber.isEmpty) {
+          try {
+            final vr = await client
+                .from('verification_requests')
+                .select('aadhaar_number, pan_number, bank_name, account_number, ifsc_code')
+                .eq('user_id', userId)
+                .order('submitted_at', ascending: false)
+                .limit(1)
+                .maybeSingle()
+                .timeout(const Duration(seconds: 3));
+            if (vr != null) {
+              if (aadhaarNumber.isEmpty && vr['aadhaar_number'] != null) {
+                aadhaarNumber = vr['aadhaar_number'].toString().trim();
+              }
+              if (panNumber.isEmpty && vr['pan_number'] != null) {
+                panNumber = vr['pan_number'].toString().trim();
+              }
+              if (bankName.isEmpty && vr['bank_name'] != null) {
+                bankName = vr['bank_name'].toString().trim();
+              }
+              if (accountNumber.isEmpty && vr['account_number'] != null) {
+                accountNumber = vr['account_number'].toString().trim();
+              }
+              if (ifscCode.isEmpty && vr['ifsc_code'] != null) {
+                ifscCode = vr['ifsc_code'].toString().trim();
               }
             }
-            completedDeliveries = completed;
-            onTimeRate = completed > 0 ? (onTimeCount / completed) * 100.0 : 0.0;
-          }
+          } catch (_) {}
+        }
 
-          // Query real partner earnings
-          final earningsRes = await client
-              .from('partner_earnings')
-              .select('amount, net_earnings')
-              .eq('partner_id', partnerId);
+        // Concurrently query real metrics (assignments, earnings, reviews) in parallel
+        if (agentId != null) {
+          try {
+            final results = await Future.wait([
+              client
+                  .from('delivery_assignments')
+                  .select('status, assigned_at, delivered_at')
+                  .eq('delivery_agent_id', agentId)
+                  .timeout(const Duration(seconds: 3)),
+              client
+                  .from('partner_earnings')
+                  .select('amount, net_earnings')
+                  .eq('partner_id', partnerId)
+                  .timeout(const Duration(seconds: 3)),
+              client
+                  .from('reviews')
+                  .select('rating')
+                  .eq('partner_id', partnerId)
+                  .timeout(const Duration(seconds: 3)),
+            ]);
 
-          if (earningsRes.isNotEmpty) {
-            double total = 0.0;
-            for (final e in earningsRes) {
-              total += (e['net_earnings'] ?? e['amount'] as num?)?.toDouble() ?? 0.0;
+            if (results.length == 3) {
+              final assignmentsRes = results[0] as List<dynamic>? ?? [];
+              final earningsRes = results[1] as List<dynamic>? ?? [];
+              final reviewsRes = results[2] as List<dynamic>? ?? [];
+
+              if (assignmentsRes.isNotEmpty) {
+                int completed = 0;
+                int onTimeCount = 0;
+                for (final a in assignmentsRes) {
+                  if (a['status'] == 'DELIVERED') {
+                    completed++;
+                    onTimeCount++;
+                  }
+                }
+                completedDeliveries = completed;
+                onTimeRate = completed > 0 ? (onTimeCount / completed) * 100.0 : 0.0;
+              }
+
+              if (earningsRes.isNotEmpty) {
+                double total = 0.0;
+                for (final e in earningsRes) {
+                  total += (e['net_earnings'] ?? e['amount'] as num?)?.toDouble() ?? 0.0;
+                }
+                totalEarnings = total;
+              }
+
+              if (reviewsRes.isNotEmpty) {
+                reviewCount = reviewsRes.length;
+                double totalRating = 0.0;
+                for (final r in reviewsRes) {
+                  totalRating += (r['rating'] as num?)?.toDouble() ?? 0.0;
+                }
+                rating = reviewCount > 0 ? (totalRating / reviewCount) : 0.0;
+              }
             }
-            totalEarnings = total;
-          }
-
-          // Query real reviews
-          final reviewsRes = await client
-              .from('reviews')
-              .select('rating')
-              .eq('partner_id', partnerId);
-
-          if (reviewsRes.isNotEmpty) {
-            reviewCount = reviewsRes.length;
-            double totalRating = 0.0;
-            for (final r in reviewsRes) {
-              totalRating += (r['rating'] as num?)?.toDouble() ?? 0.0;
-            }
-            rating = reviewCount > 0 ? (totalRating / reviewCount) : 0.0;
-          }
+          } catch (_) {}
         }
       }
     } catch (_) {
@@ -177,6 +233,27 @@ class DeliveryAgentProfileController extends ChangeNotifier {
     final ifsc = (data['ifsc_code'] ?? data['ifscCode'] ?? data['ifsc'] ?? '').toString().trim();
     if (ifsc.isNotEmpty) ifscCode = ifsc;
 
+    final aadh = (data['aadhaar_number'] ?? data['aadhaar'] ?? data['aadhaar_no'] ?? '').toString().trim();
+    if (aadh.isNotEmpty) aadhaarNumber = aadh;
+
+    final p = (data['pan_number'] ?? data['pan'] ?? data['pan_no'] ?? '').toString().trim();
+    if (p.isNotEmpty) panNumber = p;
+
+    final u = (data['upi_id'] ?? data['upi'] ?? '').toString().trim();
+    if (u.isNotEmpty) upiId = u;
+
+    final addr = (data['address'] ?? data['full_address'] ?? '').toString().trim();
+    if (addr.isNotEmpty) address = addr;
+
+    final c = (data['city'] ?? '').toString().trim();
+    if (c.isNotEmpty) city = c;
+
+    final st = (data['state'] ?? '').toString().trim();
+    if (st.isNotEmpty) state = st;
+
+    final ins = (data['insurance_expiry'] ?? data['vehicle_insurance_expiry'] ?? '').toString().trim();
+    if (ins.isNotEmpty) insuranceExpiry = ins;
+
     if (data['completed_deliveries'] != null || data['completedDeliveries'] != null) {
       completedDeliveries = (data['completed_deliveries'] ?? data['completedDeliveries'] as num?)?.toInt() ?? 0;
     }
@@ -196,13 +273,114 @@ class DeliveryAgentProfileController extends ChangeNotifier {
     if (data['is_online'] != null) isOnline = data['is_online'] == true;
   }
 
-  void toggleOnline(bool val) {
+  Future<void> toggleOnline(bool val) async {
     isOnline = val;
     notifyListeners();
-    LocalRegistrationCache.updateActiveDeliveryAgent({'is_online': isOnline});
+    await LocalRegistrationCache.updateActiveDeliveryAgent({'is_online': isOnline});
+    final uid = agentData?['user_id']?.toString() ?? agentData?['id']?.toString();
+    final pid = agentData?['partner_id']?.toString();
+    SupabaseAuthService.updateDeliveryAgentInDatabase(
+      userId: uid,
+      partnerId: pid,
+      availabilityStatus: val ? 'ONLINE' : 'OFFLINE',
+    ).catchError((_) => false);
+  }
+
+  Future<void> updateProfile({
+    String? name,
+    String? phone,
+    String? email,
+    String? address,
+    String? city,
+    String? state,
+    String? vehicleType,
+    String? vehicleRegNumber,
+    String? drivingLicenseNumber,
+    String? bankName,
+    String? accountNumber,
+    String? ifscCode,
+  }) async {
+    if (name != null && name.trim().isNotEmpty) agentName = name.trim();
+    if (phone != null && phone.trim().isNotEmpty) this.phone = phone.trim();
+    if (email != null && email.trim().isNotEmpty) this.email = email.trim();
+    if (address != null && address.trim().isNotEmpty) this.address = address.trim();
+    if (city != null && city.trim().isNotEmpty) this.city = city.trim();
+    if (state != null && state.trim().isNotEmpty) this.state = state.trim();
+    if (vehicleType != null && vehicleType.trim().isNotEmpty) this.vehicleType = vehicleType.trim();
+    if (vehicleRegNumber != null && vehicleRegNumber.trim().isNotEmpty) this.vehicleRegNumber = vehicleRegNumber.trim();
+    if (drivingLicenseNumber != null && drivingLicenseNumber.trim().isNotEmpty) this.drivingLicenseNumber = drivingLicenseNumber.trim();
+    if (bankName != null && bankName.trim().isNotEmpty) this.bankName = bankName.trim();
+    if (accountNumber != null && accountNumber.trim().isNotEmpty) this.accountNumber = accountNumber.trim();
+    if (ifscCode != null && ifscCode.trim().isNotEmpty) this.ifscCode = ifscCode.trim();
+
+    notifyListeners();
+    await LocalRegistrationCache.updateActiveDeliveryAgent({
+      if (name != null) 'name': name,
+      if (phone != null) 'phone': phone,
+      if (email != null) 'email': email,
+      if (address != null) 'address': address,
+      if (city != null) 'city': city,
+      if (state != null) 'state': state,
+      if (vehicleType != null) 'vehicle_type': vehicleType,
+      if (vehicleRegNumber != null) 'vehicle_number': vehicleRegNumber,
+      if (drivingLicenseNumber != null) 'driving_license_number': drivingLicenseNumber,
+      if (bankName != null) 'bank_name': bankName,
+      if (accountNumber != null) 'account_number': accountNumber,
+      if (ifscCode != null) 'ifsc_code': ifscCode,
+    });
+
+    final uid = agentData?['user_id']?.toString() ?? agentData?['id']?.toString();
+    final pid = agentData?['partner_id']?.toString();
+    final agId = agentData?['delivery_agent_id']?.toString();
+
+    SupabaseAuthService.updateDeliveryAgentInDatabase(
+      userId: uid,
+      partnerId: pid,
+      deliveryAgentId: agId,
+      name: name,
+      phone: phone,
+      email: email,
+      address: address,
+      city: city,
+      state: state,
+      vehicleType: vehicleType,
+      vehicleNumber: vehicleRegNumber,
+      drivingLicenseNumber: drivingLicenseNumber,
+      bankName: bankName,
+      accountNumber: accountNumber,
+      ifscCode: ifscCode,
+    ).catchError((_) => false);
+  }
+
+  Future<void> updateRadius(double radiusKm) async {
+    notifyListeners();
+    await LocalRegistrationCache.updateActiveDeliveryAgent({'service_radius': '${radiusKm.toInt()} km'});
+    final uid = agentData?['user_id']?.toString() ?? agentData?['id']?.toString();
+    final pid = agentData?['partner_id']?.toString();
+    final agId = agentData?['delivery_agent_id']?.toString();
+    SupabaseAuthService.updateDeliveryAgentInDatabase(
+      userId: uid,
+      partnerId: pid,
+      deliveryAgentId: agId,
+      operatingRadius: radiusKm,
+    ).catchError((_) => false);
+  }
+
+  void refresh() {
+    notifyListeners();
+  }
+
+  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+    final uid = agentData?['user_id']?.toString() ?? agentData?['id']?.toString();
+    await SupabaseAuthService.updatePassword(
+      newPassword: newPassword,
+      currentPassword: currentPassword,
+      userId: uid,
+    );
   }
 
   Future<void> logout() async {
     await LocalRegistrationCache.logoutDeliveryAgent();
   }
 }
+

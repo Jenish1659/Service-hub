@@ -100,7 +100,7 @@ class _SupportScreenState extends State<SupportScreen> with SingleTickerProvider
       return 'All orders require a secure Delivery PIN to be completed. You can find this 4-digit PIN (e.g. 2842) on your Order Track screen. Please share it with your delivery agent only when they arrive with your package!';
     }
     if (cleanQuery.contains('otp') || cleanQuery.contains('service code') || cleanQuery.contains('entrance')) {
-      return 'Service bookings use a 2-stage verification system: an Entrance PIN (7429) when the provider arrives at your home, and a Completion OTP (5892) once the service is successfully finished.';
+      return 'Service bookings use a 2-stage verification system: a unique dynamic Entrance PIN when the provider arrives at your home, and a secure Completion OTP once the service is successfully finished.';
     }
     if (cleanQuery.contains('payment') || cleanQuery.contains('refund') || cleanQuery.contains('charge')) {
       return 'Payments are processed securely via our gateway. For cancellations, refunds are automatically processed back to your original payment method within 3-5 business days.';

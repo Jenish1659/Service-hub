@@ -219,7 +219,7 @@ class _LoginAndSecurityScreenState extends State<LoginAndSecurityScreen> {
                         iconBg: const Color(0xFFEFF6FF),
                         iconColor: const Color(0xFF2563EB),
                         title: 'Mobile Number',
-                        subtitle: c.phoneNumber.isNotEmpty ? c.phoneNumber : '+91 98765 43210',
+                        subtitle: c.phoneNumber.isNotEmpty ? c.phoneNumber : 'Not Linked',
                         trailingBadge: 'Verified',
                         onTap: () {
                           Navigator.push(

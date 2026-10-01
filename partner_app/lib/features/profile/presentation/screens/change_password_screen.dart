@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:service_hub_partner/core/widgets/top_toast.dart';
 import 'package:service_hub_partner/features/profile/presentation/controllers/profile_controller.dart';
+
+import 'package:service_hub_partner/core/services/supabase_auth_service.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   final ProfileController controller;
@@ -78,28 +79,62 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
   }
 
-  void _handleUpdatePassword() {
-    if (_currentPassCtrl.text.trim().isEmpty) {
-      TopToast.show(context, 'Please enter your current password', isError: true);
+  void _showNotice(String message, {bool isError = true}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? const Color(0xFFEF4444) : const Color(0xFF16A34A),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _handleUpdatePassword() async {
+    final cur = _currentPassCtrl.text.trim();
+    final newPass = _newPassCtrl.text.trim();
+    final confirm = _confirmPassCtrl.text.trim();
+
+    if (cur.isEmpty) {
+      _showNotice('Please enter your current password', isError: true);
       return;
     }
-    if (_newPassCtrl.text.length < 8) {
-      TopToast.show(context, 'New password must be at least 8 characters long', isError: true);
+    if (newPass.length < 8) {
+      _showNotice('New password must be at least 8 characters long', isError: true);
       return;
     }
-    if (_newPassCtrl.text != _confirmPassCtrl.text) {
-      TopToast.show(context, 'New passwords do not match', isError: true);
+    if (newPass != confirm) {
+      _showNotice('New passwords do not match', isError: true);
+      return;
+    }
+    if (cur == newPass) {
+      _showNotice('New password cannot be identical to current password', isError: true);
       return;
     }
 
     setState(() => _isSaving = true);
 
-    Future.delayed(const Duration(milliseconds: 700), () {
+    try {
+      final success = await SupabaseAuthService.updatePassword(
+        newPassword: newPass,
+        currentPassword: cur,
+      );
+
       if (!mounted) return;
       setState(() => _isSaving = false);
-      TopToast.show(context, 'Password updated successfully!', isError: false);
-      Navigator.pop(context);
-    });
+
+      if (success) {
+        _showNotice('Password updated in database successfully!', isError: false);
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+      } else {
+        _showNotice('Failed to update password. Please try again.', isError: true);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      _showNotice('Error updating password: $e', isError: true);
+    }
   }
 
   @override

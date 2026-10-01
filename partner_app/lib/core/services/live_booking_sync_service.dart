@@ -146,6 +146,15 @@ class LiveBookingSyncService {
   }
 
   Future<void> _pollHttpBridge() async {
+    if (!kIsWeb) {
+      try {
+        if (Platform.environment.containsKey('FLUTTER_TEST') ||
+            WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
+          return;
+        }
+      } catch (_) {}
+    }
+
     final List<String> hosts = kIsWeb
         ? ['127.0.0.1', 'localhost']
         : ['10.0.2.2', '127.0.0.1', 'localhost'];
@@ -195,6 +204,15 @@ class LiveBookingSyncService {
   }
 
   Future<void> _broadcastToHttpBridge(String path, Map<String, dynamic> payload) async {
+    if (!kIsWeb) {
+      try {
+        if (Platform.environment.containsKey('FLUTTER_TEST') ||
+            WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
+          return;
+        }
+      } catch (_) {}
+    }
+
     final List<String> hosts = kIsWeb
         ? ['127.0.0.1', 'localhost']
         : ['10.0.2.2', '127.0.0.1', 'localhost'];

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../dashboard/presentation/widgets/delivery_recent_and_nav_widget.dart';
 import '../controllers/delivery_agent_profile_controller.dart';
 
 class DeliveryAgentProfileScreen extends StatefulWidget {
@@ -41,13 +42,26 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: const Text('Are you sure you want to log out of your Delivery Partner account?', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to log out of your Delivery Partner account? You will stop receiving order dispatches.',
+          style: TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -76,6 +90,75 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
     );
   }
 
+  Widget _buildTopBanner(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFEA580C), Color(0xFFC2410C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(color: Color(0x20EA580C), blurRadius: 8, offset: Offset(0, 3)),
+        ],
+      ),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                context.go('/dashboard/delivery');
+              }
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Colors.white),
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ServiceHub DELIVERY PARTNER',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.8, color: Color(0xFFFFEDD5)),
+                ),
+                Text(
+                  'Rider Profile',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: () async {
+              await context.push('/profile/delivery/settings', extra: _controller);
+              _controller.loadDeliveryProfile();
+            },
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.notifications_outlined, size: 20, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const orangeColor = AppColors.deliveryOrangeDark;
@@ -83,62 +166,19 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Top App Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              color: Colors.white,
-              child: Row(
-                children: [
-                  InkWell(
-                    onTap: () {
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      } else {
-                        context.go('/dashboard/delivery');
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Color(0xFF1E293B)),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Rider Profile',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                        ),
-                        Text(
-                          'Manage your delivery vehicle, shifts & payouts',
-                          style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Profile Body Content
-            Expanded(
-              child: _controller.isLoading
-                  ? const Center(child: CircularProgressIndicator(color: orangeColor))
-                  : SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
+        child: (_controller.isLoading && _controller.agentData == null && _controller.agentName == 'Delivery Partner')
+            ? const Center(child: CircularProgressIndicator(color: orangeColor))
+            : SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  children: [
+                    // Top Delivery Partner Header Banner (Inside scroll view - scrolls with content)
+                    _buildTopBanner(context),
+                    Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         children: [
-                          // Main Rider Identity Card
+                          // Main Rider Identity Card (Screen 1 with Camera Badge & Verified Status)
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
@@ -151,22 +191,39 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: const Color(0xFFFED7AA), width: 1.2),
                               boxShadow: const [
-                                BoxShadow(color: Color(0x08000000), blurRadius: 10, offset: Offset(0, 4)),
+                                BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 4)),
                               ],
                             ),
                             child: Column(
                               children: [
                                 Row(
                                   children: [
-                                    Container(
-                                      width: 68,
-                                      height: 68,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFFEDD5),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: orangeColor, width: 2),
-                                      ),
-                                      child: const Icon(Icons.two_wheeler_rounded, size: 36, color: orangeColor),
+                                    // Avatar with Camera Icon Overlay
+                                    Stack(
+                                      children: [
+                                        Container(
+                                          width: 72,
+                                          height: 72,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFEDD5),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: orangeColor, width: 2.5),
+                                          ),
+                                          child: const Icon(Icons.two_wheeler_rounded, size: 38, color: orangeColor),
+                                        ),
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(5),
+                                            decoration: const BoxDecoration(
+                                              color: orangeColor,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                     const SizedBox(width: 14),
                                     Expanded(
@@ -184,10 +241,10 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
                                                 ),
                                               ),
                                               const SizedBox(width: 6),
-                                              const Icon(Icons.verified_rounded, size: 18, color: orangeColor),
+                                              const Icon(Icons.verified_rounded, size: 18, color: Color(0xFF16A34A)),
                                             ],
                                           ),
-                                          const SizedBox(height: 2),
+                                          const SizedBox(height: 3),
                                           Text(
                                             _controller.vehicleRegNumber.isNotEmpty
                                                 ? '${_controller.vehicleType} • ${_controller.vehicleRegNumber}'
@@ -201,23 +258,32 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
                                                 : 'DL: Not Linked / Upload Required',
                                             style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                                           ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _controller.accountNumber.isNotEmpty
+                                                ? (_controller.bankName.isNotEmpty
+                                                    ? '${_controller.bankName} • Acc ${_controller.accountNumber}'
+                                                    : 'Acc ${_controller.accountNumber}')
+                                                : 'No Bank Account Linked',
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                          ),
                                           const SizedBox(height: 6),
                                           Row(
                                             children: [
                                               Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                                 decoration: BoxDecoration(
-                                                  color: const Color(0xFFFFEDD5),
+                                                  color: const Color(0xFFDCFCE7),
                                                   borderRadius: BorderRadius.circular(10),
                                                 ),
                                                 child: const Row(
                                                   mainAxisSize: MainAxisSize.min,
                                                   children: [
-                                                    Icon(Icons.check_circle_rounded, color: orangeColor, size: 12),
+                                                    Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 12),
                                                     SizedBox(width: 4),
                                                     Text(
                                                       'Verified Rider ✓',
-                                                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: orangeColor),
+                                                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
                                                     ),
                                                   ],
                                                 ),
@@ -255,7 +321,7 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
                           ),
                           const SizedBox(height: 16),
 
-                          // Delivery Metrics Row (4 Metrics - Strictly Zero Dummy Data)
+                          // Delivery Metrics Row (Screen 1: 4 Cards Starting Strictly at Zero)
                           Row(
                             children: [
                               _buildMetricCard(
@@ -299,91 +365,198 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
                           ),
                           const SizedBox(height: 20),
 
-                          // Menu Options
-                          _buildMenuTile(
-                            icon: Icons.power_settings_new_rounded,
-                            iconColor: _controller.isOnline ? const Color(0xFF16A34A) : const Color(0xFF64748B),
-                            iconBg: _controller.isOnline ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
-                            title: _controller.isOnline ? 'Online Status: ACTIVE' : 'Online Status: OFFLINE',
-                            subtitle: _controller.isOnline ? 'Currently receiving local parcel delivery jobs' : 'Tap switch to start receiving delivery orders',
-                            trailing: Switch(
-                              value: _controller.isOnline,
-                              activeTrackColor: orangeColor,
-                              onChanged: (v) => _controller.toggleOnline(v),
+                          // Availability Beacon Banner
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: const [BoxShadow(color: Color(0x06000000), blurRadius: 4, offset: Offset(0, 2))],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: _controller.isOnline ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.power_settings_new_rounded,
+                                    color: _controller.isOnline ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _controller.isOnline ? 'Online Status: ACTIVE' : 'Online Status: OFFLINE',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF0F172A)),
+                                      ),
+                                      Text(
+                                        _controller.isOnline
+                                            ? 'Receiving orders in Jamnagar zone'
+                                            : 'Go online to receive delivery requests',
+                                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch(
+                                  value: _controller.isOnline,
+                                  activeTrackColor: orangeColor,
+                                  onChanged: (v) => _controller.toggleOnline(v),
+                                ),
+                              ],
                             ),
                           ),
-                          _buildMenuTile(
-                            icon: Icons.two_wheeler_rounded,
+                          const SizedBox(height: 16),
+
+                          // Section Header: PROFILE MANAGEMENT
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 4, bottom: 8),
+                              child: Text(
+                                'PROFILE & WORKSPACE',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.8, color: Color(0xFF94A3B8)),
+                              ),
+                            ),
+                          ),
+
+                          // 7 Core Menu Items (Screen 1 Redesign with Live Sync & Controller Injection)
+                          _buildModernMenuTile(
+                            icon: Icons.person_outline_rounded,
+                            iconColor: const Color(0xFF2563EB),
+                            iconBg: const Color(0xFFEFF6FF),
+                            title: 'Edit Profile',
+                            subtitle: 'Personal details, photo, email & phone',
+                            onTap: () async {
+                              await context.push('/profile/delivery/edit', extra: _controller);
+                              _controller.loadDeliveryProfile();
+                            },
+                          ),
+                          _buildModernMenuTile(
+                            icon: Icons.access_time_rounded,
+                            iconColor: const Color(0xFF059669),
+                            iconBg: const Color(0xFFDCFCE7),
+                            title: 'Availability & Shift',
+                            subtitle: 'Working days, duty timings & auto-offline',
+                            onTap: () async {
+                              await context.push('/profile/delivery/shift', extra: _controller);
+                              _controller.loadDeliveryProfile();
+                            },
+                          ),
+                          _buildModernMenuTile(
+                            icon: Icons.location_on_outlined,
                             iconColor: orangeColor,
                             iconBg: const Color(0xFFFFEDD5),
-                            title: 'Vehicle & Driving Documents',
-                            subtitle: _controller.vehicleRegNumber.isNotEmpty || _controller.drivingLicenseNumber.isNotEmpty
-                                ? 'RC: ${_controller.vehicleRegNumber.isNotEmpty ? _controller.vehicleRegNumber : "Not Linked"} • DL: ${_controller.drivingLicenseNumber.isNotEmpty ? _controller.drivingLicenseNumber : "Not Linked"}'
-                                : 'Not Linked / Upload Required',
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(_controller.vehicleRegNumber.isNotEmpty
-                                      ? 'Vehicle Documents: RC Book & Driving License VERIFIED ✓'
-                                      : 'Vehicle Documents: Not Linked / Upload Required'),
-                                  backgroundColor: orangeColor,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                            title: 'Delivery Area',
+                            subtitle: 'Operating radius (5-40 km) & preferred hubs',
+                            onTap: () async {
+                              await context.push('/profile/delivery/area', extra: _controller);
+                              _controller.loadDeliveryProfile();
                             },
                           ),
-                          _buildMenuTile(
-                            icon: Icons.account_balance_rounded,
+                          _buildModernMenuTile(
+                            icon: Icons.verified_user_outlined,
+                            iconColor: const Color(0xFF7C3AED),
+                            iconBg: const Color(0xFFF3E8FF),
+                            title: 'Vehicle & Driving Documents',
+                            subtitle: 'RC book, DL, Aadhaar, PAN & UPI status',
+                            onTap: () async {
+                              await context.push('/profile/delivery/documents', extra: _controller);
+                              _controller.loadDeliveryProfile();
+                            },
+                          ),
+                          _buildModernMenuTile(
+                            icon: Icons.account_balance_wallet_outlined,
                             iconColor: const Color(0xFF0D9488),
                             iconBg: const Color(0xFFCCFBF1),
-                            title: 'Weekly Payout Account',
-                            subtitle: _controller.accountNumber.isNotEmpty
-                                ? (_controller.bankName.isNotEmpty
-                                    ? '${_controller.bankName} • Acc ${_controller.accountNumber}'
-                                    : 'Acc ${_controller.accountNumber}')
-                                : 'No Bank Account Linked',
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(_controller.accountNumber.isNotEmpty
-                                      ? 'Payout Account: ${_controller.accountNumber} (${_controller.bankName.isNotEmpty ? _controller.bankName : "Linked"})'
-                                      : 'Payout Account: No Bank Account Linked'),
-                                  backgroundColor: const Color(0xFF0D9488),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                            title: 'Earnings & Payouts',
+                            subtitle: 'Daily breakdown, payout history & trip logs',
+                            onTap: () async {
+                              await context.push('/profile/delivery/earnings', extra: _controller);
+                              _controller.loadDeliveryProfile();
                             },
                           ),
-                          _buildMenuTile(
-                            icon: Icons.emergency_rounded,
-                            iconColor: const Color(0xFFEF4444),
-                            iconBg: const Color(0xFFFEE2E2),
-                            title: 'Rider Safety & Emergency SOS',
-                            subtitle: '24/7 dedicated rider support and incident response',
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Rider SOS Hotline: 112 • Partner Support: +91 1800 200 9999'),
-                                  backgroundColor: Color(0xFFEF4444),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                          _buildModernMenuTile(
+                            icon: Icons.settings_outlined,
+                            iconColor: const Color(0xFF475569),
+                            iconBg: const Color(0xFFF1F5F9),
+                            title: 'Settings',
+                            subtitle: 'Security, notifications & preferences',
+                            onTap: () async {
+                              await context.push('/profile/delivery/settings', extra: _controller);
+                              _controller.loadDeliveryProfile();
                             },
                           ),
-                          _buildMenuTile(
-                            icon: Icons.logout_rounded,
-                            iconColor: const Color(0xFFEF4444),
-                            iconBg: const Color(0xFFFEE2E2),
-                            title: 'Sign Out from Rider Portal',
-                            subtitle: 'Safely logout of your delivery account',
-                            onTap: _showSignOutDialog,
+                          _buildModernMenuTile(
+                            icon: Icons.help_outline_rounded,
+                            iconColor: const Color(0xFFEA580C),
+                            iconBg: const Color(0xFFFFEDD5),
+                            title: 'Help & Support',
+                            subtitle: '24/7 hotline, emergency SOS & FAQs',
+                            onTap: () async {
+                              await context.push('/profile/delivery/help', extra: _controller);
+                              _controller.loadDeliveryProfile();
+                            },
                           ),
+
+                          const SizedBox(height: 12),
+
+                          // Sign Out Button (Screen 15 Modal Trigger)
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFFEE2E2)),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _showSignOutDialog,
+                                borderRadius: BorderRadius.circular(16),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 14),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 18),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Sign Out from Partner Portal',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFFEF4444)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 80),
                         ],
                       ),
                     ),
-            ),
-          ],
-        ),
+                  ],
+                ),
+              ),
+      ),
+      bottomNavigationBar: DeliveryBottomCurvedNavBar(
+        currentIndex: 4,
+        onHomeTap: () => context.go('/dashboard/delivery'),
+        onOrdersTap: () => context.go('/dashboard/delivery'),
+        onOpenMap: () => context.push('/delivery/map'),
+        onEarningsTap: () async {
+          await context.push('/profile/delivery/earnings', extra: _controller);
+          _controller.loadDeliveryProfile();
+        },
+        onProfileTap: () {},
       ),
     );
   }
@@ -397,12 +570,12 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
   }) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+          boxShadow: const [BoxShadow(color: Color(0x06000000), blurRadius: 4, offset: Offset(0, 2))],
         ),
         child: Column(
           children: [
@@ -431,14 +604,13 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
     );
   }
 
-  Widget _buildMenuTile({
+  Widget _buildModernMenuTile({
     required IconData icon,
     required Color iconColor,
     required Color iconBg,
     required String title,
     required String subtitle,
-    VoidCallback? onTap,
-    Widget? trailing,
+    required VoidCallback onTap,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -446,7 +618,7 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: const [BoxShadow(color: Color(0x04000000), blurRadius: 4, offset: Offset(0, 2))],
       ),
       child: Material(
         color: Colors.transparent,
@@ -455,12 +627,12 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Container(
             padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: iconColor, size: 20),
           ),
           title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF0F172A))),
           subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-          trailing: trailing ?? const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF94A3B8)),
+          trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF94A3B8)),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/supabase_auth_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 
 class PartnerServiceItem {
@@ -161,29 +162,23 @@ class ProfileController extends ChangeNotifier {
       if (cached != null) {
         partnerData = cached;
         _populateFromMap(cached);
-      } else {
-        // Fallback check in Supabase if logged in
-        final user = Supabase.instance.client.auth.currentUser;
-        if (user != null) {
-          final res = await Supabase.instance.client
-              .from('users')
-              .select('*, partners(*), service_provider_profiles(*)')
-              .eq('id', user.id)
-              .maybeSingle();
-          if (res != null) {
-            partnerData = res;
-            _populateFromMap(res);
-          }
-        }
       }
-
-      // Query real database metrics for Technician profile (Jobs Completed, Earnings, Ratings)
-      await _loadRealTechnicianMetrics();
 
       // Initialize default services if empty
       if (services.isEmpty) {
         services = _getDefaultServices();
       }
+
+      // Reveal cached provider profile immediately (< 20ms)
+      isLoading = false;
+      notifyListeners();
+
+      // Query real database metrics in the background with strict timeouts
+      _loadRealTechnicianMetrics().then((_) {
+        notifyListeners();
+      }).catchError((e) {
+        debugPrint('[ProfileController] Background metrics note: $e');
+      });
     } catch (e) {
       debugPrint('[ProfileController] Error loading profile: $e');
     } finally {
@@ -205,13 +200,15 @@ class ProfileController extends ChangeNotifier {
               .from('service_provider_profiles')
               .select('rating')
               .eq('partner_id', partnerId)
-              .maybeSingle();
+              .maybeSingle()
+              .timeout(const Duration(seconds: 3));
           if (profileRes == null && user != null) {
             profileRes = await supabase
                 .from('service_provider_profiles')
                 .select('rating')
                 .eq('user_id', user.id)
-                .maybeSingle();
+                .maybeSingle()
+                .timeout(const Duration(seconds: 3));
           }
           if (profileRes != null && profileRes['rating'] != null) {
             averageRating = (profileRes['rating'] as num).toDouble();
@@ -225,7 +222,8 @@ class ProfileController extends ChangeNotifier {
           final earningsRes = await supabase
               .from('partner_earnings')
               .select()
-              .eq('partner_id', partnerId);
+              .eq('partner_id', partnerId)
+              .timeout(const Duration(seconds: 3));
 
           double totalEarned = 0.0;
           double monthEarned = 0.0;
@@ -252,7 +250,8 @@ class ProfileController extends ChangeNotifier {
           final completedRes = await supabase
               .from('service_bookings')
               .select('booking_id, customer_id, created_at, status')
-              .filter('status', 'in', ['SERVICE_COMPLETED', 'PAYMENT_COMPLETED', 'REVIEWED', 'CLOSED']);
+              .filter('status', 'in', ['SERVICE_COMPLETED', 'PAYMENT_COMPLETED', 'REVIEWED', 'CLOSED'])
+              .timeout(const Duration(seconds: 3));
 
           final now = DateTime.now();
           final monthStr = '${now.year}-${now.month.toString().padLeft(2, '0')}';
@@ -686,34 +685,37 @@ class ProfileController extends ChangeNotifier {
       await LocalRegistrationCache.updateActiveServiceProvider(updates);
       await LocalRegistrationCache.updateActivePartner(updates);
 
-      // Attempt remote sync if authenticated
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
-        if (updates.containsKey('name') || updates.containsKey('phone') || updates.containsKey('email')) {
-          await Supabase.instance.client.from('users').update({
-            if (updates['name'] != null) 'name': updates['name'],
-            if (updates['phone'] != null) 'phone': updates['phone'],
-            if (updates['email'] != null) 'email': updates['email'],
-          }).eq('id', user.id);
-        }
-        if (updates.containsKey('profilePhotoPath')) {
-          final photo = updates['profilePhotoPath'];
-          try {
-            await Supabase.instance.client.from('users').update({
-              'avatar_url': photo,
-            }).eq('id', user.id);
-          } catch (_) {}
-          try {
-            await Supabase.instance.client.from('service_provider_profiles').update({
-              'profile_photo': photo,
-            }).eq('user_id', user.id);
-          } catch (_) {}
-        }
-      }
+      final uid = partnerData?['user_id']?.toString() ?? partnerData?['id']?.toString();
+      final pid = partnerData?['partner_id']?.toString();
+
+      SupabaseAuthService.updateServiceProviderInDatabase(
+        userId: uid,
+        partnerId: pid,
+        name: updates['name']?.toString() ?? updates['fullName']?.toString(),
+        phone: updates['phone']?.toString(),
+        email: updates['email']?.toString(),
+        businessName: updates['businessName']?.toString(),
+        city: updates['serviceCity']?.toString(),
+        experienceYears: updates['experienceYears']?.toString(),
+        bio: updates['shortBio']?.toString(),
+        profilePhotoPath: updates['profilePhotoPath']?.toString(),
+        serviceRadiusKm: updates['serviceRadiusKm'] is num ? (updates['serviceRadiusKm'] as num).toDouble() : null,
+        isAvailable: updates['isAvailable'] as bool?,
+      ).catchError((_) => false);
+
       return true;
     } catch (e) {
       debugPrint('[ProfileController] Failed to persist updates: $e');
-      return true; // Local update still succeeded
+      return true;
     }
+  }
+
+  Future<bool> changePassword({required String currentPassword, required String newPassword}) async {
+    final uid = partnerData?['user_id']?.toString() ?? partnerData?['id']?.toString();
+    return await SupabaseAuthService.updatePassword(
+      newPassword: newPassword,
+      currentPassword: currentPassword,
+      userId: uid,
+    );
   }
 }

@@ -16,15 +16,18 @@ class DeliveryActiveHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final orderCode = task['items_summary'] ?? (task['order_code'] != null ? '#SH-DEL-${task['order_code']}' : '#SH-DEL-8921');
-    final shopName = task['shop_name'] ?? 'City Medical & General Store';
-    final shopAddress = task['shop_address'] ?? 'Shop #12, Commercial Hub, Main Ring Road';
-    final dropAddress = task['customer_address'] ?? 'Customer Destination';
-    final eta = task['eta'] ?? '18 mins';
-    final distance = task['distance'] ?? '2.4 km';
-    final paymentType = task['payment_type'] ?? 'Cash on Delivery';
-    final earning = (task['earning'] as num?)?.toDouble() ?? 40.0;
-    final status = (task['status'] ?? 'PICKED_UP').toString().replaceAll('_', ' ');
+    final rawCode = task['order_code'] ?? task['order_id'] ?? task['code'];
+    final orderCode = rawCode != null
+        ? (rawCode.toString().startsWith('#') ? rawCode.toString() : '#SH-DEL-$rawCode')
+        : (task['items_summary']?.toString() ?? 'Active Delivery');
+    final shopName = (task['shop_name'] ?? task['store_name'] ?? 'Pickup Store').toString();
+    final shopAddress = (task['shop_address'] ?? task['store_address'] ?? 'Store Pickup Location').toString();
+    final dropAddress = (task['customer_address'] ?? task['address'] ?? 'Customer Destination Address').toString();
+    final eta = (task['eta'] ?? 'Calculating ETA...').toString();
+    final distance = (task['distance'] ?? '-- km').toString();
+    final paymentType = (task['payment_type'] ?? task['payment_method'] ?? 'Online Payment').toString();
+    final earning = ((task['earning'] ?? task['delivery_charge'] ?? task['fee']) as num?)?.toDouble() ?? 0.0;
+    final status = (task['status'] ?? 'ON_GOING').toString().replaceAll('_', ' ');
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

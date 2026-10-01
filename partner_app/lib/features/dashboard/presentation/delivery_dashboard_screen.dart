@@ -39,6 +39,8 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
   List<Map<String, dynamic>> _activeTasks = [];
   List<Map<String, dynamic>> _recentCompletedDeliveries = [];
   bool _isLoading = false;
+  bool _isFetching = false;
+  DateTime _lastFetchTime = DateTime.fromMillisecondsSinceEpoch(0);
   int _currentNavIndex = 0;
   StreamSubscription? _liveBookingSub;
 
@@ -47,7 +49,10 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
     super.initState();
     _loadAgentData();
     _liveBookingSub = LiveBookingSyncService.instance.bookingsStream.listen((_) {
-      if (mounted) _loadAgentData();
+      if (!mounted) return;
+      final now = DateTime.now();
+      if (now.difference(_lastFetchTime).inMilliseconds < 1500) return;
+      _loadAgentData(isBackgroundSync: true);
     });
   }
 
@@ -57,12 +62,17 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
     super.dispose();
   }
 
-  Future<void> _loadAgentData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadAgentData({bool isBackgroundSync = false}) async {
+    if (_isFetching) return;
+    _isFetching = true;
+    if (!isBackgroundSync && _agentName == 'Delivery Agent') {
+      setState(() => _isLoading = true);
+    }
     try {
       final activeUser = await LocalRegistrationCache.getActiveDeliveryAgent() ??
           await LocalRegistrationCache.getActivePartner();
       if (activeUser == null) {
+        _isFetching = false;
         if (mounted) GoRouter.maybeOf(context)?.go('/login/delivery-agent');
         return;
       }
@@ -203,13 +213,16 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
       final city = (activeUser['city'] ?? 'Rajkot').toString();
       final state = (activeUser['state'] ?? 'Gujarat').toString();
 
-      setState(() {
-        _agentName = resolvedName;
-        _agentCity = '$city, $state';
-        _todayEarnings = 0.0;
-        _completedDeliveries = 0;
-        _activeDeliveriesCount = 0;
-      });
+      if (mounted) {
+        setState(() {
+          _agentName = resolvedName;
+          _agentCity = '$city, $state';
+          _todayEarnings = 0.0;
+          _completedDeliveries = 0;
+          _activeDeliveriesCount = 0;
+          _isLoading = false;
+        });
+      }
 
       SupabaseClient? client;
       try {
@@ -225,13 +238,15 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
               .from('partners')
               .select('partner_id')
               .eq('user_id', userId)
-              .maybeSingle();
+              .maybeSingle()
+              .timeout(const Duration(seconds: 3));
           if (partnerRes != null) {
             final agentRes = await client
                 .from('delivery_agent_profiles')
                 .select('delivery_agent_id')
                 .eq('partner_id', partnerRes['partner_id'])
-                .maybeSingle();
+                .maybeSingle()
+                .timeout(const Duration(seconds: 3));
             if (agentRes != null) {
               agentId = agentRes['delivery_agent_id']?.toString();
             }
@@ -252,7 +267,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
             filterBuilder = filterBuilder.or('delivery_agent_id.eq.$agentId,delivery_agent_id.is.null');
           }
 
-          tasksRes = await filterBuilder.order('assigned_at', ascending: false);
+          tasksRes = await filterBuilder.order('assigned_at', ascending: false).timeout(const Duration(seconds: 3));
         } catch (_) {}
       }
 
@@ -263,7 +278,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
         final address = order?['user_addresses'] as Map<String, dynamic>?;
         final fee = (order?['delivery_charge'] as num?)?.toDouble() ?? 40.0;
 
-        final orderCode = order?['order_code']?.toString() ?? t['order_id']?.toString() ?? '8942';
+        final orderCode = order?['order_code']?.toString() ?? t['order_id']?.toString() ?? '';
         final cLat = (address?['latitude'] as num?)?.toDouble() ?? 22.4800;
         final cLng = (address?['longitude'] as num?)?.toDouble() ?? 70.0700;
         final sLat = (shop?['latitude'] as num?)?.toDouble() ?? 22.4740;
@@ -276,11 +291,11 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
           'order_id': t['order_id'],
           'order_code': orderCode,
           'status': t['status'],
-          'shop_name': shop?['shop_name'] ?? 'Local Store',
-          'shop_address': shop?['address'] ?? 'Commercial Market Area',
-          'shop_phone': shop?['phone'] ?? '+91 98250 12345',
+          'shop_name': shop?['shop_name'] ?? 'Pickup Store',
+          'shop_address': shop?['address'] ?? 'Store Pickup Location',
+          'shop_phone': shop?['phone'] ?? '',
           'customer_name': order?['customer_name'] ?? 'Customer',
-          'customer_phone': order?['customer_phone'] ?? '+91 99090 67890',
+          'customer_phone': order?['customer_phone'] ?? '',
           'customer_address': address != null
               ? '${address['area'] ?? ""}, ${address['city'] ?? ""}'.trim().replaceAll(RegExp(r'^,\s*|,\s*$'), '')
               : 'Customer Address',
@@ -291,10 +306,10 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
           'customer_lat': cLat,
           'customer_lng': cLng,
           'earning': fee,
-          'items_summary': order?['order_code'] != null ? 'Order #${order!['order_code']}' : 'Express Delivery',
-          'eta': '18 mins',
-          'distance': '2.4 km',
-          'payment_type': 'Cash on Delivery',
+          'items_summary': order?['order_code'] != null ? 'Order #${order!['order_code']}' : 'Delivery Assignment',
+          'eta': t['eta'] ?? 'Calculating ETA...',
+          'distance': t['distance'] ?? '-- km',
+          'payment_type': order?['payment_method'] ?? 'Online Payment',
           'delivery_pin': order?['delivery_pin'],
         });
       }
@@ -328,21 +343,21 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
             final fee = (b['delivery_charge'] as num?)?.toDouble() ??
                 (b['delivery_fee'] as num?)?.toDouble() ??
                 (b['earning'] as num?)?.toDouble() ??
-                40.0;
+                0.0;
             final orderCode = b['order_code'] ?? b['order_id'] ?? bId;
-            final itemsSummary = b['items_summary'] ?? b['service_name'] ?? 'Store Order Delivery';
+            final itemsSummary = b['items_summary'] ?? b['service_name'] ?? 'Delivery';
 
             tasks.add({
               'assignment_id': b['assignment_id'] ?? bId,
               'order_id': b['order_id'] ?? bId,
               'order_code': orderCode,
               'status': b['status'] ?? 'ASSIGNED',
-              'shop_name': b['shop_name'] ?? b['store_name'] ?? 'Local Store',
-              'shop_address': b['shop_address'] ?? b['store_address'] ?? 'Commercial Market Area',
-              'shop_phone': b['shop_phone'] ?? b['store_phone'] ?? '+91 98250 12345',
+              'shop_name': b['shop_name'] ?? b['store_name'] ?? 'Pickup Store',
+              'shop_address': b['shop_address'] ?? b['store_address'] ?? 'Store Pickup Location',
+              'shop_phone': b['shop_phone'] ?? b['store_phone'] ?? '',
               'customer_name': b['customer_name'] ?? 'Customer',
               'customer_address': b['customer_address'] ?? b['address'] ?? 'Customer Address',
-              'customer_phone': b['customer_phone'] ?? '+91 99090 67890',
+              'customer_phone': b['customer_phone'] ?? '',
               'rider_lat': (b['rider_lat'] as num?)?.toDouble() ?? 22.4650,
               'rider_lng': (b['rider_lng'] as num?)?.toDouble() ?? 70.0500,
               'store_lat': (b['store_lat'] as num?)?.toDouble() ?? 22.4740,
@@ -353,36 +368,39 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
               'items_summary': orderCode != null && !itemsSummary.toString().contains('#')
                   ? 'Order #$orderCode'
                   : itemsSummary.toString(),
-              'eta': b['eta'] ?? '18 mins',
-              'distance': b['distance'] ?? '2.4 km',
-              'payment_type': b['payment_type'] ?? 'Cash on Delivery',
+              'eta': b['eta'] ?? 'Calculating ETA...',
+              'distance': b['distance'] ?? '-- km',
+              'payment_type': b['payment_type'] ?? 'Online Payment',
               'delivery_pin': b['delivery_pin'],
             });
           }
         }
       } catch (_) {}
 
-      // Query real delivery_tracking records for active assignments
-      if (client != null && !_isTestMode) {
-        for (final t in tasks) {
-          final aId = t['assignment_id'];
-          if (aId != null) {
-            try {
-              final trackRes = await client
-                  .from('delivery_tracking')
-                  .select('latitude, longitude, recorded_at')
-                  .eq('assignment_id', aId)
-                  .order('recorded_at', ascending: false)
-                  .limit(1)
-                  .maybeSingle();
-              if (trackRes != null) {
-                t['last_tracking'] = trackRes;
-                t['rider_lat'] = trackRes['latitude'];
-                t['rider_lng'] = trackRes['longitude'];
-              }
-            } catch (_) {}
-          }
-        }
+      // Query real delivery_tracking records for active assignments in parallel
+      if (client != null && !_isTestMode && tasks.isNotEmpty) {
+        try {
+          await Future.wait(tasks.map((t) async {
+            final aId = t['assignment_id'];
+            if (aId != null) {
+              try {
+                final trackRes = await client!
+                    .from('delivery_tracking')
+                    .select('latitude, longitude, recorded_at')
+                    .eq('assignment_id', aId)
+                    .order('recorded_at', ascending: false)
+                    .limit(1)
+                    .maybeSingle()
+                    .timeout(const Duration(seconds: 2));
+                if (trackRes != null) {
+                  t['last_tracking'] = trackRes;
+                  t['rider_lat'] = trackRes['latitude'];
+                  t['rider_lng'] = trackRes['longitude'];
+                }
+              } catch (_) {}
+            }
+          }));
+        } catch (_) {}
       }
 
       // Query real completed deliveries and earnings for today
@@ -400,19 +418,20 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
             completedQuery = completedQuery.eq('delivery_agent_id', agentId);
           }
 
-          final completedRes = await completedQuery.order('delivered_at', ascending: false).limit(5);
+          final completedRes = await completedQuery.order('delivered_at', ascending: false).limit(5).timeout(const Duration(seconds: 3));
           if (completedRes.isNotEmpty) {
             completed = completedRes.length;
             for (final c in completedRes) {
               final o = c['orders'] as Map<String, dynamic>?;
-              final fee = (o?['delivery_charge'] as num?)?.toDouble() ?? 40.0;
+              final fee = (o?['delivery_charge'] as num?)?.toDouble() ?? 0.0;
               earnings += fee;
               final shop = o?['shops'] as Map<String, dynamic>?;
 
+              final oCode = o?['order_code']?.toString() ?? c['assignment_id']?.toString() ?? '';
               recentCompleted.add({
-                'order_code': o?['order_code'] ?? '8902',
-                'items_summary': o?['order_code'] != null ? '#SH-DEL-${o!['order_code']}' : 'Express Trip',
-                'shop_name': shop?['shop_name'] ?? 'City Medical & General Store',
+                'order_code': oCode,
+                'items_summary': oCode.isNotEmpty ? '#SH-DEL-$oCode' : 'Delivered Order',
+                'shop_name': shop?['shop_name'] ?? 'Store',
                 'earning': fee,
                 'time': 'Delivered',
               });
@@ -421,16 +440,21 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
         } catch (_) {}
       }
 
-      setState(() {
-        _activeDeliveriesCount = tasks.length;
-        _activeTasks = tasks;
-        _recentCompletedDeliveries = recentCompleted;
-        _completedDeliveries = completed;
-        _todayEarnings = earnings;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _activeDeliveriesCount = tasks.length;
+          _activeTasks = tasks;
+          _recentCompletedDeliveries = recentCompleted;
+          _completedDeliveries = completed;
+          _todayEarnings = earnings;
+          _isLoading = false;
+        });
+      }
     } catch (_) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
+    } finally {
+      _isFetching = false;
+      _lastFetchTime = DateTime.now();
     }
   }
 

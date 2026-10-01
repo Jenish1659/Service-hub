@@ -144,19 +144,19 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
     final custLng = (t['customer_lng'] as num?)?.toDouble() ?? (baseLng + 0.016);
     _customerLocation = LatLng(custLat, custLng);
 
-    _orderCode = (t['order_code'] ?? t['order_id'] ?? t['items_summary'] ?? 'ORD-8942').toString();
-    if (!_orderCode.startsWith('#') && !_orderCode.startsWith('Order #')) {
-      _orderCode = '#$_orderCode';
-    }
+    final rawCode = t['order_code'] ?? t['order_id'] ?? t['code'];
+    _orderCode = rawCode != null
+        ? (rawCode.toString().startsWith('#') ? rawCode.toString() : '#SH-DEL-$rawCode')
+        : (t['items_summary']?.toString() ?? 'Active Order');
 
-    _storeName = (t['shop_name'] ?? t['store_name'] ?? 'FreshMart Supermarket').toString();
-    _storePhone = (t['shop_phone'] ?? t['store_phone'] ?? '+91 98250 12345').toString();
+    _storeName = (t['shop_name'] ?? t['store_name'] ?? 'Assigned Store').toString();
+    _storePhone = (t['shop_phone'] ?? t['store_phone'] ?? '').toString();
 
-    _customerName = (t['customer_name'] ?? 'Priya Sharma').toString();
-    _customerAddress = (t['customer_address'] ?? t['address'] ?? 'Flat 402, Radhe Residency, Patel Colony').toString();
-    _customerPhone = (t['customer_phone'] ?? '+91 99090 67890').toString();
+    _customerName = (t['customer_name'] ?? 'Customer').toString();
+    _customerAddress = (t['customer_address'] ?? t['address'] ?? 'Customer Destination Address').toString();
+    _customerPhone = (t['customer_phone'] ?? '').toString();
 
-    _earning = (t['earning'] as num?)?.toDouble() ?? 55.0;
+    _earning = ((t['earning'] ?? t['delivery_charge'] ?? t['fee']) as num?)?.toDouble() ?? 0.0;
 
     final rawStatus = (t['status'] ?? 'ACCEPTED').toString().toUpperCase();
     if (rawStatus == 'PICKED_UP' || rawStatus == 'OUT_FOR_DELIVERY') {

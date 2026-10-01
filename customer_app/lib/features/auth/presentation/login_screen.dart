@@ -1,8 +1,8 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/secure_otp_engine.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'auth_controller.dart';
 
@@ -69,9 +69,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
       return;
     }
 
-    // Generate random 4-digit OTP
-    final random = Random();
-    _generatedOtp = (1000 + random.nextInt(9000)).toString();
+    // Generate cryptographically secure dynamic 4-digit OTP with per-user non-repetition
+    _generatedOtp = SecureOtpEngine.instance.generateOtp(
+      userIdOrPhone: phone,
+      digits: 4,
+    );
 
     setState(() {
       _otpSent = true;

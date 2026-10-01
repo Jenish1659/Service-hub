@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/supabase_auth_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 
 class ShopkeeperProfileController extends ChangeNotifier {
@@ -165,7 +166,11 @@ class ShopkeeperProfileController extends ChangeNotifier {
         }
       } catch (_) {}
 
-      // 3. Fetch live store data from Supabase if online
+      // Reveal local cached shop data immediately without waiting for network (< 20ms)
+      isLoading = false;
+      notifyListeners();
+
+      // 3. Fetch live store data from Supabase in the background with strict 3s timeout
       final userId = cached?['user_id']?.toString() ?? Supabase.instance.client.auth.currentUser?.id;
       if (userId != null) {
         try {
@@ -174,7 +179,8 @@ class ShopkeeperProfileController extends ChangeNotifier {
               .from('users')
               .select('*, partners(*, shopkeeper_profiles(*)), user_addresses(*)')
               .eq('user_id', userId)
-              .maybeSingle();
+              .maybeSingle()
+              .timeout(const Duration(seconds: 3));
 
           if (userRes != null) {
             _populateFromSupabase(userRes);
@@ -195,7 +201,8 @@ class ShopkeeperProfileController extends ChangeNotifier {
                   final reviewsRes = await client
                       .from('reviews')
                       .select('rating')
-                      .eq('partner_id', partnerId);
+                      .eq('partner_id', partnerId)
+                      .timeout(const Duration(seconds: 3));
 
                   if (reviewsRes.isNotEmpty) {
                     reviewCount = reviewsRes.length;
@@ -208,6 +215,7 @@ class ShopkeeperProfileController extends ChangeNotifier {
                 } catch (_) {}
               }
             }
+            notifyListeners();
           }
         } catch (_) {}
       }
@@ -455,6 +463,20 @@ class ShopkeeperProfileController extends ChangeNotifier {
       'role_name': 'shopkeeper',
     };
     await LocalRegistrationCache.updateActiveShopkeeper(updates);
+
+    SupabaseAuthService.updateShopkeeperInDatabase(
+      userId: shopData?['user_id']?.toString(),
+      partnerId: shopData?['partner_id']?.toString(),
+      shopName: shopName,
+      ownerName: ownerName,
+      phone: phone,
+      email: email,
+      address: address,
+      city: city,
+      pincode: pincode,
+      category: category,
+      description: description,
+    ).catchError((_) => false);
   }
 
   Future<void> updateContactDetails({
@@ -475,6 +497,15 @@ class ShopkeeperProfileController extends ChangeNotifier {
       'email': email,
       'whatsapp_number': whatsappNumber,
     });
+
+    SupabaseAuthService.updateShopkeeperInDatabase(
+      userId: shopData?['user_id']?.toString(),
+      partnerId: shopData?['partner_id']?.toString(),
+      phone: phone,
+      alternatePhone: alternatePhone,
+      email: email,
+      whatsappNumber: whatsappNumber,
+    ).catchError((_) => false);
   }
 
   Future<void> updateBankDetails({
@@ -498,6 +529,16 @@ class ShopkeeperProfileController extends ChangeNotifier {
       'ifsc_code': ifscCode,
       'account_type': accountType,
     });
+
+    SupabaseAuthService.updateShopkeeperInDatabase(
+      userId: shopData?['user_id']?.toString(),
+      partnerId: shopData?['partner_id']?.toString(),
+      accountHolderName: accountHolderName,
+      bankName: bankName,
+      accountNumber: accountNumber,
+      ifscCode: ifscCode,
+      accountType: accountType,
+    ).catchError((_) => false);
   }
 
   Future<void> updateBusinessHours(Map<String, Map<String, dynamic>> schedule) async {
@@ -519,6 +560,12 @@ class ShopkeeperProfileController extends ChangeNotifier {
       'service_radius_km': serviceRadiusKm,
       'current_area': currentArea,
     });
+
+    SupabaseAuthService.updateShopkeeperInDatabase(
+      userId: shopData?['user_id']?.toString(),
+      partnerId: shopData?['partner_id']?.toString(),
+      serviceRadiusKm: serviceRadiusKm,
+    ).catchError((_) => false);
   }
 
   void addShopPhoto(String photoPath) {
@@ -592,12 +639,28 @@ class ShopkeeperProfileController extends ChangeNotifier {
       'gst_doc_path': gstDocPath,
       'verification_status': isVerified ? 'VERIFIED' : 'PENDING',
     });
+
+    SupabaseAuthService.updateShopkeeperInDatabase(
+      userId: shopData?['user_id']?.toString(),
+      partnerId: shopData?['partner_id']?.toString(),
+      aadhaarNumber: aadhaarNumber,
+      panNumber: panNumber,
+      shopRegistrationNo: shopRegistrationNo,
+      shopLicenseNumber: shopLicenseNumber,
+      gstNumber: gstNumber,
+    ).catchError((_) => false);
   }
 
   void toggleStoreStatus(bool status) {
     isOpen = status;
     notifyListeners();
     LocalRegistrationCache.updateActiveShopkeeper({'is_open': isOpen});
+
+    SupabaseAuthService.updateShopkeeperInDatabase(
+      userId: shopData?['user_id']?.toString(),
+      partnerId: shopData?['partner_id']?.toString(),
+      isOpen: isOpen,
+    ).catchError((_) => false);
   }
 
   void updateNotificationSettings({
@@ -654,11 +717,12 @@ class ShopkeeperProfileController extends ChangeNotifier {
   }
 
   Future<void> changePassword({required String currentPassword, required String newPassword}) async {
-    // Simulated remote password change with Supabase
-    try {
-      final client = Supabase.instance.client;
-      await client.auth.updateUser(UserAttributes(password: newPassword));
-    } catch (_) {}
+    final uid = shopData?['user_id']?.toString();
+    await SupabaseAuthService.updatePassword(
+      newPassword: newPassword,
+      currentPassword: currentPassword,
+      userId: uid,
+    );
   }
 
   Future<void> deleteAccount() async {

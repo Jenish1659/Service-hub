@@ -163,7 +163,9 @@ class _ShopkeeperChangePasswordScreenState
         ),
       );
 
-      Navigator.pop(context);
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);

@@ -186,12 +186,12 @@ class DeliveryRecentDeliveriesSection extends StatelessWidget {
 
   /// Builds a single completed delivery row
   Widget _buildDeliveryRowItem(BuildContext context, Map<String, dynamic> trip, int index) {
-    final rawOrder = trip['order_code'] ?? trip['order_id'] ?? trip['code'] ?? trip['id'] ?? trip['items_summary'] ?? '#SH10247';
+    final rawOrder = trip['order_code'] ?? trip['order_id'] ?? trip['code'] ?? trip['id'] ?? trip['items_summary'] ?? 'Trip #${index + 1}';
     final orderCode = rawOrder.toString().startsWith('#') ? rawOrder.toString() : '#$rawOrder';
-    final storeName = (trip['store_name'] ?? trip['shop_name'] ?? trip['vendor_name'] ?? 'Local Store').toString();
-    final time = (trip['timestamp'] ?? trip['time'] ?? trip['delivered_at'] ?? 'Just now').toString();
+    final storeName = (trip['store_name'] ?? trip['shop_name'] ?? trip['vendor_name'] ?? 'Store').toString();
+    final time = (trip['timestamp'] ?? trip['time'] ?? trip['delivered_at'] ?? 'Delivered').toString();
     final status = (trip['status'] ?? 'Delivered').toString();
-    final earning = trip['earning'] ?? trip['earnings'] ?? trip['amount'] ?? trip['delivery_charge'] ?? 40.0;
+    final earning = ((trip['earning'] ?? trip['earnings'] ?? trip['amount'] ?? trip['delivery_charge']) as num?)?.toDouble() ?? 0.0;
     final icon = (trip['icon'] as IconData?) ?? (index == 0 ? Icons.inventory_2_outlined : Icons.shopping_bag_outlined);
 
     return InkWell(

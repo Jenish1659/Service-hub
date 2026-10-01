@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:service_hub_partner/core/widgets/top_toast.dart';
+import 'package:service_hub_partner/core/storage/local_registration_cache.dart';
 import 'package:service_hub_partner/features/profile/presentation/controllers/profile_controller.dart';
 
 class PhoneAndEmailScreen extends StatefulWidget {
@@ -21,7 +22,9 @@ class _PhoneAndEmailScreenState extends State<PhoneAndEmailScreen> {
   @override
   void initState() {
     super.initState();
-    _emergencyPhoneCtrl = TextEditingController(text: '+91 98250 12345');
+    _emergencyPhoneCtrl = TextEditingController(
+      text: (widget.controller.partnerData?['emergency_phone'] ?? '').toString().trim(),
+    );
   }
 
   @override
@@ -174,10 +177,23 @@ class _PhoneAndEmailScreenState extends State<PhoneAndEmailScreen> {
 
   Future<void> _handleSave() async {
     setState(() => _isSaving = true);
-    await Future.delayed(const Duration(milliseconds: 500));
+    final emergency = _emergencyPhoneCtrl.text.trim();
+    if (emergency.isNotEmpty) {
+      await LocalRegistrationCache.updateActivePartner({'emergency_phone': emergency});
+    }
+    await widget.controller.saveProfileDetails(
+      name: widget.controller.partnerName,
+      phone: widget.controller.phoneNumber,
+      email: widget.controller.emailAddress,
+      dob: widget.controller.dateOfBirth,
+      bizName: widget.controller.businessName,
+      exp: widget.controller.experienceYears,
+      bio: widget.controller.shortBio,
+      city: widget.controller.serviceCity,
+    );
     if (!mounted) return;
     setState(() => _isSaving = false);
-    TopToast.show(context, 'Contact preferences saved successfully!', isError: false);
+    TopToast.show(context, 'Contact preferences saved and updated in database successfully!', isError: false);
     Navigator.pop(context);
   }
 
@@ -246,7 +262,7 @@ class _PhoneAndEmailScreenState extends State<PhoneAndEmailScreen> {
                       iconBg: const Color(0xFFEFF6FF),
                       iconColor: const Color(0xFF2563EB),
                       title: 'Primary Mobile Number',
-                      value: c.phoneNumber.isNotEmpty ? c.phoneNumber : '+91 98765 43210',
+                      value: c.phoneNumber.isNotEmpty ? c.phoneNumber : 'Not Linked',
                       description: 'Used for live dispatch incoming alerts, SMS OTP authentication, and customer coordination calls.',
                       buttonLabel: 'Update Mobile',
                       onButtonTap: _showUpdatePhoneSheet,

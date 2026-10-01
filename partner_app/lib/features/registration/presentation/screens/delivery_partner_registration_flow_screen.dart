@@ -696,7 +696,7 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
       final regResult = await SupabaseAuthService.registerDeliveryAgent(
         username: username.isNotEmpty ? username : 'rider_${phone.replaceAll(RegExp(r'\D'), '')}',
         fullName: fullName.isNotEmpty ? fullName : 'Delivery Partner',
-        phone: phone.isNotEmpty ? phone : '+91 98765 43210',
+        phone: phone,
         password: password,
         vehicleType: _selectedVehicleType,
         vehicleNumber: vehicleNo,
@@ -742,7 +742,7 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
         'delivery_agent_id': agentId,
         'name': fullName.isEmpty ? 'Delivery Partner' : fullName,
         'full_name': fullName.isEmpty ? 'Delivery Partner' : fullName,
-        'phone': phone.isEmpty ? '+91 98765 43210' : phone,
+        'phone': phone,
         'email': '${username.isNotEmpty ? username : "delivery"}@servicehub.com',
         'business_name': '$fullName Express Delivery',
         'category': 'delivery_agent',
@@ -1077,7 +1077,7 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
         ),
         const SizedBox(height: 4),
         Text(
-          'Enter the 6-digit code sent to +91 ${_phoneController.text.trim().isEmpty ? "98765 43210" : _phoneController.text.trim()}',
+          'Enter the 6-digit code sent to ${_phoneController.text.trim().isNotEmpty ? "+91 ${_phoneController.text.trim()}" : "your registered phone"}',
           style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
         ),
         const SizedBox(height: 20),

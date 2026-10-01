@@ -59,6 +59,14 @@ import 'package:service_hub_partner/features/profile/presentation/screens/shopke
 import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_help_support_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/shopkeeper_about_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/delivery_agent_profile_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/delivery_edit_profile_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/delivery_availability_shift_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/delivery_area_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/delivery_documents_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/delivery_earnings_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/delivery_settings_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/screens/delivery_help_support_screen.dart';
+import 'package:service_hub_partner/features/profile/presentation/controllers/delivery_agent_profile_controller.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -385,6 +393,55 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/profile/delivery',
       builder: (context, state) => const DeliveryAgentProfileScreen(),
+    ),
+    GoRoute(
+      path: '/profile/delivery/edit',
+      builder: (context, state) {
+        final ctrl = state.extra as DeliveryAgentProfileController?;
+        return DeliveryEditProfileScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/delivery/shift',
+      builder: (context, state) {
+        final ctrl = state.extra as DeliveryAgentProfileController?;
+        return DeliveryAvailabilityShiftScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/delivery/area',
+      builder: (context, state) {
+        final ctrl = state.extra as DeliveryAgentProfileController?;
+        return DeliveryAreaScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/delivery/documents',
+      builder: (context, state) {
+        final ctrl = state.extra as DeliveryAgentProfileController?;
+        return DeliveryDocumentsScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/delivery/earnings',
+      builder: (context, state) {
+        final ctrl = state.extra as DeliveryAgentProfileController?;
+        return DeliveryEarningsScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/delivery/settings',
+      builder: (context, state) {
+        final ctrl = state.extra as DeliveryAgentProfileController?;
+        return DeliverySettingsScreen(controller: ctrl);
+      },
+    ),
+    GoRoute(
+      path: '/profile/delivery/help',
+      builder: (context, state) {
+        final ctrl = state.extra as DeliveryAgentProfileController?;
+        return DeliveryHelpSupportScreen(controller: ctrl);
+      },
     ),
 
     // Service Provider Profile Routes (Strictly for Service Provider Only)
