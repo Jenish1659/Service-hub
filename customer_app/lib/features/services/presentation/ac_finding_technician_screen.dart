@@ -1299,13 +1299,16 @@ class _ACFindingTechnicianScreenState extends State<ACFindingTechnicianScreen> w
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
-              final tech = _assignedPartner ?? {
-                'partner_id': '446109aa-a7e9-4072-ac72-abdfd8013492',
-                'name': 'Jenish Bheda',
-                'phone': '+91 75730 21659',
-                'rating': 4.9,
-                'total_jobs': 42,
-              };
+              if (!_isAssigned || _assignedPartner == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Finding your technician... Details will appear once a partner accepts.'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              final tech = _assignedPartner!;
               context.push(
                 '/services/ac/technician-details',
                 extra: {

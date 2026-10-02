@@ -65,11 +65,33 @@ class RecentBookingsCard extends StatelessWidget {
               separatorBuilder: (_, __) => const Divider(color: Color(0xFFF1F5F9), height: 16),
               itemBuilder: (ctx, idx) {
                 final b = bookings[idx];
-                final id = b['id'] ?? b['booking_id'] ?? '#BK1250';
-                final customerName = b['customer_name'] ?? b['name'] ?? 'Rahul Sharma';
-                final service = b['service_name'] ?? b['category_name'] ?? 'AC Service (Split AC)';
-                final status = (b['status'] ?? 'CONFIRMED').toString().toUpperCase();
-                final timeAgo = b['time_ago'] ?? '${(idx + 1) * 10} mins ago';
+                final rawId = b['id'] ?? b['booking_id'];
+                final id = rawId != null
+                    ? (rawId.toString().length > 8 ? rawId.toString().substring(0, 8) : rawId.toString())
+                    : '${idx + 1}';
+                final customerName = (b['customer_name'] ??
+                        b['name'] ??
+                        (b['customer_id'] != null
+                            ? 'Customer #${b['customer_id'].toString().substring(0, b['customer_id'].toString().length.clamp(0, 6))}'
+                            : 'Customer'))
+                    .toString();
+                final service = (b['service_name'] ?? b['category_name'] ?? b['problem_description'] ?? 'AC Service').toString();
+                final status = (b['status'] ?? 'PENDING').toString().toUpperCase();
+
+                String calcTimeAgo(dynamic raw) {
+                  if (raw == null) return 'Recently';
+                  DateTime? dt;
+                  if (raw is DateTime) dt = raw;
+                  if (raw is String) dt = DateTime.tryParse(raw);
+                  if (dt == null) return 'Recently';
+                  final diff = DateTime.now().difference(dt);
+                  if (diff.inSeconds < 60) return 'Just now';
+                  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+                  if (diff.inHours < 24) return '${diff.inHours}h ago';
+                  return '${diff.inDays}d ago';
+                }
+
+                final timeAgo = b['time_ago']?.toString() ?? calcTimeAgo(b['created_at']);
 
                 return InkWell(
                   onTap: () => BookingDetailsModal.show(context, b),

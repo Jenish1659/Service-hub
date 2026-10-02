@@ -197,9 +197,22 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
     }
 
     final locState = ref.read(locationProvider);
-    final activeLoc = locState.selectedLocation ?? locState.currentLocation;
-    final lat = activeLoc?.latitude ?? 22.4707;
-    final lng = activeLoc?.longitude ?? 70.0577;
+    var activeLoc = locState.selectedLocation ?? locState.currentLocation;
+    if (activeLoc == null) {
+      try {
+        await ref.read(locationProvider.notifier).fetchCurrentGpsLocation();
+        activeLoc = ref.read(locationProvider).selectedLocation ?? ref.read(locationProvider).currentLocation;
+      } catch (_) {}
+    }
+
+    if (activeLoc == null) {
+      setState(() => _isConfirming = false);
+      _showWarningSnackBar('Please enable GPS or select a service address to proceed with booking.');
+      return;
+    }
+
+    final lat = activeLoc.latitude;
+    final lng = activeLoc.longitude;
     final h3Index = H3GeospatialService.instance.latLngToH3Index(lat, lng, resolution: 8);
 
     final pin = (1000 + DateTime.now().millisecond % 9000).toString();

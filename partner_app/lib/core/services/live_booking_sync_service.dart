@@ -496,9 +496,14 @@ class LiveBookingSyncService {
     final all = _readAllBookings();
     final booking = all[bookingId] as Map<String, dynamic>? ?? _inMemoryBookings[bookingId];
     if (booking != null) {
+      final currentStatus = (booking['status'] ?? '').toString().toUpperCase();
+      // Cannot accept cancelled or expired booking
+      if (currentStatus.contains('CANCELLED') || currentStatus == 'EXPIRED' || currentStatus == 'CLOSED') {
+        return false;
+      }
       final existingPartner = booking['partner_id']?.toString() ?? '';
-      final newPartnerId = (partnerDataOrId is Map ? (partnerDataOrId['partner_id'] ?? '').toString() : partnerDataOrId.toString());
-      if (existingPartner.isNotEmpty && existingPartner != newPartnerId) {
+      // If already claimed by another partner or already confirmed, reject duplicate claim
+      if (existingPartner.isNotEmpty || currentStatus == 'CONFIRMED' || currentStatus == 'ACCEPTED') {
         return false;
       }
       if (partnerDataOrId is Map<String, dynamic>) {
@@ -533,8 +538,18 @@ class LiveBookingSyncService {
     }
   }
 
-  Future<void> cancelBooking(String bookingId) async {
-    await declineBooking(bookingId);
+  Future<void> cancelBooking(String bookingId, [String reason = 'Cancelled by Customer']) async {
+    final all = _readAllBookings();
+    final booking = all[bookingId] as Map<String, dynamic>? ?? _inMemoryBookings[bookingId];
+    if (booking != null) {
+      booking['status'] = 'CANCELLED_BY_CUSTOMER';
+      booking['service_status'] = 'CANCELLED_BY_CUSTOMER';
+      booking['cancellation_reason'] = reason;
+      booking['cancelled_at'] = DateTime.now().toIso8601String();
+      all[bookingId] = booking;
+      _writeAllBookings(all);
+      await _broadcastToHttpBridge('/api/bookings', booking);
+    }
   }
 
   Future<void> updateMilestone(String bookingId, String milestone) async {

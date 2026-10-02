@@ -206,13 +206,14 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
                           DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF475569)))),
                         ],
                         rows: filtered.map((b) {
-                          final id = b['id'] ?? b['booking_id'] ?? 'BK1250';
-                          final customer = b['customer_name'] ?? b['name'] ?? 'Rahul Sharma';
-                          final service = b['service_name'] ?? 'AC Service (Split AC)';
-                          final date = b['service_date'] ?? '31 May 2025';
-                          final time = b['service_time'] ?? '10:30 AM';
-                          final amount = b['estimated_amount'] ?? '499.00';
-                          final status = (b['status'] ?? 'CONFIRMED').toString().toUpperCase();
+                          final rawId = b['id'] ?? b['booking_id'];
+                          final id = rawId != null ? (rawId.toString().length > 8 ? rawId.toString().substring(0, 8) : rawId.toString()) : 'N/A';
+                          final customer = (b['customer_name'] ?? b['name'] ?? (b['customer_id'] != null ? 'Customer #${b['customer_id'].toString().substring(0, b['customer_id'].toString().length.clamp(0, 6))}' : 'Customer')).toString();
+                          final service = (b['service_name'] ?? b['category_name'] ?? b['problem_description'] ?? 'AC Service').toString();
+                          final date = (b['service_date'] ?? b['scheduled_date'] ?? (b['created_at'] != null ? b['created_at'].toString().split('T').first : 'Today')).toString();
+                          final time = (b['service_time'] ?? b['scheduled_time_slot'] ?? 'Scheduled').toString();
+                          final amount = (b['final_amount'] ?? b['estimated_amount'] ?? '0.00').toString();
+                          final status = (b['status'] ?? 'PENDING').toString().toUpperCase();
 
                           return DataRow(
                             cells: [

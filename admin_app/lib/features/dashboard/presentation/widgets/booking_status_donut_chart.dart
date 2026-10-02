@@ -19,11 +19,55 @@ class BookingStatusDonutChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveTotal = totalCount > 0 ? totalCount : 1;
-    final cPct = ((completedCount / effectiveTotal) * 100).toStringAsFixed(1);
-    final oPct = ((ongoingCount / effectiveTotal) * 100).toStringAsFixed(1);
-    final confPct = ((confirmedCount / effectiveTotal) * 100).toStringAsFixed(1);
-    final canPct = ((cancelledCount / effectiveTotal) * 100).toStringAsFixed(1);
+    final cPct = totalCount > 0 ? ((completedCount / totalCount) * 100).toStringAsFixed(1) : '0.0';
+    final oPct = totalCount > 0 ? ((ongoingCount / totalCount) * 100).toStringAsFixed(1) : '0.0';
+    final confPct = totalCount > 0 ? ((confirmedCount / totalCount) * 100).toStringAsFixed(1) : '0.0';
+    final canPct = totalCount > 0 ? ((cancelledCount / totalCount) * 100).toStringAsFixed(1) : '0.0';
+
+    final List<PieChartSectionData> chartSections = [];
+    if (totalCount == 0) {
+      chartSections.add(
+        PieChartSectionData(
+          value: 1,
+          color: const Color(0xFFE2E8F0),
+          showTitle: false,
+          radius: 18,
+        ),
+      );
+    } else {
+      if (completedCount > 0) {
+        chartSections.add(PieChartSectionData(
+          value: completedCount.toDouble(),
+          color: const Color(0xFF10B981),
+          showTitle: false,
+          radius: 18,
+        ));
+      }
+      if (ongoingCount > 0) {
+        chartSections.add(PieChartSectionData(
+          value: ongoingCount.toDouble(),
+          color: const Color(0xFFF59E0B),
+          showTitle: false,
+          radius: 18,
+        ));
+      }
+      if (confirmedCount > 0) {
+        chartSections.add(PieChartSectionData(
+          value: confirmedCount.toDouble(),
+          color: const Color(0xFF0284C7),
+          showTitle: false,
+          radius: 18,
+        ));
+      }
+      if (cancelledCount > 0) {
+        chartSections.add(PieChartSectionData(
+          value: cancelledCount.toDouble(),
+          color: const Color(0xFFEF4444),
+          showTitle: false,
+          radius: 18,
+        ));
+      }
+    }
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -60,34 +104,9 @@ class BookingStatusDonutChart extends StatelessWidget {
                   children: [
                     PieChart(
                       PieChartData(
-                        sectionsSpace: 3,
+                        sectionsSpace: totalCount > 0 ? 3 : 0,
                         centerSpaceRadius: 44,
-                        sections: [
-                          PieChartSectionData(
-                            value: completedCount > 0 ? completedCount.toDouble() : 1,
-                            color: const Color(0xFF10B981),
-                            showTitle: false,
-                            radius: 18,
-                          ),
-                          PieChartSectionData(
-                            value: ongoingCount > 0 ? ongoingCount.toDouble() : 1,
-                            color: const Color(0xFFF59E0B),
-                            showTitle: false,
-                            radius: 18,
-                          ),
-                          PieChartSectionData(
-                            value: confirmedCount > 0 ? confirmedCount.toDouble() : 1,
-                            color: const Color(0xFF0284C7),
-                            showTitle: false,
-                            radius: 18,
-                          ),
-                          PieChartSectionData(
-                            value: cancelledCount > 0 ? cancelledCount.toDouble() : 1,
-                            color: const Color(0xFFEF4444),
-                            showTitle: false,
-                            radius: 18,
-                          ),
-                        ],
+                        sections: chartSections,
                       ),
                     ),
                     Column(

@@ -374,21 +374,31 @@ class DashboardBottomGrid extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          if (allBookings.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(
-                child: Text('No customer reviews recorded yet.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
-              ),
-            )
-          else
-            _buildReviewItem(
-              (allBookings.first['customer_name'] ?? 'Customer').toString(),
-              (allBookings.first['service_name'] ?? 'AC Service').toString(),
-              5.0,
-              'Excellent service! Technician was punctual, inspected the AC thoroughly and fixed the issue.',
-              'Recently',
-            ),
+          () {
+            final reviewedBookings = allBookings.where((b) {
+              final r = b['rating'] ?? b['review_rating'];
+              final c = b['comment'] ?? b['review_comment'] ?? b['review'];
+              return r != null || (c != null && c.toString().isNotEmpty);
+            }).toList();
+
+            if (reviewedBookings.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text('No customer reviews recorded yet.', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                ),
+              );
+            }
+
+            final rev = reviewedBookings.first;
+            final rName = (rev['customer_name'] ?? rev['name'] ?? 'Customer').toString();
+            final rServ = (rev['service_name'] ?? rev['problem_description'] ?? 'AC Service').toString();
+            final rRating = (rev['rating'] as num?)?.toDouble() ?? (rev['review_rating'] as num?)?.toDouble() ?? 5.0;
+            final rComment = (rev['comment'] ?? rev['review_comment'] ?? rev['review'] ?? '').toString();
+            final rTime = rev['created_at'] != null ? 'Verified' : 'Recently';
+
+            return _buildReviewItem(rName, rServ, rRating, rComment, rTime);
+          }(),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/services/routing_service.dart';
+import '../../../../core/services/partner_location_service.dart';
 import '../../../core/storage/local_registration_cache.dart';
 
 class ACProviderDashboardState {
@@ -204,6 +205,10 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
         verificationStatus: verification,
         isOnline: isOnline,
       );
+
+      if (isOnline && (state.partnerId.isNotEmpty)) {
+        PartnerLocationService.instance.startLiveLocationTracking(partnerId: state.partnerId);
+      }
     }
   }
 
@@ -590,6 +595,12 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
             .from('partners')
             .update({'availability_status': online ? 'ONLINE' : 'OFFLINE'})
             .eq('partner_id', state.partnerId);
+
+        if (online) {
+          PartnerLocationService.instance.startLiveLocationTracking(partnerId: state.partnerId);
+        } else {
+          PartnerLocationService.instance.stopLiveLocationTracking();
+        }
       }
     } catch (_) {}
   }

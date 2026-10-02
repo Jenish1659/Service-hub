@@ -644,8 +644,36 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                           setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
                         }
                       },
-                      onSearch: (val) { if (val.trim().isNotEmpty) { setState(() { _activeTab = 'Partner Verification'; }); } },
+                      onSearch: (val) {
+                        if (val.trim().isNotEmpty) {
+                          setState(() {
+                            _activeTab = 'Partner Verification';
+                          });
+                        }
+                      },
                       dateRangeText: _dateRangeText,
+                      unverifiedCount: unverifiedPartners.length,
+                      onRefresh: () {
+                        ref.invalidate(adminStatsStreamProvider);
+                        ref.invalidate(adminAllBookingsStreamProvider);
+                        ref.invalidate(adminUnverifiedPartnersProvider);
+                        ref.invalidate(adminStatsProvider);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Row(
+                                children: [
+                                  Icon(Icons.cloud_done_rounded, color: Colors.white, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Database synced and live dashboard reloaded!'),
+                                ],
+                              ),
+                              backgroundColor: Color(0xFF10B981),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
                     ),
                     Expanded(
                       child: _buildActiveView(stats, allBookings, unverifiedPartners),

@@ -38,9 +38,9 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
 
   // Geolocation
   LatLng _customerLocation = const LatLng(22.4707, 70.0577);
-  LatLng _partnerLocation = const LatLng(22.4820, 70.0710);
-  int _etaMinutes = 15;
-  double _distanceKm = 2.4;
+  LatLng? _partnerLocation;
+  int _etaMinutes = 0;
+  double _distanceKm = 0.0;
 
   // Rating and review state
   int _overallRating = 5;
@@ -169,12 +169,17 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
     final cLat = (data['customer_latitude'] ?? data['customer_lat'] as num?)?.toDouble() ?? 22.4707;
     final cLng = (data['customer_longitude'] ?? data['customer_lng'] as num?)?.toDouble() ?? 70.0577;
 
-    // Partner coordinates
-    final pLat = (data['partner_lat'] as num?)?.toDouble() ?? (cLat + 0.012);
-    final pLng = (data['partner_lng'] as num?)?.toDouble() ?? (cLng + 0.014);
+    // Real Partner coordinates (no fake coordinate generation)
+    final rawPLat = (data['partner_lat'] as num?)?.toDouble();
+    final rawPLng = (data['partner_lng'] as num?)?.toDouble();
+    final hasPartnerGps = rawPLat != null && rawPLng != null;
 
-    final dist = OsrmRoutingService.computeHaversineDistanceKm(pLat, pLng, cLat, cLng) * 1.35;
-    final eta = ((dist / 25.0) * 60.0).round().clamp(5, 45);
+    final dist = hasPartnerGps
+        ? OsrmRoutingService.computeHaversineDistanceKm(rawPLat, rawPLng, cLat, cLng) * 1.35
+        : 0.0;
+    final eta = hasPartnerGps
+        ? ((dist / 25.0) * 60.0).round().clamp(5, 45)
+        : 0;
 
     // Partner profile extraction
     String pName = (data['technician_name'] ?? data['partner_name'] ?? '').toString();
@@ -200,7 +205,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
       _loading = false;
       _status = normalizedStatus;
       _customerLocation = LatLng(cLat, cLng);
-      _partnerLocation = LatLng(pLat, pLng);
+      _partnerLocation = hasPartnerGps ? LatLng(rawPLat, rawPLng) : null;
       _distanceKm = dist;
       _etaMinutes = eta;
 
@@ -417,6 +422,8 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
               if (isCancelled) _buildCancelledBanner(),
               if (_status == 'SCHEDULED')
                 _buildScheduledFutureView()
+              else if (_status == 'SEARCHING')
+                _buildSearchingPartnerView()
               else if (_status == 'COMPLETED')
                 _buildScreen5CompletedView()
               else if (_status == 'IN_PROGRESS' || _status == 'ARRIVED')
@@ -434,6 +441,8 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
     switch (_status) {
       case 'SCHEDULED':
         return 'Scheduled Booking';
+      case 'SEARCHING':
+        return 'Finding Technician';
       case 'ON_THE_WAY':
         return 'Partner on the Way';
       case 'ARRIVED':
@@ -460,6 +469,142 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
             child: Text(
               'This booking has been cancelled.',
               style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFB91C1C), fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // PATH A: SEARCHING FOR SERVICE PARTNER VIEW
+  // ==========================================
+  Widget _buildSearchingPartnerView() {
+    final service = _bookingData?['service_name'] ?? 'AC Regular Servicing';
+    final date = _bookingData?['scheduled_date'] ?? 'Today';
+    final time = _bookingData?['scheduled_time'] ?? 'As scheduled';
+    final address = _bookingData?['address'] ?? _bookingData?['customer_address'] ?? 'Customer Address';
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SizedBox(height: 20),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(Icons.radar_rounded, color: Colors.white, size: 42),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Finding Nearby Partner',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Searching nearby verified technicians within 5 km...',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13.5, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFDBEAFE)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline_rounded, color: Color(0xFF2563EB), size: 20),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Partner details and live GPS tracking will activate as soon as an expert technician accepts.',
+                    style: TextStyle(fontSize: 12.5, color: Color(0xFF1E40AF)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                _buildInfoRow(Icons.ac_unit_rounded, 'Service', service),
+                const Divider(height: 20),
+                _buildInfoRow(Icons.calendar_today_rounded, 'Date', date),
+                const Divider(height: 20),
+                _buildInfoRow(Icons.access_time_rounded, 'Slot', time),
+                const Divider(height: 20),
+                _buildInfoRow(Icons.location_on_outlined, 'Address', address),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.cancel_outlined, color: Color(0xFFEF4444)),
+              label: const Text('Cancel Search', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFFFECACA)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: const Text('Cancel Search?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    content: const Text('Are you sure you want to cancel searching for a service technician?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep Searching')),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Cancel Search', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  try {
+                    await LiveBookingSyncService.instance.cancelBooking(widget.bookingId);
+                  } catch (_) {}
+                  if (!mounted) return;
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/orders');
+                  }
+                }
+              },
             ),
           ),
         ],
@@ -583,10 +728,12 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
             children: [
               FlutterMap(
                 options: MapOptions(
-                  initialCenter: LatLng(
-                    (_partnerLocation.latitude + _customerLocation.latitude) / 2,
-                    (_partnerLocation.longitude + _customerLocation.longitude) / 2,
-                  ),
+                  initialCenter: _partnerLocation != null
+                      ? LatLng(
+                          (_partnerLocation!.latitude + _customerLocation.latitude) / 2,
+                          (_partnerLocation!.longitude + _customerLocation.longitude) / 2,
+                        )
+                      : _customerLocation,
                   initialZoom: 13.8,
                 ),
                 children: [
@@ -594,40 +741,42 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                     urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.servicehub.customer',
                   ),
-                  // Connecting Road Route Polyline
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: [
-                          _partnerLocation,
-                          LatLng(
-                            _partnerLocation.latitude * 0.6 + _customerLocation.latitude * 0.4,
-                            _partnerLocation.longitude * 0.4 + _customerLocation.longitude * 0.6,
-                          ),
-                          _customerLocation,
-                        ],
-                        strokeWidth: 4.5,
-                        color: const Color(0xFF2563EB),
-                      ),
-                    ],
-                  ),
+                  // Connecting Road Route Polyline (only if real partner location is known)
+                  if (_partnerLocation != null)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: [
+                            _partnerLocation!,
+                            LatLng(
+                              _partnerLocation!.latitude * 0.6 + _customerLocation.latitude * 0.4,
+                              _partnerLocation!.longitude * 0.4 + _customerLocation.longitude * 0.6,
+                            ),
+                            _customerLocation,
+                          ],
+                          strokeWidth: 4.5,
+                          color: const Color(0xFF2563EB),
+                        ),
+                      ],
+                    ),
                   // Markers for Partner & Customer
                   MarkerLayer(
                     markers: [
-                      Marker(
-                        point: _partnerLocation,
-                        width: 48,
-                        height: 48,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2563EB),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2.5),
-                            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                      if (_partnerLocation != null)
+                        Marker(
+                          point: _partnerLocation!,
+                          width: 48,
+                          height: 48,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2.5),
+                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                            ),
+                            child: const Icon(Icons.two_wheeler_rounded, color: Colors.white, size: 24),
                           ),
-                          child: const Icon(Icons.two_wheeler_rounded, color: Colors.white, size: 24),
                         ),
-                      ),
                       Marker(
                         point: _customerLocation,
                         width: 44,
@@ -663,11 +812,16 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                       Container(
                         width: 8,
                         height: 8,
-                        decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle),
+                        decoration: BoxDecoration(
+                          color: _partnerLocation != null ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                          shape: BoxShape.circle,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Arriving in ~$_etaMinutes mins (${_distanceKm.toStringAsFixed(1)} km)',
+                        _partnerLocation != null
+                            ? 'Arriving in ~$_etaMinutes mins (${_distanceKm.toStringAsFixed(1)} km)'
+                            : 'Awaiting technician\'s live GPS signal...',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF0F172A)),
                       ),
                     ],

@@ -11,16 +11,19 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/services/routing_service.dart';
+import '../../../../core/services/partner_location_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'ac_provider_dashboard_controller.dart';
 
 /// Dedicated Full-Screen OpenStreetMap Live Radar Screen for Service Providers
 class ProviderLiveRadarMapScreen extends ConsumerStatefulWidget {
   final TileProvider? tileProvider;
+  final List<Map<String, dynamic>>? initialOffers;
 
   const ProviderLiveRadarMapScreen({
     super.key,
     this.tileProvider,
+    this.initialOffers,
   });
 
   @override
@@ -87,6 +90,13 @@ class _ProviderLiveRadarMapScreenState extends ConsumerState<ProviderLiveRadarMa
           setState(() {
             _technicianLocation = LatLng(pos.latitude, pos.longitude);
           });
+          final pId = ref.read(acProviderDashboardProvider).partnerId;
+          if (pId.isNotEmpty) {
+            PartnerLocationService.instance.syncLiveLocationToBackend(
+              partnerId: pId,
+              customPosition: pos,
+            );
+          }
         }
       }
     } catch (_) {
@@ -156,6 +166,10 @@ class _ProviderLiveRadarMapScreenState extends ConsumerState<ProviderLiveRadarMa
   }
 
   List<Map<String, dynamic>> _getConsolidatedIncomingOffers(ACProviderDashboardState dashboardState) {
+    if (widget.initialOffers != null) {
+      return widget.initialOffers!;
+    }
+
     final Map<String, Map<String, dynamic>> map = {};
 
     // 1. From provider state
@@ -181,55 +195,7 @@ class _ProviderLiveRadarMapScreenState extends ConsumerState<ProviderLiveRadarMa
       map.remove(activeId);
     }
 
-    // If completely empty, provide fallback pending AC bookings centered in Jamnagar operational zone
-    if (map.isEmpty) {
-      map['AC_DEMO_1'] = {
-        'id': 'AC_DEMO_1',
-        'booking_id': 'AC_DEMO_1',
-        'customer_name': 'Meera Patel',
-        'customer_phone': '+91 98251 44556',
-        'customer_address': 'Plot 12, Patel Colony Rd No 3, Jamnagar',
-        'customer_lat': 22.4735,
-        'customer_lng': 70.0630,
-        'service_name': 'AC Jet Pump Deep Cleaning',
-        'problem_description': 'Low cooling and water leakage from indoor unit',
-        'price': 498.0,
-        'final_amount': 498.0,
-        'scheduled_time': 'Immediate (30 mins)',
-        'status': 'PENDING',
-      };
-      map['AC_DEMO_2'] = {
-        'id': 'AC_DEMO_2',
-        'booking_id': 'AC_DEMO_2',
-        'customer_name': 'Rajendra Jadeja',
-        'customer_phone': '+91 97123 88990',
-        'customer_address': 'B-204, Shivam Arcade, Khodiyar Colony, Jamnagar',
-        'customer_lat': 22.4632,
-        'customer_lng': 70.0495,
-        'service_name': 'AC Foam Jet Servicing + Gas Inspection',
-        'problem_description': 'Annual preventive maintenance and filter cleaning',
-        'price': 498.0,
-        'final_amount': 498.0,
-        'scheduled_time': 'Today, 02:00 PM',
-        'status': 'PENDING',
-      };
-      map['AC_DEMO_3'] = {
-        'id': 'AC_DEMO_3',
-        'booking_id': 'AC_DEMO_3',
-        'customer_name': 'Amit Sanghavi',
-        'customer_phone': '+91 94280 33211',
-        'customer_address': 'Near Digjam Circle, Aerodrome Road, Jamnagar',
-        'customer_lat': 22.4820,
-        'customer_lng': 70.0710,
-        'service_name': 'Split AC Power Saver Servicing',
-        'problem_description': 'Outdoor compressor tripping frequently',
-        'price': 549.0,
-        'final_amount': 549.0,
-        'scheduled_time': 'Today, 04:30 PM',
-        'status': 'PENDING',
-      };
-    }
-
+    // Genuine live requests only (zero fake demo requests)
     return map.values.toList();
   }
 
@@ -1135,12 +1101,16 @@ class _ProviderLiveRadarMapScreenState extends ConsumerState<ProviderLiveRadarMa
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            '${offers.length} AC Service Bookings in 5km Zone',
+                            offers.isNotEmpty
+                                ? '${offers.length} AC Service Bookings in 5km Zone'
+                                : 'Radar Active • Scanning for Requests',
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
                           ),
-                          const Text(
-                            'Tap any pin on the map to inspect and accept job',
-                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          Text(
+                            offers.isNotEmpty
+                                ? 'Tap any pin on the map to inspect and accept job'
+                                : 'Live scan active across 5 km operational area',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                           ),
                         ],
                       ),

@@ -22,13 +22,41 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
     final Map<String, double> serviceRevenue = {};
 
     try {
-      final bookingsRes = await client
-          .from('bookings')
-          .select('id, status, final_amount, estimated_amount, price, service_name');
-      totalBookings = bookingsRes.length;
+      List<dynamic> bookingsRes = [];
+      try {
+        bookingsRes = await client
+            .from('service_bookings')
+            .select('booking_id, status, service_status, final_amount, estimated_amount, problem_description, created_at');
+      } catch (_) {
+        try {
+          bookingsRes = await client
+              .from('bookings')
+              .select('id, status, final_amount, estimated_amount, price, service_name');
+        } catch (_) {
+          bookingsRes = [];
+        }
+      }
 
+      final localBookings = LiveBookingSyncService.instance.getAllBookings();
+      final seenIds = <String>{};
+      final combinedBookings = <Map<String, dynamic>>[];
       for (var b in bookingsRes) {
-        final status = (b['status'] ?? '').toString().toUpperCase();
+        final id = (b['booking_id'] ?? b['id'] ?? '').toString();
+        if (id.isNotEmpty) seenIds.add(id);
+        combinedBookings.add(Map<String, dynamic>.from(b));
+      }
+      for (var lb in localBookings) {
+        final id = (lb['booking_id'] ?? lb['id'] ?? '').toString();
+        if (id.isNotEmpty && !seenIds.contains(id)) {
+          seenIds.add(id);
+          combinedBookings.add(Map<String, dynamic>.from(lb));
+        }
+      }
+
+      totalBookings = combinedBookings.length;
+
+      for (var b in combinedBookings) {
+        final status = (b['status'] ?? b['service_status'] ?? '').toString().toUpperCase();
         final amt = (b['final_amount'] as num?)?.toDouble() ??
             (b['estimated_amount'] as num?)?.toDouble() ??
             (b['price'] as num?)?.toDouble() ??
@@ -37,15 +65,15 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
 
         if (status == 'COMPLETED' || status == 'SERVICE_COMPLETED' || status == 'DELIVERED') {
           completedServices++;
-        } else if (status == 'ONGOING' || status == 'SERVICE_STARTED' || status == 'ASSIGNED' || status == 'PICKED_UP') {
+        } else if (status == 'ONGOING' || status == 'SERVICE_STARTED' || status == 'ASSIGNED' || status == 'ARRIVED' || status == 'ON_THE_WAY' || status == 'IN_TRANSIT' || status == 'PICKED_UP') {
           ongoingServices++;
-        } else if (status == 'CONFIRMED' || status == 'ACCEPTED' || status == 'PENDING') {
+        } else if (status == 'CONFIRMED' || status == 'ACCEPTED' || status == 'PENDING' || status == 'SEARCHING_PROVIDER' || status == 'SCHEDULED') {
           confirmedServices++;
-        } else if (status == 'CANCELLED' || status == 'REJECTED') {
+        } else if (status == 'CANCELLED' || status == 'REJECTED' || status == 'CANCELLED_BY_CUSTOMER') {
           cancelledServices++;
         }
 
-        final sName = (b['service_name'] ?? 'General Service').toString();
+        final sName = (b['problem_description'] ?? b['service_name'] ?? 'AC Service').toString();
         serviceBookingCounts[sName] = (serviceBookingCounts[sName] ?? 0) + 1;
         serviceRevenue[sName] = (serviceRevenue[sName] ?? 0.0) + amt;
       }
@@ -83,7 +111,15 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
           .select('user_id, roles!inner(role_name)')
           .eq('roles.role_name', 'customer');
       totalCustomers = customersRes.length;
-    } catch (_) {}
+    } catch (_) {
+      try {
+        final roleRes = await client.from('roles').select('role_id').eq('role_name', 'customer').maybeSingle();
+        if (roleRes != null) {
+          final cRes = await client.from('users').select('user_id').eq('role_id', roleRes['role_id']);
+          totalCustomers = cRes.length;
+        }
+      } catch (_) {}
+    }
 
     yield {
       'totalBookings': totalBookings,
@@ -1064,19 +1100,48 @@ final adminAllBookingsStreamProvider = StreamProvider<List<Map<String, dynamic>>
 
   while (true) {
     try {
-      final supaList = await client
-          .from('bookings')
-          .select()
-          .order('created_at', ascending: false)
-          .timeout(const Duration(milliseconds: 3000));
+      List<dynamic> supaList = [];
+      try {
+        supaList = await client
+            .from('service_bookings')
+            .select()
+            .order('created_at', ascending: false)
+            .timeout(const Duration(milliseconds: 3000));
+      } catch (_) {
+        try {
+          supaList = await client
+              .from('bookings')
+              .select()
+              .order('created_at', ascending: false)
+              .timeout(const Duration(milliseconds: 3000));
+        } catch (_) {
+          supaList = [];
+        }
+      }
 
       final List<Map<String, dynamic>> bookings = [];
+      final Set<String> seenIds = {};
+
       for (final sb in supaList) {
-        bookings.add(Map<String, dynamic>.from(sb));
+        final map = Map<String, dynamic>.from(sb);
+        final id = (map['booking_id'] ?? map['id'] ?? '').toString();
+        if (id.isNotEmpty) seenIds.add(id);
+        bookings.add(map);
       }
+
+      // Merge with LiveBookingSyncService local active bookings
+      final localBookings = LiveBookingSyncService.instance.getAllBookings();
+      for (final lb in localBookings) {
+        final id = (lb['booking_id'] ?? lb['id'] ?? '').toString();
+        if (id.isNotEmpty && !seenIds.contains(id)) {
+          seenIds.add(id);
+          bookings.add(Map<String, dynamic>.from(lb));
+        }
+      }
+
       yield bookings;
     } catch (_) {
-      yield <Map<String, dynamic>>[];
+      yield LiveBookingSyncService.instance.getAllBookings();
     }
     await Future.delayed(const Duration(seconds: 2));
   }

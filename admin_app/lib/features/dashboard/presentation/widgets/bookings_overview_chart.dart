@@ -13,6 +13,11 @@ class BookingsOverviewChart extends StatefulWidget {
 class _BookingsOverviewChartState extends State<BookingsOverviewChart> {
   String _selectedFilter = 'Daily';
 
+  String _monthName(int m) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[(m - 1).clamp(0, 11)];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -69,108 +74,141 @@ class _BookingsOverviewChartState extends State<BookingsOverviewChart> {
           ),
           const SizedBox(height: 20),
 
-          // Line Chart
-          SizedBox(
-            height: 200,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 50,
-                  getDrawingHorizontalLine: (val) => const FlLine(color: Color(0xFFF1F5F9), strokeWidth: 1),
-                ),
-                titlesData: FlTitlesData(
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 50,
-                      reservedSize: 32,
-                      getTitlesWidget: (val, meta) => Text(
-                        val.toInt().toString(),
-                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.bold),
+          // Line Chart with 100% Real Live Database Spots
+          () {
+            final now = DateTime.now();
+            final dayDates = List.generate(7, (i) {
+              final d = now.subtract(Duration(days: 6 - i));
+              return DateTime(d.year, d.month, d.day);
+            });
+            final dayLabels = dayDates.map((d) => '${d.day} ${_monthName(d.month)}').toList();
+
+            final List<FlSpot> totalSpots = [];
+            final List<FlSpot> completedSpots = [];
+            final List<FlSpot> cancelledSpots = [];
+
+            double maxVal = 5.0;
+
+            for (int i = 0; i < 7; i++) {
+              final targetDate = dayDates[i];
+              int totalDay = 0;
+              int completedDay = 0;
+              int cancelledDay = 0;
+
+              for (final b in widget.bookings) {
+                final rawCreated = b['created_at'] ?? b['booking_date'];
+                DateTime? bDate;
+                if (rawCreated is String) {
+                  bDate = DateTime.tryParse(rawCreated);
+                } else if (rawCreated is DateTime) {
+                  bDate = rawCreated;
+                }
+
+                if (bDate != null) {
+                  if (bDate.year == targetDate.year &&
+                      bDate.month == targetDate.month &&
+                      bDate.day == targetDate.day) {
+                    totalDay++;
+                    final status = (b['status'] ?? '').toString().toUpperCase();
+                    if (status == 'COMPLETED' || status == 'SERVICE_COMPLETED') {
+                      completedDay++;
+                    } else if (status == 'CANCELLED' || status == 'REJECTED') {
+                      cancelledDay++;
+                    }
+                  }
+                }
+              }
+
+              totalSpots.add(FlSpot(i.toDouble(), totalDay.toDouble()));
+              completedSpots.add(FlSpot(i.toDouble(), completedDay.toDouble()));
+              cancelledSpots.add(FlSpot(i.toDouble(), cancelledDay.toDouble()));
+
+              if (totalDay > maxVal) maxVal = totalDay.toDouble();
+            }
+
+            final chartMaxY = (maxVal * 1.25).ceilToDouble().clamp(5.0, 100000.0);
+            final yInterval = (chartMaxY / 5).ceilToDouble().clamp(1.0, 50000.0);
+
+            return SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: yInterval,
+                    getDrawingHorizontalLine: (val) => const FlLine(color: Color(0xFFF1F5F9), strokeWidth: 1),
+                  ),
+                  titlesData: FlTitlesData(
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: yInterval,
+                        reservedSize: 32,
+                        getTitlesWidget: (val, meta) => Text(
+                          val.toInt().toString(),
+                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 24,
+                        interval: 1,
+                        getTitlesWidget: (val, meta) {
+                          final idx = val.toInt();
+                          if (idx >= 0 && idx < dayLabels.length) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                dayLabels[idx],
+                                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w600),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
                       ),
                     ),
                   ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 24,
-                      interval: 1,
-                      getTitlesWidget: (val, meta) {
-                        const days = ['24 May', '25 May', '26 May', '27 May', '28 May', '29 May', '30 May'];
-                        final idx = val.toInt();
-                        if (idx >= 0 && idx < days.length) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Text(days[idx], style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w600)),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
+                  borderData: FlBorderData(show: false),
+                  minX: 0,
+                  maxX: 6,
+                  minY: 0,
+                  maxY: chartMaxY,
+                  lineBarsData: [
+                    // 1. Total Bookings Series
+                    LineChartBarData(
+                      spots: totalSpots,
+                      isCurved: true,
+                      color: const Color(0xFF2563EB),
+                      barWidth: 2.5,
+                      dotData: const FlDotData(show: true),
                     ),
-                  ),
+                    // 2. Completed Series
+                    LineChartBarData(
+                      spots: completedSpots,
+                      isCurved: true,
+                      color: const Color(0xFF10B981),
+                      barWidth: 2.5,
+                      dotData: const FlDotData(show: true),
+                    ),
+                    // 3. Cancelled Series
+                    LineChartBarData(
+                      spots: cancelledSpots,
+                      isCurved: true,
+                      color: const Color(0xFFEF4444),
+                      barWidth: 2.5,
+                      dotData: const FlDotData(show: true),
+                    ),
+                  ],
                 ),
-                borderData: FlBorderData(show: false),
-                minX: 0,
-                maxX: 6,
-                minY: 0,
-                maxY: 250,
-                lineBarsData: [
-                  // 1. Total Bookings Series
-                  LineChartBarData(
-                    spots: const [
-                      FlSpot(0, 180),
-                      FlSpot(1, 160),
-                      FlSpot(2, 175),
-                      FlSpot(3, 210),
-                      FlSpot(4, 208),
-                      FlSpot(5, 190),
-                      FlSpot(6, 230),
-                    ],
-                    isCurved: true,
-                    color: const Color(0xFF2563EB),
-                    barWidth: 2.5,
-                    dotData: const FlDotData(show: true),
-                  ),
-                  // 2. Completed Series
-                  LineChartBarData(
-                    spots: const [
-                      FlSpot(0, 140),
-                      FlSpot(1, 120),
-                      FlSpot(2, 130),
-                      FlSpot(3, 160),
-                      FlSpot(4, 155),
-                      FlSpot(5, 135),
-                      FlSpot(6, 170),
-                    ],
-                    isCurved: true,
-                    color: const Color(0xFF10B981),
-                    barWidth: 2.5,
-                    dotData: const FlDotData(show: true),
-                  ),
-                  // 3. Cancelled Series
-                  LineChartBarData(
-                    spots: const [
-                      FlSpot(0, 45),
-                      FlSpot(1, 50),
-                      FlSpot(2, 60),
-                      FlSpot(3, 55),
-                      FlSpot(4, 65),
-                      FlSpot(5, 58),
-                      FlSpot(6, 68),
-                    ],
-                    isCurved: true,
-                    color: const Color(0xFFEF4444),
-                    barWidth: 2.5,
-                    dotData: const FlDotData(show: true),
-                  ),
-                ],
               ),
-            ),
-          ),
+            );
+          }(),
         ],
       ),
     );

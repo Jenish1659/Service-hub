@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
@@ -26,19 +27,20 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
   late LatLng _customerLocation;
   late String _currentStatus;
   bool _isProcessing = false;
-  Timer? _gpsMovementTimer;
+  StreamSubscription<Position>? _gpsPositionSub;
 
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
 
-    // Default Coordinates (Jamnagar/Rajkot, Gujarat)
     final custLat = (widget.job['customer_lat'] as num?)?.toDouble() ?? 22.4707;
     final custLng = (widget.job['customer_lng'] as num?)?.toDouble() ?? 70.0577;
 
-    // Partner is located ~1.8 km nearby initially
-    _partnerLocation = LatLng(custLat - 0.012, custLng - 0.009);
+    final initialPLat = (widget.job['partner_lat'] as num?)?.toDouble() ?? custLat;
+    final initialPLng = (widget.job['partner_lng'] as num?)?.toDouble() ?? custLng;
+
+    _partnerLocation = LatLng(initialPLat, initialPLng);
     _customerLocation = LatLng(custLat, custLng);
     final rawStatus = (widget.job['status'] ?? 'CONFIRMED').toString().toUpperCase();
     if (rawStatus == 'IN_PROGRESS' || rawStatus == 'INPROGRESS') {
@@ -47,45 +49,58 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
       _currentStatus = rawStatus;
     }
 
-    // Broadcast initial position
+    _initRealDeviceGpsTracking();
+  }
+
+  Future<void> _initRealDeviceGpsTracking() async {
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
+        final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 4),
+        );
+        if (mounted) {
+          setState(() {
+            _partnerLocation = LatLng(pos.latitude, pos.longitude);
+          });
+          _broadcastPartnerLocation(_partnerLocation);
+        }
+
+        _gpsPositionSub = Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        ).listen((Position pos) {
+          if (!mounted) return;
+          setState(() {
+            _partnerLocation = LatLng(pos.latitude, pos.longitude);
+          });
+          _broadcastPartnerLocation(_partnerLocation);
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _broadcastPartnerLocation(LatLng loc) {
     final bookingId = widget.job['booking_id'] ?? widget.job['id'] ?? '';
     if (bookingId.toString().isNotEmpty) {
       LiveBookingSyncService.instance.updatePartnerLocation(
         bookingId.toString(),
-        _partnerLocation.latitude,
-        _partnerLocation.longitude,
+        loc.latitude,
+        loc.longitude,
       );
     }
-
-    _startGpsSimulationTimer();
-  }
-
-  void _startGpsSimulationTimer() {
-    _gpsMovementTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      if (!mounted) return;
-      if (_currentStatus == 'ON_THE_WAY' || _currentStatus == 'CONFIRMED' || _currentStatus == 'ACCEPTED') {
-        final dLat = (_customerLocation.latitude - _partnerLocation.latitude) * 0.15;
-        final dLng = (_customerLocation.longitude - _partnerLocation.longitude) * 0.15;
-
-        setState(() {
-          _partnerLocation = LatLng(_partnerLocation.latitude + dLat, _partnerLocation.longitude + dLng);
-        });
-
-        final bookingId = widget.job['booking_id'] ?? widget.job['id'] ?? '';
-        if (bookingId.toString().isNotEmpty) {
-          LiveBookingSyncService.instance.updatePartnerLocation(
-            bookingId.toString(),
-            _partnerLocation.latitude,
-            _partnerLocation.longitude,
-          );
-        }
-      }
-    });
   }
 
   @override
   void dispose() {
-    _gpsMovementTimer?.cancel();
+    _gpsPositionSub?.cancel();
+    _mapController.dispose();
     super.dispose();
   }
 
@@ -123,9 +138,10 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
       await controller.updateJobMilestone(bookingId, 'ARRIVED');
       setState(() {
         _currentStatus = 'ARRIVED';
-        _partnerLocation = LatLng(_customerLocation.latitude - 0.0005, _customerLocation.longitude - 0.0005);
+        _partnerLocation = _customerLocation;
         _isProcessing = false;
       });
+      _broadcastPartnerLocation(_customerLocation);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

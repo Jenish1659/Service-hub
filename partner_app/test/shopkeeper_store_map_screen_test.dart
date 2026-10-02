@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:service_hub_partner/core/services/live_booking_sync_service.dart';
 import 'package:service_hub_partner/features/dashboard/presentation/shopkeeper_dashboard_screen.dart';
 import 'package:service_hub_partner/features/dashboard/presentation/shopkeeper_store_map_screen.dart';
@@ -121,7 +122,20 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
 
-      await tester.pumpWidget(createTestWidget(const ShopkeeperStoreMapScreen()));
+      final testCouriers = [
+        {
+          'id': 'courier_1',
+          'name': 'Vikram Rathod',
+          'rating': 4.9,
+          'distance_km': 0.8,
+          'status': 'Available for Pickup',
+          'vehicle': 'Honda Activa (GJ10-AB-4029)',
+          'phone': '+91 98980 44321',
+          'location': const LatLng(22.4707 + 0.0035, 70.0577 - 0.0055),
+        },
+      ];
+
+      await tester.pumpWidget(createTestWidget(ShopkeeperStoreMapScreen(initialCouriers: testCouriers)));
       await tester.pump(const Duration(milliseconds: 200));
 
       // Courier scooter icons rendered
@@ -149,7 +163,21 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
 
-      await tester.pumpWidget(createTestWidget(const ShopkeeperStoreMapScreen()));
+      final testOrders = [
+        {
+          'order_id': '#SH1024',
+          'raw_id': 'SH1024',
+          'customer_name': 'Amit Shah',
+          'customer_phone': '+91 98981 12345',
+          'address': 'Patel Colony, Street 5, Jamnagar',
+          'title': 'AC Remote & Copper Pipe',
+          'amount': 450.0,
+          'status': 'PREPARING',
+          'location': const LatLng(22.4707 + 0.0055, 70.0577 + 0.0085),
+        },
+      ];
+
+      await tester.pumpWidget(createTestWidget(ShopkeeperStoreMapScreen(initialOrders: testOrders)));
       await tester.pump(const Duration(milliseconds: 200));
 
       // Find customer order marker pin

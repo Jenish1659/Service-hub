@@ -102,6 +102,19 @@ void main() {
 
       await tester.pumpWidget(MaterialApp.router(routerConfig: router));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Emit real partner assignment via LiveBookingSyncService
+      await LiveBookingSyncService.instance.submitBooking({
+        'id': 'bk_test_ac_002',
+        'booking_id': 'bk_test_ac_002',
+        'status': 'ASSIGNED',
+        'partner_id': 'partner_real_test_002',
+        'partner_name': 'Jenish Bheda',
+        'partner_phone': '+91 75730 21659',
+      });
+
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
       // Tap View Technicians Details

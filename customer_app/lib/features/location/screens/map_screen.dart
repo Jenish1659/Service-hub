@@ -18,6 +18,9 @@ import '../widgets/availability_popup.dart';
 import '../widgets/book_for_someone_else_sheet.dart';
 import 'location_search_screen.dart';
 
+import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/routing_service.dart';
+
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
@@ -106,27 +109,61 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
   }
 
-  List<Marker> _generateNearbyProviderMarkers(double centerLat, double centerLng) {
-    return [
-      Marker(
-        point: LatLng(centerLat + 0.003, centerLng + 0.004),
-        width: 110,
-        height: 36,
-        child: const NearbyProviderMarker(providerName: 'Ramesh K.', category: 'Electrician'),
-      ),
-      Marker(
-        point: LatLng(centerLat - 0.004, centerLng + 0.002),
-        width: 110,
-        height: 36,
-        child: const NearbyProviderMarker(providerName: 'Sunil V.', category: 'Plumber'),
-      ),
-      Marker(
-        point: LatLng(centerLat + 0.002, centerLng - 0.005),
-        width: 110,
-        height: 36,
-        child: const NearbyProviderMarker(providerName: 'Anita P.', category: 'Cleaning'),
-      ),
-    ];
+  List<Marker> _loadRealNearbyProviderMarkers(double centerLat, double centerLng) {
+    final markers = <Marker>[];
+    try {
+      final allVerifications = LiveBookingSyncService.instance.getAllPartnerVerifications();
+      for (final p in allVerifications) {
+        final status = (p['status'] ?? p['verification_status'] ?? '').toString().toUpperCase();
+        if (status != 'APPROVED' && status != 'VERIFIED') continue;
+
+        final lat = (p['latitude'] ?? p['lat']) as num?;
+        final lng = (p['longitude'] ?? p['lng']) as num?;
+        if (lat == null || lng == null) continue;
+
+        final pLat = lat.toDouble();
+        final pLng = lng.toDouble();
+
+        final dist = OsrmRoutingService.computeHaversineDistanceKm(centerLat, centerLng, pLat, pLng);
+        if (dist <= 10.0) {
+          final name = (p['name'] ?? p['full_name'] ?? 'Provider').toString();
+          final cat = (p['category_name'] ?? p['category'] ?? 'Service').toString();
+          markers.add(
+            Marker(
+              point: LatLng(pLat, pLng),
+              width: 120,
+              height: 36,
+              child: NearbyProviderMarker(providerName: name, category: cat),
+            ),
+          );
+        }
+      }
+
+      // Check active jobs for real-time technician live coordinates
+      final allBookings = LiveBookingSyncService.instance.getAllBookings();
+      for (final b in allBookings) {
+        final pLat = (b['partner_lat'] as num?)?.toDouble();
+        final pLng = (b['partner_lng'] as num?)?.toDouble();
+        final pName = (b['partner_name'] ?? '').toString();
+        if (pLat != null && pLng != null && pName.isNotEmpty) {
+          final dist = OsrmRoutingService.computeHaversineDistanceKm(centerLat, centerLng, pLat, pLng);
+          if (dist <= 10.0) {
+            markers.add(
+              Marker(
+                point: LatLng(pLat, pLng),
+                width: 120,
+                height: 36,
+                child: NearbyProviderMarker(
+                  providerName: pName,
+                  category: (b['category_name'] ?? b['category'] ?? 'Technician').toString(),
+                ),
+              ),
+            );
+          }
+        }
+      }
+    } catch (_) {}
+    return markers;
   }
 
   @override
@@ -150,7 +187,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final initialLat = selectedLoc?.latitude ?? MapService.defaultLatitude;
     final initialLng = selectedLoc?.longitude ?? MapService.defaultLongitude;
 
-    final providerMarkers = _generateNearbyProviderMarkers(initialLat, initialLng);
+    final providerMarkers = _loadRealNearbyProviderMarkers(initialLat, initialLng);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,

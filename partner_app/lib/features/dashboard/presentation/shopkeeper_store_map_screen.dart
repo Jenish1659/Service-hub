@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/routing_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 
 /// Modal helper to present the OpenStreetMap interactive store map
@@ -30,10 +31,14 @@ class ShopkeeperStoreMapModal {
 /// Powered by flutter_map 7.0.2 and latlong2 0.9.1
 class ShopkeeperStoreMapScreen extends StatefulWidget {
   final bool isModal;
+  final List<Map<String, dynamic>>? initialCouriers;
+  final List<Map<String, dynamic>>? initialOrders;
 
   const ShopkeeperStoreMapScreen({
     super.key,
     this.isModal = false,
+    this.initialCouriers,
+    this.initialOrders,
   });
 
   @override
@@ -134,51 +139,58 @@ class _ShopkeeperStoreMapScreenState extends State<ShopkeeperStoreMapScreen>
   }
 
   void _initNearbyCouriers() {
-    _nearbyCouriers = [
-      {
-        'id': 'courier_1',
-        'name': 'Vikram Rathod',
-        'rating': 4.9,
-        'distance_km': 0.8,
-        'status': 'Available for Pickup',
-        'vehicle': 'Honda Activa (GJ10-AB-4029)',
-        'phone': '+91 98980 44321',
-        'location': LatLng(_jamnagarStoreBase.latitude + 0.0035, _jamnagarStoreBase.longitude - 0.0055),
-      },
-      {
-        'id': 'courier_2',
-        'name': 'Rahul Sharma',
-        'rating': 4.8,
-        'distance_km': 1.4,
-        'status': 'Available for Pickup',
-        'vehicle': 'TVS Jupiter (GJ10-DE-1192)',
-        'phone': '+91 98251 77889',
-        'location': LatLng(_jamnagarStoreBase.latitude - 0.0045, _jamnagarStoreBase.longitude + 0.0038),
-      },
-      {
-        'id': 'courier_3',
-        'name': 'Amit Dave',
-        'rating': 4.9,
-        'distance_km': 2.2,
-        'status': 'Available for Pickup',
-        'vehicle': 'Hero Splendor (GJ10-KL-7721)',
-        'phone': '+91 97240 66332',
-        'location': LatLng(_jamnagarStoreBase.latitude + 0.0075, _jamnagarStoreBase.longitude + 0.0060),
-      },
-      {
-        'id': 'courier_4',
-        'name': 'Karan Patel',
-        'rating': 4.7,
-        'distance_km': 3.1,
-        'status': 'Delivering Nearby',
-        'vehicle': 'Bajaj Pulsar (GJ10-MN-9910)',
-        'phone': '+91 99042 12044',
-        'location': LatLng(_jamnagarStoreBase.latitude - 0.0080, _jamnagarStoreBase.longitude - 0.0090),
-      },
-    ];
+    if (widget.initialCouriers != null) {
+      _nearbyCouriers = List.from(widget.initialCouriers!);
+      return;
+    }
+
+    _nearbyCouriers = [];
+    try {
+      final allVerifications = LiveBookingSyncService.instance.getAllPartnerVerifications();
+      for (final p in allVerifications) {
+        final role = (p['role'] ?? p['partner_role'] ?? '').toString().toLowerCase();
+        final status = (p['status'] ?? p['verification_status'] ?? '').toString().toUpperCase();
+        if (role == 'delivery_agent' || role == 'delivery' || role == 'courier') {
+          if (status == 'APPROVED' || status == 'VERIFIED') {
+            final lat = (p['latitude'] ?? p['lat']) as num?;
+            final lng = (p['longitude'] ?? p['lng']) as num?;
+            if (lat != null && lng != null) {
+              final riderLoc = LatLng(lat.toDouble(), lng.toDouble());
+              final distKm = OsrmRoutingService.computeHaversineDistanceKm(
+                _storeLocation.latitude,
+                _storeLocation.longitude,
+                riderLoc.latitude,
+                riderLoc.longitude,
+              );
+              if (distKm <= 10.0) {
+                _nearbyCouriers.add({
+                  'id': p['id'] ?? p['user_id'] ?? 'courier_${_nearbyCouriers.length + 1}',
+                  'name': p['name'] ?? p['full_name'] ?? 'Delivery Rider',
+                  'rating': (p['rating'] as num?)?.toDouble() ?? 4.9,
+                  'distance_km': double.parse(distKm.toStringAsFixed(1)),
+                  'status': 'Available for Pickup',
+                  'vehicle': (p['vehicle_type'] ?? p['vehicle'] ?? 'Scooter').toString(),
+                  'phone': (p['phone'] ?? p['mobile'] ?? '').toString(),
+                  'location': riderLoc,
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   void _loadLiveOrders() {
+    if (widget.initialOrders != null) {
+      if (mounted) {
+        setState(() {
+          _activeOrders = List.from(widget.initialOrders!);
+        });
+      }
+      return;
+    }
+
     final allBookings = LiveBookingSyncService.instance.getAllBookings();
     final List<Map<String, dynamic>> parsedOrders = [];
 
@@ -191,7 +203,7 @@ class _ShopkeeperStoreMapScreenState extends State<ShopkeeperStoreMapScreen>
 
       final bCode = (b['order_code'] ?? b['order_id'] ?? b['booking_id'] ?? b['id'] ?? 'ORD').toString();
       final customerName = (b['customer_name'] ?? 'Customer').toString();
-      final customerPhone = (b['customer_phone'] ?? '+91 98240 00000').toString();
+      final customerPhone = (b['customer_phone'] ?? '').toString();
       final address = (b['customer_address'] ?? b['address'] ?? 'Jamnagar Central').toString();
       final title = (b['items_summary'] ?? b['service_name'] ?? b['item_title'] ?? 'Store Order Delivery').toString();
       final amt = (b['final_amount'] as num?)?.toDouble() ??
@@ -200,68 +212,23 @@ class _ShopkeeperStoreMapScreenState extends State<ShopkeeperStoreMapScreen>
           (b['total_amount'] as num?)?.toDouble() ??
           380.0;
 
-      double lat = (b['customer_lat'] as num?)?.toDouble() ?? 0.0;
-      double lng = (b['customer_lng'] as num?)?.toDouble() ?? 0.0;
+      final lat = (b['customer_lat'] as num?)?.toDouble();
+      final lng = (b['customer_lng'] as num?)?.toDouble();
 
-      // Ensure valid coordinate around Jamnagar if coordinates are missing
-      if (lat == 0.0 || lng == 0.0) {
-        final hash = bCode.hashCode.abs();
-        final offsetLat = ((hash % 100) / 100.0 - 0.5) * 0.025;
-        final offsetLng = (((hash ~/ 100) % 100) / 100.0 - 0.5) * 0.028;
-        lat = _jamnagarStoreBase.latitude + offsetLat;
-        lng = _jamnagarStoreBase.longitude + offsetLng;
+      // Only include orders that have genuine GPS coordinates
+      if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+        parsedOrders.add({
+          'order_id': bCode.startsWith('#') ? bCode : '#$bCode',
+          'raw_id': b['id'] ?? b['booking_id'] ?? bCode,
+          'customer_name': customerName,
+          'customer_phone': customerPhone,
+          'address': address,
+          'title': title,
+          'amount': amt,
+          'status': status,
+          'location': LatLng(lat, lng),
+        });
       }
-
-      parsedOrders.add({
-        'order_id': bCode.startsWith('#') ? bCode : '#$bCode',
-        'raw_id': b['id'] ?? b['booking_id'] ?? bCode,
-        'customer_name': customerName,
-        'customer_phone': customerPhone,
-        'address': address,
-        'title': title,
-        'amount': amt,
-        'status': status,
-        'location': LatLng(lat, lng),
-      });
-    }
-
-    // Baseline realistic orders in Jamnagar if no live bookings yet
-    if (parsedOrders.isEmpty) {
-      parsedOrders.addAll([
-        {
-          'order_id': '#SH1024',
-          'raw_id': 'SH1024',
-          'customer_name': 'Amit Shah',
-          'customer_phone': '+91 98981 12345',
-          'address': 'Patel Colony, Street 5, Jamnagar',
-          'title': 'AC Remote & Copper Pipe',
-          'amount': 450.0,
-          'status': 'PREPARING',
-          'location': LatLng(_jamnagarStoreBase.latitude + 0.0055, _jamnagarStoreBase.longitude + 0.0085),
-        },
-        {
-          'order_id': '#SH1023',
-          'raw_id': 'SH1023',
-          'customer_name': 'Pooja Trivedi',
-          'customer_phone': '+91 98790 55443',
-          'address': 'Digvijay Plot, Jamnagar',
-          'title': 'Water Purifier RO Filter Set',
-          'amount': 820.0,
-          'status': 'READY FOR PICKUP',
-          'location': LatLng(_jamnagarStoreBase.latitude - 0.0070, _jamnagarStoreBase.longitude - 0.0065),
-        },
-        {
-          'order_id': '#SH1021',
-          'raw_id': 'SH1021',
-          'customer_name': 'Ketan Mehta',
-          'customer_phone': '+91 99245 99887',
-          'address': 'Khodiyar Colony, Jamnagar',
-          'title': 'Washing Machine Drain Belt',
-          'amount': 260.0,
-          'status': 'NEW',
-          'location': LatLng(_jamnagarStoreBase.latitude + 0.0095, _jamnagarStoreBase.longitude - 0.0040),
-        },
-      ]);
     }
 
     if (mounted) {

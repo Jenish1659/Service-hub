@@ -108,7 +108,7 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
         final name = fullName.isNotEmpty ? fullName : (u['username']?.toString() ?? 'Customer');
         final email = u['email']?.toString() ?? 'N/A';
         final phone = u['phone']?.toString() ?? 'N/A';
-        final city = address?['city']?.toString() ?? 'Surat, Gujarat';
+        final city = address?['city']?.toString() ?? 'N/A';
         final isActive = u['is_active'] == true || u['account_status'] == 'ACTIVE';
         final createdAt = u['created_at'] != null ? DateTime.tryParse(u['created_at'].toString()) : null;
         final joinedDate = createdAt != null ? '${createdAt.day}/${createdAt.month}/${createdAt.year}' : 'Recently';

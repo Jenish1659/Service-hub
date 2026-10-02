@@ -10,15 +10,19 @@ class AdminHeader extends ConsumerWidget {
   final String dateRangeText;
   final VoidCallback? onSelectDateRange;
   final VoidCallback? onFilterTap;
+  final int unverifiedCount;
+  final VoidCallback? onRefresh;
 
   const AdminHeader({
     super.key,
     required this.title,
     required this.onToggleSidebar,
     this.onSearch,
-    this.dateRangeText = '24 May 2025 - 30 May 2025',
+    this.dateRangeText = 'Live Operations',
     this.onSelectDateRange,
     this.onFilterTap,
+    this.unverifiedCount = 0,
+    this.onRefresh,
   });
 
   @override
@@ -95,6 +99,42 @@ class AdminHeader extends ConsumerWidget {
                 const SizedBox(width: 14),
               ],
 
+              // Live Sync Database Button
+              if (onRefresh != null) ...[
+                Tooltip(
+                  message: 'Sync Live Database',
+                  child: InkWell(
+                    onTap: onRefresh,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      height: 38,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFBFDBFE)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.sync_rounded, color: Color(0xFF2563EB), size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            'Sync DB',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2563EB),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+
               // Notification Bell with Badge
               Stack(
                 clipBehavior: Clip.none,
@@ -113,21 +153,22 @@ class AdminHeader extends ConsumerWidget {
                       onPressed: () {},
                     ),
                   ),
-                  Positioned(
-                    top: -2,
-                    right: -2,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEF4444),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Text(
-                        '8',
-                        style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                  if (unverifiedCount > 0)
+                    Positioned(
+                      top: -2,
+                      right: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEF4444),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          unverifiedCount > 99 ? '99+' : unverifiedCount.toString(),
+                          style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
 

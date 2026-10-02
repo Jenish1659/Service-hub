@@ -269,43 +269,78 @@ BEGIN
         RETURN json_build_object('success', false, 'message', 'Booking not found');
     END IF;
 
-    -- 2. Find eligible verified service providers (exclude shopkeepers & delivery agents) ranked by H3 & proximity
+    -- 2. Find eligible verified service providers (strictly service_provider, excluding shopkeeper and delivery)
+    -- Enforces: 5.0 km radius limit, location freshness, AC service capability, and conflict check
     FOR v_candidate IN
-        SELECT 
-            spp.provider_id,
-            p.partner_id,
-            p.user_id,
-            COALESCE(
-                CASE 
-                    WHEN v_booking.customer_latitude IS NOT NULL 
-                     AND v_booking.customer_longitude IS NOT NULL 
-                     AND pll.latitude IS NOT NULL 
-                     AND pll.longitude IS NOT NULL THEN
-                        (6371000.0 * 2.0 * asin(sqrt(
-                            power(sin(radians(pll.latitude - v_booking.customer_latitude) / 2.0), 2) +
-                            cos(radians(v_booking.customer_latitude)) * cos(radians(pll.latitude)) *
-                            power(sin(radians(pll.longitude - v_booking.customer_longitude) / 2.0), 2)
-                        )))
-                    ELSE 1200.0
-                END, 1200.0
-            ) AS distance_meters
-        FROM public.service_provider_profiles spp
-        JOIN public.partners p ON p.partner_id = spp.partner_id
-        JOIN public.users u ON u.user_id = p.user_id
-        JOIN public.roles r ON r.role_id = u.role_id
-        LEFT JOIN public.partner_live_locations pll ON pll.partner_id = p.partner_id
-        WHERE r.role_name = 'service_provider'
-          AND p.verification_status IN ('VERIFIED', 'APPROVED')
-          AND p.availability_status IN ('ONLINE', 'AVAILABLE')
-          AND u.is_active = true
-          AND u.account_status = 'ACTIVE'
-          -- Ensure not already requested for this booking
-          AND NOT EXISTS (
-              SELECT 1 FROM public.booking_requests br
-              WHERE br.booking_id = p_booking_id AND br.provider_id = spp.provider_id
-          )
+        WITH candidate_distances AS (
+            SELECT 
+                spp.provider_id,
+                p.partner_id,
+                p.user_id,
+                pll.h3_index_res8,
+                pll.updated_at AS location_updated_at,
+                COALESCE(
+                    CASE 
+                        WHEN v_booking.customer_latitude IS NOT NULL 
+                         AND v_booking.customer_longitude IS NOT NULL 
+                         AND pll.latitude IS NOT NULL 
+                         AND pll.longitude IS NOT NULL THEN
+                            (6371000.0 * 2.0 * asin(sqrt(
+                                power(sin(radians(pll.latitude - v_booking.customer_latitude) / 2.0), 2) +
+                                cos(radians(v_booking.customer_latitude)) * cos(radians(pll.latitude)) *
+                                power(sin(radians(pll.longitude - v_booking.customer_longitude) / 2.0), 2)
+                            )))
+                        ELSE 1200.0
+                    END, 1200.0
+                ) AS distance_meters
+            FROM public.service_provider_profiles spp
+            JOIN public.partners p ON p.partner_id = spp.partner_id
+            JOIN public.users u ON u.user_id = p.user_id
+            JOIN public.roles r ON r.role_id = u.role_id
+            LEFT JOIN public.partner_live_locations pll ON pll.partner_id = p.partner_id
+            WHERE r.role_name = 'service_provider'
+              AND p.verification_status IN ('VERIFIED', 'APPROVED')
+              AND p.availability_status IN ('ONLINE', 'AVAILABLE')
+              AND u.is_active = true
+              AND u.account_status = 'ACTIVE'
+              -- Service Capability: Must support AC Service
+              AND (
+                  EXISTS (
+                      SELECT 1 FROM public.provider_services ps
+                      JOIN public.services s ON s.service_id = ps.service_id
+                      WHERE ps.provider_id = spp.provider_id
+                        AND (s.name ILIKE '%AC%' OR s.name ILIKE '%Air%' OR s.service_id = v_booking.service_id)
+                        AND ps.is_available = true
+                  )
+                  OR (spp.about ILIKE '%AC%' OR spp.about ILIKE '%Air%')
+                  OR NOT EXISTS (SELECT 1 FROM public.provider_services ps2 WHERE ps2.provider_id = spp.provider_id)
+              )
+              -- Conflict Check: Provider must not have conflicting active job at requested time
+              AND NOT EXISTS (
+                  SELECT 1 FROM public.booking_assignment ba
+                  JOIN public.service_bookings sb ON sb.booking_id = ba.booking_id
+                  WHERE (ba.provider_id = spp.provider_id OR ba.partner_id = p.partner_id)
+                    AND ba.status IN ('ASSIGNED', 'IN_PROGRESS')
+                    AND sb.status IN ('ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'SERVICE_STARTED')
+                    AND sb.booking_date = v_booking.booking_date
+                    AND (v_booking.scheduled_time IS NULL OR sb.scheduled_time = v_booking.scheduled_time)
+              )
+              -- Location Freshness: Stale locations older than 24 hours are excluded if tracking is active
+              AND (
+                  pll.updated_at IS NULL 
+                  OR pll.updated_at >= NOW() - INTERVAL '24 hours'
+              )
+              -- Ensure not already requested for this booking
+              AND NOT EXISTS (
+                  SELECT 1 FROM public.booking_requests br
+                  WHERE br.booking_id = p_booking_id AND br.provider_id = spp.provider_id
+              )
+        )
+        SELECT * FROM candidate_distances
+        -- Hard PostGIS / Geographic Radius: Exclude candidates beyond 5.0 km (5000 meters)
+        WHERE distance_meters <= 5000.0
         ORDER BY 
-            (CASE WHEN v_booking.customer_h3_res8 IS NOT NULL AND pll.h3_index_res8 = v_booking.customer_h3_res8 THEN 0 ELSE 1 END),
+            (CASE WHEN v_booking.customer_h3_res8 IS NOT NULL AND h3_index_res8 = v_booking.customer_h3_res8 THEN 0 ELSE 1 END),
             distance_meters ASC
         LIMIT 10
     LOOP

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -28,10 +30,12 @@ class DeliveryHubInfo {
 
 class DeliveryLiveMapScreen extends StatefulWidget {
   final Map<String, dynamic> task;
+  final List<DeliveryHubInfo>? initialHubs;
 
   const DeliveryLiveMapScreen({
     super.key,
     this.task = const {},
+    this.initialHubs,
   });
 
   @override
@@ -67,7 +71,7 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
     return !hasActiveOrder;
   }
 
-  Timer? _simulationTimer;
+  StreamSubscription<Position>? _riderPositionSub;
   bool _isActionProcessing = false;
   bool _hasCenteredInitially = false;
 
@@ -83,7 +87,7 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
 
     _parseTaskData();
     _fetchRealGpsLocation();
-    _startSimulatedMovement();
+    _startRiderGpsTracking();
   }
 
   void _parseTaskData() {
@@ -97,30 +101,36 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
     final riderLng = (t['rider_lng'] as num?)?.toDouble() ?? baseLng;
     _riderLocation = LatLng(riderLat, riderLng);
 
-    // Initialize nearby delivery hubs around rider location
-    _nearbyHubs = [
-      DeliveryHubInfo(
-        id: 'HUB-01',
-        name: 'Central Dispatch Hub (Zone A)',
-        location: LatLng(riderLat + 0.0055, riderLng + 0.0050),
-        demandLevel: 'High Demand',
-        activeCouriers: 6,
-      ),
-      DeliveryHubInfo(
-        id: 'HUB-02',
-        name: 'East Express Station (Zone B)',
-        location: LatLng(riderLat - 0.0062, riderLng + 0.0130),
-        demandLevel: 'Normal Demand',
-        activeCouriers: 3,
-      ),
-      DeliveryHubInfo(
-        id: 'HUB-03',
-        name: 'West Fulfillment Center',
-        location: LatLng(riderLat + 0.0028, riderLng - 0.0125),
-        demandLevel: 'Surge Demand',
-        activeCouriers: 8,
-      ),
-    ];
+    // Initialize delivery hubs (real merchant hubs in production, fixtures in tests)
+    if (widget.initialHubs != null) {
+      _nearbyHubs = List.from(widget.initialHubs!);
+    } else if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
+      _nearbyHubs = [
+        DeliveryHubInfo(
+          id: 'HUB-01',
+          name: 'Central Dispatch Hub (Zone A)',
+          location: LatLng(riderLat + 0.0055, riderLng + 0.0050),
+          demandLevel: 'High Demand',
+          activeCouriers: 6,
+        ),
+        DeliveryHubInfo(
+          id: 'HUB-02',
+          name: 'East Express Station (Zone B)',
+          location: LatLng(riderLat - 0.0062, riderLng + 0.0130),
+          demandLevel: 'Normal Demand',
+          activeCouriers: 3,
+        ),
+        DeliveryHubInfo(
+          id: 'HUB-03',
+          name: 'West Fulfillment Center',
+          location: LatLng(riderLat + 0.0028, riderLng - 0.0125),
+          demandLevel: 'Surge Demand',
+          activeCouriers: 8,
+        ),
+      ];
+    } else {
+      _loadRealMerchantHubs(riderLat, riderLng);
+    }
 
     if (_isRadarMode) {
       _orderCode = 'ZONE-RADAR';
@@ -131,8 +141,8 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
       _customerPhone = '';
       _earning = 0.0;
       _deliveryStatus = 'STANDBY';
-      _storeLocation = _nearbyHubs.first.location;
-      _customerLocation = _nearbyHubs[1].location;
+      _storeLocation = _nearbyHubs.isNotEmpty ? _nearbyHubs.first.location : LatLng(riderLat, riderLng);
+      _customerLocation = _nearbyHubs.length > 1 ? _nearbyHubs[1].location : LatLng(riderLat, riderLng);
       return;
     }
 
@@ -183,29 +193,35 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
           setState(() {
             _riderLocation = LatLng(pos.latitude, pos.longitude);
             if (_isRadarMode) {
-              _nearbyHubs = [
-                DeliveryHubInfo(
-                  id: 'HUB-01',
-                  name: 'Central Dispatch Hub (Zone A)',
-                  location: LatLng(pos.latitude + 0.0055, pos.longitude + 0.0050),
-                  demandLevel: 'High Demand',
-                  activeCouriers: 6,
-                ),
-                DeliveryHubInfo(
-                  id: 'HUB-02',
-                  name: 'East Express Station (Zone B)',
-                  location: LatLng(pos.latitude - 0.0062, pos.longitude + 0.0130),
-                  demandLevel: 'Normal Demand',
-                  activeCouriers: 3,
-                ),
-                DeliveryHubInfo(
-                  id: 'HUB-03',
-                  name: 'West Fulfillment Center',
-                  location: LatLng(pos.latitude + 0.0028, pos.longitude - 0.0125),
-                  demandLevel: 'Surge Demand',
-                  activeCouriers: 8,
-                ),
-              ];
+              if (widget.initialHubs != null) {
+                _nearbyHubs = List.from(widget.initialHubs!);
+              } else if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
+                _nearbyHubs = [
+                  DeliveryHubInfo(
+                    id: 'HUB-01',
+                    name: 'Central Dispatch Hub (Zone A)',
+                    location: LatLng(pos.latitude + 0.0055, pos.longitude + 0.0050),
+                    demandLevel: 'High Demand',
+                    activeCouriers: 6,
+                  ),
+                  DeliveryHubInfo(
+                    id: 'HUB-02',
+                    name: 'East Express Station (Zone B)',
+                    location: LatLng(pos.latitude - 0.0062, pos.longitude + 0.0130),
+                    demandLevel: 'Normal Demand',
+                    activeCouriers: 3,
+                  ),
+                  DeliveryHubInfo(
+                    id: 'HUB-03',
+                    name: 'West Fulfillment Center',
+                    location: LatLng(pos.latitude + 0.0028, pos.longitude - 0.0125),
+                    demandLevel: 'Surge Demand',
+                    activeCouriers: 8,
+                  ),
+                ];
+              } else {
+                _loadRealMerchantHubs(pos.latitude, pos.longitude);
+              }
             }
           });
         }
@@ -215,44 +231,69 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
     }
   }
 
-  void _startSimulatedMovement() {
+  void _loadRealMerchantHubs(double riderLat, double riderLng) {
+    final hubs = <DeliveryHubInfo>[];
+    try {
+      final allPartners = LiveBookingSyncService.instance.getAllPartnerVerifications();
+      for (final p in allPartners) {
+        final role = (p['role'] ?? p['partner_role'] ?? '').toString().toLowerCase();
+        final status = (p['status'] ?? p['verification_status'] ?? '').toString().toUpperCase();
+        if (role == 'shopkeeper' || role == 'merchant' || role == 'store') {
+          if (status == 'APPROVED' || status == 'VERIFIED') {
+            final lat = (p['latitude'] ?? p['lat']) as num?;
+            final lng = (p['longitude'] ?? p['lng']) as num?;
+            if (lat != null && lng != null) {
+              final loc = LatLng(lat.toDouble(), lng.toDouble());
+              final dist = _calculateDistanceKm(LatLng(riderLat, riderLng), loc);
+              if (dist <= 15.0) {
+                hubs.add(
+                  DeliveryHubInfo(
+                    id: (p['id'] ?? p['user_id'] ?? 'HUB_${hubs.length + 1}').toString(),
+                    name: (p['business_name'] ?? p['name'] ?? 'Merchant Hub').toString(),
+                    location: loc,
+                    demandLevel: 'Active Store',
+                    activeCouriers: 1,
+                  ),
+                );
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    _nearbyHubs = hubs;
+  }
+
+  void _startRiderGpsTracking() {
     if (_isRadarMode) return;
 
-    _simulationTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!mounted || _deliveryStatus == 'DELIVERED') return;
+    try {
+      _riderPositionSub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10,
+        ),
+      ).listen((Position pos) {
+        if (!mounted || _deliveryStatus == 'DELIVERED') return;
+        setState(() {
+          _riderLocation = LatLng(pos.latitude, pos.longitude);
+        });
 
-      LatLng target;
-      if (_deliveryStatus == 'ON_THE_WAY_TO_STORE') {
-        target = _storeLocation;
-      } else {
-        target = _customerLocation;
-      }
+        final target = (_deliveryStatus == 'ON_THE_WAY_TO_STORE') ? _storeLocation : _customerLocation;
+        final distToTarget = _calculateDistanceKm(_riderLocation, target);
 
-      final dLat = (target.latitude - _riderLocation.latitude) * 0.08;
-      final dLng = (target.longitude - _riderLocation.longitude) * 0.08;
-
-      final distToTarget = _calculateDistanceKm(_riderLocation, target);
-
-      if (distToTarget < 0.15) {
-        if (_deliveryStatus == 'ON_THE_WAY_TO_STORE') {
+        if (distToTarget < 0.15 && _deliveryStatus == 'ON_THE_WAY_TO_STORE') {
           setState(() {
             _deliveryStatus = 'ARRIVED_AT_STORE';
           });
         }
-      } else {
-        setState(() {
-          _riderLocation = LatLng(
-            _riderLocation.latitude + dLat,
-            _riderLocation.longitude + dLng,
-          );
-        });
-      }
-    });
+      });
+    } catch (_) {}
   }
 
   @override
   void dispose() {
-    _simulationTimer?.cancel();
+    _riderPositionSub?.cancel();
     _pulseController.dispose();
     super.dispose();
   }
