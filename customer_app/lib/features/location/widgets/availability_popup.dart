@@ -29,14 +29,14 @@ class AvailabilityPopup extends StatelessWidget {
               child: const Icon(Icons.rocket_launch, color: Color(0xffd97706), size: 36),
             ),
             const SizedBox(height: 16),
-            Text(
-              'ServiceHub is Coming Soon to $cityName!',
+            const Text(
+              'Location Unavailable',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimaryColor),
             ),
             const SizedBox(height: 10),
             const Text(
-              'We are expanding rapidly and will launch in your location very soon. In the meantime, you can explore services in our operational cities.',
+              'Sorry, we are not available at your location. ServiceHub is currently available only in Jamnagar.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryColor, height: 1.4),
             ),

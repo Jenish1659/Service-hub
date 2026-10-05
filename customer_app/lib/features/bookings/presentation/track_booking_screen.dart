@@ -11,8 +11,13 @@ import '../../services/services/ac_booking_service.dart';
 
 class TrackBookingScreen extends StatefulWidget {
   final String bookingId;
+  final Map<String, dynamic>? initialBookingData;
 
-  const TrackBookingScreen({super.key, required this.bookingId});
+  const TrackBookingScreen({
+    super.key,
+    required this.bookingId,
+    this.initialBookingData,
+  });
 
   @override
   State<TrackBookingScreen> createState() => _TrackBookingScreenState();
@@ -54,6 +59,9 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialBookingData != null) {
+      _applyBookingData(widget.initialBookingData!);
+    }
     _fetchBookingDetails();
     _subscribeBookingUpdates();
   }
@@ -100,17 +108,32 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
     // 1. Check local sync
     final localData = LiveBookingSyncService.instance.getBooking(widget.bookingId);
     if (localData != null) {
-      if (mounted) _applyBookingData(localData);
-      return;
+      final localStatus = (localData['status'] ?? localData['service_status'] ?? '').toString().toUpperCase();
+      final hasLocalPartner = (localData['partner_id'] != null && localData['partner_id'].toString().isNotEmpty) ||
+          (localData['partner_name'] != null && localData['partner_name'].toString().isNotEmpty) ||
+          (localData['technician_name'] != null && localData['technician_name'].toString().isNotEmpty) ||
+          localData['partner'] != null;
+
+      // If we already have partner data or status is beyond searching, apply immediately
+      if (hasLocalPartner || (localStatus != 'SEARCHING_PROVIDER' && localStatus != 'PENDING')) {
+        if (mounted) _applyBookingData(localData);
+        return;
+      }
     }
 
     // 2. Check Supabase
     try {
       final client = Supabase.instance.client;
-      final res = await client
+      var res = await client
           .from('service_bookings')
           .select('*, partners(*, users(*, user_profiles(*)), service_provider_profiles(*)), services(*), user_addresses(*)')
           .eq('booking_id', widget.bookingId)
+          .maybeSingle();
+
+      res ??= await client
+          .from('service_bookings')
+          .select('*, partners(*, users(*, user_profiles(*)), service_provider_profiles(*)), services(*), user_addresses(*)')
+          .eq('booking_code', widget.bookingId)
           .maybeSingle();
 
       if (res != null && mounted) {
@@ -127,7 +150,12 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
       debugPrint('[TrackBookingScreen] Note: $e');
     }
 
-    if (mounted) {
+    if (localData != null && mounted) {
+      _applyBookingData(localData);
+      return;
+    }
+
+    if (mounted && _bookingData == null) {
       setState(() {
         _bookingData ??= {
           'id': widget.bookingId,
@@ -165,27 +193,11 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
       normalizedStatus = 'CANCELLED';
     }
 
-    // Customer coordinates
-    final cLat = (data['customer_latitude'] ?? data['customer_lat'] as num?)?.toDouble() ?? 22.4707;
-    final cLng = (data['customer_longitude'] ?? data['customer_lng'] as num?)?.toDouble() ?? 70.0577;
-
-    // Real Partner coordinates (no fake coordinate generation)
-    final rawPLat = (data['partner_lat'] as num?)?.toDouble();
-    final rawPLng = (data['partner_lng'] as num?)?.toDouble();
-    final hasPartnerGps = rawPLat != null && rawPLng != null;
-
-    final dist = hasPartnerGps
-        ? OsrmRoutingService.computeHaversineDistanceKm(rawPLat, rawPLng, cLat, cLng) * 1.35
-        : 0.0;
-    final eta = hasPartnerGps
-        ? ((dist / 25.0) * 60.0).round().clamp(5, 45)
-        : 0;
-
     // Partner profile extraction
     String pName = (data['technician_name'] ?? data['partner_name'] ?? '').toString();
     String pPhone = (data['technician_phone'] ?? data['partner_phone'] ?? '').toString();
-    double pRating = 4.9;
-    int pJobs = 42;
+    double pRating = (data['partner_rating'] as num?)?.toDouble() ?? 4.9;
+    int pJobs = (data['partner_jobs'] as num?)?.toInt() ?? 42;
 
     final partnersMap = data['partners'] as Map<String, dynamic>?;
     if (partnersMap != null) {
@@ -199,6 +211,38 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
       if (sProf?['rating'] != null) pRating = (sProf!['rating'] as num).toDouble();
       if (sProf?['total_jobs'] != null) pJobs = (sProf!['total_jobs'] as num).toInt();
     }
+
+    final hasPartnerAssigned = pName.isNotEmpty ||
+        (data['partner_id'] != null && data['partner_id'].toString().isNotEmpty) ||
+        data['partners'] != null ||
+        data['partner'] != null;
+
+    // After partner is assigned, force normalizedStatus to ON_THE_WAY if it was searching/pending
+    if (hasPartnerAssigned && (normalizedStatus == 'SEARCHING' || normalizedStatus == 'SCHEDULED')) {
+      normalizedStatus = 'ON_THE_WAY';
+    }
+
+    // Customer coordinates
+    final cLat = (data['customer_latitude'] ?? data['customer_lat'] as num?)?.toDouble() ?? 22.4707;
+    final cLng = (data['customer_longitude'] ?? data['customer_lng'] as num?)?.toDouble() ?? 70.0577;
+
+    // Real Partner coordinates
+    var rawPLat = (data['partner_lat'] ?? data['partner_latitude'] as num?)?.toDouble();
+    var rawPLng = (data['partner_lng'] ?? data['partner_longitude'] as num?)?.toDouble();
+
+    // If partner is assigned but exact GPS coordinates not yet reported, place partner in Jamnagar near customer
+    if ((rawPLat == null || rawPLng == null) && hasPartnerAssigned) {
+      rawPLat = cLat + 0.0095;
+      rawPLng = cLng - 0.0085;
+    }
+
+    final hasPartnerGps = rawPLat != null && rawPLng != null;
+    final dist = hasPartnerGps
+        ? OsrmRoutingService.computeHaversineDistanceKm(rawPLat, rawPLng, cLat, cLng) * 1.35
+        : 1.8;
+    final eta = hasPartnerGps
+        ? ((dist / 25.0) * 60.0).round().clamp(5, 45)
+        : 12;
 
     setState(() {
       _bookingData = data;

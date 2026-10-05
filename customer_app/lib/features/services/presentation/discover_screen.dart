@@ -309,6 +309,21 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
     final serviceLat = activeLocation?.latitude ?? 22.4707;
     final serviceLng = activeLocation?.longitude ?? 70.0577;
 
+    final serviceArea = ref.read(serviceAreaServiceProvider);
+    final areaCheck = serviceArea.checkServiceArea(activeLocation?.city ?? '', serviceLat, serviceLng);
+    final combinedAddress = ('$serviceAddress ${activeLocation?.city ?? ''}').toLowerCase();
+    if (!areaCheck.isAvailable && !combinedAddress.contains('jamnagar')) {
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sorry, we are not available at your location. ServiceHub is currently available only in Jamnagar.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final box = Hive.box('customer_cache');
     final double walletBalance = box.get('wallet_balance_inr', defaultValue: 50.0) as double;
     double walletDeduction = 0.0;

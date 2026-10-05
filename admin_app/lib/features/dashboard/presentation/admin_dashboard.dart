@@ -37,298 +37,96 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(s.trim());
 
   Future<void> _approvePartnerProfile(String profileId, String name, [Map<String, dynamic>? partnerMap]) async {
-    final String id = (partnerMap?['id'] ?? profileId).toString();
-    await LiveBookingSyncService.instance.approvePartnerVerification(id);
-    if (profileId.isNotEmpty && profileId != id) {
-      await LiveBookingSyncService.instance.approvePartnerVerification(profileId);
-    }
     final client = Supabase.instance.client;
-
-    String? targetUserId = partnerMap?['user_id']?.toString();
-    String? targetPartnerId = partnerMap?['partner_id']?.toString();
-    String? targetAgentId = partnerMap?['delivery_agent_id']?.toString();
-    final phone = partnerMap?['phone']?.toString().replaceAll(' ', '');
-    final verId = partnerMap?['verification_id']?.toString();
-
-    // If targetUserId is not directly in partnerMap, extract UUID from prefix if present
-    if ((targetUserId == null || targetUserId.isEmpty) && profileId.contains('_')) {
-      final possibleUuid = profileId.substring(profileId.lastIndexOf('_') + 1);
-      if (_isUuid(possibleUuid)) {
-        targetUserId = possibleUuid;
-      }
-    }
-    if ((targetUserId == null || targetUserId.isEmpty) && id.contains('_')) {
-      final possibleUuid = id.substring(id.lastIndexOf('_') + 1);
-      if (_isUuid(possibleUuid)) {
-        targetUserId = possibleUuid;
-      }
-    }
-
-    // If targetUserId is not directly in partnerMap, look it up by phone first
-    if ((targetUserId == null || targetUserId.isEmpty) && phone != null && phone.isNotEmpty) {
-      try {
-        final rawDigits = phone.replaceAll(RegExp(r'\D'), '');
-        final isPhone = rawDigits.length >= 10;
-        final clean10 = isPhone ? rawDigits.substring(rawDigits.length - 10) : '';
-        final filterParts = <String>['phone.eq.$phone'];
-        if (isPhone) {
-          filterParts.add('phone.eq.$rawDigits');
-          filterParts.add('phone.eq.+91$clean10');
-          filterParts.add('phone.ilike.*$clean10*');
-        }
-        final u = await client
-            .from('users')
-            .select('user_id, phone, partners(partner_id)')
-            .or(filterParts.join(','))
-            .maybeSingle();
-        if (u != null) {
-          targetUserId = u['user_id']?.toString();
-          final pList = u['partners'];
-          if (pList is List && pList.isNotEmpty) {
-            targetPartnerId = (pList.first as Map<String, dynamic>)['partner_id']?.toString();
-          } else if (pList is Map) {
-            targetPartnerId = (pList as Map<String, dynamic>)['partner_id']?.toString();
-          }
-        }
-      } catch (_) {}
-    }
-
-    // Look up by profileId in Supabase if it's a valid UUID
-    if ((targetUserId == null || targetUserId.isEmpty) && _isUuid(profileId)) {
-      try {
-        final vr = await client
-            .from('verification_requests')
-            .select('user_id')
-            .or('verification_id.eq.$profileId,user_id.eq.$profileId')
-            .maybeSingle();
-        if (vr != null && vr['user_id'] != null) {
-          targetUserId = vr['user_id']?.toString();
-        }
-      } catch (_) {}
-    }
-
-    if ((targetUserId == null || targetUserId.isEmpty) && _isUuid(profileId)) {
-      try {
-        final p = await client
-            .from('partners')
-            .select('user_id, partner_id')
-            .or('partner_id.eq.$profileId,user_id.eq.$profileId')
-            .maybeSingle();
-        if (p != null) {
-          targetUserId = p['user_id']?.toString();
-          targetPartnerId = p['partner_id']?.toString();
-        }
-      } catch (_) {}
-    }
-
-    if ((targetPartnerId == null || targetPartnerId.isEmpty) && _isUuid(profileId)) {
-      try {
-        final dap = await client
-            .from('delivery_agent_profiles')
-            .select('partner_id, delivery_agent_id')
-            .or('delivery_agent_id.eq.$profileId,partner_id.eq.$profileId')
-            .maybeSingle();
-        if (dap != null) {
-          targetPartnerId = dap['partner_id']?.toString();
-          targetAgentId ??= dap['delivery_agent_id']?.toString();
-        }
-      } catch (_) {}
-    }
-
-    final effectiveUserId = (targetUserId != null && targetUserId.isNotEmpty) ? targetUserId : profileId;
     final nowIso = DateTime.now().toIso8601String();
 
-    // 1. Update verification_requests table: Resolve ALL requests for this user simultaneously
-    try {
-      final vrUpdate = {'status': 'APPROVED', 'reviewed_at': nowIso};
-      if (_isUuid(effectiveUserId)) {
-        await client
-            .from('verification_requests')
-            .update(vrUpdate)
-            .eq('user_id', effectiveUserId);
-      }
-      if (_isUuid(profileId)) {
-        await client
-            .from('verification_requests')
-            .update(vrUpdate)
-            .or('verification_id.eq.$profileId,user_id.eq.$profileId');
-      }
-      if (id.isNotEmpty && id != profileId && _isUuid(id)) {
-        await client
-            .from('verification_requests')
-            .update(vrUpdate)
-            .or('verification_id.eq.$id,user_id.eq.$id');
-      }
-      if (verId != null && _isUuid(verId)) {
-        await client
-            .from('verification_requests')
-            .update(vrUpdate)
-            .eq('verification_id', verId);
-      }
-      final allVerIds = (partnerMap?['all_verification_ids'] as List?)?.map((e) => e.toString()).toList() ?? [];
-      for (final vid in allVerIds) {
-        if (_isUuid(vid)) {
-          await client.from('verification_requests').update(vrUpdate).eq('verification_id', vid);
-        }
-      }
-    } catch (_) {}
+    final String id = (partnerMap?['id'] ?? profileId).toString();
+    final String? verId = (partnerMap?['verification_id'] != null && partnerMap!['verification_id'].toString().isNotEmpty)
+        ? partnerMap['verification_id'].toString()
+        : (_isUuid(profileId) ? profileId : null);
+    String? targetPartnerId = partnerMap?['partner_id']?.toString();
+    String? targetAgentId = partnerMap?['delivery_agent_id']?.toString();
+    String? targetUserId = partnerMap?['user_id']?.toString();
 
-    // 2. Update partners table (verification_status: 'VERIFIED', availability_status: 'ONLINE', approved_at: nowIso)
-    try {
-      final partnerUpdate = {
-        'verification_status': 'VERIFIED',
-        'availability_status': 'ONLINE',
-        'approved_at': nowIso,
-      };
-      if (targetPartnerId != null && _isUuid(targetPartnerId)) {
+    // 1. Update verification_requests table: STRICTLY target the specific verification_id
+    if (verId != null && _isUuid(verId)) {
+      try {
         await client
-            .from('partners')
-            .update(partnerUpdate)
-            .eq('partner_id', targetPartnerId);
+            .from('verification_requests')
+            .update({'status': 'APPROVED', 'reviewed_at': nowIso})
+            .eq('verification_id', verId);
+      } catch (e) {
+        debugPrint('[AdminDashboard] Verification request approval error: $e');
       }
-      if (_isUuid(effectiveUserId)) {
-        await client
-            .from('partners')
-            .update(partnerUpdate)
-            .eq('user_id', effectiveUserId);
-      }
-      if (_isUuid(profileId)) {
-        await client
-            .from('partners')
-            .update(partnerUpdate)
-            .or('partner_id.eq.$profileId,user_id.eq.$profileId');
-      }
-      if (id.isNotEmpty && id != profileId && _isUuid(id)) {
-        await client
-            .from('partners')
-            .update(partnerUpdate)
-            .or('partner_id.eq.$id,user_id.eq.$id');
-      }
-    } catch (e) {
-      debugPrint('[AdminDashboard] Partner update error: $e');
     }
 
+    // 2. Resolve specific targetPartnerId if not already present
+    if ((targetPartnerId == null || targetPartnerId.isEmpty) && _isUuid(profileId)) {
+      try {
+        final p = await client.from('partners').select('partner_id').eq('partner_id', profileId).maybeSingle();
+        if (p != null) targetPartnerId = p['partner_id']?.toString();
+      } catch (_) {}
+    }
+
+    // 3. Update partners table: STRICTLY target the specific partner_id
+    if (targetPartnerId != null && _isUuid(targetPartnerId)) {
+      try {
+        await client.from('partners').update({
+          'verification_status': 'VERIFIED',
+          'availability_status': 'ONLINE',
+          'approved_at': nowIso,
+        }).eq('partner_id', targetPartnerId);
+      } catch (e) {
+        debugPrint('[AdminDashboard] Partner update error: $e');
+      }
+    }
+
+    // 4. Role-specific profile updates
     final String pRole = (partnerMap?['role_name'] ?? partnerMap?['role'] ?? '').toString().toLowerCase();
     final bool isShopkeeper = pRole == 'shopkeeper' || (partnerMap != null && _isShopkeeper(partnerMap));
     final bool isDelivery = !isShopkeeper && (pRole == 'delivery_agent' || (partnerMap != null && _isDeliveryAgent(partnerMap)));
     final bool isServiceProvider = !isShopkeeper && !isDelivery;
 
-    // 2b. Update delivery_agent_profiles table (availability_status: 'ONLINE') only if delivery
     if (isDelivery) {
       try {
-        final dapUpdate = {
-          'availability_status': 'ONLINE',
-        };
         if (targetAgentId != null && _isUuid(targetAgentId)) {
-          await client
-              .from('delivery_agent_profiles')
-              .update(dapUpdate)
-              .eq('delivery_agent_id', targetAgentId);
+          await client.from('delivery_agent_profiles').update({'availability_status': 'ONLINE'}).eq('delivery_agent_id', targetAgentId);
         }
         if (targetPartnerId != null && _isUuid(targetPartnerId)) {
-          await client
-              .from('delivery_agent_profiles')
-              .update(dapUpdate)
-              .eq('partner_id', targetPartnerId);
-        }
-        if (_isUuid(effectiveUserId)) {
-          await client
-              .from('delivery_agent_profiles')
-              .update(dapUpdate)
-              .or('partner_id.eq.$effectiveUserId,delivery_agent_id.eq.$effectiveUserId');
-        }
-        if (_isUuid(profileId)) {
-          await client
-              .from('delivery_agent_profiles')
-              .update(dapUpdate)
-              .or('partner_id.eq.$profileId,delivery_agent_id.eq.$profileId');
-        }
-        if (id.isNotEmpty && id != profileId && _isUuid(id)) {
-          await client
-              .from('delivery_agent_profiles')
-              .update(dapUpdate)
-              .or('partner_id.eq.$id,delivery_agent_id.eq.$id');
+          await client.from('delivery_agent_profiles').update({'availability_status': 'ONLINE'}).eq('partner_id', targetPartnerId);
         }
       } catch (e) {
         debugPrint('[AdminDashboard] Delivery agent profile update error: $e');
       }
     }
 
-    // 2d. Update providers table only if service provider
-    if (isServiceProvider) {
+    if (isServiceProvider && targetPartnerId != null && _isUuid(targetPartnerId)) {
       try {
-        final provData = {
-          'verification_status': 'VERIFIED',
-          'is_active': true,
-        };
-        if (_isUuid(effectiveUserId)) {
-          await client.from('providers').update(provData).eq('id', effectiveUserId);
-        }
-        if (_isUuid(profileId)) {
-          await client.from('providers').update(provData).eq('id', profileId);
-        }
-        if (targetPartnerId != null && _isUuid(targetPartnerId)) {
-          await client.from('service_provider_profiles').update({'rating': 5.0}).eq('partner_id', targetPartnerId);
-        }
-        if (_isUuid(effectiveUserId)) {
-          await client.from('service_provider_profiles').update({'rating': 5.0}).or('partner_id.eq.$effectiveUserId,provider_id.eq.$effectiveUserId');
-        }
+        await client.from('service_provider_profiles').update({'rating': 5.0}).eq('partner_id', targetPartnerId);
       } catch (_) {}
     }
 
-    // 3. Update users table
-    try {
-      if (_isUuid(effectiveUserId)) {
-        await client
-            .from('users')
-            .update({'account_status': 'ACTIVE'})
-            .eq('user_id', effectiveUserId);
-      }
-      if (phone != null && phone.isNotEmpty) {
-        await client
-            .from('users')
-            .update({'account_status': 'ACTIVE'})
-            .or('phone.eq.$phone,phone.eq.+91$phone');
-      }
-    } catch (_) {}
+    // 5. Update user account status if UUID is valid
+    if (targetUserId != null && _isUuid(targetUserId)) {
+      try {
+        await client.from('users').update({'account_status': 'ACTIVE'}).eq('user_id', targetUserId);
+      } catch (_) {}
+    }
 
-    // Broadcast across LiveBookingSyncService for all IDs and phone
-    await LiveBookingSyncService.instance.approvePartnerVerification(id);
-    if (effectiveUserId != profileId && effectiveUserId != id) {
-      await LiveBookingSyncService.instance.approvePartnerVerification(effectiveUserId);
+    // 6. Broadcast across LiveBookingSyncService for specific IDs ONLY (never broad phone or user_id)
+    if (verId != null && verId.isNotEmpty) {
+      await LiveBookingSyncService.instance.approvePartnerVerification(verId);
     }
     if (targetPartnerId != null && targetPartnerId.isNotEmpty) {
       await LiveBookingSyncService.instance.approvePartnerVerification(targetPartnerId);
     }
-    if (targetAgentId != null && targetAgentId.isNotEmpty) {
-      await LiveBookingSyncService.instance.approvePartnerVerification(targetAgentId);
-    }
-    final targetShopId = partnerMap?['shop_id']?.toString();
-    if (targetShopId != null && targetShopId.isNotEmpty) {
-      await LiveBookingSyncService.instance.approvePartnerVerification(targetShopId);
-    }
-    if (phone != null && phone.isNotEmpty) {
-      await LiveBookingSyncService.instance.approvePartnerVerification(phone);
-    }
-    if (verId != null && verId.isNotEmpty) {
-      await LiveBookingSyncService.instance.approvePartnerVerification(verId);
-    }
-    final allVerIds = (partnerMap?['all_verification_ids'] as List?)?.map((e) => e.toString()).toList() ?? [];
-    for (final vid in allVerIds) {
-      await LiveBookingSyncService.instance.approvePartnerVerification(vid);
+    if (id.isNotEmpty && id != verId && id != targetPartnerId) {
+      await LiveBookingSyncService.instance.approvePartnerVerification(id);
     }
 
-    markPartnerResolved(id);
-    markPartnerResolved(profileId);
-    markPartnerResolved(effectiveUserId);
-    if (targetPartnerId != null && targetPartnerId.isNotEmpty) markPartnerResolved(targetPartnerId);
-    if (targetAgentId != null && targetAgentId.isNotEmpty) markPartnerResolved(targetAgentId);
-    if (targetShopId != null && targetShopId.isNotEmpty) markPartnerResolved(targetShopId);
-    if (phone != null && phone.isNotEmpty) markPartnerResolved(phone);
+    // 7. Mark resolved in memory strictly for this verification request
     if (verId != null && verId.isNotEmpty) markPartnerResolved(verId);
-    for (final vid in allVerIds) {
-      markPartnerResolved(vid);
-    }
+    if (id.isNotEmpty && id != targetPartnerId) markPartnerResolved(id);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -343,235 +141,77 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   Future<void> _rejectPartnerProfile(String profileId, String name, [Map<String, dynamic>? partnerMap, String? reason]) async {
     final client = Supabase.instance.client;
-
-    String? targetUserId = partnerMap?['user_id']?.toString();
-    String? targetPartnerId = partnerMap?['partner_id']?.toString();
-    final phone = partnerMap?['phone']?.toString().replaceAll(' ', '');
-    final verId = partnerMap?['verification_id']?.toString();
-
-    final String id = (partnerMap?['id'] ?? profileId).toString();
-
-    // If targetUserId is not directly in partnerMap, extract UUID from prefix if present
-    if ((targetUserId == null || targetUserId.isEmpty) && profileId.contains('_')) {
-      final possibleUuid = profileId.substring(profileId.lastIndexOf('_') + 1);
-      if (_isUuid(possibleUuid)) {
-        targetUserId = possibleUuid;
-      }
-    }
-    if ((targetUserId == null || targetUserId.isEmpty) && id.contains('_')) {
-      final possibleUuid = id.substring(id.lastIndexOf('_') + 1);
-      if (_isUuid(possibleUuid)) {
-        targetUserId = possibleUuid;
-      }
-    }
-
-    if ((targetUserId == null || targetUserId.isEmpty) && phone != null && phone.isNotEmpty) {
-      try {
-        final rawDigits = phone.replaceAll(RegExp(r'\D'), '');
-        final isPhone = rawDigits.length >= 10;
-        final clean10 = isPhone ? rawDigits.substring(rawDigits.length - 10) : '';
-        final filterParts = <String>['phone.eq.$phone'];
-        if (isPhone) {
-          filterParts.add('phone.eq.$rawDigits');
-          filterParts.add('phone.eq.+91$clean10');
-          filterParts.add('phone.ilike.*$clean10*');
-        }
-        final u = await client
-            .from('users')
-            .select('user_id, phone, partners(partner_id)')
-            .or(filterParts.join(','))
-            .maybeSingle();
-        if (u != null) {
-          targetUserId = u['user_id']?.toString();
-          final pList = u['partners'];
-          if (pList is List && pList.isNotEmpty) {
-            targetPartnerId = (pList.first as Map<String, dynamic>)['partner_id']?.toString();
-          } else if (pList is Map) {
-            targetPartnerId = (pList as Map<String, dynamic>)['partner_id']?.toString();
-          }
-        }
-      } catch (_) {}
-    }
-
-    if ((targetUserId == null || targetUserId.isEmpty) && _isUuid(profileId)) {
-      try {
-        final vr = await client
-            .from('verification_requests')
-            .select('user_id')
-            .or('verification_id.eq.$profileId,user_id.eq.$profileId')
-            .maybeSingle();
-        if (vr != null && vr['user_id'] != null) {
-          targetUserId = vr['user_id']?.toString();
-        }
-      } catch (_) {}
-    }
-
-    if ((targetUserId == null || targetUserId.isEmpty) && _isUuid(profileId)) {
-      try {
-        final p = await client
-            .from('partners')
-            .select('user_id, partner_id')
-            .or('partner_id.eq.$profileId,user_id.eq.$profileId')
-            .maybeSingle();
-        if (p != null) {
-          targetUserId = p['user_id']?.toString();
-          targetPartnerId = p['partner_id']?.toString();
-        }
-      } catch (_) {}
-    }
-
-    final effectiveUserId = (targetUserId != null && targetUserId.isNotEmpty) ? targetUserId : profileId;
     final nowIso = DateTime.now().toIso8601String();
     final reasonText = (reason != null && reason.trim().isNotEmpty)
         ? 'REJECTED: ${reason.trim()}'
         : 'REJECTED: Verification documents or information provided did not meet requirements.';
 
-    // 1. Update verification_requests table: Resolve ALL requests for this user simultaneously
-    try {
-      final vrReject = {
-        'status': 'REJECTED',
-        'reviewed_at': nowIso,
-        'remarks': reasonText,
-      };
-      if (_isUuid(effectiveUserId)) {
-        await client
-            .from('verification_requests')
-            .update(vrReject)
-            .eq('user_id', effectiveUserId);
-      }
-      if (_isUuid(profileId)) {
-        await client
-            .from('verification_requests')
-            .update(vrReject)
-            .or('verification_id.eq.$profileId,user_id.eq.$profileId');
-      }
-      if (id.isNotEmpty && id != profileId && _isUuid(id)) {
-        await client
-            .from('verification_requests')
-            .update(vrReject)
-            .or('verification_id.eq.$id,user_id.eq.$id');
-      }
-      if (verId != null && _isUuid(verId)) {
-        await client
-            .from('verification_requests')
-            .update(vrReject)
-            .eq('verification_id', verId);
-      }
-      final allVerIds = (partnerMap?['all_verification_ids'] as List?)?.map((e) => e.toString()).toList() ?? [];
-      for (final vid in allVerIds) {
-        if (_isUuid(vid)) {
-          await client.from('verification_requests').update(vrReject).eq('verification_id', vid);
-        }
-      }
-    } catch (e) {
-      debugPrint('[AdminDashboard] Verification request reject error: $e');
-    }
+    final String id = (partnerMap?['id'] ?? profileId).toString();
+    final String? verId = (partnerMap?['verification_id'] != null && partnerMap!['verification_id'].toString().isNotEmpty)
+        ? partnerMap['verification_id'].toString()
+        : (_isUuid(profileId) ? profileId : null);
+    String? targetPartnerId = partnerMap?['partner_id']?.toString();
 
-    // 2. Update partners table
-    try {
-      final pReject = {
-        'verification_status': 'REJECTED',
-        'availability_status': 'OFFLINE',
-      };
-      if (targetPartnerId != null && _isUuid(targetPartnerId)) {
-        await client
-            .from('partners')
-            .update(pReject)
-            .eq('partner_id', targetPartnerId);
-      }
-      if (_isUuid(effectiveUserId)) {
-        await client
-            .from('partners')
-            .update(pReject)
-            .eq('user_id', effectiveUserId);
-      }
-      if (_isUuid(profileId)) {
-        await client
-            .from('partners')
-            .update(pReject)
-            .or('partner_id.eq.$profileId,user_id.eq.$profileId');
-      }
-      if (id.isNotEmpty && id != profileId && _isUuid(id)) {
-        await client
-            .from('partners')
-            .update(pReject)
-            .or('partner_id.eq.$id,user_id.eq.$id');
-      }
-    } catch (e) {
-      debugPrint('[AdminDashboard] Partner reject error: $e');
-    }
-
-    final String rRole = (partnerMap?['role_name'] ?? partnerMap?['role'] ?? '').toString().toLowerCase();
-    final bool isShopkeeperReject = rRole == 'shopkeeper' || (partnerMap != null && _isShopkeeper(partnerMap));
-    final bool isDeliveryReject = !isShopkeeperReject && (rRole == 'delivery_agent' || (partnerMap != null && _isDeliveryAgent(partnerMap)));
-
-    // 3. Update delivery_agent_profiles table only if delivery
-    if (isDeliveryReject) {
+    // 1. Update verification_requests table: STRICTLY target the specific verification_id
+    if (verId != null && _isUuid(verId)) {
       try {
-        final dapReject = {
+        await client.from('verification_requests').update({
+          'status': 'REJECTED',
+          'reviewed_at': nowIso,
+          'remarks': reasonText,
+        }).eq('verification_id', verId);
+      } catch (e) {
+        debugPrint('[AdminDashboard] Verification request reject error: $e');
+      }
+    }
+
+    // 2. Resolve specific targetPartnerId if not already present
+    if ((targetPartnerId == null || targetPartnerId.isEmpty) && _isUuid(profileId)) {
+      try {
+        final p = await client.from('partners').select('partner_id').eq('partner_id', profileId).maybeSingle();
+        if (p != null) targetPartnerId = p['partner_id']?.toString();
+      } catch (_) {}
+    }
+
+    // 3. Update partners table: STRICTLY target the specific partner_id
+    if (targetPartnerId != null && _isUuid(targetPartnerId)) {
+      try {
+        await client.from('partners').update({
+          'verification_status': 'REJECTED',
           'availability_status': 'OFFLINE',
-        };
-        if (targetPartnerId != null && _isUuid(targetPartnerId)) {
-          await client
-              .from('delivery_agent_profiles')
-              .update(dapReject)
-              .eq('partner_id', targetPartnerId);
-        }
-        if (_isUuid(effectiveUserId)) {
-          await client
-              .from('delivery_agent_profiles')
-              .update(dapReject)
-              .or('partner_id.eq.$effectiveUserId,delivery_agent_id.eq.$effectiveUserId');
-        }
-        if (_isUuid(profileId)) {
-          await client
-              .from('delivery_agent_profiles')
-              .update(dapReject)
-              .or('partner_id.eq.$profileId,delivery_agent_id.eq.$profileId');
-        }
+        }).eq('partner_id', targetPartnerId);
+      } catch (e) {
+        debugPrint('[AdminDashboard] Partner reject error: $e');
+      }
+    }
+
+    // 4. Role-specific profile updates
+    final String pRole = (partnerMap?['role_name'] ?? partnerMap?['role'] ?? '').toString().toLowerCase();
+    final bool isShopkeeper = pRole == 'shopkeeper' || (partnerMap != null && _isShopkeeper(partnerMap));
+    final bool isDelivery = !isShopkeeper && (pRole == 'delivery_agent' || (partnerMap != null && _isDeliveryAgent(partnerMap)));
+
+    if (isDelivery && targetPartnerId != null && _isUuid(targetPartnerId)) {
+      try {
+        await client.from('delivery_agent_profiles').update({'availability_status': 'OFFLINE'}).eq('partner_id', targetPartnerId);
       } catch (e) {
         debugPrint('[AdminDashboard] Delivery agent reject error: $e');
       }
     }
 
-    // 4. Update users table: suspend account
-    try {
-      if (_isUuid(effectiveUserId)) {
-        await client
-            .from('users')
-            .update({'account_status': 'SUSPENDED'})
-            .eq('user_id', effectiveUserId);
-      }
-    } catch (_) {}
-
-    // 5. Broadcast across LiveBookingSyncService with rejection reason
-    await LiveBookingSyncService.instance.rejectPartnerVerification(id, reason);
-    if (effectiveUserId != profileId && effectiveUserId != id) {
-      await LiveBookingSyncService.instance.rejectPartnerVerification(effectiveUserId, reason);
+    // 5. Broadcast across LiveBookingSyncService with rejection reason strictly for specific IDs
+    if (verId != null && verId.isNotEmpty) {
+      await LiveBookingSyncService.instance.rejectPartnerVerification(verId, reasonText);
     }
     if (targetPartnerId != null && targetPartnerId.isNotEmpty) {
-      await LiveBookingSyncService.instance.rejectPartnerVerification(targetPartnerId, reason);
+      await LiveBookingSyncService.instance.rejectPartnerVerification(targetPartnerId, reasonText);
     }
-    if (phone != null && phone.isNotEmpty) {
-      await LiveBookingSyncService.instance.rejectPartnerVerification(phone, reason);
-    }
-    if (verId != null && verId.isNotEmpty) {
-      await LiveBookingSyncService.instance.rejectPartnerVerification(verId, reason);
-    }
-    final allVerIds = (partnerMap?['all_verification_ids'] as List?)?.map((e) => e.toString()).toList() ?? [];
-    for (final vid in allVerIds) {
-      await LiveBookingSyncService.instance.rejectPartnerVerification(vid, reason);
+    if (id.isNotEmpty && id != verId && id != targetPartnerId) {
+      await LiveBookingSyncService.instance.rejectPartnerVerification(id, reasonText);
     }
 
-    markPartnerResolved(id);
-    markPartnerResolved(profileId);
-    markPartnerResolved(effectiveUserId);
-    if (targetPartnerId != null && targetPartnerId.isNotEmpty) markPartnerResolved(targetPartnerId);
-    if (phone != null && phone.isNotEmpty) markPartnerResolved(phone);
+    // 6. Mark resolved in memory strictly for this verification request
     if (verId != null && verId.isNotEmpty) markPartnerResolved(verId);
-    for (final vid in allVerIds) {
-      markPartnerResolved(vid);
-    }
+    if (id.isNotEmpty && id != targetPartnerId) markPartnerResolved(id);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -696,10 +336,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (_activeTab == 'Dashboard') {
       return _buildMainDashboardContent(stats, allBookings, unverifiedPartners);
     }
-    if (_activeTab == 'All Bookings') {
+    if (_activeTab == 'All Bookings' || _activeTab == 'AC Service Bookings') {
       return AdminBookingsView(allBookings: allBookings);
     }
-    if (_activeTab == 'Partner Verification') {
+    if (_activeTab == 'Partner Verification' ||
+        _activeTab == 'Service Provider Verification' ||
+        _activeTab == 'Service Partners') {
       return AdminPartnersView(
         filterRole: 'service_provider',
         unverifiedPartners: unverifiedPartners,

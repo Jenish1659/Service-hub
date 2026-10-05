@@ -27,8 +27,8 @@ class _TrackOrderScreenState extends ConsumerState<TrackOrderScreen> {
   void initState() {
     super.initState();
     _fetchOrderDetails();
-    // Auto-refresh order status every 3 seconds for simulated real-time tracking
-    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    // Auto-refresh order status every 10 seconds for real-time tracking
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       if (_orderData?['status'] != 'Cancelled' && _orderData?['status'] != 'Delivered') {
         _fetchOrderDetails(silent: true);
       }

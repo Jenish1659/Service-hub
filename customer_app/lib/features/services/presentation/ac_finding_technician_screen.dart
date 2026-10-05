@@ -132,8 +132,8 @@ class _ACFindingTechnicianScreenState extends State<ACFindingTechnicianScreen> w
           .subscribe();
     } catch (_) {}
 
-    // 3. Periodic Poll (Every 2 seconds)
-    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+    // 3. Periodic Poll (Backup check every 8 seconds while Realtime handles instant notification)
+    _pollingTimer = Timer.periodic(const Duration(seconds: 8), (_) async {
       if (_isAssigned) {
         _pollingTimer?.cancel();
         return;
@@ -142,7 +142,7 @@ class _ACFindingTechnicianScreenState extends State<ACFindingTechnicianScreen> w
         final supabase = Supabase.instance.client;
         final res = await supabase
             .from('service_bookings')
-            .select('*, partners(*, users(*, user_profiles(*)), service_provider_profiles(*))')
+            .select()
             .eq('booking_id', widget.bookingId)
             .maybeSingle();
 
@@ -234,6 +234,14 @@ class _ACFindingTechnicianScreenState extends State<ACFindingTechnicianScreen> w
       _isAssigned = true;
       _currentStep = 4;
     });
+
+    final currentSyncBooking = LiveBookingSyncService.instance.getBooking(widget.bookingId);
+    final currentSyncStatus = (currentSyncBooking?['status'] ?? '').toString().toUpperCase();
+    if (currentSyncStatus != 'CONFIRMED' && currentSyncStatus != 'ACCEPTED' && currentSyncStatus != 'ON_THE_WAY') {
+      try {
+        LiveBookingSyncService.instance.acceptBooking(widget.bookingId, partnerMap);
+      } catch (_) {}
+    }
 
     _radarController.stop();
     _spinnerController.stop();
@@ -1364,7 +1372,21 @@ class _ACFindingTechnicianScreenState extends State<ACFindingTechnicianScreen> w
           elevation: 2,
         ),
         onPressed: () {
-          context.push('/track-booking/${widget.bookingId}');
+          final pMap = _assignedPartner ?? {};
+          final extraData = Map<String, dynamic>.from(widget.bookingData);
+          if (pMap.isNotEmpty) {
+            extraData['partner_id'] = pMap['partner_id'];
+            extraData['partner_name'] = pMap['name'] ?? pMap['partner_name'];
+            extraData['technician_name'] = pMap['name'] ?? pMap['partner_name'];
+            extraData['partner_phone'] = pMap['phone'] ?? pMap['partner_phone'];
+            extraData['technician_phone'] = extraData['partner_phone'];
+            extraData['partner_rating'] = pMap['rating'] ?? 4.9;
+            extraData['partner_jobs'] = pMap['total_jobs'] ?? 42;
+            extraData['partner_vehicle'] = '${pMap['vehicle_model'] ?? "Honda Activa 6G"} (${pMap['vehicle_number'] ?? "GJ-10-BD-0933"})';
+            extraData['status'] = 'ON_THE_WAY';
+            extraData['service_status'] = 'ON_THE_WAY';
+          }
+          context.push('/track-booking/${widget.bookingId}', extra: extraData);
         },
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

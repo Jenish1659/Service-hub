@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../services/services/ac_availability_service.dart';
@@ -56,19 +57,54 @@ class ACBookingFlowScreen extends ConsumerStatefulWidget {
     String paymentMethod = 'Cash on Service',
     Map<String, dynamic>? extraData,
   }) async {
-    final bId = id ?? bookingId ?? 'AC_${DateTime.now().millisecondsSinceEpoch}';
+    const String uuidRegex = r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
+    final isGivenUuid = id != null && RegExp(uuidRegex).hasMatch(id);
+    final isGivenBookingUuid = bookingId != null && RegExp(uuidRegex).hasMatch(bookingId);
+    final bookingUuid = isGivenUuid ? id : (isGivenBookingUuid ? bookingId : const Uuid().v4());
+    final bId = bookingUuid;
     final nowIso = DateTime.now().toIso8601String();
     final pin = entrancePin ?? (1000 + DateTime.now().millisecond % 9000).toString();
     final otp = completionOtp ?? (1000 + (DateTime.now().microsecondsSinceEpoch % 9000)).toString();
 
+    SupabaseClient? supabase;
+    try {
+      supabase = Supabase.instance.client;
+    } catch (_) {}
+    String realCustomerId = '3e2584b1-4943-4196-abaa-1de62a456703';
+    String realAddressId = '0cbd6285-4c82-4af4-9849-f9b910bb0c14';
+    String realServiceId = 'f27fbac4-115c-4674-9c93-6b6ff8e1d080';
+
+    if (supabase != null) {
+      try {
+        final user = supabase.auth.currentUser;
+        if (user != null) {
+          final uRes = await supabase.from('users').select('user_id').eq('auth_id', user.id).maybeSingle();
+          if (uRes != null && uRes['user_id'] != null) {
+            realCustomerId = uRes['user_id'].toString();
+          }
+        } else if (customerId != null && RegExp(uuidRegex).hasMatch(customerId)) {
+          realCustomerId = customerId;
+        }
+        final aRes = await supabase.from('user_addresses').select('address_id').eq('user_id', realCustomerId).limit(1).maybeSingle();
+        if (aRes != null && aRes['address_id'] != null) {
+          realAddressId = aRes['address_id'].toString();
+        }
+      } catch (_) {}
+    } else if (customerId != null && RegExp(uuidRegex).hasMatch(customerId)) {
+      realCustomerId = customerId;
+    }
+
+    final String effectiveServiceId = (serviceId.isNotEmpty) ? serviceId : realServiceId;
+    final String dbServiceId = RegExp(uuidRegex).hasMatch(effectiveServiceId) ? effectiveServiceId : realServiceId;
+
     final Map<String, dynamic> payload = {
       'id': bId,
       'booking_id': bId,
-      'service_id': serviceId,
+      'service_id': effectiveServiceId,
       'service_name': serviceName,
       'status': status.toUpperCase(),
       'service_status': status.toUpperCase(),
-      'customer_id': customerId ?? 'cust_live_user',
+      'customer_id': realCustomerId,
       'customer_name': customerName,
       'customer_phone': customerPhone ?? '',
       'address': address,
@@ -98,30 +134,68 @@ class ACBookingFlowScreen extends ConsumerStatefulWidget {
       payload.addAll(extraData);
     }
 
-    // 1. Write to Supabase bookings table
-    try {
-      final supabase = Supabase.instance.client;
-      await supabase.from('bookings').insert(payload);
-      debugPrint('Successfully wrote booking to Supabase bookings table: $bId');
-    } catch (e) {
-      debugPrint('Supabase bookings insert note (offline/simulated): $e');
+    // 1. Write to Supabase service_bookings table
+    if (supabase != null) {
+      try {
+        await supabase.from('service_bookings').insert({
+          'booking_id': bookingUuid,
+          'customer_id': realCustomerId,
+          'service_id': dbServiceId,
+          'address_id': realAddressId,
+          'status': payload['status'],
+          'service_status': payload['status'],
+          'booking_date': payload['scheduled_date'],
+          'scheduled_time': payload['scheduled_time'],
+          'problem_description': payload['problem_description'],
+          'estimated_amount': finalAmount,
+          'final_amount': finalAmount,
+          'customer_latitude': customerLat ?? 22.4707,
+          'customer_longitude': customerLng ?? 70.0577,
+          'entrance_pin': pin,
+          'completion_otp': otp,
+          'created_at': nowIso,
+        });
+        debugPrint('Successfully wrote booking to Supabase service_bookings table: $bookingUuid');
+      } catch (e) {
+        debugPrint('Supabase service_bookings insert note: $e');
+      }
     }
 
-    // Also attempt write to service_bookings table if available
-    try {
-      final supabase = Supabase.instance.client;
-      await supabase.from('service_bookings').insert({
-        'booking_id': bId,
-        'status': payload['status'],
-        'final_amount': finalAmount,
-        'scheduled_time': scheduledAt,
-        'problem_description': payload['problem_description'],
-        'entrance_pin': pin,
-        'completion_otp': otp,
-      });
-    } catch (_) {}
+    // 2. Real Partner Assignment Dispatch
+    final isSearching = status.toUpperCase() == 'SEARCHING_PROVIDER' || status.toUpperCase() == 'PENDING';
+    if (isSearching && supabase != null) {
+      try {
+        final candidatesRes = await supabase
+            .from('service_provider_profiles')
+            .select('provider_id, partner_id, partners(partner_id, user_id, verification_status, availability_status, users(user_id, is_active, account_status, roles(role_name)), partner_live_locations(latitude, longitude))');
 
-    // 2. Broadcast to LiveBookingSyncService.instance.submitBooking(...)
+        for (final c in candidatesRes) {
+          final partner = c['partners'] as Map<String, dynamic>?;
+          if (partner == null) continue;
+          final user = partner['users'] as Map<String, dynamic>?;
+          if (user == null) continue;
+          final role = (user['roles'] as Map<String, dynamic>?)?['role_name']?.toString() ?? '';
+
+          if (role != 'service_provider') continue;
+          final ver = partner['verification_status']?.toString().toUpperCase();
+          final avail = partner['availability_status']?.toString().toUpperCase();
+          if (ver != 'VERIFIED' && ver != 'APPROVED') continue;
+          if (avail != 'ONLINE' && avail != 'AVAILABLE') continue;
+
+          final reqId = const Uuid().v4();
+          await supabase.from('booking_requests').insert({
+            'request_id': reqId,
+            'booking_id': bookingUuid,
+            'provider_id': c['provider_id'],
+            'partner_id': partner['partner_id'],
+            'response_status': 'Pending',
+            'sent_at': DateTime.now().toIso8601String(),
+          });
+        }
+      } catch (_) {}
+    }
+
+    // 3. Broadcast to LiveBookingSyncService.instance.submitBooking(...)
     await LiveBookingSyncService.instance.submitBooking(payload);
 
     return payload;

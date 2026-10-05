@@ -125,7 +125,7 @@ final customerBookingsStreamProvider = StreamProvider<List<Map<String, dynamic>>
 
   fetchBookings();
 
-  timer = Timer.periodic(const Duration(seconds: 4), (_) {
+  timer = Timer.periodic(const Duration(seconds: 15), (_) {
     fetchBookings();
   });
 
@@ -217,7 +217,7 @@ final customerOrdersStreamProvider = StreamProvider<List<Map<String, dynamic>>>(
 
   fetchOrders();
 
-  timer = Timer.periodic(const Duration(seconds: 4), (_) {
+  timer = Timer.periodic(const Duration(seconds: 15), (_) {
     fetchOrders();
   });
 

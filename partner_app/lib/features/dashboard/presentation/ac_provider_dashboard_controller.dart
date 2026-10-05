@@ -185,6 +185,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
     _subscribeRealtimeChanges();
   }
 
+  Future<void> refresh() async => initDashboard();
+
   Future<void> _loadPartnerProfile() async {
     final activePartner = await LocalRegistrationCache.getActivePartner();
     if (activePartner != null) {
@@ -209,6 +211,43 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       if (isOnline && (state.partnerId.isNotEmpty)) {
         PartnerLocationService.instance.startLiveLocationTracking(partnerId: state.partnerId);
       }
+    }
+
+    // Direct Database Fallback: Resolve real verified service provider from Supabase if cache was empty
+    if (state.partnerId.isEmpty) {
+      try {
+        final supabase = Supabase.instance.client;
+        final res = await supabase
+            .from('service_provider_profiles')
+            .select('provider_id, partner_id, partners(partner_id, partner_code, verification_status, availability_status, users(user_id, username, phone, user_profiles(first_name, last_name)))')
+            .limit(1)
+            .maybeSingle();
+
+        if (res != null) {
+          final p = res['partners'] as Map<String, dynamic>?;
+          final u = p?['users'] as Map<String, dynamic>?;
+          final prof = u?['user_profiles'] as Map<String, dynamic>?;
+          final pName = '${prof?['first_name'] ?? ""} ${prof?['last_name'] ?? ""}'.trim();
+
+          final resolvedPartnerId = res['partner_id']?.toString() ?? '';
+          final resolvedProviderId = res['provider_id']?.toString() ?? '';
+
+          state = state.copyWith(
+            partnerId: resolvedPartnerId,
+            providerId: resolvedProviderId,
+            providerName: pName.isNotEmpty ? pName : (u?['username'] ?? 'Service Provider').toString(),
+            businessName: '${pName.isNotEmpty ? pName : "Verified"} AC Service Center',
+            category: 'ac_service',
+            categoryName: 'AC Service Provider',
+            verificationStatus: p?['verification_status']?.toString() ?? 'VERIFIED',
+            isOnline: true,
+          );
+
+          if (resolvedPartnerId.isNotEmpty) {
+            PartnerLocationService.instance.startLiveLocationTracking(partnerId: resolvedPartnerId);
+          }
+        }
+      } catch (_) {}
     }
   }
 
@@ -261,8 +300,19 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
             .order('sent_at', ascending: false);
 
         for (final req in requestsRes) {
+          final reqPartner = (req['partner_id'] ?? '').toString();
+          final reqProvider = (req['provider_id'] ?? '').toString();
+          final isForThisPartner = (state.partnerId.isNotEmpty && (reqPartner == state.partnerId || reqProvider == state.partnerId)) ||
+              (state.providerId.isNotEmpty && (reqProvider == state.providerId || reqPartner == state.providerId));
+          if (!isForThisPartner) {
+            continue; // Strictly addressed to this partner only
+          }
           final booking = req['service_bookings'] as Map<String, dynamic>?;
           if (booking != null) {
+            final bStatus = (booking['status'] ?? '').toString().toUpperCase();
+            final bPartner = (booking['partner_id'] ?? '').toString();
+            if (bPartner.isNotEmpty && bPartner != state.partnerId) continue; // Already claimed by another technician
+            if (bStatus == 'ACCEPTED' || bStatus == 'SERVICE_COMPLETED' || bStatus == 'CLOSED' || bStatus.contains('CANCEL')) continue;
             final bId = booking['booking_id']?.toString() ?? '';
             if (bId.isNotEmpty && !seenBookingIds.contains(bId)) {
               seenBookingIds.add(bId);
@@ -295,134 +345,6 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
                 'completion_otp': booking['completion_otp'] ?? '',
               });
             }
-          }
-        }
-      } catch (_) {}
-
-      // B. Also check service_bookings directly with pending/searching statuses
-      try {
-        final pendingServiceBookings = await supabase
-            .from('service_bookings')
-            .select('*, services(*), user_addresses(*), users(*, user_profiles(*))')
-            .filter('status', 'in', ['PENDING', 'Pending', 'SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS'])
-            .order('created_at', ascending: false);
-
-        for (final b in pendingServiceBookings) {
-          final bId = b['booking_id']?.toString() ?? '';
-          final pId = (b['partner_id'] ?? '').toString();
-          if (pId.isNotEmpty) continue;
-          if (bId.isNotEmpty && !seenBookingIds.contains(bId)) {
-            final service = b['services'] as Map<String, dynamic>?;
-            final sName = (service?['name'] ?? b['problem_description'] ?? '').toString();
-            // Check if it is an AC service
-            if (sName.toLowerCase().contains('ac') || sName.toLowerCase().contains('air') || sName.isEmpty) {
-              seenBookingIds.add(bId);
-              final address = b['user_addresses'] as Map<String, dynamic>?;
-              final user = b['users'] as Map<String, dynamic>?;
-              final profile = user?['user_profiles'] as Map<String, dynamic>?;
-
-              final lat = (address?['latitude'] as num?)?.toDouble() ?? 22.4707;
-              final lng = (address?['longitude'] as num?)?.toDouble() ?? 70.0577;
-
-              final distKm = OsrmRoutingService.computeHaversineDistanceKm(22.4707, 70.0650, lat, lng) * 1.35;
-              final etaMin = (distKm / 25.0 * 60.0).round().clamp(5, 45);
-
-              offersList.add({
-                'request_id': null,
-                'booking_id': bId,
-                'service_name': service?['name'] ?? (sName.isNotEmpty ? sName : 'AC Service Request'),
-                'price': (b['estimated_amount'] as num?)?.toDouble() ?? (b['final_amount'] as num?)?.toDouble() ?? 0.0,
-                'customer_name': profile != null ? '${profile['first_name']} ${profile['last_name'] ?? ""}'.trim() : (user?['username'] ?? 'Customer').toString(),
-                'customer_phone': user?['phone'] ?? '',
-                'customer_address': address != null ? '${address['area'] ?? ""}, ${address['city'] ?? ""}'.trim() : '',
-                'customer_lat': lat,
-                'customer_lng': lng,
-                'distance_km': distKm,
-                'eta_minutes': etaMin,
-                'scheduled_time': b['scheduled_time'] ?? '',
-                'problem_description': b['problem_description'] ?? 'Service Request',
-                'entrance_pin': b['entrance_pin'] ?? '',
-                'completion_otp': b['completion_otp'] ?? '',
-              });
-            }
-          }
-        }
-      } catch (_) {}
-
-      // C. Also check bookings table (from Customer App discover screen)
-      try {
-        final directBookings = await supabase
-            .from('bookings')
-            .select()
-            .filter('status', 'in', ['Pending', 'PENDING', 'SEARCHING_PROVIDER'])
-            .order('created_at', ascending: false);
-
-        for (final b in directBookings) {
-          final bId = b['id']?.toString() ?? '';
-          final pId = (b['partner_id'] ?? '').toString();
-          if (pId.isNotEmpty) continue;
-          if (bId.isNotEmpty && !seenBookingIds.contains(bId)) {
-            final sName = (b['service_name'] ?? '').toString();
-            if (sName.toLowerCase().contains('ac') || sName.toLowerCase().contains('air') || sName.isEmpty) {
-              seenBookingIds.add(bId);
-              final lat = (b['customer_lat'] as num?)?.toDouble() ?? 22.4707;
-              final lng = (b['customer_lng'] as num?)?.toDouble() ?? 70.0577;
-              final distKm = OsrmRoutingService.computeHaversineDistanceKm(22.4707, 70.0650, lat, lng) * 1.35;
-              final etaMin = (distKm / 25.0 * 60.0).round().clamp(5, 45);
-
-              offersList.add({
-                'request_id': null,
-                'booking_id': bId,
-                'service_name': b['service_name'] ?? 'AC Service',
-                'price': (b['price'] as num?)?.toDouble() ?? 0.0,
-                'customer_name': b['customer_name'] ?? 'Customer',
-                'customer_phone': b['customer_phone'] ?? '',
-                'customer_address': b['customer_address'] ?? '',
-                'customer_lat': lat,
-                'customer_lng': lng,
-                'distance_km': distKm,
-                'eta_minutes': etaMin,
-                'scheduled_time': '${b['scheduled_date'] ?? ""} ${b['scheduled_time'] ?? ""}'.trim(),
-                'problem_description': b['issue_description'] ?? 'Service Request',
-                'entrance_pin': b['entrance_pin'] ?? '',
-                'completion_otp': b['completion_otp'] ?? '',
-              });
-            }
-          }
-        }
-      } catch (_) {}
-
-      // D. Also check LiveBookingSyncService (Local Realtime IPC Engine)
-      try {
-        final localOffers = LiveBookingSyncService.instance.getPendingACOffers();
-        for (final b in localOffers) {
-          final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
-          if (bId.isNotEmpty && !seenBookingIds.contains(bId)) {
-            seenBookingIds.add(bId);
-            final lat = (b['customer_lat'] as num?)?.toDouble() ?? 22.4707;
-            final lng = (b['customer_lng'] as num?)?.toDouble() ?? 70.0577;
-            final distKm = (b['distance_km'] as num?)?.toDouble() ??
-                (OsrmRoutingService.computeHaversineDistanceKm(22.4707, 70.0650, lat, lng) * 1.35);
-            final etaMin = (b['eta_minutes'] as num?)?.toInt() ??
-                ((distKm / 25.0 * 60.0).round().clamp(5, 45));
-
-            offersList.add({
-              'request_id': null,
-              'booking_id': bId,
-              'service_name': b['service_name'] ?? 'AC Service',
-              'price': (b['price'] as num?)?.toDouble() ?? 0.0,
-              'customer_name': b['customer_name'] ?? 'Customer',
-              'customer_phone': b['customer_phone'] ?? '',
-              'customer_address': b['customer_address'] ?? '',
-              'customer_lat': lat,
-              'customer_lng': lng,
-              'distance_km': distKm,
-              'eta_minutes': etaMin,
-              'scheduled_time': '${b['scheduled_date'] ?? ""} ${b['scheduled_time'] ?? ""}'.trim(),
-              'problem_description': b['problem_description'] ?? 'AC Service Request',
-              'entrance_pin': b['entrance_pin'] ?? '',
-              'completion_otp': b['completion_otp'] ?? '',
-            });
           }
         }
       } catch (_) {}
@@ -636,8 +558,10 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       } catch (e) {
         debugPrint('[ACProviderDashboardController] atomic_accept RPC note: $e');
       }
-    } else if (bookingId != null) {
-      // 1b. Direct database check if another partner already claimed this booking
+    }
+
+    // 1b. Direct database check: Concurrency, Cancellation, and Expiry validation
+    if (bookingId != null) {
       try {
         final currentBooking = await Supabase.instance.client
             .from('service_bookings')
@@ -646,7 +570,19 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
             .maybeSingle();
 
         if (currentBooking != null) {
+          final bStatus = (currentBooking['status'] ?? '').toString().toUpperCase();
           final bPartner = currentBooking['partner_id']?.toString() ?? '';
+
+          if (bStatus == 'CANCELLED') {
+            state = state.copyWith(
+              incomingOffers: state.incomingOffers.where((o) => o['booking_id'] != bookingId).toList(),
+            );
+            return {
+              'success': false,
+              'message': 'This booking was cancelled by the customer.',
+            };
+          }
+
           if (bPartner.isNotEmpty && bPartner != state.partnerId && bPartner != state.providerId) {
             state = state.copyWith(
               incomingOffers: state.incomingOffers.where((o) => o['booking_id'] != bookingId).toList(),
@@ -654,6 +590,29 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
             return {
               'success': false,
               'message': 'This job has already been accepted by another technician.',
+            };
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (requestId != null) {
+      try {
+        final reqCheck = await Supabase.instance.client
+            .from('booking_requests')
+            .select('response_status')
+            .eq('request_id', requestId)
+            .maybeSingle();
+
+        if (reqCheck != null) {
+          final rStatus = reqCheck['response_status']?.toString();
+          if (rStatus == 'Expired') {
+            state = state.copyWith(
+              incomingOffers: state.incomingOffers.where((o) => o['booking_id'] != bookingId).toList(),
+            );
+            return {
+              'success': false,
+              'message': 'This request has expired and is no longer available.',
             };
           }
         }
@@ -691,33 +650,75 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       activeBookings: [...state.activeBookings, activeJobData],
     );
 
-    // 3. Update Supabase service_bookings & bookings tables
+    // 3. Update Supabase service_bookings & booking_requests & booking_assignment
     try {
       if (bookingId != null) {
+        final supabase = Supabase.instance.client;
+        final nowStr = DateTime.now().toIso8601String();
+
+        // 3a. Update service_bookings table
         try {
-          await Supabase.instance.client
+          await supabase
               .from('service_bookings')
               .update({
                 'status': 'ACCEPTED',
+                'service_status': 'ACCEPTED',
                 'partner_id': state.partnerId,
-                'technician_name': state.providerName,
-                'technician_phone': Supabase.instance.client.auth.currentUser?.phone ?? '',
-                'updated_at': DateTime.now().toIso8601String(),
+                'updated_at': nowStr,
               })
               .eq('booking_id', bookingId);
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[acceptOffer] service_bookings update note: $e');
+        }
+
+        // 3b. Update booking_requests: mark winning as Accepted, others as Expired
         try {
-          await Supabase.instance.client
-              .from('bookings')
+          if (requestId != null) {
+            await supabase
+                .from('booking_requests')
+                .update({
+                  'response_status': 'Accepted',
+                  'response_at': nowStr,
+                })
+                .eq('request_id', requestId);
+          }
+          await supabase
+              .from('booking_requests')
               .update({
-                'status': 'ACCEPTED',
-                'partner_id': state.partnerId,
-                'partner_name': state.providerName,
-                'partner_phone': Supabase.instance.client.auth.currentUser?.phone ?? '',
-                'updated_at': DateTime.now().toIso8601String(),
+                'response_status': 'Expired',
+                'response_at': nowStr,
               })
-              .eq('id', bookingId);
-        } catch (_) {}
+              .eq('booking_id', bookingId)
+              .neq('request_id', requestId ?? '');
+        } catch (e) {
+          debugPrint('[acceptOffer] booking_requests update note: $e');
+        }
+
+        // 3c. Insert into booking_assignment
+        try {
+          await supabase.from('booking_assignment').upsert({
+            'booking_id': bookingId,
+            'provider_id': effectiveProviderId,
+            'partner_id': state.partnerId,
+            'assignment_method': 'FIRST_ACCEPT',
+            'status': 'ASSIGNED',
+            'assigned_at': nowStr,
+          });
+        } catch (e) {
+          debugPrint('[acceptOffer] booking_assignment note: $e');
+        }
+
+        // 3d. Insert into booking_status_history
+        try {
+          await supabase.from('booking_status_history').insert({
+            'booking_id': bookingId,
+            'status': 'ACCEPTED',
+            'remarks': 'Provider accepted service request via first-accept engine',
+            'changed_at': nowStr,
+          });
+        } catch (e) {
+          debugPrint('[acceptOffer] status_history note: $e');
+        }
       }
     } catch (_) {}
 
@@ -744,18 +745,6 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
             .update({'response_status': 'Rejected', 'response_at': DateTime.now().toIso8601String()})
             .eq('request_id', requestId);
       }
-      try {
-        await Supabase.instance.client
-            .from('service_bookings')
-            .update({'status': 'REJECTED'})
-            .eq('booking_id', bookingId);
-      } catch (_) {}
-      try {
-        await Supabase.instance.client
-            .from('bookings')
-            .update({'status': 'Rejected'})
-            .eq('id', bookingId);
-      } catch (_) {}
     } catch (_) {}
   }
 

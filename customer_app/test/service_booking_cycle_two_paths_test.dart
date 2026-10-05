@@ -62,6 +62,7 @@ void main() {
 
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 500));
 
       // Transitioned to Image 1 Screen 2: "Partner Assigned!"
       expect(find.text('Partner Assigned!'), findsOneWidget);

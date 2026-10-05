@@ -16,6 +16,9 @@ class ServiceAreaCheckResult {
 }
 
 class ServiceAreaService {
+  static const String outsideAreaMessage =
+      'Sorry, we are not available at your location. ServiceHub is currently available only in Jamnagar.';
+
   final List<ServiceAreaModel> _activeServiceAreas = [
     ServiceAreaModel(
       id: 'city_jamnagar',
@@ -27,56 +30,6 @@ class ServiceAreaService {
       centerLongitude: 70.0577,
       radiusKm: 35.0,
     ),
-    ServiceAreaModel(
-      id: 'city_rajkot',
-      city: 'Rajkot',
-      state: 'Gujarat',
-      country: 'India',
-      active: true,
-      centerLatitude: 22.3039,
-      centerLongitude: 70.8022,
-      radiusKm: 40.0,
-    ),
-    ServiceAreaModel(
-      id: 'city_ahmedabad',
-      city: 'Ahmedabad',
-      state: 'Gujarat',
-      country: 'India',
-      active: true,
-      centerLatitude: 23.0225,
-      centerLongitude: 72.5714,
-      radiusKm: 50.0,
-    ),
-    ServiceAreaModel(
-      id: 'city_surat',
-      city: 'Surat',
-      state: 'Gujarat',
-      country: 'India',
-      active: true,
-      centerLatitude: 21.1702,
-      centerLongitude: 72.8311,
-      radiusKm: 45.0,
-    ),
-    ServiceAreaModel(
-      id: 'city_pune',
-      city: 'Pune',
-      state: 'Maharashtra',
-      country: 'India',
-      active: true,
-      centerLatitude: 18.5204,
-      centerLongitude: 73.8567,
-      radiusKm: 40.0,
-    ),
-    ServiceAreaModel(
-      id: 'city_mumbai',
-      city: 'Mumbai',
-      state: 'Maharashtra',
-      country: 'India',
-      active: true,
-      centerLatitude: 19.0760,
-      centerLongitude: 72.8777,
-      radiusKm: 50.0,
-    ),
   ];
 
   Future<bool> isServiceAvailable(String cityName, double lat, double lng) async {
@@ -87,44 +40,41 @@ class ServiceAreaService {
   ServiceAreaCheckResult checkServiceArea(String cityName, double lat, double lng) {
     final String cityLower = cityName.trim().toLowerCase();
 
-    // 1. Exact city name match
-    for (final area in _activeServiceAreas) {
-      if (area.active && area.city.toLowerCase() == cityLower) {
+    // 1. Exact or partial city name match for Jamnagar
+    if (cityLower.contains('jamnagar')) {
+      return ServiceAreaCheckResult(
+        isAvailable: true,
+        matchedCity: 'Jamnagar',
+        distanceKm: 0.0,
+        statusMessage: 'Verified Service Area (Jamnagar)',
+      );
+    }
+
+    // 2. Lat/Lng radius distance calculation from Jamnagar center
+    final jamnagar = _activeServiceAreas.first;
+    if (lat != 0.0 && lng != 0.0) {
+      final double dist = DistanceService.calculateDistance(
+        lat,
+        lng,
+        jamnagar.centerLatitude,
+        jamnagar.centerLongitude,
+      );
+      if (dist <= jamnagar.radiusKm) {
         return ServiceAreaCheckResult(
           isAvailable: true,
-          matchedCity: area.city,
-          distanceKm: 0.0,
-          statusMessage: 'Verified Service Area (${area.city})',
+          matchedCity: jamnagar.city,
+          distanceKm: dist,
+          statusMessage: 'Within Jamnagar service radius (${dist.toStringAsFixed(1)} km)',
         );
       }
     }
 
-    // 2. Lat/Lng radius distance calculation
-    for (final area in _activeServiceAreas) {
-      if (area.active) {
-        double dist = DistanceService.calculateDistance(
-          lat,
-          lng,
-          area.centerLatitude,
-          area.centerLongitude,
-        );
-        if (dist <= area.radiusKm) {
-          return ServiceAreaCheckResult(
-            isAvailable: true,
-            matchedCity: area.city,
-            distanceKm: dist,
-            statusMessage: 'Within ${area.city} service radius (${dist.toStringAsFixed(1)} km)',
-          );
-        }
-      }
-    }
-
-    // Outside operational zones
+    // Outside Jamnagar operational zone
     return ServiceAreaCheckResult(
-      isAvailable: true, // Set default true to ensure smooth customer booking demo
-      matchedCity: cityName.isNotEmpty ? cityName : 'Jamnagar',
+      isAvailable: false,
+      matchedCity: cityName.isNotEmpty ? cityName : 'Outside Jamnagar',
       distanceKm: 0.0,
-      statusMessage: 'Hyperlocal Service Available',
+      statusMessage: outsideAreaMessage,
     );
   }
 

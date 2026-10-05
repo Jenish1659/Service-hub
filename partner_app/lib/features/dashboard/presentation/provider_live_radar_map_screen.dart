@@ -172,17 +172,8 @@ class _ProviderLiveRadarMapScreenState extends ConsumerState<ProviderLiveRadarMa
 
     final Map<String, Map<String, dynamic>> map = {};
 
-    // 1. From provider state
+    // 1. From real partner dashboard incoming offers
     for (final offer in dashboardState.incomingOffers) {
-      final id = (offer['booking_id'] ?? offer['id'] ?? '').toString();
-      if (id.isNotEmpty) {
-        map[id] = offer;
-      }
-    }
-
-    // 2. From LiveBookingSyncService pending AC offers
-    final syncOffers = LiveBookingSyncService.instance.getPendingACOffers();
-    for (final offer in syncOffers) {
       final id = (offer['booking_id'] ?? offer['id'] ?? '').toString();
       if (id.isNotEmpty) {
         map[id] = offer;

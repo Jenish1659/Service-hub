@@ -378,6 +378,10 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
         _showError('City Name is required *');
         return;
       }
+      if (!_cityController.text.trim().toLowerCase().contains('jamnagar')) {
+        _showError('Sorry, we are not available at your location. ServiceHub is currently available only in Jamnagar.');
+        return;
+      }
       if (_pincodeController.text.trim().isEmpty) {
         _showError('Pincode is required *');
         return;

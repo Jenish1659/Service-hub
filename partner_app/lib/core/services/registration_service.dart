@@ -1,60 +1,27 @@
 class LocationService {
   static const String allowedState = 'Gujarat';
+  static const String allowedCity = 'Jamnagar';
+  static const String outsideAreaMessage =
+      'Sorry, we are not available at your location. ServiceHub is currently available only in Jamnagar.';
 
   static const List<String> supportedStates = [
     'Gujarat',
-    'Maharashtra',
-    'Rajasthan',
-    'Madhya Pradesh',
-    'Delhi',
-    'Karnataka',
-    'Tamil Nadu',
-    'Punjab',
-    'Haryana',
   ];
 
   static const List<String> gujaratCities = [
-    'Ahmedabad',
-    'Surat',
-    'Vadodara',
-    'Rajkot',
-    'Bhavnagar',
     'Jamnagar',
-    'Junagadh',
-    'Gandhinagar',
-    'Anand',
-    'Nadiad',
-    'Morbi',
-    'Mehsana',
-    'Bharuch',
-    'Navsari',
-    'Vapi',
-    'Valsad',
-    'Palanpur',
-    'Patan',
-    'Amreli',
-    'Botad',
-    'Surendranagar',
-    'Godhra',
-    'Dahod',
-    'Veraval',
-    'Dwarka',
-    'Bhuj',
-    'Mundra',
-    'Kalol',
-    'Himmatnagar',
-    'Modasa',
-    'Vyara',
-    'Jetpur',
-    'Gondal',
   ];
 
   static bool isStateAllowed(String state) {
-    return state == allowedState;
+    return state.trim().toLowerCase() == allowedState.toLowerCase();
+  }
+
+  static bool isCityAllowed(String city) {
+    return city.trim().toLowerCase().contains(allowedCity.toLowerCase());
   }
 
   static List<String> getCitiesForState(String state) {
-    if (state == allowedState) {
+    if (isStateAllowed(state)) {
       return List.from(gujaratCities)..sort();
     }
     return [];

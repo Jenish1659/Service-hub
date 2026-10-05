@@ -247,7 +247,11 @@ final GoRouter appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       builder: (BuildContext context, GoRouterState state) {
         final bookingId = state.pathParameters['id'] ?? '';
-        return TrackBookingScreen(bookingId: bookingId);
+        final extraData = state.extra as Map<String, dynamic>?;
+        return TrackBookingScreen(
+          bookingId: bookingId,
+          initialBookingData: extraData,
+        );
       },
     ),
     GoRoute(

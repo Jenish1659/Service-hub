@@ -316,7 +316,7 @@ class _ProviderServiceOptionsSelectionScreenState
     });
 
     final text = _otherDetailsController.text.trim();
-    if (text.length < 50) {
+    if (text.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Row(
@@ -325,7 +325,7 @@ class _ProviderServiceOptionsSelectionScreenState
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Service details are compulsory! Please write at least 50 characters.',
+                  'Service details are compulsory! Please write at least 10 characters.',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
@@ -355,7 +355,7 @@ class _ProviderServiceOptionsSelectionScreenState
         ProviderServiceOptionsSelectionScreen.categoryConfigs['ac_service']!;
 
     final currentLength = _otherDetailsController.text.trim().length;
-    final isInvalid = (_hasSubmitted || _isTouched) && currentLength < 50;
+    final isInvalid = (_hasSubmitted || _isTouched) && currentLength < 10;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -641,7 +641,7 @@ class _ProviderServiceOptionsSelectionScreenState
                         ),
                         const SizedBox(height: 24),
 
-                        // Other Services TextField Box (Mandatory & Min 50 Chars Rule)
+                        // Other Services TextField Box (Mandatory & Min 10 Chars Rule)
                         RichText(
                           text: const TextSpan(
                             text: 'Please Describe Your Other Service(s) ',
@@ -652,7 +652,7 @@ class _ProviderServiceOptionsSelectionScreenState
                             ),
                             children: [
                               TextSpan(
-                                text: '* (Compulsory - Min 50 characters)',
+                                text: '* (Compulsory - Min 10 characters)',
                                 style: TextStyle(
                                   color: Color(0xFFEF4444),
                                   fontWeight: FontWeight.bold,
@@ -681,7 +681,7 @@ class _ProviderServiceOptionsSelectionScreenState
                             border: Border.all(
                               color: isInvalid
                                   ? const Color(0xFFEF4444)
-                                  : (currentLength >= 50
+                                  : (currentLength >= 10
                                       ? config.primaryColor
                                       : const Color(0xFFCBD5E1)),
                               width: isInvalid ? 2.0 : 1.5,
@@ -712,7 +712,7 @@ class _ProviderServiceOptionsSelectionScreenState
                                     });
                                   },
                                   decoration: const InputDecoration(
-                                    hintText: 'Enter your service details (minimum 50 characters required)...',
+                                    hintText: 'Enter your service details (minimum 10 characters required)...',
                                     hintStyle: TextStyle(
                                       color: Color(0xFF94A3B8),
                                       fontSize: 13,
@@ -730,15 +730,15 @@ class _ProviderServiceOptionsSelectionScreenState
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        currentLength < 50
-                                            ? 'Min 50 chars required (${50 - currentLength} more needed)'
+                                        currentLength < 10
+                                            ? 'Min 10 chars required (${10 - currentLength} more needed)'
                                             : '✓ Minimum length satisfied',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.bold,
-                                          color: currentLength < 50
+                                          color: currentLength < 10
                                               ? (isInvalid
                                                   ? const Color(0xFFEF4444)
                                                   : const Color(0xFF64748B))
@@ -774,7 +774,7 @@ class _ProviderServiceOptionsSelectionScreenState
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
-                                  'This field is compulsory! Please enter at least 50 characters (currently $currentLength/50).',
+                                  'This field is compulsory! Please enter at least 10 characters (currently $currentLength/10).',
                                   style: const TextStyle(
                                     color: Color(0xFFEF4444),
                                     fontSize: 11.5,

@@ -179,9 +179,9 @@ class _ProviderExperienceRegistrationScreenState
       return;
     }
 
-    // About Yourself compulsory min 50 characters
-    if (_aboutController.text.trim().length < 50) {
-      _showToast('About Yourself field is compulsory (minimum 50 characters required).');
+    // About Yourself compulsory min 10 characters
+    if (_aboutController.text.trim().length < 10) {
+      _showToast('About Yourself field is compulsory (minimum 10 characters required).');
       return;
     }
 
@@ -771,26 +771,26 @@ class _ProviderExperienceRegistrationScreenState
                         _buildCategorySpecificSection(),
                         const SizedBox(height: 14),
 
-                        // Section 7: About Yourself (Empty - Compulsory & Min 50 Chars)
+                        // Section 7: About Yourself (Empty - Compulsory & Min 10 Chars)
                         _buildCardSection(
                           icon: Icons.person_outline_rounded,
                           title: '7. About Yourself',
                           isRequired: true,
-                          hasError: _hasSubmitted && _aboutController.text.trim().length < 50,
+                          hasError: _hasSubmitted && _aboutController.text.trim().length < 10,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Container(
                                 decoration: BoxDecoration(
-                                  color: _hasSubmitted && _aboutController.text.trim().length < 50
+                                  color: _hasSubmitted && _aboutController.text.trim().length < 10
                                       ? const Color(0xFFFEF2F2)
                                       : const Color(0xFFF8FAFC),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: _hasSubmitted && _aboutController.text.trim().length < 50
+                                    color: _hasSubmitted && _aboutController.text.trim().length < 10
                                         ? const Color(0xFFEF4444)
                                         : borderColor,
-                                    width: _hasSubmitted && _aboutController.text.trim().length < 50 ? 1.8 : 1.0,
+                                    width: _hasSubmitted && _aboutController.text.trim().length < 10 ? 1.8 : 1.0,
                                   ),
                                 ),
                                 child: Semantics(
@@ -804,7 +804,7 @@ class _ProviderExperienceRegistrationScreenState
                                     decoration: const InputDecoration(
                                       contentPadding: EdgeInsets.all(14),
                                       border: InputBorder.none,
-                                      hintText: 'Tell customers about your skills, background and service quality (minimum 50 characters required)...',
+                                      hintText: 'Tell customers about your skills, background and service quality (minimum 10 characters required)...',
                                       hintStyle: TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
                                       counterText: '',
                                     ),
@@ -819,13 +819,13 @@ class _ProviderExperienceRegistrationScreenState
                                 runSpacing: 4,
                                 children: [
                                   Text(
-                                    _aboutController.text.trim().length < 50
-                                        ? '* Min 50 characters required (${50 - _aboutController.text.trim().length} needed)'
-                                        : '✓ Min 50 characters satisfied',
+                                    _aboutController.text.trim().length < 10
+                                        ? '* Min 10 characters required (${10 - _aboutController.text.trim().length} needed)'
+                                        : '✓ Min 10 characters satisfied',
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
-                                      color: _aboutController.text.trim().length < 50
+                                      color: _aboutController.text.trim().length < 10
                                           ? const Color(0xFFEF4444)
                                           : const Color(0xFF10B981),
                                     ),

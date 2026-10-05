@@ -136,7 +136,7 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
       'serviceRevenue': serviceRevenue,
     };
 
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 15));
   }
 });
 
@@ -156,13 +156,6 @@ void markPartnerResolved(String id) {
   final cleanId = id.trim();
   if (cleanId.isEmpty) return;
   _resolvedPartnerIds.add(cleanId);
-  final digits = cleanId.replaceAll(RegExp(r'\D'), '');
-  if (digits.length >= 10) {
-    final last10 = digits.substring(digits.length - 10);
-    _resolvedPartnerIds.add(last10);
-    _resolvedPartnerIds.add(digits);
-    _resolvedPartnerIds.add('+91$last10');
-  }
 
   _persistedPendingPartners.remove(cleanId);
   _persistedPendingPartners.removeWhere((k, v) {
@@ -174,43 +167,24 @@ void markPartnerResolved(String id) {
 }
 
 bool _isPartnerResolved(Map<String, dynamic> candidate) {
-  final status = (candidate['status'] ?? candidate['verification_status'] ?? '').toString().toUpperCase();
-  final isPending = status == 'PENDING' || status == 'IN_REVIEW' || status == 'UNDER_REVIEW' || status == 'SUBMITTED';
-
   final id = (candidate['id'] ?? '').toString().trim();
   final verId = (candidate['verification_id'] ?? '').toString().trim();
 
-  // If this candidate has an active pending status, it is an active request that must be reviewed.
-  // It is ONLY resolved if this specific verification request was explicitly approved or rejected in this session.
-  if (isPending) {
-    if (id.isNotEmpty && _resolvedPartnerIds.contains(id)) return true;
-    if (verId.isNotEmpty && _resolvedPartnerIds.contains(verId)) return true;
-    return false;
-  }
-
-  // For non-pending candidates (already resolved in DB)
-  final uId = (candidate['user_id'] ?? '').toString().trim();
-  final pId = (candidate['partner_id'] ?? '').toString().trim();
-  final phone10 = _clean10DigitPhone(candidate['phone']);
-
-  if (id.isNotEmpty && _resolvedPartnerIds.contains(id)) return true;
   if (verId.isNotEmpty && _resolvedPartnerIds.contains(verId)) return true;
-  if (uId.isNotEmpty && _resolvedPartnerIds.contains(uId)) return true;
-  if (pId.isNotEmpty && _resolvedPartnerIds.contains(pId)) return true;
-  if (phone10.isNotEmpty && _resolvedPartnerIds.contains(phone10)) return true;
+  if (id.isNotEmpty && _resolvedPartnerIds.contains(id)) return true;
   return false;
 }
 
 String _canonicalPartnerKey(Map<String, dynamic> candidate) {
-  final verId = (candidate['verification_id'] ?? candidate['id'] ?? '').toString().trim();
-  if (verId.isNotEmpty) return 'ver:$verId';
+  final role = (candidate['role_name'] ?? candidate['role'] ?? 'provider').toString().toLowerCase();
   final uId = (candidate['user_id'] ?? '').toString().trim();
-  final role = (candidate['role_name'] ?? candidate['role'] ?? '').toString().toLowerCase();
-  if (uId.isNotEmpty) return 'user:${uId}_role:$role';
+  if (uId.isNotEmpty) return 'role:${role}_user:$uId';
   final pId = (candidate['partner_id'] ?? '').toString().trim();
-  if (pId.isNotEmpty) return 'partner:$pId';
+  if (pId.isNotEmpty) return 'role:${role}_partner:$pId';
   final phone10 = _clean10DigitPhone(candidate['phone']);
-  if (phone10.isNotEmpty) return 'phone:${phone10}_role:$role';
+  if (phone10.isNotEmpty) return 'role:${role}_phone:$phone10';
+  final verId = (candidate['verification_id'] ?? candidate['id'] ?? '').toString().trim();
+  if (verId.isNotEmpty) return 'role:${role}_ver:$verId';
   return 'unknown:${DateTime.now().microsecondsSinceEpoch}';
 }
 
@@ -221,25 +195,33 @@ Map<String, dynamic>? _findExistingCandidate(
   final uId = (candidate['user_id'] ?? '').toString().trim();
   final pId = (candidate['partner_id'] ?? '').toString().trim();
   final verId = (candidate['verification_id'] ?? candidate['id'] ?? '').toString().trim();
-  final phone10 = _clean10DigitPhone(candidate['phone']);
   final cRole = (candidate['role_name'] ?? candidate['role'] ?? '').toString().toLowerCase();
 
   for (final existing in store.values) {
     final eUid = (existing['user_id'] ?? '').toString().trim();
     final ePid = (existing['partner_id'] ?? '').toString().trim();
     final eVerId = (existing['verification_id'] ?? existing['id'] ?? '').toString().trim();
-    final ePhone10 = _clean10DigitPhone(existing['phone']);
     final eRole = (existing['role_name'] ?? existing['role'] ?? '').toString().toLowerCase();
 
-    // If roles are explicitly different (e.g. shopkeeper vs service_provider application), do not merge them
+    // 1. If roles are explicitly different, do not merge them
     if (cRole.isNotEmpty && eRole.isNotEmpty && cRole != eRole) {
       continue;
     }
 
-    if (verId.isNotEmpty && eVerId.isNotEmpty && verId == eVerId) return existing;
-    if (uId.isNotEmpty && eUid.isNotEmpty && uId == eUid) return existing;
-    if (pId.isNotEmpty && ePid.isNotEmpty && pId == ePid) return existing;
-    if (phone10.isNotEmpty && ePhone10.isNotEmpty && phone10 == ePhone10) return existing;
+    // 2. Exact verification ID match
+    if (verId.isNotEmpty && eVerId.isNotEmpty && verId == eVerId) {
+      return existing;
+    }
+
+    // 3. Exact partner ID match for the same role
+    if (pId.isNotEmpty && ePid.isNotEmpty && pId == ePid) {
+      return existing;
+    }
+
+    // 4. Same user and same role
+    if (uId.isNotEmpty && eUid.isNotEmpty && uId == eUid) {
+      return existing;
+    }
   }
   return null;
 }
@@ -381,18 +363,6 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
       }
     } catch (_) {}
 
-    // Prune recently resolved partners from partners table
-    try {
-      final resolvedPartners = await client
-          .from('partners')
-          .select('partner_id, user_id, verification_status')
-          .or('verification_status.eq.VERIFIED,verification_status.eq.APPROVED,verification_status.eq.REJECTED')
-          .limit(100);
-      for (var p in resolvedPartners) {
-        final pId = p['partner_id']?.toString() ?? '';
-        if (pId.isNotEmpty) markPartnerResolved(pId);
-      }
-    } catch (_) {}
 
     // Source B: Local / disk LiveBookingSyncService pending verification queue
     try {
@@ -1010,7 +980,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
         .toList();
 
     yield resultList;
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(seconds: 12));
   }
 });
 
@@ -1088,7 +1058,7 @@ final adminAllPartnersStreamProvider = StreamProvider<List<Map<String, dynamic>>
     } catch (_) {
       yield <Map<String, dynamic>>[];
     }
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 15));
   }
 });
 
@@ -1143,7 +1113,7 @@ final adminAllBookingsStreamProvider = StreamProvider<List<Map<String, dynamic>>
     } catch (_) {
       yield LiveBookingSyncService.instance.getAllBookings();
     }
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 15));
   }
 });
 

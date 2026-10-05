@@ -65,6 +65,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final lat = location?.latitude ?? 22.4707;
     final lng = location?.longitude ?? 70.0577;
 
+    // Strict Jamnagar geofence check
+    final serviceArea = ref.read(serviceAreaServiceProvider);
+    final areaCheck = serviceArea.checkServiceArea(location?.city ?? '', lat, lng);
+    final combinedAddress = ('$shippingAddress ${location?.city ?? ''}').toLowerCase();
+    if (!areaCheck.isAvailable && !combinedAddress.contains('jamnagar')) {
+      setState(() => _isPlacingOrder = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sorry, we are not available at your location. ServiceHub is currently available only in Jamnagar.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final itemsSummary = cartItems.map((item) => '${item.name} x${item.quantity}').join(', ');
     final otpPin = _generateOtpPin();
 

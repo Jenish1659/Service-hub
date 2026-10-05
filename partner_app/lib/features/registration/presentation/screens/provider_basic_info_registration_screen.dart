@@ -334,6 +334,10 @@ class _ProviderBasicInfoRegistrationScreenState extends State<ProviderBasicInfoR
         _showError('Please select your Service City *');
         return;
       }
+      if (!_controller.selectedCity!.toLowerCase().contains('jamnagar')) {
+        _showError('Sorry, we are not available at your location. ServiceHub is currently available only in Jamnagar.');
+        return;
+      }
       if (!_controller.agreedToTerms) {
         _showError('Please accept Terms & Conditions to proceed *');
         return;

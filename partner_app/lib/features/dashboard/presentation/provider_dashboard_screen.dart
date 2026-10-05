@@ -186,6 +186,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkPermissionStatuses();
+      ref.read(acProviderDashboardProvider.notifier).refresh();
     }
   }
 

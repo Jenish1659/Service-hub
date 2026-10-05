@@ -55,7 +55,7 @@ class _ProviderApplicationStatusScreenState
         }
       } catch (_) {}
     }
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _checkRemoteSupabaseStatus();
     });
   }
@@ -179,10 +179,24 @@ class _ProviderApplicationStatusScreenState
           }
 
           if (resolvedUserId != null && _isUuid(resolvedUserId)) {
-            final vrRes = await client
+            final screenRole = (_partnerData?['role_name'] ?? _partnerData?['role'] ?? '').toString().toLowerCase();
+            List<String> targetTypes = [];
+            if (screenRole == 'delivery_agent') {
+              targetTypes = ['DRIVING_LICENSE', 'DELIVERY_RIDER_ONBOARDING', 'VEHICLE_RC'];
+            } else if (screenRole == 'shopkeeper') {
+              targetTypes = ['SHOP_LICENSE', 'SHOP_ESTABLISHMENT', 'GST_CERTIFICATE'];
+            } else if (screenRole == 'service_provider') {
+              targetTypes = ['PROVIDER_ONBOARDING', 'TRADE_LICENSE', 'GOVT_ID'];
+            }
+
+            var vrQuery = client
                 .from('verification_requests')
                 .select('status, remarks')
-                .eq('user_id', resolvedUserId)
+                .eq('user_id', resolvedUserId);
+            if (targetTypes.isNotEmpty) {
+              vrQuery = vrQuery.filter('verification_type', 'in', targetTypes);
+            }
+            final vrRes = await vrQuery
                 .order('submitted_at', ascending: false)
                 .limit(1)
                 .maybeSingle();
@@ -200,15 +214,48 @@ class _ProviderApplicationStatusScreenState
         }
       }
 
-      // 3. Check verification_requests table using valid UUID and submitted_at ordering
       final checkUserId = (resolvedUserId != null && _isUuid(resolvedUserId))
           ? resolvedUserId
           : ((uId != null && _isUuid(uId)) ? uId : null);
-      if (checkUserId != null) {
+
+      // 3. Check verification_requests table using specific verification_id first
+      final currentVerId = _partnerData?['verification_id']?.toString() ??
+          (_isUuid(_appId) ? _appId : null);
+      if (currentVerId != null && _isUuid(currentVerId)) {
+        final vrRes = await client
+            .from('verification_requests')
+            .select('status, remarks')
+            .eq('verification_id', currentVerId)
+            .maybeSingle();
+        if (vrRes != null) {
+          final st = (vrRes['status'] ?? '').toString().toUpperCase();
+          if (st == 'APPROVED' || st == 'VERIFIED') {
+            _reflectApprovedState(userId: checkUserId);
+            return;
+          } else if (st == 'REJECTED') {
+            _reflectRejectedState(userId: checkUserId, reason: vrRes['remarks']?.toString());
+            return;
+          }
+        }
+      }
+
+      // Check role-specific verification_requests for this user
+      final screenRole = (_partnerData?['role_name'] ?? _partnerData?['role'] ?? '').toString().toLowerCase();
+      List<String> targetTypes = [];
+      if (screenRole == 'delivery_agent') {
+        targetTypes = ['DRIVING_LICENSE', 'DELIVERY_RIDER_ONBOARDING', 'VEHICLE_RC'];
+      } else if (screenRole == 'shopkeeper') {
+        targetTypes = ['SHOP_LICENSE', 'SHOP_ESTABLISHMENT', 'GST_CERTIFICATE'];
+      } else if (screenRole == 'service_provider') {
+        targetTypes = ['PROVIDER_ONBOARDING', 'TRADE_LICENSE', 'GOVT_ID'];
+      }
+
+      if (checkUserId != null && targetTypes.isNotEmpty) {
         final vrRes = await client
             .from('verification_requests')
             .select('status, remarks')
             .eq('user_id', checkUserId)
+            .filter('verification_type', 'in', targetTypes)
             .order('submitted_at', ascending: false)
             .limit(1)
             .maybeSingle();
@@ -238,27 +285,12 @@ class _ProviderApplicationStatusScreenState
           }
         }
       }
-
-      if (checkUserId != null) {
-        final pRes = await client.from('partners').select('verification_status').eq('user_id', checkUserId).maybeSingle();
-        if (pRes != null) {
-          final st = (pRes['verification_status'] ?? '').toString().toUpperCase();
-          if (st == 'VERIFIED' || st == 'APPROVED') {
-            _reflectApprovedState(userId: checkUserId);
-            return;
-          } else if (st == 'REJECTED') {
-            _reflectRejectedState(userId: checkUserId);
-            return;
-          }
-        }
-      }
     } catch (e) {
       debugPrint('[StatusScreen] Supabase check error: $e');
     }
   }
 
   void _reflectRejectedState({String? userId, String? reason}) {
-    final phone = (_partnerData?['phone'] ?? _partnerData?['mobile'] ?? _searchController.text).toString().replaceAll(' ', '').trim();
     final effectiveUid = userId ?? _partnerData?['user_id']?.toString() ?? _partnerData?['id']?.toString();
 
     if (mounted) {
@@ -277,19 +309,15 @@ class _ProviderApplicationStatusScreenState
       });
     }
 
-    if (phone.isNotEmpty) {
-      LiveBookingSyncService.instance.rejectPartnerVerification(phone, reason);
-    }
-    if (effectiveUid != null && effectiveUid.isNotEmpty) {
-      LiveBookingSyncService.instance.rejectPartnerVerification(effectiveUid, reason);
-    }
-    if (_appId.isNotEmpty) {
-      LiveBookingSyncService.instance.rejectPartnerVerification(_appId, reason);
+    final targetId = _partnerData?['verification_id']?.toString() ??
+        _partnerData?['partner_id']?.toString() ??
+        (_appId.isNotEmpty ? _appId : null);
+    if (targetId != null && targetId.isNotEmpty) {
+      LiveBookingSyncService.instance.rejectPartnerVerification(targetId, reason);
     }
   }
 
   void _reflectApprovedState({String? userId}) {
-    final phone = (_partnerData?['phone'] ?? _partnerData?['mobile'] ?? _searchController.text).toString().replaceAll(' ', '').trim();
     final effectiveUid = userId ?? _partnerData?['user_id']?.toString() ?? _partnerData?['id']?.toString();
 
     if (mounted) {
@@ -304,14 +332,11 @@ class _ProviderApplicationStatusScreenState
       });
     }
 
-    if (phone.isNotEmpty) {
-      LiveBookingSyncService.instance.approvePartnerVerification(phone);
-    }
-    if (effectiveUid != null && effectiveUid.isNotEmpty) {
-      LiveBookingSyncService.instance.approvePartnerVerification(effectiveUid);
-    }
-    if (_appId.isNotEmpty) {
-      LiveBookingSyncService.instance.approvePartnerVerification(_appId);
+    final targetId = _partnerData?['verification_id']?.toString() ??
+        _partnerData?['partner_id']?.toString() ??
+        (_appId.isNotEmpty ? _appId : null);
+    if (targetId != null && targetId.isNotEmpty) {
+      LiveBookingSyncService.instance.approvePartnerVerification(targetId);
     }
 
     final role = (_partnerData?['role_name'] ?? _partnerData?['role'] ?? _partnerData?['partner_type'] ?? '').toString().toLowerCase();
@@ -468,16 +493,17 @@ class _ProviderApplicationStatusScreenState
       );
     }
 
-    final trackedPhone = (_partnerData?['phone'] ?? _partnerData?['mobile'] ?? _searchController.text).toString().replaceAll(' ', '').trim();
-    final trackedUId = (_partnerData?['user_id'] ?? _partnerData?['id'] ?? '').toString().trim();
-    final partnerId = trackedPhone.isNotEmpty ? trackedPhone : (trackedUId.isNotEmpty ? trackedUId : _appId);
+    final currentVerId = (_partnerData?['verification_id'] ?? _partnerData?['id'] ?? _appId).toString().trim();
+    final currentPartnerId = (_partnerData?['partner_id'] ?? '').toString().trim();
+    final trackedUId = (_partnerData?['user_id'] ?? '').toString().trim();
+    final partnerId = currentVerId.isNotEmpty ? currentVerId : (currentPartnerId.isNotEmpty ? currentPartnerId : trackedUId);
 
     return StreamBuilder<Map<String, dynamic>?>(
       stream: LiveBookingSyncService.instance.streamPartnerVerification(partnerId),
       builder: (ctx, snapshot) {
         final liveRecord = snapshot.data ??
-            (trackedPhone.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(trackedPhone) : null) ??
-            (trackedUId.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(trackedUId) : null);
+            (currentVerId.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(currentVerId) : null) ??
+            (currentPartnerId.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(currentPartnerId) : null);
         final liveStatus = (liveRecord?['status'] ?? liveRecord?['verification_status'] ?? '').toString().toUpperCase();
         final localVerStatus = (_partnerData?['verification_status'] ?? '').toString().toUpperCase();
         final localStatus = (_partnerData?['status'] ?? '').toString().toUpperCase();
@@ -968,11 +994,11 @@ class _ProviderApplicationStatusScreenState
                                   sessionPayload['status'] = 'APPROVED';
                                   sessionPayload['account_status'] = 'ACTIVE';
 
-                                  if (trackedPhone.isNotEmpty) {
-                                    LiveBookingSyncService.instance.approvePartnerVerification(trackedPhone);
+                                  if (currentVerId.isNotEmpty) {
+                                    LiveBookingSyncService.instance.approvePartnerVerification(currentVerId);
                                   }
-                                  if (trackedUId.isNotEmpty) {
-                                    LiveBookingSyncService.instance.approvePartnerVerification(trackedUId);
+                                  if (currentPartnerId.isNotEmpty) {
+                                    LiveBookingSyncService.instance.approvePartnerVerification(currentPartnerId);
                                   }
 
                                   if (isShopkeeper) {

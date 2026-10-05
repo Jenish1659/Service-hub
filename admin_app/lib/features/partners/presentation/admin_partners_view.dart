@@ -78,21 +78,10 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
     setState(() {
       _locallyRemovedIds.add(id);
       final verId = (partner['verification_id'] ?? '').toString().trim();
-      final userId = (partner['user_id'] ?? '').toString().trim();
       final partId = (partner['partner_id'] ?? '').toString().trim();
-      final phone = (partner['phone'] ?? '').toString().trim();
-      final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
-      final phone10 = phoneDigits.length >= 10 ? phoneDigits.substring(phoneDigits.length - 10) : '';
 
       if (verId.isNotEmpty) _locallyRemovedIds.add(verId);
-      if (userId.isNotEmpty) _locallyRemovedIds.add(userId);
       if (partId.isNotEmpty) _locallyRemovedIds.add(partId);
-      if (phone.isNotEmpty) _locallyRemovedIds.add(phone);
-      if (phoneDigits.isNotEmpty) _locallyRemovedIds.add(phoneDigits);
-      if (phone10.isNotEmpty) {
-        _locallyRemovedIds.add(phone10);
-        _locallyRemovedIds.add('+91$phone10');
-      }
       final allVerIds = (partner['all_verification_ids'] as List?)?.map((e) => e.toString().trim()) ?? [];
       for (final vid in allVerIds) {
         if (vid.isNotEmpty) _locallyRemovedIds.add(vid);
@@ -105,21 +94,10 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
     setState(() {
       _locallyRemovedIds.add(id);
       final verId = (partner['verification_id'] ?? '').toString().trim();
-      final userId = (partner['user_id'] ?? '').toString().trim();
       final partId = (partner['partner_id'] ?? '').toString().trim();
-      final phone = (partner['phone'] ?? '').toString().trim();
-      final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
-      final phone10 = phoneDigits.length >= 10 ? phoneDigits.substring(phoneDigits.length - 10) : '';
 
       if (verId.isNotEmpty) _locallyRemovedIds.add(verId);
-      if (userId.isNotEmpty) _locallyRemovedIds.add(userId);
       if (partId.isNotEmpty) _locallyRemovedIds.add(partId);
-      if (phone.isNotEmpty) _locallyRemovedIds.add(phone);
-      if (phoneDigits.isNotEmpty) _locallyRemovedIds.add(phoneDigits);
-      if (phone10.isNotEmpty) {
-        _locallyRemovedIds.add(phone10);
-        _locallyRemovedIds.add('+91$phone10');
-      }
       final allVerIds = (partner['all_verification_ids'] as List?)?.map((e) => e.toString().trim()) ?? [];
       for (final vid in allVerIds) {
         if (vid.isNotEmpty) _locallyRemovedIds.add(vid);
@@ -455,53 +433,74 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
       return true;
     }).toList();
 
-    // Canonical Single Partner Deduplication: strictly 1 card per partner candidate
-    final List<Map<String, dynamic>> deduplicated = [];
-    final Set<String> seenUserIds = {};
-    final Set<String> seenPartnerIds = {};
-    final Set<String> seenPhones = {};
-    final Set<String> seenVerIds = {};
-
+    // Deduplicate candidates within this role view
+    final Map<String, Map<String, dynamic>> deduplicatedByKey = {};
     for (final p in roleFiltered) {
       final uId = (p['user_id'] ?? '').toString().trim();
       final pId = (p['partner_id'] ?? '').toString().trim();
       final verId = (p['verification_id'] ?? p['id'] ?? '').toString().trim();
       final phone = (p['phone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
       final phone10 = phone.length >= 10 ? phone.substring(phone.length - 10) : phone;
+      final role = (p['role_name'] ?? p['role'] ?? widget.filterRole).toString().toLowerCase();
 
-      final bool isDuplicate = (uId.isNotEmpty && seenUserIds.contains(uId)) ||
-          (pId.isNotEmpty && seenPartnerIds.contains(pId)) ||
-          (phone10.isNotEmpty && seenPhones.contains(phone10)) ||
-          (verId.isNotEmpty && seenVerIds.contains(verId));
+      // Deduplicate key scopes candidate to their specific ROLE:
+      // A user can be BOTH a Shopkeeper AND a Delivery Agent, but cannot have multiple cards in the SAME role.
+      final key = uId.isNotEmpty
+          ? '${role}_user_$uId'
+          : (pId.isNotEmpty
+              ? '${role}_partner_$pId'
+              : (phone10.isNotEmpty
+                  ? '${role}_phone_$phone10'
+                  : '${role}_ver_$verId'));
 
-      if (isDuplicate) {
-        continue; // Strictly one card per partner candidate
+      if (!deduplicatedByKey.containsKey(key)) {
+        final copy = Map<String, dynamic>.from(p);
+        final Set<String> allVids = {};
+        if (copy['all_verification_ids'] is List) {
+          allVids.addAll((copy['all_verification_ids'] as List).map((e) => e.toString().trim()));
+        }
+        if (verId.isNotEmpty) allVids.add(verId);
+        if (p['id'] != null && p['id'].toString().trim().isNotEmpty) {
+          allVids.add(p['id'].toString().trim());
+        }
+        copy['all_verification_ids'] = allVids.toList();
+        deduplicatedByKey[key] = copy;
+      } else {
+        final existing = deduplicatedByKey[key]!;
+        final Set<String> allVids = {};
+        if (existing['all_verification_ids'] is List) {
+          allVids.addAll((existing['all_verification_ids'] as List).map((e) => e.toString().trim()));
+        }
+        if (verId.isNotEmpty) allVids.add(verId);
+        if (p['id'] != null && p['id'].toString().trim().isNotEmpty) {
+          allVids.add(p['id'].toString().trim());
+        }
+        if (p['all_verification_ids'] is List) {
+          allVids.addAll((p['all_verification_ids'] as List).map((e) => e.toString().trim()));
+        }
+        existing['all_verification_ids'] = allVids.toList();
+
+        // Retain more complete data fields if existing had empty
+        if ((existing['partner_id'] == null || existing['partner_id'].toString().isEmpty) && pId.isNotEmpty) {
+          existing['partner_id'] = pId;
+        }
+        if ((existing['user_id'] == null || existing['user_id'].toString().isEmpty) && uId.isNotEmpty) {
+          existing['user_id'] = uId;
+        }
       }
-
-      if (uId.isNotEmpty) seenUserIds.add(uId);
-      if (pId.isNotEmpty) seenPartnerIds.add(pId);
-      if (phone10.isNotEmpty) seenPhones.add(phone10);
-      if (verId.isNotEmpty) seenVerIds.add(verId);
-
-      deduplicated.add(p);
     }
+
+    final deduplicated = deduplicatedByKey.values.toList();
 
     final filtered = deduplicated.where((p) {
       final id = (p['id'] ?? '').toString().trim();
       final verId = (p['verification_id'] ?? '').toString().trim();
-      final userId = (p['user_id'] ?? '').toString().trim();
       final partId = (p['partner_id'] ?? '').toString().trim();
       final phone = (p['phone'] ?? '').toString().trim();
-      final phoneDigits = phone.replaceAll(RegExp(r'\D'), '');
-      final phone10 = phoneDigits.length >= 10 ? phoneDigits.substring(phoneDigits.length - 10) : '';
 
       if (_locallyRemovedIds.contains(id) ||
-          _locallyRemovedIds.contains(verId) ||
-          _locallyRemovedIds.contains(userId) ||
-          _locallyRemovedIds.contains(partId) ||
-          (phone.isNotEmpty && _locallyRemovedIds.contains(phone)) ||
-          (phoneDigits.isNotEmpty && _locallyRemovedIds.contains(phoneDigits)) ||
-          (phone10.isNotEmpty && _locallyRemovedIds.contains(phone10))) {
+          (verId.isNotEmpty && _locallyRemovedIds.contains(verId)) ||
+          (partId.isNotEmpty && _locallyRemovedIds.contains(partId))) {
         return false;
       }
       final allVerIds = (p['all_verification_ids'] as List?)?.map((e) => e.toString().trim()) ?? [];

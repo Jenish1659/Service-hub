@@ -34,35 +34,7 @@ class ProviderRegistrationController extends ChangeNotifier {
   bool isLoading = false;
 
   List<String> availableCities = [
-    'Ahmedabad',
-    'Surat',
-    'Vadodara',
-    'Rajkot',
-    'Bhavnagar',
     'Jamnagar',
-    'Gandhinagar',
-    'Junagadh',
-    'Anand',
-    'Navsari',
-    'Morbi',
-    'Nadiad',
-    'Surendranagar',
-    'Bharuch',
-    'Mehsana',
-    'Bhuj',
-    'Porbandar',
-    'Palanpur',
-    'Valsad',
-    'Vapi',
-    'Gondal',
-    'Veraval',
-    'Godhra',
-    'Patan',
-    'Dahod',
-    'Botad',
-    'Amreli',
-    'Deesa',
-    'Jetpur',
   ];
 
   void onMobileChanged(String val) {

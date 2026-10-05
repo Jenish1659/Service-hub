@@ -107,7 +107,7 @@ class _ACIssueDetailsScreenState extends ConsumerState<ACIssueDetailsScreen> {
     final length = _problemController.text.length;
     setState(() {
       _charCount = length;
-      if (_hasDescriptionError && length >= 50) {
+      if (_hasDescriptionError && length >= 10) {
         _hasDescriptionError = false;
       }
     });
@@ -456,13 +456,13 @@ class _ACIssueDetailsScreenState extends ConsumerState<ACIssueDetailsScreen> {
       return;
     }
 
-    // 3. Problem description validation (min 50 chars, max 500 chars)
+    // 3. Problem description validation (min 10 chars, max 500 chars)
     final text = _problemController.text.trim();
-    if (text.length < 50) {
+    if (text.length < 10) {
       setState(() {
         _hasDescriptionError = true;
       });
-      _showWarningSnackBar('Please describe the problem in at least 50 characters.');
+      _showWarningSnackBar('Please describe the problem in at least 10 characters.');
       return;
     }
 
