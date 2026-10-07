@@ -15,6 +15,17 @@ import '../../features/services/presentation/ac_review_confirm_screen.dart';
 import '../../features/services/presentation/ac_booking_confirmed_screen.dart';
 import '../../features/services/presentation/ac_finding_technician_screen.dart';
 import '../../features/services/presentation/ac_technician_details_screen.dart';
+import '../../features/services/presentation/laundry_requirement_screen.dart';
+import '../../features/services/presentation/car_service_requirement_screen.dart';
+import '../../features/services/presentation/care_taker_requirement_screen.dart';
+import '../../features/services/presentation/cooking_requirement_screen.dart';
+import '../../features/services/presentation/plumbing_requirement_screen.dart';
+import '../../features/services/presentation/service_select_date_screen.dart';
+import '../../features/services/presentation/service_select_time_screen.dart';
+import '../../features/services/presentation/service_address_details_screen.dart';
+import '../../features/services/presentation/service_review_confirm_screen.dart';
+import '../../features/services/presentation/service_finding_partner_screen.dart';
+import '../../features/services/services/multi_service_booking_service.dart';
 import '../../features/services/services/ac_availability_service.dart';
 import '../../features/products/presentation/products_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
@@ -230,6 +241,103 @@ final GoRouter appRouter = GoRouter(
           address: extra['address'] as String? ?? '',
           selectedDateFormatted: extra['selected_date_formatted'] as String?,
           selectedTime: extra['selected_time'] as String?,
+        );
+      },
+    ),
+
+    // Multi-Service Requirement Routes
+    GoRoute(
+      path: '/services/laundry/requirements',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) => const LaundryRequirementScreen(),
+    ),
+    GoRoute(
+      path: '/services/car/requirements',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) => const CarServiceRequirementScreen(),
+    ),
+    GoRoute(
+      path: '/services/care/requirements',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) => const CareTakerRequirementScreen(),
+    ),
+    GoRoute(
+      path: '/services/cooking/requirements',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) => const CookingRequirementScreen(),
+    ),
+    GoRoute(
+      path: '/services/plumbing/requirements',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) => const PlumbingRequirementScreen(),
+    ),
+
+    // Universal Multi-Service Booking Steps
+    GoRoute(
+      path: '/services/multi/select-date',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return ServiceSelectDateScreen(issueDetails: extra);
+      },
+    ),
+    GoRoute(
+      path: '/services/multi/select-time',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final selectedDate = extra['selected_date'] as BookingDateOption? ??
+            ACAvailabilityService.instance.getNext3BookingDates().first;
+        return ServiceSelectTimeScreen(issueDetails: extra, selectedDate: selectedDate);
+      },
+    ),
+    GoRoute(
+      path: '/services/multi/address',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final selectedDate = extra['selected_date'] as BookingDateOption? ??
+            ACAvailabilityService.instance.getNext3BookingDates().first;
+        final selectedTime = extra['selected_time'] as String? ?? '02:00 PM';
+        return ServiceAddressDetailsScreen(
+          issueDetails: extra,
+          selectedDate: selectedDate,
+          selectedTime: selectedTime,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/services/multi/review-confirm',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final selectedDate = extra['selected_date'] as BookingDateOption? ??
+            ACAvailabilityService.instance.getNext3BookingDates().first;
+        final selectedTime = extra['selected_time'] as String? ?? '02:00 PM';
+        return ServiceReviewConfirmScreen(
+          issueDetails: extra,
+          selectedDate: selectedDate,
+          selectedTime: selectedTime,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/services/multi/finding-partner',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final bookingData = extra['booking_data'] as Map<String, dynamic>? ?? {};
+        final bookingId = (extra['booking_id'] ?? bookingData['id'] ?? bookingData['booking_id'] ?? '').toString();
+        final catId = (extra['category_id'] ?? bookingData['category_id'] ?? 'ac_service').toString();
+        final config = MultiServiceBookingService.instance.getCategoryConfig(catId);
+        return ServiceFindingPartnerScreen(
+          bookingId: bookingId,
+          serviceTitle: extra['service_title'] as String? ?? 'Service',
+          address: extra['address'] as String? ?? '',
+          selectedDateFormatted: extra['selected_date_formatted'] as String? ?? 'Tomorrow',
+          selectedTime: extra['selected_time'] as String? ?? '02:00 PM',
+          categoryConfig: config,
+          customerPhone: extra['customer_phone'] as String? ?? '',
         );
       },
     ),

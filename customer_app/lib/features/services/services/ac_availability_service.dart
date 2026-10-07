@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -19,6 +20,8 @@ class BookingDateOption {
     required this.formattedIso,
     required this.isTomorrow,
   });
+
+  String get userFriendlyDisplay => '$dayName, $dateNumber $monthName';
 }
 
 class TimeSlotOption {
@@ -38,6 +41,20 @@ class TimeSlotOption {
 class ACAvailabilityService {
   static final ACAvailabilityService instance = ACAvailabilityService._internal();
   ACAvailabilityService._internal();
+
+  /// Calculates Haversine distance in km between two coordinate points
+  double calculateHaversineDistanceKm(double lat1, double lon1, double lat2, double lon2) {
+    const double r = 6371.0;
+    final double dLat = (lat2 - lat1) * (pi / 180.0);
+    final double dLon = (lon2 - lon1) * (pi / 180.0);
+
+    final double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1 * (pi / 180.0)) * cos(lat2 * (pi / 180.0)) *
+        sin(dLon / 2) * sin(dLon / 2);
+
+    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return r * c;
+  }
 
   /// Checks if a date is bookable:
   /// Current day (Today) and all future dates are available.

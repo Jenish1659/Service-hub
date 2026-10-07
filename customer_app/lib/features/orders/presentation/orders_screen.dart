@@ -36,34 +36,59 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
     final bookingsAsync = ref.watch(userBookingsProvider);
     final ordersAsync = ref.watch(userOrdersProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Bookings & Orders'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshData,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+        } else if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        } else {
+          context.go('/profile');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                context.go('/profile');
+              }
+            },
           ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: const [
-            Tab(text: 'Active Jobs'),
-            Tab(text: 'Past History'),
+          title: const Text('My Bookings & Orders'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _refreshData,
+            ),
           ],
+          bottom: TabBar(
+            controller: _tabController,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            tabs: const [
+              Tab(text: 'Active Jobs'),
+              Tab(text: 'Past History'),
+            ],
+          ),
         ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refreshData,
-        child: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildActiveTab(bookingsAsync, ordersAsync),
-            _buildPastTab(bookingsAsync, ordersAsync),
-          ],
+        body: RefreshIndicator(
+          onRefresh: _refreshData,
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildActiveTab(bookingsAsync, ordersAsync),
+              _buildPastTab(bookingsAsync, ordersAsync),
+            ],
+          ),
         ),
       ),
     );
@@ -159,12 +184,12 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
             // Filter active (exclude completed and cancelled)
             final activeBookings = bookings.where((b) {
               final s = (b['status'] ?? '').toString().toUpperCase();
-              return s != 'COMPLETED' && s != 'CLOSED' && !s.contains('CANCELLED') && s != 'REJECTED';
+              return !s.contains('COMPLETED') && s != 'CLOSED' && !s.contains('CANCELLED') && s != 'REJECTED';
             }).toList();
 
             final activeOrders = orders.where((o) {
               final s = (o['status'] ?? '').toString().toUpperCase();
-              return s != 'DELIVERED' && !s.contains('CANCELLED');
+              return s != 'DELIVERED' && !s.contains('CANCELLED') && !s.contains('COMPLETED');
             }).toList();
 
             if (activeBookings.isEmpty && activeOrders.isEmpty) {
@@ -203,15 +228,15 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, s) => Center(child: Text('Error loading history: ${e.toString()}')),
           data: (orders) {
-            // Filter past (include completed, closed, and cancelled)
+            // Filter past (include all completed, closed, and cancelled variants)
             final pastBookings = bookings.where((b) {
               final s = (b['status'] ?? '').toString().toUpperCase();
-              return s == 'COMPLETED' || s == 'CLOSED' || s.contains('CANCELLED') || s == 'REJECTED';
+              return s.contains('COMPLETED') || s == 'CLOSED' || s.contains('CANCELLED') || s == 'REJECTED';
             }).toList();
 
             final pastOrders = orders.where((o) {
               final s = (o['status'] ?? '').toString().toUpperCase();
-              return s == 'DELIVERED' || s.contains('CANCELLED');
+              return s == 'DELIVERED' || s.contains('CANCELLED') || s.contains('COMPLETED');
             }).toList();
 
             if (pastBookings.isEmpty && pastOrders.isEmpty) {
@@ -247,7 +272,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
     final price = (booking['price'] as num?)?.toDouble() ?? 0.0;
     final status = (booking['status'] ?? 'Pending').toString();
     final isCancelled = status.toUpperCase().contains('CANCELLED');
-    final isCompleted = status.toUpperCase() == 'COMPLETED';
+    final isCompleted = status.toUpperCase().contains('COMPLETED') || status.toUpperCase() == 'CLOSED';
 
     Color statusColor = AppTheme.warningColor;
     if (isCompleted) statusColor = AppTheme.successColor;

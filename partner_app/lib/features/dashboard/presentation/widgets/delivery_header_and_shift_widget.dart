@@ -28,20 +28,16 @@ class DeliveryDashboardHeader extends StatelessWidget {
         bottom: false,
         child: Row(
           children: [
-            // Hamburger Menu Button
-            Material(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(12),
-              child: InkWell(
-                onTap: onMenuTap,
+            // Delivery Partner Badge Icon
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
                 borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: 42,
-                  height: 42,
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.menu_rounded, color: Color(0xFF334155), size: 22),
-                ),
               ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.two_wheeler_rounded, color: Color(0xFFEA580C), size: 24),
             ),
             const SizedBox(width: 12),
 

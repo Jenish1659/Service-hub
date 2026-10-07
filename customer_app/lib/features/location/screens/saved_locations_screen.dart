@@ -118,6 +118,16 @@ class _SavedLocationsScreenState extends ConsumerState<SavedLocationsScreen> {
               padding: const EdgeInsets.all(16.0),
               child: InkWell(
                 onTap: () async {
+                  if (_savedLocations.length >= 10) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Maximum limit of 10 saved contacts/addresses reached. Please remove an existing address first.'),
+                        backgroundColor: Color(0xFFDC2626),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
                   await Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const MapScreen()),

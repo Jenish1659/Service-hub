@@ -35,6 +35,7 @@ class LiveBookingSyncService {
 
   List<dynamic> _getVerificationFiles() {
     if (kIsWeb) return [];
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return [];
     final list = <dynamic>[];
     try {
       if (Platform.isWindows) {
@@ -64,6 +65,7 @@ class LiveBookingSyncService {
 
   List<dynamic> _getBookingFiles() {
     if (kIsWeb) return [];
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return [];
     final list = <dynamic>[];
     try {
       if (Platform.isWindows) {
@@ -358,6 +360,7 @@ class LiveBookingSyncService {
       'category_name': bookingData['category_name'] ?? 'AC Service Specialist',
       'status': (bookingData['status'] ?? 'PENDING').toString().toUpperCase(),
       'service_status': (bookingData['status'] ?? 'PENDING').toString().toUpperCase(),
+      'partner_id': (bookingData['partner_id'] ?? '').toString(),
       'estimated_amount': (bookingData['estimated_amount'] as num?)?.toDouble() ?? finalAmt,
       'final_amount': finalAmt,
       'price': (bookingData['price'] as num?)?.toDouble() ?? finalAmt,

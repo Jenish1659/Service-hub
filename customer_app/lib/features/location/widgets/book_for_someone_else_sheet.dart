@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/customer_location_model.dart';
 import '../models/location_model.dart';
+import '../services/location_api_service.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class BookForSomeoneElseSheet extends StatefulWidget {
@@ -37,8 +38,21 @@ class _BookForSomeoneElseSheetState extends State<BookForSomeoneElseSheet> {
     super.dispose();
   }
 
-  void _submitForm() {
+  void _submitForm() async {
     if (_formKey.currentState!.validate()) {
+      final apiService = LocationApiService();
+      final existing = await apiService.getAllSavedLocations();
+      if (existing.length >= 10) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Maximum limit of 10 saved contacts/addresses reached. Please remove an existing address first.'),
+            backgroundColor: Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
       final user = Supabase.instance.client.auth.currentUser;
       final userId = user?.id ?? 'cust_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -63,6 +77,7 @@ class _BookForSomeoneElseSheetState extends State<BookForSomeoneElseSheet> {
       );
 
       widget.onSave(savedLoc);
+      if (!mounted) return;
       Navigator.pop(context);
     }
   }

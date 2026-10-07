@@ -371,7 +371,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (_activeTab == 'Customers') {
       return AdminCustomersView(customerCount: stats['totalCustomers'] ?? 0);
     }
-    if (_activeTab == 'Services') {
+    if (_activeTab == 'Services' || _activeTab == 'All Services') {
       return const AdminServicesView();
     }
     if (_activeTab == 'Finance') {

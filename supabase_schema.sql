@@ -1310,3 +1310,58 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authentic
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
 
+-- =============================================================================
+-- MODULE 26: CUSTOMER WALLET & ATOMIC TRANSACTION LOGIC
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.customer_wallets (
+    wallet_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID UNIQUE NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    balance NUMERIC(10, 2) NOT NULL DEFAULT 30.00 CHECK (balance >= 0),
+    currency TEXT NOT NULL DEFAULT 'INR',
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.customer_wallets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public access customer_wallets" ON public.customer_wallets FOR ALL TO public USING (true) WITH CHECK (true);
+
+-- Atomic wallet deduction RPC with backend authoritative validation & double-spend protection
+CREATE OR REPLACE FUNCTION public.apply_wallet_deduction_atomic(
+    p_user_id UUID,
+    p_requested_deduction NUMERIC
+)
+RETURNS NUMERIC
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_current_bal NUMERIC;
+    v_actual_deduction NUMERIC;
+BEGIN
+    SELECT balance INTO v_current_bal
+    FROM public.customer_wallets
+    WHERE user_id = p_user_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        -- If no wallet row yet, create one with default ₹30 balance
+        INSERT INTO public.customer_wallets (user_id, balance)
+        VALUES (p_user_id, 30.00)
+        RETURNING balance INTO v_current_bal;
+    END IF;
+
+    -- Authoritative backend calculation: min(requested, actual balance)
+    v_actual_deduction := LEAST(GREATEST(p_requested_deduction, 0), v_current_bal);
+
+    -- Atomic debit with double-spend protection
+    IF v_actual_deduction > 0 THEN
+        UPDATE public.customer_wallets
+        SET balance = balance - v_actual_deduction,
+            updated_at = NOW()
+        WHERE user_id = p_user_id;
+    END IF;
+
+    RETURN v_actual_deduction;
+END;
+$$;
+
+

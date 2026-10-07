@@ -79,6 +79,9 @@ class _SupportScreenState extends State<SupportScreen> with SingleTickerProvider
     if (cleanQuery.contains('plumb') || cleanQuery.contains('leak') || cleanQuery.contains('tap') || cleanQuery.contains('pipe')) {
       return '🔧 Plumbing Diagnostic: Pipe leaks or faulty taps can be fixed immediately! Book our verified Plumber service or buy a Stainless Steel Tap Valve directly from the Marketplace with 5 km express delivery.';
     }
+    if (cleanQuery.contains('care') || cleanQuery.contains('elder') || cleanQuery.contains('patient') || cleanQuery.contains('health')) {
+      return '🩺 Care Taker Support: Specialized senior citizen care, post-surgery assistance, and daily health monitoring. Book a verified Care Taker partner or order Digital Pulse Oximeters from our store.';
+    }
     if (cleanQuery.contains('car') || cleanQuery.contains('engine') || cleanQuery.contains('oil') || cleanQuery.contains('wiper')) {
       return '🚗 Car Care Recommendation: Engine noise or worn wipers? Book a Car Maintenance Inspector or get Synthetic 1L Engine Oil delivered to your doorstep in 30 mins!';
     }
@@ -87,9 +90,6 @@ class _SupportScreenState extends State<SupportScreen> with SingleTickerProvider
     }
     if (cleanQuery.contains('laundry') || cleanQuery.contains('wash') || cleanQuery.contains('cloth') || cleanQuery.contains('dry clean')) {
       return '🧺 Laundry Care: Need steam pressing or dry cleaning? Book our Laundry Service partner or buy Concentrated Fabric Softener from the Marketplace!';
-    }
-    if (cleanQuery.contains('care') || cleanQuery.contains('elder') || cleanQuery.contains('patient') || cleanQuery.contains('health')) {
-      return '🩺 Care Taker Support: Specialized senior citizen care, post-surgery assistance, and daily health monitoring. Book a verified Care Taker partner or order Digital Pulse Oximeters from our store.';
     }
 
     // 2. Platform Policies & Operations

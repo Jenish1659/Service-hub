@@ -336,6 +336,9 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
         for (final b in syncBookings) {
           final isStoreOrder = b['type'] == 'DELIVERY_ORDER' ||
               (b['service_id'] ?? '').toString().contains('delivery') ||
+              (b['category_id'] ?? '').toString() == 'laundry' ||
+              (b['category_name'] ?? '').toString().toLowerCase().contains('laundry') ||
+              (b['service_name'] ?? '').toString().toLowerCase().contains('laundry') ||
               b['order_code'] != null;
           if (!isStoreOrder) continue;
 
@@ -1120,7 +1123,6 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: _buildAppBar(),
-      drawer: _buildDrawer(),
       body: _isLoading && _orders.isEmpty
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF059669)))
           : RefreshIndicator(
@@ -1176,13 +1178,21 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
       backgroundColor: Colors.white,
       elevation: 0.5,
       scrolledUnderElevation: 1,
-      leading: Builder(
-        builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu_rounded, color: Color(0xFF0F172A), size: 24),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 12),
+        child: Center(
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.storefront_rounded, color: Color(0xFF059669), size: 22),
+          ),
         ),
       ),
-      titleSpacing: 0,
+      titleSpacing: 8,
       title: Row(
         children: [
           Container(
@@ -1292,139 +1302,6 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   }
 
   // -------------------------------------------------------------
-  // Store Navigation Drawer
-  // -------------------------------------------------------------
-  Widget _buildDrawer() {
-    return Drawer(
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0F766E), Color(0xFF064E3B)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Colors.white,
-                  child: Text(
-                    _shopkeeperName.isNotEmpty ? _shopkeeperName[0].toUpperCase() : 'S',
-                    style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF065F46), fontSize: 22),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _shopName,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _shopkeeperName,
-                  style: const TextStyle(color: Color(0xFFCCFBF1), fontSize: 13),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '📍 ${_shopAddress.isNotEmpty ? _shopAddress : "Store Location"} • $_shopCategory',
-                  style: const TextStyle(color: Color(0xFFA7F3D0), fontSize: 11),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFF34D399)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.verified_rounded, color: Color(0xFF34D399), size: 13),
-                      SizedBox(width: 4),
-                      Text('Verified Store Vendor', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.storefront_rounded, color: Color(0xFF059669)),
-            title: const Text('Storefront Dashboard', style: TextStyle(fontWeight: FontWeight.w600)),
-            onTap: () => Navigator.pop(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.inventory_2_outlined, color: Color(0xFF334155)),
-            title: const Text('Inventory & Catalog', style: TextStyle(fontWeight: FontWeight.w600)),
-            onTap: () {
-              Navigator.pop(context);
-              _showInventorySheet();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF334155)),
-            title: const Text('Add New Product', style: TextStyle(fontWeight: FontWeight.w600)),
-            onTap: () {
-              Navigator.pop(context);
-              _showAddProductModal();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.account_balance_wallet_outlined, color: Color(0xFF334155)),
-            title: const Text('Earnings & Settlements', style: TextStyle(fontWeight: FontWeight.w600)),
-            onTap: () {
-              Navigator.pop(context);
-              _showEarningsModal();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.local_offer_outlined, color: Color(0xFF334155)),
-            title: const Text('Promotions & Offers', style: TextStyle(fontWeight: FontWeight.w600)),
-            onTap: () {
-              Navigator.pop(context);
-              _showOffersDialog();
-            },
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.help_outline_rounded, color: Color(0xFF334155)),
-            title: const Text('Help & Support', style: TextStyle(fontWeight: FontWeight.w600)),
-            onTap: () {
-              Navigator.pop(context);
-              context.push('/profile/shopkeeper');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings_outlined, color: Color(0xFF334155)),
-            title: const Text('Settings & Security', style: TextStyle(fontWeight: FontWeight.w600)),
-            onTap: () {
-              Navigator.pop(context);
-              context.push('/profile/shopkeeper');
-            },
-          ),
-          const Spacer(),
-          ListTile(
-            leading: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-            title: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
-            onTap: () async {
-              await LocalRegistrationCache.clearActiveSession();
-              if (mounted) context.go('/role-selection');
-            },
-          ),
-          const SizedBox(height: 12),
-        ],
-      ),
-    );
-  }
-
-  // -------------------------------------------------------------
   // 1. Top Hero Storefront Card (Modern Emerald Gradient & CTA)
   // -------------------------------------------------------------
   Widget _buildHeroStoreCard() {
@@ -1485,12 +1362,14 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Owner: $_shopkeeperName',
+                      _shopAddress.isNotEmpty ? '📍 $_shopAddress' : 'Owner: $_shopkeeperName',
                       style: const TextStyle(
                         color: Color(0xFFCCFBF1),
                         fontSize: 11.5,
                         fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -2448,7 +2327,11 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                   const SnackBar(content: Text('Navigating to Live Orders Queue'), backgroundColor: Color(0xFF059669)),
                 );
               } else if (idx == 2) {
-                ShopkeeperStoreMapModal.show(context);
+                if (GoRouter.maybeOf(context) != null) {
+                  context.push('/dashboard/shopkeeper/map');
+                } else {
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShopkeeperStoreMapScreen()));
+                }
               } else if (idx == 3) {
                 _showInventorySheet();
               } else if (idx == 4) {

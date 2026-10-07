@@ -1,18 +1,15 @@
 import 'dart:async';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/storage/local_registration_cache.dart';
 import '../../../core/services/live_booking_sync_service.dart';
 import 'ac_provider_dashboard_controller.dart';
+import 'provider_live_radar_map_screen.dart';
 
 class ProviderDashboardScreen extends ConsumerStatefulWidget {
   const ProviderDashboardScreen({super.key});
@@ -27,7 +24,6 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
   bool _hasDisplayOverAppsPermission = true;
   bool _isOverlayShowing = false;
   String? _lastShownOfferId;
-  String _partnerCity = 'Gujarat';
 
   @override
   void initState() {
@@ -65,12 +61,6 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
       return;
     }
 
-    final rawCity = (active['city'] ?? '').toString().trim();
-    if (rawCity.isNotEmpty && mounted) {
-      setState(() {
-        _partnerCity = rawCity;
-      });
-    }
     final syncRecord = LiveBookingSyncService.instance.getPartnerVerification(active['id']?.toString() ?? '') ??
         LiveBookingSyncService.instance.getPartnerVerification(active['user_id']?.toString() ?? '') ??
         LiveBookingSyncService.instance.getPartnerVerification(active['phone']?.toString() ?? '');
@@ -579,7 +569,6 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     return Scaffold(
       backgroundColor: const Color(0xFFF6F9FD),
       appBar: _buildCustomHeader(context, dashboardState),
-      drawer: _buildAppDrawer(context, dashboardState),
       body: dashboardState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -650,10 +639,18 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0.5,
-      leading: Builder(
-        builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu_rounded, color: Color(0xFF1D4ED8), size: 28),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 12),
+        child: Center(
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.build_circle_rounded, color: Color(0xFF2563EB), size: 22),
+          ),
         ),
       ),
       title: Column(
@@ -750,8 +747,20 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                     color: const Color(0xFF2563EB),
                     border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
                   ),
-                  child: const Center(
-                    child: Icon(Icons.person, color: Colors.white, size: 24),
+                  child: ClipOval(
+                    child: (state.avatarUrl != null && state.avatarUrl!.isNotEmpty)
+                        ? Image.network(
+                            state.avatarUrl!,
+                            fit: BoxFit.cover,
+                            width: 38,
+                            height: 38,
+                            errorBuilder: (context, error, stackTrace) => const Center(
+                              child: Icon(Icons.person, color: Colors.white, size: 24),
+                            ),
+                          )
+                        : const Center(
+                            child: Icon(Icons.person, color: Colors.white, size: 24),
+                          ),
                   ),
                 ),
                 if (state.isOnline)
@@ -916,331 +925,6 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     );
   }
 
-  void _showLiveRadarMapModal(BuildContext context, ACProviderDashboardState state) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildLiveServiceAreaMapCard(state),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  key: const Key('open_fullscreen_radar_map_button'),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    context.push('/dashboard/provider/map');
-                  },
-                  icon: const Icon(Icons.fullscreen_rounded, color: Colors.white),
-                  label: const Text(
-                    'Open Full-Screen Map',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 2,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // --- 1.8 Live Service Area & Coverage Radar Map Card ---
-  Widget _buildLiveServiceAreaMapCard(ACProviderDashboardState state) {
-    const partnerCenter = LatLng(22.4707, 70.0577); // Jamnagar Central Operations Hub
-
-    // Generate markers for all pending customer requests
-    final markers = <Marker>[
-      // Partner Core Marker
-      Marker(
-        point: partnerCenter,
-        width: 48,
-        height: 48,
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF2563EB),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: const [
-              BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3)),
-            ],
-          ),
-          child: const Icon(Icons.hvac_rounded, color: Colors.white, size: 24),
-        ),
-      ),
-    ];
-
-    for (final offer in state.incomingOffers) {
-      final lat = (offer['customer_lat'] as num?)?.toDouble() ?? 22.4725;
-      final lng = (offer['customer_lng'] as num?)?.toDouble() ?? 70.0610;
-      markers.add(
-        Marker(
-          point: LatLng(lat, lng),
-          width: 42,
-          height: 42,
-          child: GestureDetector(
-            onTap: () => _showLiveOffersModal(context, state),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2.5),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x40EF4444), blurRadius: 6, offset: Offset(0, 2)),
-                ],
-              ),
-              child: const Icon(Icons.person_pin_circle_rounded, color: Colors.white, size: 22),
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (state.activeJob != null) {
-      final actLat = (state.activeJob!['customer_lat'] as num?)?.toDouble() ?? 22.4725;
-      final actLng = (state.activeJob!['customer_lng'] as num?)?.toDouble() ?? 70.0610;
-      markers.add(
-        Marker(
-          point: LatLng(actLat, actLng),
-          width: 46,
-          height: 46,
-          child: GestureDetector(
-            onTap: () {
-              context.push('/dashboard/ac-job-navigation', extra: state.activeJob);
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x4010B981), blurRadius: 8, offset: Offset(0, 3)),
-                ],
-              ),
-              child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 24),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.map_rounded, color: Color(0xFF2563EB), size: 20),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Live Service Area & Radar',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              '10 km Coverage Radius • $_partnerCity',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF64748B),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: state.isOnline ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: state.isOnline ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        state.isOnline ? 'RADAR ACTIVE' : 'RADAR PAUSED',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: state.isOnline ? const Color(0xFF15803D) : const Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Map Container
-          SizedBox(
-            height: 220,
-            width: double.infinity,
-            child: FlutterMap(
-              options: const MapOptions(
-                initialCenter: partnerCenter,
-                initialZoom: 13.2,
-                interactionOptions: InteractionOptions(flags: InteractiveFlag.all),
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.servicehub.partner',
-                  tileProvider: !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')
-                      ? NetworkTileProvider(silenceExceptions: true)
-                      : null,
-                ),
-                CircleLayer(
-                  circles: [
-                    CircleMarker(
-                      point: partnerCenter,
-                      radius: 260,
-                      useRadiusInMeter: false,
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.10),
-                      borderColor: const Color(0xFF2563EB).withValues(alpha: 0.5),
-                      borderStrokeWidth: 2,
-                    ),
-                  ],
-                ),
-                MarkerLayer(markers: markers),
-              ],
-            ),
-          ),
-
-          // Bottom Action Footer
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: const Color(0xFFF8FAFC),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      const Icon(Icons.radar_rounded, color: Color(0xFF2563EB), size: 18),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          '${state.incomingOffers.length} Customer Booking(s) Nearby',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF334155),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (state.activeJob != null)
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.navigation_rounded, size: 14, color: Colors.white),
-                    label: const Text('Live Navigation', style: TextStyle(fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () {
-                      context.push('/dashboard/ac-job-navigation', extra: state.activeJob);
-                    },
-                  )
-                else if (state.incomingOffers.isNotEmpty)
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEF4444),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () => _showLiveOffersModal(context, state),
-                    child: Text('View (${state.incomingOffers.length})', style: const TextStyle(fontSize: 11.5, color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // --- 2. Online Status Card ---
   Widget _buildOnlineStatusCard(ACProviderDashboardState state) {
@@ -2288,7 +1972,11 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                     key: const Key('bottom_nav_center_map_button'),
                     onTap: () {
                       setState(() => _currentBottomNavIndex = 2);
-                      _showLiveRadarMapModal(context, state);
+                      if (GoRouter.maybeOf(context) != null) {
+                        context.push('/dashboard/provider/map');
+                      } else {
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProviderLiveRadarMapScreen()));
+                      }
                     },
                     borderRadius: BorderRadius.circular(27),
                     child: Container(
@@ -2377,116 +2065,6 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                   color: isSelected ? const Color(0xFF0052CC) : const Color(0xFF64748B),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- App Drawer ---
-  Widget _buildAppDrawer(BuildContext context, ACProviderDashboardState state) {
-    return Drawer(
-      child: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              color: const Color(0xFF0052CC),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.hvac_rounded, color: Color(0xFF0052CC), size: 28),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          state.providerName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.verified, color: Colors.white, size: 16),
-                    ],
-                  ),
-                  Text(
-                    state.businessName,
-                    style: const TextStyle(fontSize: 13, color: Colors.white70),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF16A34A),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text('AC Service Technician', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.dashboard_outlined, color: Color(0xFF0052CC)),
-              title: const Text('AC Dashboard'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.flash_on_rounded, color: Color(0xFF0052CC)),
-              title: const Text('Live Booking Requests'),
-              trailing: state.incomingOffers.isNotEmpty
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
-                      child: Text('${state.incomingOffers.length}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                    )
-                  : null,
-              onTap: () {
-                Navigator.pop(context);
-                _showLiveOffersModal(context, state);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.refresh_rounded, color: Color(0xFF0052CC)),
-              title: const Text('Refresh Live Metrics'),
-              onTap: () {
-                Navigator.pop(context);
-                ref.read(acProviderDashboardProvider.notifier).initDashboard();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_outline_rounded, color: Color(0xFF0052CC)),
-              title: const Text('My Profile'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/profile');
-              },
-            ),
-            const Spacer(),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout_rounded, color: Color(0xFFDC2626)),
-              title: const Text('Sign Out', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold)),
-              onTap: () async {
-                Navigator.pop(context);
-                await LocalRegistrationCache.logout();
-                if (context.mounted) {
-                  context.go('/role-selection');
-                }
-              },
             ),
           ],
         ),

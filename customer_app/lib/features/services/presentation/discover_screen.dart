@@ -9,6 +9,11 @@ import '../../location/providers/location_provider.dart';
 import '../../location/screens/map_screen.dart';
 import '../../location/screens/saved_locations_screen.dart';
 import 'ac_issue_details_screen.dart';
+import 'car_service_requirement_screen.dart';
+import 'care_taker_requirement_screen.dart';
+import 'cooking_requirement_screen.dart';
+import 'laundry_requirement_screen.dart';
+import 'plumbing_requirement_screen.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -19,10 +24,61 @@ class DiscoverScreen extends ConsumerStatefulWidget {
 
 class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   void _startBookingFlow(BuildContext context, String serviceName, double servicePrice) {
-    if (serviceName.toLowerCase().contains('ac')) {
+    final lower = serviceName.toLowerCase();
+    if (lower.contains('ac')) {
       Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(
           builder: (context) => ACIssueDetailsScreen(
+            serviceName: serviceName,
+            servicePrice: servicePrice,
+          ),
+        ),
+      );
+      return;
+    } else if (lower.contains('laundry')) {
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (context) => LaundryRequirementScreen(
+            serviceName: serviceName,
+            servicePrice: servicePrice,
+          ),
+        ),
+      );
+      return;
+    } else if (lower.contains('care')) {
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (context) => CareTakerRequirementScreen(
+            serviceName: serviceName,
+            servicePrice: servicePrice,
+          ),
+        ),
+      );
+      return;
+    } else if (lower.contains('car')) {
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (context) => CarServiceRequirementScreen(
+            serviceName: serviceName,
+            servicePrice: servicePrice,
+          ),
+        ),
+      );
+      return;
+    } else if (lower.contains('cook')) {
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (context) => CookingRequirementScreen(
+            serviceName: serviceName,
+            servicePrice: servicePrice,
+          ),
+        ),
+      );
+      return;
+    } else if (lower.contains('plumb')) {
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (context) => PlumbingRequirementScreen(
             serviceName: serviceName,
             servicePrice: servicePrice,
           ),

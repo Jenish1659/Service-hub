@@ -855,10 +855,10 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     final c = cat.toLowerCase();
     if (c.contains('ac')) return Icons.ac_unit_rounded;
     if (c.contains('plumb')) return Icons.plumbing_rounded;
+    if (c.contains('care')) return Icons.health_and_safety_rounded;
     if (c.contains('car')) return Icons.directions_car_rounded;
     if (c.contains('cook')) return Icons.soup_kitchen_rounded;
     if (c.contains('laundry')) return Icons.local_laundry_service_rounded;
-    if (c.contains('care')) return Icons.health_and_safety_rounded;
     return Icons.shopping_bag_outlined;
   }
 }

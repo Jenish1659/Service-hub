@@ -258,6 +258,7 @@ void main() {
 
       // Tap elevated center Map button
       await tester.tap(find.byIcon(Icons.map_rounded));
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
       // Map screen is displayed via modal

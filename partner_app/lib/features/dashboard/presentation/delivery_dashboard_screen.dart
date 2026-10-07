@@ -540,102 +540,9 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
     context.push('/delivery/map', extra: taskPayload);
   }
 
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  Widget _buildDeliveryDrawer() {
-    return Drawer(
-      child: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFEA580C), Color(0xFFC2410C)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: Colors.white,
-                    child: Text(
-                      _agentName.isNotEmpty ? _agentName[0].toUpperCase() : 'D',
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFFEA580C)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _agentName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text(
-                      'DELIVERY PARTNER',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_outline_rounded, color: Color(0xFFEA580C)),
-              title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/profile/delivery');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.map_outlined, color: Color(0xFFEA580C)),
-              title: const Text('Live Map & GPS', style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () {
-                Navigator.pop(context);
-                _openLiveMap();
-              },
-            ),
-            const Spacer(),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout_rounded, color: Color(0xFFDC2626)),
-              title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
-              onTap: () async {
-                Navigator.pop(context);
-                await LocalRegistrationCache.clearActiveSession();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Logged out of Delivery Partner account'),
-                      backgroundColor: Color(0xFFEA580C),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  context.go('/role-selection');
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldKey,
-      drawer: _buildDeliveryDrawer(),
       backgroundColor: const Color(0xFFF8FAFC),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -651,7 +558,6 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
                       agentName: _agentName,
                       isOnline: _isOnline,
                       unreadNotificationsCount: 0,
-                      onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
                       onNotificationsTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(

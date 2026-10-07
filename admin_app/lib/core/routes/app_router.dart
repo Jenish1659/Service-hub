@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/dashboard/presentation/admin_dashboard.dart';
+import '../../features/services/presentation/admin_services_view.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -35,6 +36,28 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/',
       builder: (BuildContext context, GoRouterState state) => const AdminDashboardScreen(),
+    ),
+    GoRoute(
+      path: '/services',
+      builder: (BuildContext context, GoRouterState state) => Scaffold(
+        appBar: AppBar(
+          title: const Text('All Services'),
+          backgroundColor: const Color(0xFF0B192C),
+          foregroundColor: Colors.white,
+        ),
+        body: const AdminServicesView(),
+      ),
+    ),
+    GoRoute(
+      path: '/all-services',
+      builder: (BuildContext context, GoRouterState state) => Scaffold(
+        appBar: AppBar(
+          title: const Text('All Services'),
+          backgroundColor: const Color(0xFF0B192C),
+          foregroundColor: Colors.white,
+        ),
+        body: const AdminServicesView(),
+      ),
     ),
   ],
 );

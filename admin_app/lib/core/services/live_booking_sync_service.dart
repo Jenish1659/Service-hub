@@ -180,6 +180,8 @@ class LiveBookingSyncService {
   }
 
   Future<void> _broadcastToHttpBridge(String path, Map<String, dynamic> payload) async {
+    if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) return;
+
     final List<String> hosts = kIsWeb
         ? ['127.0.0.1', 'localhost']
         : ['10.0.2.2', '127.0.0.1', 'localhost'];

@@ -387,7 +387,13 @@ class _AdminServicesViewState extends State<AdminServicesView> {
                               ),
                               title: Row(
                                 children: [
-                                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                  Flexible(
+                                    child: Text(
+                                      name,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                  ),
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -400,11 +406,27 @@ class _AdminServicesViewState extends State<AdminServicesView> {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text('₹$basePrice', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF0F172A))),
-                                  const SizedBox(width: 14),
+                                  Text('₹$basePrice', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF0F172A))),
+                                  const SizedBox(width: 8),
                                   IconButton(
                                     icon: const Icon(Icons.edit_rounded, color: Color(0xFF2563EB), size: 18),
                                     onPressed: () => _showEditServiceModal(s),
+                                  ),
+                                  IconButton(
+                                    tooltip: s['status'] == 'INACTIVE' ? 'Activate Service' : 'Deactivate Service',
+                                    icon: Icon(
+                                      s['status'] == 'INACTIVE' ? Icons.toggle_off_rounded : Icons.toggle_on_rounded,
+                                      color: s['status'] == 'INACTIVE' ? Colors.grey : const Color(0xFF10B981),
+                                      size: 26,
+                                    ),
+                                    onPressed: () async {
+                                      final newStatus = s['status'] == 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
+                                      final sId = s['service_id'] ?? s['id'];
+                                      if (sId != null) {
+                                        await Supabase.instance.client.from('services').update({'status': newStatus}).eq('service_id', sId);
+                                        _loadServices();
+                                      }
+                                    },
                                   ),
                                 ],
                               ),

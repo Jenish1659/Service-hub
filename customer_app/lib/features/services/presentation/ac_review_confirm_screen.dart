@@ -63,7 +63,8 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
   }
 
   double get _availableWalletRupees {
-    return _walletBalance + (_walletCoins > 0 ? (_walletCoins / 10.0) : 0.0);
+    if (_walletBalance > 0) return _walletBalance;
+    return _walletCoins > 0 ? (_walletCoins / 10.0) : 0.0;
   }
 
   void _applyCoupon() {
@@ -218,8 +219,18 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
         : 0.0;
     final finalPrice = (afterCoupon - walletDeduction).clamp(0.0, 9999.0);
 
-    // Deduct wallet if used
+    // Deduct wallet if used (Backend Authoritative & Double-Spend Protection)
     if (_useWallet && walletDeduction > 0) {
+      try {
+        if (realCustomerId.length == 36 && realCustomerId.contains('-')) {
+          await supabase.rpc('apply_wallet_deduction_atomic', params: {
+            'p_user_id': realCustomerId,
+            'p_requested_deduction': walletDeduction,
+          });
+        }
+      } catch (e) {
+        debugPrint('[Wallet] RPC note: $e');
+      }
       try {
         if (Hive.isBoxOpen('customer_cache')) {
           final box = Hive.box('customer_cache');

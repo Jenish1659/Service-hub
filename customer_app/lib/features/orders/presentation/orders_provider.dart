@@ -81,21 +81,44 @@ final customerBookingsStreamProvider = StreamProvider<List<Map<String, dynamic>>
     } catch (_) {}
 
     List<Map<String, dynamic>> result = [];
+    final Set<String> seenBookingIds = {};
+    final Set<String> targetCustomerIds = {};
 
     if (user != null) {
+      targetCustomerIds.add(user.id);
+      try {
+        final uRes = await client.from('users').select('user_id').eq('auth_id', user.id).maybeSingle();
+        if (uRes != null && uRes['user_id'] != null) {
+          targetCustomerIds.add(uRes['user_id'].toString());
+        }
+      } catch (_) {}
+    }
+    if (Hive.isBoxOpen('customer_cache')) {
+      final box = Hive.box('customer_cache');
+      final cachedId = box.get('user_id')?.toString();
+      if (cachedId != null && cachedId.isNotEmpty) {
+        targetCustomerIds.add(cachedId);
+      }
+    }
+
+    for (final cId in targetCustomerIds) {
       try {
         final List<dynamic> response = await client
             .from('service_bookings')
             .select('*, services(*), user_addresses(*)')
-            .eq('customer_id', user.id)
+            .eq('customer_id', cId)
             .order('created_at', ascending: false);
 
         for (final item in response) {
+          final bId = item['booking_id']?.toString() ?? '';
+          if (bId.isEmpty || seenBookingIds.contains(bId)) continue;
+          seenBookingIds.add(bId);
+
           final service = item['services'] as Map<String, dynamic>?;
           final address = item['user_addresses'] as Map<String, dynamic>?;
 
           result.add({
-            'id': item['booking_id'],
+            'id': bId,
             'booking_code': item['booking_code'],
             'service_name': service?['name'] ?? 'Home Service',
             'status': item['status'] ?? 'PENDING',
@@ -158,16 +181,39 @@ final customerOrdersStreamProvider = StreamProvider<List<Map<String, dynamic>>>(
     } catch (_) {}
 
     List<Map<String, dynamic>> result = [];
+    final Set<String> seenOrderIds = {};
+    final Set<String> targetCustomerIds = {};
 
     if (user != null) {
+      targetCustomerIds.add(user.id);
+      try {
+        final uRes = await client.from('users').select('user_id').eq('auth_id', user.id).maybeSingle();
+        if (uRes != null && uRes['user_id'] != null) {
+          targetCustomerIds.add(uRes['user_id'].toString());
+        }
+      } catch (_) {}
+    }
+    if (Hive.isBoxOpen('customer_cache')) {
+      final box = Hive.box('customer_cache');
+      final cachedId = box.get('user_id')?.toString();
+      if (cachedId != null && cachedId.isNotEmpty) {
+        targetCustomerIds.add(cachedId);
+      }
+    }
+
+    for (final cId in targetCustomerIds) {
       try {
         final List<dynamic> response = await client
             .from('orders')
             .select('*, order_items(*, products(*)), user_addresses(*)')
-            .eq('customer_id', user.id)
+            .eq('customer_id', cId)
             .order('created_at', ascending: false);
 
         for (final item in response) {
+          final oId = item['order_id']?.toString() ?? '';
+          if (oId.isEmpty || seenOrderIds.contains(oId)) continue;
+          seenOrderIds.add(oId);
+
           final items = item['order_items'] as List<dynamic>? ?? [];
           final summary = items.isNotEmpty
               ? items.map((i) => '${i['products']?['product_name'] ?? "Item"} x${i['quantity']}').join(', ')
@@ -188,7 +234,7 @@ final customerOrdersStreamProvider = StreamProvider<List<Map<String, dynamic>>>(
           }
 
           result.add({
-            'id': item['order_id'],
+            'id': oId,
             'order_code': item['order_code'],
             'status': item['order_status'] ?? 'Placed',
             'items_summary': summary,

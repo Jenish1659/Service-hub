@@ -196,12 +196,14 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       final categoryName = (activePartner['category_name'] ?? 'AC Service Provider').toString();
       final verification = (activePartner['verification_status'] ?? 'VERIFIED').toString();
       final isOnline = activePartner['is_online'] as bool? ?? true;
+      final photo = (activePartner['profile_photo'] ?? activePartner['profile_image'] ?? activePartner['avatarUrl'])?.toString();
 
       state = state.copyWith(
         partnerId: activePartner['partner_id'] ?? activePartner['id'] ?? '',
         providerId: activePartner['provider_id'] ?? '',
         providerName: name,
         businessName: business,
+        avatarUrl: photo,
         category: category,
         categoryName: categoryName,
         verificationStatus: verification,
@@ -219,7 +221,7 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
         final supabase = Supabase.instance.client;
         final res = await supabase
             .from('service_provider_profiles')
-            .select('provider_id, partner_id, partners(partner_id, partner_code, verification_status, availability_status, users(user_id, username, phone, user_profiles(first_name, last_name)))')
+            .select('provider_id, partner_id, partners(partner_id, partner_code, verification_status, availability_status, users(user_id, username, phone, user_profiles(first_name, last_name, profile_photo)))')
             .limit(1)
             .maybeSingle();
 
@@ -228,6 +230,7 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
           final u = p?['users'] as Map<String, dynamic>?;
           final prof = u?['user_profiles'] as Map<String, dynamic>?;
           final pName = '${prof?['first_name'] ?? ""} ${prof?['last_name'] ?? ""}'.trim();
+          final photo = prof?['profile_photo']?.toString();
 
           final resolvedPartnerId = res['partner_id']?.toString() ?? '';
           final resolvedProviderId = res['provider_id']?.toString() ?? '';
@@ -237,6 +240,7 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
             providerId: resolvedProviderId,
             providerName: pName.isNotEmpty ? pName : (u?['username'] ?? 'Service Provider').toString(),
             businessName: '${pName.isNotEmpty ? pName : "Verified"} AC Service Center',
+            avatarUrl: photo,
             category: 'ac_service',
             categoryName: 'AC Service Provider',
             verificationStatus: p?['verification_status']?.toString() ?? 'VERIFIED',
@@ -330,7 +334,7 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
               offersList.add({
                 'request_id': req['request_id'],
                 'booking_id': bId,
-                'service_name': service?['name'] ?? 'Split AC Deep Cleaning (Jet Wash)',
+                'service_name': booking['service_name'] ?? service?['name'] ?? 'Professional Service',
                 'price': (booking['estimated_amount'] as num?)?.toDouble() ?? (booking['final_amount'] as num?)?.toDouble() ?? 499.0,
                 'customer_name': profile != null ? '${profile['first_name'] ?? ""} ${profile['last_name'] ?? ""}'.trim() : (user?['username'] ?? 'Customer').toString(),
                 'customer_phone': (user?['phone'] ?? '').toString(),
@@ -390,7 +394,10 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
           }
 
           final createdAtStr = b['created_at']?.toString() ?? '';
-          if (createdAtStr.startsWith(todayStr)) {
+          final completedAtStr = b['completed_at']?.toString() ?? '';
+          final isToday = (completedAtStr.isNotEmpty && completedAtStr.startsWith(todayStr)) ||
+              createdAtStr.startsWith(todayStr);
+          if (isToday) {
             final custName = profile != null
                 ? '${profile['first_name'] ?? ""} ${profile['last_name'] ?? ""}'.trim()
                 : (user?['username'] ?? 'Customer').toString();

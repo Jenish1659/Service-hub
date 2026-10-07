@@ -7,6 +7,13 @@ class LocationApiService {
   static const String _activeKey = 'active_customer_location';
 
   Future<void> saveCustomerLocation(CustomerLocationModel location) async {
+    // 0. Strict 10-contact / saved address limit
+    final existing = await getAllSavedLocations();
+    final bool isUpdate = existing.any((item) => item.id == location.id);
+    if (!isUpdate && existing.length >= 10) {
+      throw Exception('Maximum limit of 10 contacts/saved addresses reached. Please remove an existing address first.');
+    }
+
     // 1. Local Hive Storage
     try {
       Box box;

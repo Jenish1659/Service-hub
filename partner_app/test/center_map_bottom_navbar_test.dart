@@ -13,6 +13,7 @@ import 'package:service_hub_partner/core/storage/local_registration_cache.dart';
 import 'package:service_hub_partner/features/dashboard/presentation/ac_provider_dashboard_controller.dart';
 import 'package:service_hub_partner/features/dashboard/presentation/delivery_dashboard_screen.dart';
 import 'package:service_hub_partner/features/dashboard/presentation/provider_dashboard_screen.dart';
+import 'package:service_hub_partner/features/dashboard/presentation/provider_live_radar_map_screen.dart';
 import 'package:service_hub_partner/features/dashboard/presentation/shopkeeper_dashboard_screen.dart';
 import 'package:service_hub_partner/features/dashboard/presentation/shopkeeper_store_map_screen.dart';
 import 'package:service_hub_partner/features/dashboard/presentation/widgets/delivery_recent_and_nav_widget.dart';
@@ -265,15 +266,15 @@ void main() {
         expect(find.text('Earnings'), findsWidgets);
         expect(find.text('Profile'), findsWidgets);
 
-        // 3. Tap center Map button and verify live radar map modal opens
+        // 3. Tap center Map button and verify live radar map opens directly
         await tester.tap(centerMapBtn);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
-        // Verify live radar map modal content
-        expect(find.text('Live Service Area & Radar'), findsOneWidget);
-        expect(find.text('Open Full-Screen Map'), findsOneWidget);
+        // Verify live radar map screen opens directly with OpenStreetMap FlutterMap & TileLayer
+        expect(find.byType(ProviderLiveRadarMapScreen), findsOneWidget);
         expect(find.byType(FlutterMap), findsWidgets);
+        expect(find.byType(TileLayer), findsWidgets);
       },
     );
 

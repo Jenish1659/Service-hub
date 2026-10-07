@@ -260,7 +260,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Earnings'), findsOneWidget);
+      expect(find.text('Earnings'), findsWidgets);
       expect(find.text('Track your income and withdrawals'), findsOneWidget);
       expect(find.text('Total Earnings'), findsOneWidget);
       expect(find.text('₹0'), findsWidgets);

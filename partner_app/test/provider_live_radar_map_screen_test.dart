@@ -187,7 +187,7 @@ void main() {
       expect(find.byKey(const Key('osm_accept_job_button')), findsOneWidget);
     });
 
-    testWidgets('3. Elevated Bottom Nav Center Map button has Royal Blue gradient and opens modal with full-screen button', (tester) async {
+    testWidgets('3. Elevated Bottom Nav Center Map button has Royal Blue gradient and opens map directly per P6', (tester) async {
       await tester.binding.setSurfaceSize(const Size(400, 850));
 
       const testState = ACProviderDashboardState(
@@ -233,9 +233,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Verify modal opens with Open Full-Screen Map button
-      expect(find.byKey(const Key('open_fullscreen_radar_map_button')), findsOneWidget);
-      expect(find.text('Open Full-Screen Map'), findsOneWidget);
+      // Verify direct map screen opens without intermediate screen per P6
+      expect(find.byType(ProviderLiveRadarMapScreen), findsOneWidget);
+      expect(find.byType(FlutterMap), findsWidgets);
+      expect(find.byType(TileLayer), findsWidgets);
     });
   });
 }

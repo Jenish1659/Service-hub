@@ -220,12 +220,18 @@ class _ProviderLiveRadarMapScreenState extends ConsumerState<ProviderLiveRadarMa
     }
 
     if (points.isNotEmpty) {
-      _mapController.fitCamera(
-        CameraFit.bounds(
-          bounds: LatLngBounds.fromPoints(points),
-          padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 100),
-        ),
-      );
+      final bounds = LatLngBounds.fromPoints(points);
+      if (bounds.north != bounds.south && bounds.east != bounds.west) {
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 100),
+            maxZoom: 16.0,
+          ),
+        );
+      } else {
+        _mapController.move(_technicianLocation, 14.2);
+      }
     }
   }
 
@@ -769,6 +775,8 @@ class _ProviderLiveRadarMapScreenState extends ConsumerState<ProviderLiveRadarMa
             options: MapOptions(
               initialCenter: _jamnagarOperationalBase,
               initialZoom: 13.8,
+              minZoom: 3.0,
+              maxZoom: 18.0,
               interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
               onMapReady: () {
                 if (!_hasInitialFitted) {

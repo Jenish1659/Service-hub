@@ -258,6 +258,7 @@ class _DeliveryEarningsScreenState extends State<DeliveryEarningsScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: _buildDeliveryEarningsBottomNav(context),
     );
   }
 
@@ -382,6 +383,130 @@ class _DeliveryEarningsScreenState extends State<DeliveryEarningsScreen> {
               ),
             ),
             const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeliveryEarningsBottomNav(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildDeliveryNavItem(
+                icon: Icons.home_rounded,
+                label: 'Dashboard',
+                isSelected: false,
+                onTap: () {
+                  if (Navigator.canPop(context)) Navigator.pop(context);
+                },
+              ),
+              _buildDeliveryNavItem(
+                icon: Icons.local_shipping_outlined,
+                label: 'Tasks',
+                isSelected: false,
+                onTap: () {
+                  if (Navigator.canPop(context)) Navigator.pop(context);
+                },
+              ),
+              Expanded(
+                child: Center(
+                  child: InkWell(
+                    onTap: () {
+                      if (Navigator.canPop(context)) Navigator.pop(context);
+                    },
+                    borderRadius: BorderRadius.circular(27),
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [Color(0xFFEA580C), Color(0xFFC2410C)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x40EA580C),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.map_rounded, color: Colors.white, size: 20),
+                          Text('Map', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              _buildDeliveryNavItem(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'Earnings',
+                isSelected: true,
+                onTap: () {},
+              ),
+              _buildDeliveryNavItem(
+                icon: Icons.person_outline_rounded,
+                label: 'Profile',
+                isSelected: false,
+                onTap: () {
+                  if (Navigator.canPop(context)) Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeliveryNavItem({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    const orangeColor = Color(0xFFEA580C);
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? orangeColor : const Color(0xFF64748B),
+              size: 22,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? orangeColor : const Color(0xFF64748B),
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
           ],
         ),
       ),

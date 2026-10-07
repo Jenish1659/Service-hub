@@ -78,8 +78,8 @@ class ProfileScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textSecondaryColor),
               ),
               const SizedBox(height: 12),
-              _buildSettingsTile(Icons.history, 'Booking History', () => context.go('/orders')),
-              _buildSettingsTile(Icons.shopping_bag_outlined, 'My Orders', () => context.go('/orders')),
+              _buildSettingsTile(Icons.history, 'Booking History', () => context.push('/orders')),
+              _buildSettingsTile(Icons.shopping_bag_outlined, 'My Orders', () => context.push('/orders')),
               _buildSettingsTile(Icons.location_on_outlined, 'Saved Addresses', () {
                 Navigator.push(
                   context,
