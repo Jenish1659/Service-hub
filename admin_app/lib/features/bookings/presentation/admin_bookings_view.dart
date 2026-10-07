@@ -4,11 +4,15 @@ import '../../dashboard/presentation/widgets/booking_details_modal.dart';
 class AdminBookingsView extends StatefulWidget {
   final List<Map<String, dynamic>> allBookings;
   final String initialFilter;
+  final String? serviceCategory;
+  final String title;
 
   const AdminBookingsView({
     super.key,
     required this.allBookings,
     this.initialFilter = 'All Bookings',
+    this.serviceCategory,
+    this.title = 'All Bookings',
   });
 
   @override
@@ -19,6 +23,66 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
   late String _activeFilter;
   String _searchQuery = '';
 
+  static bool _matchesCategory(Map<String, dynamic> b, String targetCategory) {
+    final catId = (b['category_id'] ?? '').toString().toLowerCase().trim();
+    final catName = (b['category'] ?? b['category_name'] ?? '').toString().toLowerCase().trim();
+    final sName = (b['service_name'] ?? b['problem_description'] ?? '').toString().toLowerCase();
+
+    final target = targetCategory.toLowerCase().trim();
+
+    if (catId.isNotEmpty && catId == target) return true;
+
+    switch (target) {
+      case 'ac_service':
+        return catId == 'ac_service' ||
+            catName.contains('ac') ||
+            sName.contains('ac') ||
+            sName.contains('air condition');
+      case 'care_taker':
+        return catId == 'care_taker' ||
+            catName.contains('care') ||
+            sName.contains('care') ||
+            sName.contains('elderly') ||
+            sName.contains('patient') ||
+            sName.contains('babysitt');
+      case 'laundry':
+        return catId == 'laundry' ||
+            catName.contains('laundry') ||
+            sName.contains('laundry') ||
+            sName.contains('wash') ||
+            sName.contains('iron') ||
+            sName.contains('dry clean');
+      case 'car_service':
+        return catId == 'car_service' ||
+            (catName.contains('car') && !catName.contains('care')) ||
+            (sName.contains('car') && !sName.contains('care')) ||
+            sName.contains('vehicle') ||
+            sName.contains('automobile');
+      case 'plumbing':
+        return catId == 'plumbing' ||
+            catName.contains('plumb') ||
+            sName.contains('plumb') ||
+            sName.contains('pipe') ||
+            sName.contains('tap') ||
+            sName.contains('leak');
+      case 'electrical':
+        return catId == 'electrical' ||
+            catName.contains('electr') ||
+            sName.contains('electr') ||
+            sName.contains('switch') ||
+            sName.contains('fan') ||
+            sName.contains('wire') ||
+            sName.contains('mcb');
+      case 'cooking':
+        return catId == 'cooking' ||
+            catName.contains('cook') ||
+            sName.contains('cook') ||
+            sName.contains('chef');
+      default:
+        return catId == target || catName.contains(target) || sName.contains(target);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -28,7 +92,7 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
   @override
   void didUpdateWidget(covariant AdminBookingsView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialFilter != widget.initialFilter) {
+    if (oldWidget.initialFilter != widget.initialFilter || oldWidget.serviceCategory != widget.serviceCategory) {
       setState(() {
         _activeFilter = widget.initialFilter;
       });
@@ -37,7 +101,11 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = widget.allBookings.where((b) {
+    final baseBookings = widget.serviceCategory == null
+        ? widget.allBookings
+        : widget.allBookings.where((b) => _matchesCategory(b, widget.serviceCategory!)).toList();
+
+    final filtered = baseBookings.where((b) {
       final status = (b['status'] ?? '').toString().toUpperCase();
       final service = (b['service_name'] ?? '').toString().toLowerCase();
       final customer = (b['customer_name'] ?? b['name'] ?? '').toString().toLowerCase();
@@ -54,7 +122,17 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
       // Filter match
       switch (_activeFilter) {
         case 'AC Service Bookings':
-          return service.contains('ac') || service.contains('air');
+          return _matchesCategory(b, 'ac_service');
+        case 'Care Taker Bookings':
+          return _matchesCategory(b, 'care_taker');
+        case 'Laundry Bookings':
+          return _matchesCategory(b, 'laundry');
+        case 'Car Service Bookings':
+          return _matchesCategory(b, 'car_service');
+        case 'Plumbing Bookings':
+          return _matchesCategory(b, 'plumbing');
+        case 'Electrical Bookings':
+          return _matchesCategory(b, 'electrical');
         case 'Booking Requests':
           return status == 'PENDING' || status == 'SEARCHING_PROVIDER';
         case 'Assigned Bookings':
@@ -70,6 +148,8 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
       }
     }).toList();
 
+    final isDedicatedService = widget.serviceCategory != null;
+
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -80,34 +160,43 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildFilterChip('All Bookings', widget.allBookings.length),
+                _buildFilterChip('All Bookings', baseBookings.length),
+                if (!isDedicatedService) ...[
+                  const SizedBox(width: 8),
+                  _buildFilterChip('AC Service Bookings', baseBookings.where((b) => _matchesCategory(b, 'ac_service')).length),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Care Taker Bookings', baseBookings.where((b) => _matchesCategory(b, 'care_taker')).length),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Laundry Bookings', baseBookings.where((b) => _matchesCategory(b, 'laundry')).length),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Car Service Bookings', baseBookings.where((b) => _matchesCategory(b, 'car_service')).length),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Plumbing Bookings', baseBookings.where((b) => _matchesCategory(b, 'plumbing')).length),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Electrical Bookings', baseBookings.where((b) => _matchesCategory(b, 'electrical')).length),
+                ],
                 const SizedBox(width: 8),
-                _buildFilterChip('AC Service Bookings', widget.allBookings.where((b) {
-                  final s = (b['service_name'] ?? '').toString().toLowerCase();
-                  return s.contains('ac') || s.contains('air');
-                }).length),
-                const SizedBox(width: 8),
-                _buildFilterChip('Booking Requests', widget.allBookings.where((b) {
+                _buildFilterChip('Booking Requests', baseBookings.where((b) {
                   final s = (b['status'] ?? '').toString().toUpperCase();
                   return s == 'PENDING' || s == 'SEARCHING_PROVIDER';
                 }).length),
                 const SizedBox(width: 8),
-                _buildFilterChip('Assigned Bookings', widget.allBookings.where((b) {
+                _buildFilterChip('Assigned Bookings', baseBookings.where((b) {
                   final s = (b['status'] ?? '').toString().toUpperCase();
                   return s == 'ASSIGNED' || s == 'CONFIRMED' || s == 'ACCEPTED';
                 }).length),
                 const SizedBox(width: 8),
-                _buildFilterChip('Ongoing Services', widget.allBookings.where((b) {
+                _buildFilterChip('Ongoing Services', baseBookings.where((b) {
                   final s = (b['status'] ?? '').toString().toUpperCase();
                   return s == 'ONGOING' || s == 'SERVICE_STARTED' || s == 'ARRIVED' || s == 'ON_THE_WAY' || s == 'IN_TRANSIT';
                 }).length),
                 const SizedBox(width: 8),
-                _buildFilterChip('Completed Services', widget.allBookings.where((b) {
+                _buildFilterChip('Completed Services', baseBookings.where((b) {
                   final s = (b['status'] ?? '').toString().toUpperCase();
                   return s == 'COMPLETED' || s == 'SERVICE_COMPLETED';
                 }).length),
                 const SizedBox(width: 8),
-                _buildFilterChip('Cancelled Bookings', widget.allBookings.where((b) {
+                _buildFilterChip('Cancelled Bookings', baseBookings.where((b) {
                   final s = (b['status'] ?? '').toString().toUpperCase();
                   return s == 'CANCELLED' || s == 'REJECTED';
                 }).length),
@@ -187,7 +276,12 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
                         children: [
                           const Icon(Icons.calendar_month_outlined, size: 48, color: Color(0xFFCBD5E1)),
                           const SizedBox(height: 10),
-                          Text('No bookings found for "$_activeFilter"', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                          Text(
+                            baseBookings.isEmpty
+                                ? 'No bookings found for "${widget.title}"'
+                                : 'No bookings found for "$_activeFilter"',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                          ),
                         ],
                       ),
                     )

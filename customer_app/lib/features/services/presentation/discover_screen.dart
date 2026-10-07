@@ -14,6 +14,7 @@ import 'care_taker_requirement_screen.dart';
 import 'cooking_requirement_screen.dart';
 import 'laundry_requirement_screen.dart';
 import 'plumbing_requirement_screen.dart';
+import 'electrical_requirement_screen.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -85,6 +86,16 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         ),
       );
       return;
+    } else if (lower.contains('elec')) {
+      Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (context) => ElectricalRequirementScreen(
+            serviceName: serviceName,
+            servicePrice: servicePrice,
+          ),
+        ),
+      );
+      return;
     }
 
     showModalBottomSheet(
@@ -119,6 +130,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         'price': 199.0,
         'imageHeight': 185.0,
         'sub': 'Wash, dry & steam iron',
+      },
+      {
+        'title': 'Electrical',
+        'image': 'assets/images/service_electrical.png',
+        'price': 249.0,
+        'imageHeight': 195.0,
+        'sub': 'Wiring, switches & appliance repair',
       },
     ];
 

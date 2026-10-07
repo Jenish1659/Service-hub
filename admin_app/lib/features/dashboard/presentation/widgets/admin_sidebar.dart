@@ -70,30 +70,40 @@ class AdminSidebar extends StatelessWidget {
 
           // Scrollable Navigation Items
           Expanded(
-            child: ListView(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(vertical: 12),
-              children: [
-                _buildNavItem('Dashboard', Icons.dashboard_rounded),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildNavItem('Dashboard', Icons.dashboard_rounded),
 
-                _buildGroupHeader('BOOKINGS'),
-                _buildNavItem('AC Service Bookings', Icons.calendar_month_rounded),
-                _buildNavItem('All Bookings', Icons.list_alt_rounded),
+                  _buildGroupHeader('ALL SERVICES'),
+                  _buildNavItem('All Services', Icons.miscellaneous_services_rounded),
 
-                _buildGroupHeader('PARTNER OPERATIONS'),
-                _buildNavItem('Partner Verification', Icons.verified_user_rounded, partnerCount),
-                _buildNavItem('Shopkeeper Verification', Icons.storefront_rounded, shopkeeperCount),
-                _buildNavItem('Delivery Agent Verification', Icons.two_wheeler_rounded, deliveryCount),
-                _buildNavItem('Service Partners', Icons.handshake_rounded),
+                  _buildGroupHeader('SERVICES / BOOKINGS'),
+                  _buildNavItem('AC Service Bookings', Icons.ac_unit_rounded),
+                  _buildNavItem('Care Taker Bookings', Icons.elderly_rounded),
+                  _buildNavItem('Laundry Bookings', Icons.local_laundry_service_rounded),
+                  _buildNavItem('Car Service Bookings', Icons.directions_car_rounded),
+                  _buildNavItem('Plumbing Bookings', Icons.plumbing_rounded),
+                  _buildNavItem('Electrical Bookings', Icons.electrical_services_rounded),
+                  _buildNavItem('All Bookings', Icons.list_alt_rounded),
 
-                _buildGroupHeader('PLATFORM MANAGEMENT'),
-                _buildNavItem('Database Explorer', Icons.storage_rounded),
-                _buildNavItem('Customers', Icons.people_rounded),
-                _buildNavItem('All Services', Icons.home_repair_service_rounded),
-                _buildNavItem('Finance', Icons.account_balance_wallet_rounded),
-                _buildNavItem('Support Tickets', Icons.support_agent_rounded),
-                _buildNavItem('AI Operations', Icons.psychology_rounded),
-                _buildNavItem('Settings', Icons.settings_rounded),
-              ],
+                  _buildGroupHeader('PARTNER OPERATIONS'),
+                  _buildNavItem('Partner Verification', Icons.verified_user_rounded, partnerCount),
+                  _buildNavItem('Shopkeeper Verification', Icons.storefront_rounded, shopkeeperCount),
+                  _buildNavItem('Delivery Agent Verification', Icons.two_wheeler_rounded, deliveryCount),
+                  _buildNavItem('Service Partners', Icons.handshake_rounded),
+
+                  _buildGroupHeader('PLATFORM MANAGEMENT'),
+                  _buildNavItem('Database Explorer', Icons.storage_rounded),
+                  _buildNavItem('Customers', Icons.people_rounded),
+                  _buildNavItem('Finance', Icons.account_balance_wallet_rounded),
+                  _buildNavItem('Support Tickets', Icons.support_agent_rounded),
+                  _buildNavItem('AI Operations', Icons.psychology_rounded),
+                  _buildNavItem('Settings', Icons.settings_rounded),
+                ],
+              ),
             ),
           ),
 

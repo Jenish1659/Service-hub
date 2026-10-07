@@ -5,9 +5,39 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/supabase_auth_service.dart';
 import '../data/auth_repository.dart';
 
+class UninitializedAuthRepository implements AuthRepository {
+  @override
+  User? get currentUser => null;
+
+  @override
+  Session? get currentSession => null;
+
+  @override
+  Stream<AuthState> get authStateChanges => const Stream.empty();
+
+  @override
+  Future<void> signOut() async {}
+
+  @override
+  Future<void> signInWithPhone(String phoneNumber) async => throw UnimplementedError();
+
+  @override
+  Future<AuthResponse> verifyOtp(String phoneNumber, String token) async => throw UnimplementedError();
+
+  @override
+  Future<AuthResponse> signInWithEmail(String email, String password) async => throw UnimplementedError();
+
+  @override
+  Future<AuthResponse> signUpWithEmail(String email, String password, String name, String role) async => throw UnimplementedError();
+}
+
 // Provide the AuthRepository instance
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(Supabase.instance.client);
+  try {
+    return AuthRepository(Supabase.instance.client);
+  } catch (_) {
+    return UninitializedAuthRepository();
+  }
 });
 
 // Provide the AuthState stream (to automatically react to logins/logouts)

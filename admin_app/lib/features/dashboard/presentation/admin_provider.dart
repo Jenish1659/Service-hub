@@ -1074,18 +1074,26 @@ final adminAllBookingsStreamProvider = StreamProvider<List<Map<String, dynamic>>
       try {
         supaList = await client
             .from('service_bookings')
-            .select()
+            .select('*, services(name, category_id)')
             .order('created_at', ascending: false)
             .timeout(const Duration(milliseconds: 3000));
       } catch (_) {
         try {
           supaList = await client
-              .from('bookings')
+              .from('service_bookings')
               .select()
               .order('created_at', ascending: false)
               .timeout(const Duration(milliseconds: 3000));
         } catch (_) {
-          supaList = [];
+          try {
+            supaList = await client
+                .from('bookings')
+                .select()
+                .order('created_at', ascending: false)
+                .timeout(const Duration(milliseconds: 3000));
+          } catch (_) {
+            supaList = [];
+          }
         }
       }
 
@@ -1094,6 +1102,12 @@ final adminAllBookingsStreamProvider = StreamProvider<List<Map<String, dynamic>>
 
       for (final sb in supaList) {
         final map = Map<String, dynamic>.from(sb);
+        final srv = map['services'];
+        if (srv is Map) {
+          map['service_name'] ??= srv['name'];
+          map['category_id'] ??= srv['category_id'];
+          map['category'] ??= srv['category_id'];
+        }
         final id = (map['booking_id'] ?? map['id'] ?? '').toString();
         if (id.isNotEmpty) seenIds.add(id);
         bookings.add(map);

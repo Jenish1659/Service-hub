@@ -180,15 +180,13 @@ class _CarServiceRequirementScreenState extends ConsumerState<CarServiceRequirem
       return;
     }
 
-    if (_uploadedPhotos.isEmpty) {
-      _showWarningSnackBar('Please upload at least one image of the vehicle/issue.');
-      return;
+    List<String> photoUrls = [];
+    if (_uploadedPhotos.isNotEmpty) {
+      photoUrls = await MultiServiceBookingService.instance.uploadPhotos(
+        _uploadedPhotos,
+        prefix: 'car_service',
+      );
     }
-
-    final photoUrls = await MultiServiceBookingService.instance.uploadPhotos(
-      _uploadedPhotos,
-      prefix: 'car_service',
-    );
 
     final autoDesc = problemDesc.isNotEmpty
         ? problemDesc

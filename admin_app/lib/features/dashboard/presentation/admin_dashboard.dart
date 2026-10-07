@@ -336,8 +336,26 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (_activeTab == 'Dashboard') {
       return _buildMainDashboardContent(stats, allBookings, unverifiedPartners);
     }
-    if (_activeTab == 'All Bookings' || _activeTab == 'AC Service Bookings') {
-      return AdminBookingsView(allBookings: allBookings);
+    if (_activeTab == 'All Bookings') {
+      return AdminBookingsView(allBookings: allBookings, title: 'All Bookings');
+    }
+    if (_activeTab == 'AC Service Bookings') {
+      return AdminBookingsView(allBookings: allBookings, serviceCategory: 'ac_service', title: 'AC Service Bookings');
+    }
+    if (_activeTab == 'Care Taker Bookings') {
+      return AdminBookingsView(allBookings: allBookings, serviceCategory: 'care_taker', title: 'Care Taker Bookings');
+    }
+    if (_activeTab == 'Laundry Bookings') {
+      return AdminBookingsView(allBookings: allBookings, serviceCategory: 'laundry', title: 'Laundry Bookings');
+    }
+    if (_activeTab == 'Car Service Bookings') {
+      return AdminBookingsView(allBookings: allBookings, serviceCategory: 'car_service', title: 'Car Service Bookings');
+    }
+    if (_activeTab == 'Plumbing Bookings') {
+      return AdminBookingsView(allBookings: allBookings, serviceCategory: 'plumbing', title: 'Plumbing Bookings');
+    }
+    if (_activeTab == 'Electrical Bookings') {
+      return AdminBookingsView(allBookings: allBookings, serviceCategory: 'electrical', title: 'Electrical Bookings');
     }
     if (_activeTab == 'Partner Verification' ||
         _activeTab == 'Service Provider Verification' ||

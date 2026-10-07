@@ -45,6 +45,10 @@ void main() {
 
   group('Admin Sidebar Navigation Tests', () {
     testWidgets('1. AdminSidebar renders Shopkeeper Verification in line with Partner Verification', (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
       String selectedTab = '';
 
       await tester.pumpWidget(

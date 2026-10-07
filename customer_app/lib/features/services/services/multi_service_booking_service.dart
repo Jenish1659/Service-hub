@@ -84,6 +84,15 @@ class MultiServiceBookingService {
       protectionFee: 29.0,
       description: 'Pipe repair, tap installation, leakage fix, and water motor setup',
     ),
+    'electrical': ServiceCategoryConfig(
+      categoryId: 'electrical',
+      categoryName: 'Electrical Service & Repair',
+      requiredRole: 'service_provider',
+      requiredCapability: 'electrical',
+      defaultVisitingFee: 249.0,
+      protectionFee: 29.0,
+      description: 'Switchboard repair, wiring, fan installation, and appliance servicing',
+    ),
   };
 
   /// Returns configuration for categoryId, defaulting safely if unknown.
@@ -98,6 +107,7 @@ class MultiServiceBookingService {
     if (normalized.contains('laundry')) return categories['laundry']!;
     if (normalized.contains('cook')) return categories['cooking']!;
     if (normalized.contains('plumb')) return categories['plumbing']!;
+    if (normalized.contains('elec')) return categories['electrical']!;
     return categories['ac_service']!;
   }
 

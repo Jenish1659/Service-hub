@@ -63,7 +63,8 @@ void main() {
       expect(find.text('ServiceHub'), findsOneWidget);
       expect(find.text('Admin Panel'), findsOneWidget);
       expect(find.text('Dashboard'), findsOneWidget);
-      expect(find.text('BOOKINGS'), findsOneWidget);
+      expect(find.text('ALL SERVICES'), findsOneWidget);
+      expect(find.text('SERVICES / BOOKINGS'), findsOneWidget);
       expect(find.text('AC Service Bookings'), findsOneWidget);
 
       await tester.tap(find.text('AC Service Bookings'));

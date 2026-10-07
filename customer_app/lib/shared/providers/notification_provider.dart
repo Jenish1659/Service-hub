@@ -33,20 +33,22 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   }
 
   void _initStream() {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
 
-    Supabase.instance.client
-        .from('notifications')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', user.id)
-        .order('created_at')
-        .listen((data) {
-          final notifications = data.map((json) => AppNotification.fromJson(json)).toList();
-          // Sort reverse chronological
-          notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          state = notifications;
-        });
+      Supabase.instance.client
+          .from('notifications')
+          .stream(primaryKey: ['id'])
+          .eq('user_id', user.id)
+          .order('created_at')
+          .listen((data) {
+            final notifications = data.map((json) => AppNotification.fromJson(json)).toList();
+            // Sort reverse chronological
+            notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            state = notifications;
+          });
+    } catch (_) {}
   }
 
   Future<void> sendNotification({
@@ -66,9 +68,9 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   }
 
   Future<void> markAllAsRead() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
     try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
       await Supabase.instance.client
           .from('notifications')
           .update({'read': true})

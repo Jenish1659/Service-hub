@@ -429,7 +429,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(width: 14),
 
-                    // Card 5: More Services (Redirects to Services)
+                    // Card 5: Plumbing
+                    _buildPillServiceCard(
+                      context: context,
+                      title: 'Plumbing',
+                      badgeColor: const Color(0xff0284c7),
+                      badgeBg: const Color(0xffe0f2fe),
+                      badgeIcon: Icons.plumbing_rounded,
+                      categoryCode: 'Plumbing',
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Card 6: Electrical
+                    _buildPillServiceCard(
+                      context: context,
+                      title: 'Electrical',
+                      badgeColor: const Color(0xfff59e0b),
+                      badgeBg: const Color(0xfffef3c7),
+                      badgeIcon: Icons.electrical_services_rounded,
+                      categoryCode: 'Electrical',
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Card 7: More Services (Redirects to Discover)
                     _buildPillMoreCard(context: context),
                   ],
                 ),
@@ -658,7 +680,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String categoryCode,
   }) {
     return InkWell(
-      onTap: () => context.go('/discover?category=$categoryCode'),
+      onTap: () {
+        final code = categoryCode.toLowerCase();
+        if (code.contains('ac')) {
+          context.push('/services/ac/issue-details');
+        } else if (code.contains('care')) {
+          context.push('/services/care/requirements');
+        } else if (code.contains('car')) {
+          context.push('/services/car/requirements');
+        } else if (code.contains('cook')) {
+          context.push('/services/cooking/requirements');
+        } else if (code.contains('laundry')) {
+          context.push('/services/laundry/requirements');
+        } else if (code.contains('plumb')) {
+          context.push('/services/plumbing/requirements');
+        } else if (code.contains('elec')) {
+          context.push('/services/electrical/requirements');
+        } else {
+          context.go('/discover?category=$categoryCode');
+        }
+      },
       borderRadius: BorderRadius.circular(20),
       child: Container(
         width: 92,

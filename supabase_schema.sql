@@ -1177,22 +1177,37 @@ INSERT INTO public.roles (role_name, description) VALUES
 ('admin', 'System administrator with oversight and moderation powers')
 ON CONFLICT (role_name) DO NOTHING;
 
--- 2. Insert 6 Standard Service Categories
+-- 2. Insert Standard Service Categories
 INSERT INTO public.service_categories (category_id, name, description, icon, status) VALUES
 ('ac_service', 'AC Service', 'Professional AC installation, deep jet cleaning, repair, and gas refilling', 'hvac', 'ACTIVE'),
+('care_taker', 'Care Taker', 'Elderly care, patient care, babysitting, and domestic assistance', 'elderly', 'ACTIVE'),
 ('laundry', 'Laundry', 'Washing, dry cleaning, ironing, and garment care services', 'local_laundry_service', 'ACTIVE'),
 ('car_service', 'Car Service', 'Car washing, mechanical inspection, oil change, and doorstep detailing', 'directions_car', 'ACTIVE'),
-('cooking', 'Cooking', 'Professional domestic cooks, chefs, and catering services', 'restaurant', 'ACTIVE'),
 ('plumbing', 'Plumbing', 'Pipe repair, tap installation, leakage fix, and water motor setup', 'plumbing', 'ACTIVE'),
-('care_taker', 'Care Taker', 'Elderly care, patient care, babysitting, and domestic assistance', 'elderly', 'ACTIVE')
+('electrical', 'Electrical', 'Switchboard repair, wiring, fan installation, and appliance servicing', 'electrical_services', 'ACTIVE'),
+('cooking', 'Cooking', 'Professional domestic cooks, chefs, and catering services', 'restaurant', 'ACTIVE')
 ON CONFLICT (category_id) DO NOTHING;
 
--- 3. Insert AC Services
+-- 3. Insert Master Services Catalog
 INSERT INTO public.services (category_id, name, description, base_price, duration_minutes, status) VALUES
 ('ac_service', 'Split AC Deep Cleaning (Jet Wash)', 'Complete indoor and outdoor unit jet cleaning with anti-bacterial treatment', 499.0, 45, 'ACTIVE'),
 ('ac_service', 'AC Gas Refill (R32 / R410A / R22)', 'Complete vacuuming, leakage check, and 100% full gas recharge', 1499.0, 60, 'ACTIVE'),
 ('ac_service', 'AC Installation & Uninstallation', 'Professional standard split or window AC wall mounting and piping setup', 899.0, 90, 'ACTIVE'),
-('ac_service', 'AC Complete Diagnostic & Repair', 'In-depth troubleshooting for cooling issues, PCB faults, and noise inspection', 299.0, 30, 'ACTIVE')
+('ac_service', 'AC Complete Diagnostic & Repair', 'In-depth troubleshooting for cooling issues, PCB faults, and noise inspection', 299.0, 30, 'ACTIVE'),
+('care_taker', 'Elderly Care Assistant', 'Dedicated compassionate assistance for elderly mobility, hygiene, and companionship', 399.0, 240, 'ACTIVE'),
+('care_taker', 'Patient Caretaker', 'Post-surgery, bedridden or specialized home recovery nursing assistance', 499.0, 360, 'ACTIVE'),
+('care_taker', 'Babysitter & Childcare', 'Attentive, certified in-home babysitting and infant care service', 349.0, 180, 'ACTIVE'),
+('laundry', 'Wash & Fold Laundry', 'Everyday garment washing, fabric softening, drying, and neat folding', 99.0, 120, 'ACTIVE'),
+('laundry', 'Dry Cleaning & Steam Ironing', 'Premium care for suits, blazers, delicate silks, and formal wear', 199.0, 1440, 'ACTIVE'),
+('car_service', 'Periodic Standard Service', 'Engine oil replacement, oil filter change, air filter cleaning, 30-point inspection', 1499.0, 120, 'ACTIVE'),
+('car_service', 'Full Foam Wash & Interior Detailing', 'Deep exterior foam pressure wash, interior vacuuming, and dashboard polish', 899.0, 90, 'ACTIVE'),
+('car_service', 'AC Servicing & Gas Refill', 'Cabin air filter cleaning, evaporator coil disinfectant wash, refrigerant top-up', 1199.0, 60, 'ACTIVE'),
+('plumbing', 'Tap & Pipe Leakage Repair', 'Fix leaking faucets, showerheads, mixer taps, and pipeline joints', 249.0, 45, 'ACTIVE'),
+('plumbing', 'Toilet & Sanitaryware Installation', 'Western commode, flush tank, washbasin, and drainage line setup', 449.0, 90, 'ACTIVE'),
+('plumbing', 'Water Tank & Motor Repair', 'Submersible pump diagnosis, water inlet repair, and overhead tank piping', 499.0, 60, 'ACTIVE'),
+('electrical', 'Switchboard & Socket Repair', 'Fix sparking switches, modular socket replacement, and loose connections', 249.0, 45, 'ACTIVE'),
+('electrical', 'Ceiling Fan Installation & Repair', 'New fan assembly, downrod mounting, capacitor replacement, and speed regulator fix', 299.0, 45, 'ACTIVE'),
+('electrical', 'MCB Tripping & Short Circuit Repair', 'Fuse inspection, circuit breaker tripping diagnosis, and distribution box testing', 399.0, 60, 'ACTIVE')
 ON CONFLICT DO NOTHING;
 
 -- 4. Insert Default System Settings
