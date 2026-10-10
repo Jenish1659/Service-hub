@@ -212,6 +212,10 @@ void main() {
         const MaterialApp(
           home: ACTechnicianDetailsScreen(
             bookingId: 'bk_safety_test_01',
+            bookingData: {
+              'entrance_pin': '7429',
+              'completion_otp': '5892',
+            },
           ),
         ),
       );

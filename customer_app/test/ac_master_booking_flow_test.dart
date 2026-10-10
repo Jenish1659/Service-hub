@@ -89,7 +89,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Header & Subtitle
-    expect(find.text('Select Date'), findsOneWidget);
+    expect(find.text('Select Date *'), findsOneWidget);
     expect(find.text('Choose a convenient date'), findsOneWidget);
 
     // Verify Calendar Days of Week Header
@@ -135,7 +135,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Header & Subtitle
-    expect(find.text('Select Time'), findsOneWidget);
+    expect(find.text('Select Time *'), findsOneWidget);
     expect(find.text('Choose your preferred time'), findsOneWidget);
 
     // AM/PM Toggle
@@ -143,7 +143,7 @@ void main() {
     expect(find.text('PM'), findsOneWidget);
 
     // Selected Time card and Next button
-    expect(find.text('Selected Time'), findsOneWidget);
+    expect(find.text('Selected Time *'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
   });
 
@@ -183,9 +183,9 @@ void main() {
     expect(find.text('Tell us a few details'), findsOneWidget);
 
     // Inputs
-    expect(find.text('Full Name'), findsOneWidget);
-    expect(find.text('Phone Number'), findsOneWidget);
-    expect(find.text('Complete Address'), findsOneWidget);
+    expect(find.text('Full Name *'), findsOneWidget);
+    expect(find.text('Phone Number *'), findsOneWidget);
+    expect(find.text('Complete Address *'), findsOneWidget);
     expect(find.text('Additional Notes (Optional)'), findsOneWidget);
 
     // Continue button
@@ -360,6 +360,13 @@ void main() {
 
   testWidgets('ACBookingFlowScreen renders with multi-step stepper, issue options, and navigation buttons',
       (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(
@@ -382,13 +389,30 @@ void main() {
     expect(find.text('Daikin'), findsOneWidget);
     expect(find.text('Voltas'), findsOneWidget);
 
+    // Tap Continue without selecting -> Validation error
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(find.text('Please select an AC type.'), findsOneWidget);
+
+    // Dismiss snackbar
+    ScaffoldMessenger.of(tester.element(find.byType(Scaffold))).hideCurrentSnackBar();
+    await tester.pumpAndSettle();
+
+    // Select AC Type, Brand, and Problem Description
+    await tester.tap(find.text('Split AC'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Daikin'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'AC is not cooling and needs general servicing');
+    await tester.pumpAndSettle();
+
     // Tap Continue to Step 2
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
     expect(find.text('Select Date & Time'), findsOneWidget);
-    expect(find.text('Available Dates'), findsOneWidget);
-    expect(find.text('Preferred Time Slot'), findsOneWidget);
+    expect(find.text('Available Dates *'), findsOneWidget);
+    expect(find.text('Preferred Time Slot *'), findsOneWidget);
   });
 
   test('ACBookingFlowScreen.submitACBooking generates complete payload and broadcasts to LiveBookingSyncService', () async {

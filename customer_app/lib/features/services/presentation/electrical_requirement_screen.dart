@@ -30,8 +30,8 @@ class _ElectricalRequirementScreenState extends ConsumerState<ElectricalRequirem
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _problemController = TextEditingController();
 
-  Set<String> _selectedIssues = {'Switchboard & Socket Repair'};
-  String _selectedProperty = 'Apartment / Flat';
+  Set<String> _selectedIssues = {};
+  String? _selectedProperty;
   bool _isEmergency = false;
 
   final List<String> _issueOptions = [
@@ -101,11 +101,12 @@ class _ElectricalRequirementScreenState extends ConsumerState<ElectricalRequirem
   }
 
   void _saveDraft() {
+    if (_selectedIssues.isEmpty && _selectedProperty == null) return;
     final mainIssue = _selectedIssues.isNotEmpty ? _selectedIssues.first : 'Electrical General Repair';
     final issueNames = _selectedIssues.join(', ');
     final draft = {
       'category_id': 'electrical',
-      'service_name': issueNames,
+      'service_name': issueNames.isNotEmpty ? issueNames : 'Electrical Service',
       'issue_type': mainIssue,
       'selected_issues': _selectedIssues.toList(),
       'property_type': _selectedProperty,
@@ -119,7 +120,7 @@ class _ElectricalRequirementScreenState extends ConsumerState<ElectricalRequirem
   }
 
   double get _calculatedPrice {
-    if (_selectedIssues.isEmpty) return widget.servicePrice ?? 249.0;
+    if (_selectedIssues.isEmpty) return 0.0;
     double maxBase = 0.0;
     for (final issue in _selectedIssues) {
       final p = _issueBasePrices[issue] ?? 249.0;
@@ -170,7 +171,12 @@ class _ElectricalRequirementScreenState extends ConsumerState<ElectricalRequirem
     }
 
     if (_selectedIssues.isEmpty) {
-      _showWarningSnackBar('Please select at least one electrical issue.');
+      _showWarningSnackBar('Please select at least one electrical issue *');
+      return;
+    }
+
+    if (_selectedProperty == null) {
+      _showWarningSnackBar('Please select property type *');
       return;
     }
 
@@ -300,7 +306,7 @@ class _ElectricalRequirementScreenState extends ConsumerState<ElectricalRequirem
 
                     // Issue Types (Checkboxes for multiple issues)
                     const Text(
-                      'Select Electrical Issue(s)',
+                      'Select Electrical Issue(s) *',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 4),
@@ -316,9 +322,7 @@ class _ElectricalRequirementScreenState extends ConsumerState<ElectricalRequirem
                         onTap: () {
                           setState(() {
                             if (isSelected) {
-                              if (_selectedIssues.length > 1) {
-                                _selectedIssues.remove(issue);
-                              }
+                              _selectedIssues.remove(issue);
                             } else {
                               _selectedIssues.add(issue);
                             }
@@ -380,7 +384,7 @@ class _ElectricalRequirementScreenState extends ConsumerState<ElectricalRequirem
 
                     // Property Type
                     const Text(
-                      'Property Type',
+                      'Property Type *',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 10),
@@ -513,9 +517,11 @@ class _ElectricalRequirementScreenState extends ConsumerState<ElectricalRequirem
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Upload Photos (Optional)',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                        const Expanded(
+                          child: Text(
+                            'Upload Photos (Optional)',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                          ),
                         ),
                         TextButton.icon(
                           onPressed: _pickPhoto,
@@ -555,35 +561,41 @@ class _ElectricalRequirementScreenState extends ConsumerState<ElectricalRequirem
                   BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, -4)),
                 ],
               ),
-              child: Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Estimated Cost', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                      Text(
-                        '₹${_calculatedPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: SizedBox(
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _handleContinue,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3B49DF),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Estimated Cost', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        Text(
+                          _calculatedPrice > 0 ? '₹${_calculatedPrice.toStringAsFixed(0)}' : '₹0',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
                         ),
-                        child: const Text('Select Service Date', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ],
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _handleContinue,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3B49DF),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Select Service Date', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

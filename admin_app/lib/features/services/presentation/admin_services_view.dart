@@ -41,10 +41,10 @@ class _AdminServicesViewState extends State<AdminServicesView> {
 
   void _showAddServiceModal() {
     final nameController = TextEditingController();
-    final priceController = TextEditingController(text: '499');
-    final durationController = TextEditingController(text: '60');
+    final priceController = TextEditingController();
+    final durationController = TextEditingController();
     final descController = TextEditingController();
-    String selectedCategory = 'ac_service';
+    String? selectedCategory;
 
     final categories = [
       {'id': 'ac_service', 'label': 'AC Service'},
@@ -68,7 +68,7 @@ class _AdminServicesViewState extends State<AdminServicesView> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Service Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const Text('Service Name *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: nameController,
@@ -78,10 +78,11 @@ class _AdminServicesViewState extends State<AdminServicesView> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text('Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const Text('Category *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<String>(
                     initialValue: selectedCategory,
+                    hint: const Text('Select a service category *'),
                     items: categories.map((cat) {
                       return DropdownMenuItem<String>(
                         value: cat['id'],
@@ -104,12 +105,15 @@ class _AdminServicesViewState extends State<AdminServicesView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Base Price (₹)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            const Text('Base Price (₹) *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             const SizedBox(height: 6),
                             TextField(
                               controller: priceController,
                               keyboardType: TextInputType.number,
-                              decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+                              decoration: InputDecoration(
+                                hintText: '0.00',
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
                             ),
                           ],
                         ),
@@ -119,12 +123,15 @@ class _AdminServicesViewState extends State<AdminServicesView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Duration (mins)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            const Text('Duration (mins) *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             const SizedBox(height: 6),
                             TextField(
                               controller: durationController,
                               keyboardType: TextInputType.number,
-                              decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+                              decoration: InputDecoration(
+                                hintText: '0',
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
                             ),
                           ],
                         ),
@@ -132,7 +139,7 @@ class _AdminServicesViewState extends State<AdminServicesView> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  const Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const Text('Description (Optional)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: descController,
@@ -156,11 +163,29 @@ class _AdminServicesViewState extends State<AdminServicesView> {
               ),
               onPressed: () async {
                 final name = nameController.text.trim();
-                final price = double.tryParse(priceController.text.trim()) ?? 0.0;
-                final duration = int.tryParse(durationController.text.trim()) ?? 60;
                 if (name.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter a service name.')),
+                    const SnackBar(content: Text('Please enter a service name *'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                if (selectedCategory == null || selectedCategory!.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please select a service category *'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                final price = double.tryParse(priceController.text.trim());
+                if (price == null || price <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a valid base price *'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                final duration = int.tryParse(durationController.text.trim());
+                if (duration == null || duration <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a valid duration in minutes *'), backgroundColor: Colors.red),
                   );
                   return;
                 }
@@ -218,14 +243,14 @@ class _AdminServicesViewState extends State<AdminServicesView> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Service Name:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const Text('Service Name *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 6),
               TextField(
                 controller: nameController,
                 decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
               ),
               const SizedBox(height: 14),
-              const Text('Base Price (₹):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const Text('Base Price (₹) *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 6),
               TextField(
                 controller: priceController,
@@ -243,9 +268,22 @@ class _AdminServicesViewState extends State<AdminServicesView> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
             onPressed: () async {
-              Navigator.pop(ctx);
-              final newPrice = double.tryParse(priceController.text) ?? basePrice;
               final newName = nameController.text.trim();
+              if (newName.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Service name cannot be empty *'), backgroundColor: Colors.red),
+                );
+                return;
+              }
+              final newPrice = double.tryParse(priceController.text.trim());
+              if (newPrice == null || newPrice <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a valid base price *'), backgroundColor: Colors.red),
+                );
+                return;
+              }
+
+              Navigator.pop(ctx);
 
               try {
                 final client = Supabase.instance.client;

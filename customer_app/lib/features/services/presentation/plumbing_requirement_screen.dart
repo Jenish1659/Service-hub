@@ -30,8 +30,8 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _problemController = TextEditingController();
 
-  Set<String> _selectedIssues = {'Tap / Faucet & Shower Leakage'};
-  String _selectedProperty = 'Apartment / Flat';
+  Set<String> _selectedIssues = {};
+  String? _selectedProperty;
   bool _isEmergency = false;
 
   final List<String> _issueOptions = [
@@ -101,11 +101,12 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
   }
 
   void _saveDraft() {
+    if (_selectedIssues.isEmpty && _selectedProperty == null) return;
     final mainIssue = _selectedIssues.isNotEmpty ? _selectedIssues.first : 'Plumbing General Repair';
     final issueNames = _selectedIssues.join(', ');
     final draft = {
       'category_id': 'plumbing',
-      'service_name': issueNames,
+      'service_name': issueNames.isNotEmpty ? issueNames : 'Plumbing Service',
       'issue_type': mainIssue,
       'selected_issues': _selectedIssues.toList(),
       'property_type': _selectedProperty,
@@ -119,13 +120,10 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
   }
 
   double get _calculatedPrice {
+    if (_selectedIssues.isEmpty) return 0.0;
     double base = 0.0;
-    if (_selectedIssues.isEmpty) {
-      base = widget.servicePrice ?? 249.0;
-    } else {
-      for (final issue in _selectedIssues) {
-        base += _issueBasePrices[issue] ?? 249.0;
-      }
+    for (final issue in _selectedIssues) {
+      base += _issueBasePrices[issue] ?? 249.0;
     }
     if (_isEmergency) base += 100.0;
     return base;
@@ -162,11 +160,6 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
   }
 
   void _handleContinue() async {
-    if (_selectedIssues.isEmpty) {
-      _showWarningSnackBar('Please select at least one plumbing issue.');
-      return;
-    }
-
     final problemDesc = _problemController.text.trim();
     if (problemDesc.isNotEmpty && problemDesc.length < 10) {
       setState(() => _hasError = true);
@@ -174,15 +167,23 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
       return;
     }
 
-    if (_uploadedPhotos.isEmpty) {
-      _showWarningSnackBar('Please upload at least one image of the issue.');
+    if (_selectedIssues.isEmpty) {
+      _showWarningSnackBar('Please select at least one plumbing issue *');
       return;
     }
 
-    final photoUrls = await MultiServiceBookingService.instance.uploadPhotos(
-      _uploadedPhotos,
-      prefix: 'plumbing',
-    );
+    if (_selectedProperty == null) {
+      _showWarningSnackBar('Please select a property type *');
+      return;
+    }
+
+    List<String> photoUrls = [];
+    if (_uploadedPhotos.isNotEmpty) {
+      photoUrls = await MultiServiceBookingService.instance.uploadPhotos(
+        _uploadedPhotos,
+        prefix: 'plumbing',
+      );
+    }
 
     final mainIssue = _selectedIssues.first;
     final issueNames = _selectedIssues.join(', ');
@@ -255,7 +256,7 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
                   children: [
                     // Issue Selection (Checkboxes)
                     const Text(
-                      'Select Plumbing Issue',
+                      'Select Plumbing Issue(s) *',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 10),
@@ -266,11 +267,7 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
                         onTap: () {
                           setState(() {
                             if (isSelected) {
-                              if (_selectedIssues.length > 1) {
-                                _selectedIssues.remove(issue);
-                              } else {
-                                _showWarningSnackBar('At least one issue must be selected.');
-                              }
+                              _selectedIssues.remove(issue);
                             } else {
                               _selectedIssues.add(issue);
                             }
@@ -323,7 +320,7 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
 
                     // Property Type
                     const Text(
-                      'Property Type',
+                      'Property Type *',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 8),
@@ -489,7 +486,7 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
                     children: [
                       const Text('Estimated Cost', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                       Text(
-                        '₹${_calculatedPrice.toStringAsFixed(0)}',
+                        _calculatedPrice > 0 ? '₹${_calculatedPrice.toStringAsFixed(0)}' : '₹0',
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
                       ),
                     ],

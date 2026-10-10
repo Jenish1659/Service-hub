@@ -26,13 +26,13 @@ class ACBookingConfirmedScreen extends ConsumerWidget {
     required this.selectedTime,
     required this.serviceTitle,
     required this.address,
-    this.partnerCount = 3,
-    this.visitingCharge = 449.0,
-    this.protectionFee = 49.0,
+    this.partnerCount = 1,
+    this.visitingCharge = 0.0,
+    this.protectionFee = 0.0,
     this.couponDiscount = 0.0,
     this.couponCode,
     this.walletDeduction = 0.0,
-    this.finalPayable = 498.0,
+    this.finalPayable = 0.0,
     this.isFutureDate = false,
   });
 

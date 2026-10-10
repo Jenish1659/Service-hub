@@ -57,32 +57,22 @@ class _ACDateTimeSelectionScreenState extends ConsumerState<ACDateTimeSelectionS
         if (cached != null) {
           _activeIssueDetails = Map<String, dynamic>.from(cached);
         } else {
-          _activeIssueDetails = {
-            'service_name': 'AC Service & Repair',
-            'ac_type': 'Split AC',
-            'ac_brand': 'Voltas',
-            'problem_description': 'AC cooling diagnostic and general maintenance service',
-          };
+          _activeIssueDetails = {};
         }
       } catch (_) {
-        _activeIssueDetails = {
-          'service_name': 'AC Service & Repair',
-          'ac_type': 'Split AC',
-          'ac_brand': 'Voltas',
-          'problem_description': 'AC cooling diagnostic and general maintenance service',
-        };
+        _activeIssueDetails = {};
       }
     }
 
     // 2. Compute the strict 3 available pre-booking dates (D+1, D+2, D+3; excluding Today D)
     _availableDates = ACAvailabilityService.instance.getNext3BookingDates();
-    if (_availableDates.isNotEmpty) {
-      _selectedDate = _availableDates.first;
-    }
+    _selectedDate = null; // Must start with NO date selected
 
     // 3. Query real active partner count & slots for the first date
     _activePartnersCount = await ACAvailabilityService.instance.getActiveACPartnersCount();
-    await _loadSlotsForDate(_selectedDate!.date);
+    if (_availableDates.isNotEmpty) {
+      await _loadSlotsForDate(_availableDates.first.date);
+    }
   }
 
   Future<void> _loadSlotsForDate(DateTime date) async {
@@ -97,16 +87,7 @@ class _ACDateTimeSelectionScreenState extends ConsumerState<ACDateTimeSelectionS
       setState(() {
         _categorizedSlots = slots;
         _isLoadingSlots = false;
-
-        // Auto-select first available slot if available
-        for (var slotList in slots.values) {
-          for (var slot in slotList) {
-            if (slot.isAvailable) {
-              _selectedTime = slot.time;
-              return;
-            }
-          }
-        }
+        _selectedTime = null; // No automatic selection - user must explicitly tap
       });
     }
   }
@@ -168,21 +149,29 @@ class _ACDateTimeSelectionScreenState extends ConsumerState<ACDateTimeSelectionS
 
     // 3. Dispatch live booking request to ServiceHub backend & partners
     String userId = 'cust_${DateTime.now().millisecondsSinceEpoch}';
-    String userName = 'Jenish Bheda';
-    String userPhone = '+91 98765 43210';
+    String userName = '';
+    String userPhone = '';
     try {
       final client = Supabase.instance.client;
       final user = client.auth.currentUser;
       if (user != null) {
         userId = user.id;
-        userName = user.userMetadata?['name'] as String? ?? user.email?.split('@').first ?? 'Jenish Bheda';
-        userPhone = user.phone ?? '+91 98765 43210';
+        userName = user.userMetadata?['name'] as String? ?? user.email?.split('@').first ?? '';
+        userPhone = user.phone ?? '';
       }
     } catch (_) {}
 
+    if (userName.isEmpty) {
+      try {
+        final box = Hive.box('customer_cache');
+        userName = box.get('user_name') as String? ?? '';
+        userPhone = box.get('user_phone') as String? ?? '';
+      } catch (_) {}
+    }
+
     final locState = ref.read(locationProvider);
     final activeLocation = locState.selectedLocation ?? locState.currentLocation;
-    final serviceAddress = activeLocation?.address ?? 'Selected Service Location, Jamnagar';
+    final serviceAddress = activeLocation?.address ?? '';
     final serviceLat = activeLocation?.latitude ?? 22.4707;
     final serviceLng = activeLocation?.longitude ?? 70.0577;
     final serviceName = _activeIssueDetails['service_name'] ?? 'AC Service & Repair';
@@ -525,7 +514,7 @@ class _ACDateTimeSelectionScreenState extends ConsumerState<ACDateTimeSelectionS
                       Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF3B49DF)),
                       SizedBox(width: 8),
                       Text(
-                        '1. Select Date',
+                        '1. Select Date *',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -644,7 +633,7 @@ class _ACDateTimeSelectionScreenState extends ConsumerState<ACDateTimeSelectionS
                           Icon(Icons.format_list_bulleted_rounded, size: 18, color: Color(0xFF3B49DF)),
                           SizedBox(width: 8),
                           Text(
-                            '2. Select Time',
+                            '2. Select Time *',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,

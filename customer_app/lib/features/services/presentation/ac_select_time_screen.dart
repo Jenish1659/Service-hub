@@ -27,6 +27,7 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
   int _selectedMinute = 0; // 0..55 (steps of 5)
   bool _isSelectingHours = true; // true = Hours clock, false = Minutes clock
   bool _isCheckingAvailability = false;
+  bool _hasSelectedTime = false;
 
   @override
   void initState() {
@@ -60,6 +61,7 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
   }
 
   String get _formattedTime {
+    if (!_hasSelectedTime) return 'No time selected';
     final hStr = _selectedHour.toString().padLeft(2, '0');
     final mStr = _selectedMinute.toString().padLeft(2, '0');
     final period = _isPm ? 'PM' : 'AM';
@@ -81,6 +83,17 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
             ),
           ],
         ),
+        backgroundColor: const Color(0xFFDC2626),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  void _showWarningSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
         backgroundColor: const Color(0xFFDC2626),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -147,6 +160,11 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
   }
 
   void _handleNext() async {
+    if (!_hasSelectedTime) {
+      _showWarningSnackBar('Please select a service time *');
+      return;
+    }
+
     final now = DateTime.now();
     final isToday = widget.selectedDate.date.year == now.year &&
         widget.selectedDate.date.month == now.month &&
@@ -273,7 +291,7 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'Select Time',
+                        'Select Time *',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
@@ -334,7 +352,7 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
-                                    hStr,
+                                    _hasSelectedTime ? hStr : '--',
                                     style: TextStyle(
                                       fontSize: 22,
                                       fontWeight: FontWeight.w800,
@@ -369,7 +387,7 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
-                                    mStr,
+                                    _hasSelectedTime ? mStr : '--',
                                     style: TextStyle(
                                       fontSize: 22,
                                       fontWeight: FontWeight.w800,
@@ -392,11 +410,17 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                _buildAmPmButton('AM', !_isPm, () {
-                                  setState(() => _isPm = false);
+                                _buildAmPmButton('AM', (_hasSelectedTime && !_isPm), () {
+                                  setState(() {
+                                    _isPm = false;
+                                    _hasSelectedTime = true;
+                                  });
                                 }),
-                                _buildAmPmButton('PM', _isPm, () {
-                                  setState(() => _isPm = true);
+                                _buildAmPmButton('PM', (_hasSelectedTime && _isPm), () {
+                                  setState(() {
+                                    _isPm = true;
+                                    _hasSelectedTime = true;
+                                  });
                                 }),
                               ],
                             ),
@@ -467,7 +491,7 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
                               final x = radius * math.cos(angle);
                               final y = radius * math.sin(angle);
 
-                              final isSelected = _selectedHour == hour;
+                              final isSelected = _hasSelectedTime && _selectedHour == hour;
 
                               return Transform.translate(
                                 offset: Offset(x, y),
@@ -475,6 +499,7 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
                                   onTap: () {
                                     setState(() {
                                       _selectedHour = hour;
+                                      _hasSelectedTime = true;
                                       // After selecting hour, automatically show the minutes clock!
                                       _isSelectingHours = false;
                                     });
@@ -516,7 +541,7 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
                               final x = radius * math.cos(angle);
                               final y = radius * math.sin(angle);
 
-                              final isSelected = _selectedMinute == minute;
+                              final isSelected = _hasSelectedTime && _selectedMinute == minute;
                               final minStr = minute.toString().padLeft(2, '0');
 
                               return Transform.translate(
@@ -525,6 +550,7 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
                                   onTap: () {
                                     setState(() {
                                       _selectedMinute = minute;
+                                      _hasSelectedTime = true;
                                     });
                                   },
                                   child: Container(
@@ -595,16 +621,16 @@ class _ACSelectTimeScreenState extends ConsumerState<ACSelectTimeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Selected Time',
+                                'Selected Time *',
                                 style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '$hStr:$mStr $period',
-                                style: const TextStyle(
+                                _hasSelectedTime ? '$hStr:$mStr $period' : 'Please select a time *',
+                                style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0F172A),
+                                  color: _hasSelectedTime ? const Color(0xFF0F172A) : const Color(0xFFDC2626),
                                 ),
                               ),
                             ],

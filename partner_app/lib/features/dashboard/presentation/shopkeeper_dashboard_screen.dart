@@ -461,9 +461,9 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     final nameCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
     final mrpCtrl = TextEditingController();
-    final stockCtrl = TextEditingController(text: '10');
+    final stockCtrl = TextEditingController();
     final skuCtrl = TextEditingController();
-    String selectedCat = 'AC Service Parts';
+    String? selectedCat;
 
     showModalBottomSheet(
       context: context,
@@ -530,6 +530,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
                       initialValue: selectedCat,
+                      hint: const Text('Select a product category *'),
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
@@ -564,7 +565,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
                                   prefixText: '₹ ',
-                                  hintText: '450',
+                                  hintText: '0.00',
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
@@ -580,14 +581,14 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('MRP (₹)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                              const Text('MRP (₹) (Optional)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
                               const SizedBox(height: 6),
                               TextField(
                                 controller: mrpCtrl,
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
                                   prefixText: '₹ ',
-                                  hintText: '599',
+                                  hintText: '0.00',
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
@@ -615,7 +616,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                                 controller: stockCtrl,
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
-                                  hintText: '10',
+                                  hintText: '0',
                                   suffixText: 'units',
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
@@ -632,12 +633,12 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('SKU / Code', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                              const Text('SKU / Code (Optional)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
                               const SizedBox(height: 6),
                               TextField(
                                 controller: skuCtrl,
                                 decoration: InputDecoration(
-                                  hintText: 'SH-AC-990',
+                                  hintText: 'e.g. SKU-101',
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
@@ -665,16 +666,33 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                         label: const Text('Save & Publish to Store Catalog', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         onPressed: () {
                           final title = nameCtrl.text.trim();
-                          final price = double.tryParse(priceCtrl.text.trim()) ?? 350.0;
-                          final stock = int.tryParse(stockCtrl.text.trim()) ?? 10;
-                          final sku = skuCtrl.text.trim().isNotEmpty ? skuCtrl.text.trim() : 'SH-SKU-${DateTime.now().millisecond}';
-
                           if (title.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter a product title'), backgroundColor: Colors.red),
+                              const SnackBar(content: Text('Please enter a product title *'), backgroundColor: Colors.red),
                             );
                             return;
                           }
+                          if (selectedCat == null || selectedCat!.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please select a product category *'), backgroundColor: Colors.red),
+                            );
+                            return;
+                          }
+                          final price = double.tryParse(priceCtrl.text.trim());
+                          if (price == null || price <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter a valid selling price *'), backgroundColor: Colors.red),
+                            );
+                            return;
+                          }
+                          final stock = int.tryParse(stockCtrl.text.trim());
+                          if (stock == null || stock <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter available stock quantity *'), backgroundColor: Colors.red),
+                            );
+                            return;
+                          }
+                          final sku = skuCtrl.text.trim().isNotEmpty ? skuCtrl.text.trim() : 'SH-SKU-${DateTime.now().millisecondsSinceEpoch}';
 
                           setState(() {
                             _catalogProducts.insert(0, {

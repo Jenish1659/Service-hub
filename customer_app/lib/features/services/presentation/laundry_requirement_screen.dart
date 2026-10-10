@@ -27,8 +27,8 @@ class _LaundryRequirementScreenState extends ConsumerState<LaundryRequirementScr
   final ImagePicker _picker = ImagePicker();
   final TextEditingController _instructionsController = TextEditingController();
 
-  String _selectedMode = 'Wash & Steam Iron';
-  String _selectedDeliverySpeed = 'Standard (48 Hours)';
+  String? _selectedMode;
+  String? _selectedDeliverySpeed;
   bool _handleDelicates = false;
   bool _stainTreatment = false;
   bool _addStarch = false;
@@ -36,8 +36,8 @@ class _LaundryRequirementScreenState extends ConsumerState<LaundryRequirementScr
 
   // Garment Item Quantities & Unit Prices
   final Map<String, int> _itemCounts = {
-    'Shirts / Tops': 2,
-    'Trousers / Jeans': 2,
+    'Shirts / Tops': 0,
+    'Trousers / Jeans': 0,
     'Sarees / Dresses': 0,
     'Bedsheets / Linens': 0,
     'Heavy Coats / Blankets': 0,
@@ -106,9 +106,10 @@ class _LaundryRequirementScreenState extends ConsumerState<LaundryRequirementScr
   }
 
   void _saveDraft() {
+    if (_totalItems == 0 && _selectedMode == null) return;
     final draft = {
       'category_id': 'laundry',
-      'service_name': _selectedMode,
+      'service_name': _selectedMode ?? 'Laundry Service',
       'service_mode': _selectedMode,
       'delivery_speed': _selectedDeliverySpeed,
       'handle_delicates': _handleDelicates,
@@ -127,13 +128,14 @@ class _LaundryRequirementScreenState extends ConsumerState<LaundryRequirementScr
   int get _totalItems => _itemCounts.values.fold(0, (sum, count) => sum + count);
 
   double get _calculatedPrice {
+    if (_totalItems == 0) return 0.0;
     double itemSum = 0.0;
     _itemCounts.forEach((k, v) {
       itemSum += (v * (_unitPrices[k] ?? 25.0));
     });
     if (_stainTreatment) itemSum += 50.0;
-    if (_selectedDeliverySpeed.contains('Express')) itemSum += 100.0;
-    return itemSum > 0 ? itemSum : (widget.servicePrice ?? 199.0);
+    if (_selectedDeliverySpeed != null && _selectedDeliverySpeed!.contains('Express')) itemSum += 100.0;
+    return itemSum;
   }
 
   @override
@@ -167,15 +169,23 @@ class _LaundryRequirementScreenState extends ConsumerState<LaundryRequirementScr
   }
 
   void _handleContinue() async {
-    if (_totalItems < 1) {
-      _showWarningSnackBar('Please add at least 1 garment item to proceed.');
-      return;
-    }
-
     final instructions = _instructionsController.text.trim();
     if (instructions.isNotEmpty && instructions.length < 10) {
       setState(() => _hasError = true);
       _showWarningSnackBar('Special instructions must be at least 10 characters.');
+      return;
+    }
+
+    if (_selectedMode == null) {
+      _showWarningSnackBar('Please select a laundry service type *');
+      return;
+    }
+    if (_totalItems < 1) {
+      _showWarningSnackBar('Please add at least 1 garment item to proceed *');
+      return;
+    }
+    if (_selectedDeliverySpeed == null) {
+      _showWarningSnackBar('Please select a delivery speed *');
       return;
     }
 
@@ -276,7 +286,7 @@ class _LaundryRequirementScreenState extends ConsumerState<LaundryRequirementScr
                     const SizedBox(height: 20),
 
                     // Service Mode Selector
-                    const Text('Service Type', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    const Text('Service Type *', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -288,6 +298,7 @@ class _LaundryRequirementScreenState extends ConsumerState<LaundryRequirementScr
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedMode,
+                          hint: const Text('Select Laundry Service Type *', style: TextStyle(fontSize: 14, color: Color(0xFF94A3B8))),
                           isExpanded: true,
                           icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
                           items: _serviceModes.map((mode) {
@@ -434,7 +445,7 @@ class _LaundryRequirementScreenState extends ConsumerState<LaundryRequirementScr
                     const SizedBox(height: 22),
 
                     // Delivery Turnaround
-                    const Text('Delivery Timeline', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    const Text('Delivery Timeline *', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                     const SizedBox(height: 10),
                     Row(
                       children: [
@@ -447,10 +458,10 @@ class _LaundryRequirementScreenState extends ConsumerState<LaundryRequirementScr
                             child: Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: _selectedDeliverySpeed.contains('Standard') ? const Color(0xFFEEF2FF) : Colors.white,
+                                color: _selectedDeliverySpeed != null && _selectedDeliverySpeed!.contains('Standard') ? const Color(0xFFEEF2FF) : Colors.white,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: _selectedDeliverySpeed.contains('Standard') ? const Color(0xFF3B49DF) : const Color(0xFFE2E8F0),
+                                  color: _selectedDeliverySpeed != null && _selectedDeliverySpeed!.contains('Standard') ? const Color(0xFF3B49DF) : const Color(0xFFE2E8F0),
                                 ),
                               ),
                               child: const Column(
@@ -474,10 +485,10 @@ class _LaundryRequirementScreenState extends ConsumerState<LaundryRequirementScr
                             child: Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: _selectedDeliverySpeed.contains('Express') ? const Color(0xFFEEF2FF) : Colors.white,
+                                color: _selectedDeliverySpeed != null && _selectedDeliverySpeed!.contains('Express') ? const Color(0xFFEEF2FF) : Colors.white,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: _selectedDeliverySpeed.contains('Express') ? const Color(0xFF3B49DF) : const Color(0xFFE2E8F0),
+                                  color: _selectedDeliverySpeed != null && _selectedDeliverySpeed!.contains('Express') ? const Color(0xFF3B49DF) : const Color(0xFFE2E8F0),
                                 ),
                               ),
                               child: const Column(
@@ -583,7 +594,7 @@ class _LaundryRequirementScreenState extends ConsumerState<LaundryRequirementScr
                     children: [
                       const Text('Estimated Cost', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                       Text(
-                        '₹${_calculatedPrice.toStringAsFixed(0)}',
+                        _calculatedPrice > 0 ? '₹${_calculatedPrice.toStringAsFixed(0)}' : '₹0',
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
                       ),
                     ],

@@ -63,11 +63,11 @@ void main() {
     expect(find.text('Time Zone'), findsOneWidget);
 
     // Verify 1. Select Date section with Tomorrow as first option
-    expect(find.text('1. Select Date'), findsOneWidget);
+    expect(find.text('1. Select Date *'), findsOneWidget);
     expect(find.text('Tomorrow'), findsOneWidget);
 
     // Verify 2. Select Time section with Morning, Afternoon, Evening periods
-    expect(find.text('2. Select Time'), findsOneWidget);
+    expect(find.text('2. Select Time *'), findsOneWidget);
     expect(find.text('Morning'), findsOneWidget);
     expect(find.text('Afternoon'), findsOneWidget);
     expect(find.text('Evening'), findsOneWidget);

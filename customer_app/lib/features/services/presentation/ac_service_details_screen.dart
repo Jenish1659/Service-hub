@@ -110,15 +110,15 @@ class _ACServiceDetailsScreenState extends ConsumerState<ACServiceDetailsScreen>
     final notes = _notesController.text.trim();
 
     if (name.isEmpty) {
-      _showWarningSnackBar('Please enter your full name.');
+      _showWarningSnackBar('Please enter your full name *.');
       return;
     }
     if (phone.isEmpty) {
-      _showWarningSnackBar('Please enter your contact phone number.');
+      _showWarningSnackBar('Please enter your contact phone number *.');
       return;
     }
     if (address.isEmpty) {
-      _showWarningSnackBar('Please enter your complete address.');
+      _showWarningSnackBar('Please enter your complete address *.');
       return;
     }
 
@@ -230,7 +230,7 @@ class _ACServiceDetailsScreenState extends ConsumerState<ACServiceDetailsScreen>
               // Full Name Card
               _buildInputField(
                 controller: _nameController,
-                label: 'Full Name',
+                label: 'Full Name *',
                 hintText: 'Enter your full name',
                 icon: Icons.person_outline_rounded,
                 keyboardType: TextInputType.name,
@@ -241,8 +241,8 @@ class _ACServiceDetailsScreenState extends ConsumerState<ACServiceDetailsScreen>
               // Phone Number Card
               _buildInputField(
                 controller: _phoneController,
-                label: 'Phone Number',
-                hintText: '+91 98765 43210',
+                label: 'Phone Number *',
+                hintText: 'Enter 10-digit phone number',
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
               ),
@@ -252,7 +252,7 @@ class _ACServiceDetailsScreenState extends ConsumerState<ACServiceDetailsScreen>
               // Complete Address Card
               _buildInputField(
                 controller: _addressController,
-                label: 'Complete Address',
+                label: 'Complete Address *',
                 hintText: 'Enter complete service address',
                 icon: Icons.location_on_outlined,
                 maxLines: 2,

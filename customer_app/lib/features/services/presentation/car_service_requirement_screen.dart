@@ -29,10 +29,10 @@ class _CarServiceRequirementScreenState extends ConsumerState<CarServiceRequirem
   final TextEditingController _modelController = TextEditingController();
   final TextEditingController _problemController = TextEditingController();
 
-  String _selectedVehicleType = 'Hatchback';
-  String _selectedBrand = 'Maruti Suzuki';
-  String _selectedFuelType = 'Petrol';
-  String _selectedPackage = 'Periodic Standard Service';
+  String? _selectedVehicleType;
+  String? _selectedBrand;
+  String? _selectedFuelType;
+  String? _selectedPackage;
 
   final List<String> _vehicleTypes = ['Hatchback', 'Sedan', 'Compact SUV', 'Full SUV / Luxury'];
   final List<String> _brands = [
@@ -118,9 +118,10 @@ class _CarServiceRequirementScreenState extends ConsumerState<CarServiceRequirem
   }
 
   void _saveDraft() {
+    if (_selectedPackage == null && _selectedVehicleType == null) return;
     final draft = {
       'category_id': 'car_service',
-      'service_name': _selectedPackage,
+      'service_name': _selectedPackage ?? 'Car Service & Repair',
       'vehicle_type': _selectedVehicleType,
       'brand': _selectedBrand,
       'model': _modelController.text.trim(),
@@ -136,7 +137,8 @@ class _CarServiceRequirementScreenState extends ConsumerState<CarServiceRequirem
   }
 
   double get _calculatedPrice {
-    final base = _packageBasePrices[_selectedPackage] ?? (widget.servicePrice ?? 799.0);
+    if (_selectedPackage == null) return 0.0;
+    final base = _packageBasePrices[_selectedPackage] ?? 0.0;
     final mult = _vehicleMultipliers[_selectedVehicleType] ?? 1.0;
     return (base * mult).roundToDouble();
   }
@@ -177,6 +179,19 @@ class _CarServiceRequirementScreenState extends ConsumerState<CarServiceRequirem
     if (problemDesc.isNotEmpty && problemDesc.length < 10) {
       setState(() => _hasError = true);
       _showWarningSnackBar('Problem description must be at least 10 characters.');
+      return;
+    }
+
+    if (_selectedVehicleType == null) {
+      _showWarningSnackBar('Please select a vehicle type *');
+      return;
+    }
+    if (_selectedBrand == null) {
+      _showWarningSnackBar('Please select your car brand *');
+      return;
+    }
+    if (_selectedPackage == null) {
+      _showWarningSnackBar('Please select a service package *');
       return;
     }
 
@@ -259,7 +274,7 @@ class _CarServiceRequirementScreenState extends ConsumerState<CarServiceRequirem
                   children: [
                     // Vehicle Type Header
                     const Text(
-                      'Select Vehicle Type',
+                      'Select Vehicle Type *',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 10),
@@ -322,10 +337,11 @@ class _CarServiceRequirementScreenState extends ConsumerState<CarServiceRequirem
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Brand / Manufacturer', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                          const Text('Brand / Manufacturer *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
                             initialValue: _selectedBrand,
+                            hint: const Text('Select Car Brand *', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
                             decoration: InputDecoration(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
@@ -352,7 +368,7 @@ class _CarServiceRequirementScreenState extends ConsumerState<CarServiceRequirem
                             onChanged: (_) => _saveDraft(),
                           ),
                           const SizedBox(height: 14),
-                          const Text('Fuel Type', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                          const Text('Fuel Type (Optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
@@ -384,7 +400,7 @@ class _CarServiceRequirementScreenState extends ConsumerState<CarServiceRequirem
 
                     // Service Package Selection
                     const Text(
-                      'Choose Service Package',
+                      'Choose Service Package *',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 10),
@@ -588,7 +604,7 @@ class _CarServiceRequirementScreenState extends ConsumerState<CarServiceRequirem
                     children: [
                       const Text('Estimated Cost', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                       Text(
-                        '₹${_calculatedPrice.toStringAsFixed(0)}',
+                        _calculatedPrice > 0 ? '₹${_calculatedPrice.toStringAsFixed(0)}' : '₹0',
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
                       ),
                     ],

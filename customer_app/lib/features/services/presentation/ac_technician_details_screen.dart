@@ -38,18 +38,18 @@ class ACTechnicianDetailsScreen extends StatefulWidget {
 
 class _ACTechnicianDetailsScreenState extends State<ACTechnicianDetailsScreen> {
   String? _partnerId;
-  String _technicianName = 'Jenish Bheda';
-  String _technicianPhone = '+91 6359726320';
-  String _rating = '4.8';
-  String _reviewCount = '320';
-  String _experience = '3';
+  String _technicianName = 'Certified Technician';
+  String _technicianPhone = '';
+  String _rating = '0.0';
+  String _reviewCount = '0';
+  String _experience = '0';
   String _specialty = 'AC Specialist';
-  String _vehicleNumber = 'GJ 10 BD 0933';
-  String _vehicleModel = 'Honda Activa 6G';
-  String _vehicleType = 'Scooter';
-  String _about = 'Certified AC Maintenance & Deep Cleaning Technician with 3+ years experience.';
-  String _entrancePin = '7429';
-  String _completionOtp = '5892';
+  String _vehicleNumber = '';
+  String _vehicleModel = '';
+  String _vehicleType = '';
+  String _about = '';
+  String _entrancePin = '';
+  String _completionOtp = '';
 
   late String _dateFormatted;
   late String _timeFormatted;
@@ -76,13 +76,13 @@ class _ACTechnicianDetailsScreenState extends State<ACTechnicianDetailsScreen> {
         _dateFormatted = widget.selectedDateFormatted!;
       }
     } else {
-      _dateFormatted = DateFormat('EEE, d MMM yyyy').format(DateTime.now());
+      _dateFormatted = '';
     }
 
     // Determine booking time
     _timeFormatted = (widget.selectedTime != null && widget.selectedTime!.isNotEmpty)
         ? widget.selectedTime!
-        : '01:20 PM';
+        : '';
   }
 
   Future<void> _initializeData() async {
@@ -108,12 +108,12 @@ class _ACTechnicianDetailsScreenState extends State<ACTechnicianDetailsScreen> {
       _technicianPhone = data['phone'].toString();
     }
     if (data['rating'] != null) {
-      final r = double.tryParse(data['rating'].toString()) ?? 4.8;
-      _rating = r > 0 ? r.toStringAsFixed(1) : '4.8';
+      final r = double.tryParse(data['rating'].toString()) ?? 0.0;
+      _rating = r > 0 ? r.toStringAsFixed(1) : '0.0';
     }
     if (data['total_jobs'] != null) {
-      final j = int.tryParse(data['total_jobs'].toString()) ?? 320;
-      _reviewCount = j > 0 ? j.toString() : '320';
+      final j = int.tryParse(data['total_jobs'].toString()) ?? 0;
+      _reviewCount = j.toString();
     }
     if (data['experience_years'] != null) {
       _experience = data['experience_years'].toString();

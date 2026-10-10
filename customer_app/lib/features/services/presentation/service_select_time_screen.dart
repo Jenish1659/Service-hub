@@ -29,6 +29,7 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
   int _selectedMinute = 0; // 0..55 (steps of 5)
   bool _isSelectingHours = true; // true = Hours clock, false = Minutes clock
   bool _isCheckingAvailability = false;
+  bool _hasSelectedTime = false;
 
   @override
   void initState() {
@@ -61,6 +62,7 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
   }
 
   String get _formattedTime {
+    if (!_hasSelectedTime) return 'No time selected';
     final hStr = _selectedHour.toString().padLeft(2, '0');
     final mStr = _selectedMinute.toString().padLeft(2, '0');
     final period = _isPm ? 'PM' : 'AM';
@@ -90,6 +92,16 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
   }
 
   void _handleNext() async {
+    if (!_hasSelectedTime) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a service time *'),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
     final now = DateTime.now();
     final isToday = widget.selectedDate.date.year == now.year &&
         widget.selectedDate.date.month == now.month &&
@@ -213,7 +225,7 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Select Time for $serviceName',
+                      'Select Time * for $serviceName',
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
@@ -265,7 +277,7 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
                                     ),
                                   ),
                                   child: Text(
-                                    hStr,
+                                    _hasSelectedTime ? hStr : '--',
                                     style: TextStyle(
                                       fontSize: 26,
                                       fontWeight: FontWeight.bold,
@@ -287,7 +299,7 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
                                     ),
                                   ),
                                   child: Text(
-                                    mStr,
+                                    _hasSelectedTime ? mStr : '--',
                                     style: TextStyle(
                                       fontSize: 26,
                                       fontWeight: FontWeight.bold,
@@ -308,11 +320,14 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
                             child: Row(
                               children: [
                                 GestureDetector(
-                                  onTap: () => setState(() => _isPm = false),
+                                  onTap: () => setState(() {
+                                    _isPm = false;
+                                    _hasSelectedTime = true;
+                                  }),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: !_isPm ? const Color(0xFF3B49DF) : Colors.transparent,
+                                      color: (_hasSelectedTime && !_isPm) ? const Color(0xFF3B49DF) : Colors.transparent,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
@@ -320,17 +335,20 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
-                                        color: !_isPm ? Colors.white : const Color(0xFF64748B),
+                                        color: (_hasSelectedTime && !_isPm) ? Colors.white : const Color(0xFF64748B),
                                       ),
                                     ),
                                   ),
                                 ),
                                 GestureDetector(
-                                  onTap: () => setState(() => _isPm = true),
+                                  onTap: () => setState(() {
+                                    _isPm = true;
+                                    _hasSelectedTime = true;
+                                  }),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                     decoration: BoxDecoration(
-                                      color: _isPm ? const Color(0xFF3B49DF) : Colors.transparent,
+                                      color: (_hasSelectedTime && _isPm) ? const Color(0xFF3B49DF) : Colors.transparent,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
@@ -338,7 +356,7 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
-                                        color: _isPm ? Colors.white : const Color(0xFF64748B),
+                                        color: (_hasSelectedTime && _isPm) ? Colors.white : const Color(0xFF64748B),
                                       ),
                                     ),
                                   ),
@@ -444,7 +462,7 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : Text(
-                          'Continue with $_formattedTime',
+                          _hasSelectedTime ? 'Continue with $_formattedTime' : 'Select Service Time *',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -461,13 +479,14 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
   }
 
   Widget _buildPresetChip(String label, int hour, int minute, bool isPm) {
-    final isSelected = _selectedHour == hour && _selectedMinute == minute && _isPm == isPm;
+    final isSelected = _hasSelectedTime && _selectedHour == hour && _selectedMinute == minute && _isPm == isPm;
     return GestureDetector(
       onTap: () {
         setState(() {
           _selectedHour = hour;
           _selectedMinute = minute;
           _isPm = isPm;
+          _hasSelectedTime = true;
         });
       },
       child: Container(
@@ -500,7 +519,7 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
         final angle = (i * 30 - 90) * (math.pi / 180);
         final x = radius * math.cos(angle);
         final y = radius * math.sin(angle);
-        final isSelected = _selectedHour == i;
+        final isSelected = _hasSelectedTime && _selectedHour == i;
 
         list.add(
           Transform.translate(
@@ -509,6 +528,7 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
               onTap: () {
                 setState(() {
                   _selectedHour = i;
+                  _hasSelectedTime = true;
                   _isSelectingHours = false; // automatically switch to minutes
                 });
               },
@@ -540,7 +560,7 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
         final angle = (i * 6 - 90) * (math.pi / 180);
         final x = radius * math.cos(angle);
         final y = radius * math.sin(angle);
-        final isSelected = _selectedMinute == i;
+        final isSelected = _hasSelectedTime && _selectedMinute == i;
 
         list.add(
           Transform.translate(
@@ -549,6 +569,7 @@ class _ServiceSelectTimeScreenState extends ConsumerState<ServiceSelectTimeScree
               onTap: () {
                 setState(() {
                   _selectedMinute = i;
+                  _hasSelectedTime = true;
                 });
               },
               child: Container(

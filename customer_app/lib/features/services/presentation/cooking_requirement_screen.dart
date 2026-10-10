@@ -33,9 +33,9 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
 
   final TextEditingController _customHeadcountController = TextEditingController();
 
-  String _selectedCookingType = 'Daily Home Cook (Lunch & Dinner)';
-  String _selectedDiet = 'Pure Vegetarian';
-  String _selectedHeadcount = '3 - 5 Persons';
+  String? _selectedCookingType;
+  String? _selectedDiet;
+  String? _selectedHeadcount;
 
   final List<String> _cookingTypes = [
     'Daily Home Cook (Lunch & Dinner)',
@@ -68,7 +68,7 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
     'Vegan',
   ];
 
-  final Set<String> _selectedMeals = {'Lunch', 'Dinner'};
+  final Set<String> _selectedMeals = {};
   final List<String> _mealOptions = [
     'Breakfast',
     'Lunch',
@@ -126,20 +126,22 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
   }
 
   String get _effectiveHeadcountText {
-    if (_selectedHeadcount.contains('10+')) {
+    if (_selectedHeadcount == null) return '';
+    if (_selectedHeadcount!.contains('10+')) {
       final customNum = int.tryParse(_customHeadcountController.text.trim());
       if (customNum != null && customNum > 10) {
         return '$customNum Persons (Party)';
       }
       return '10+ Persons (Party)';
     }
-    return _selectedHeadcount;
+    return _selectedHeadcount!;
   }
 
   void _saveDraft() {
+    if (_selectedCookingType == null && _selectedMeals.isEmpty && _selectedHeadcount == null) return;
     final draft = {
       'category_id': 'cooking',
-      'service_name': _selectedCookingType,
+      'service_name': _selectedCookingType ?? 'Home Cook Service',
       'cooking_type': _selectedCookingType,
       'dietary_preference': _selectedDiet,
       'headcount': _effectiveHeadcountText,
@@ -154,9 +156,10 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
   }
 
   double get _calculatedPrice {
-    final base = _cookingBasePrices[_selectedCookingType] ?? (widget.servicePrice ?? 399.0);
-    double mult = _headcountMultipliers[_selectedHeadcount] ?? 1.0;
-    if (_selectedHeadcount.contains('10+')) {
+    if (_selectedCookingType == null || _selectedMeals.isEmpty || _selectedHeadcount == null) return 0.0;
+    final base = _cookingBasePrices[_selectedCookingType!] ?? (widget.servicePrice ?? 399.0);
+    double mult = _headcountMultipliers[_selectedHeadcount!] ?? 1.0;
+    if (_selectedHeadcount!.contains('10+')) {
       final count = int.tryParse(_customHeadcountController.text.trim());
       if (count != null && count > 10) {
         mult = (2.5 + ((count - 10) * 0.08)).clamp(2.5, 6.0);
@@ -198,24 +201,39 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
   }
 
   void _handleContinue() async {
-    if (_selectedHeadcount.contains('10+')) {
-      final customCount = int.tryParse(_customHeadcountController.text.trim());
-      if (customCount == null || customCount <= 10) {
-        _showWarningSnackBar('Please enter the exact headcount (greater than 10) for your party booking.');
-        return;
-      }
-    }
-
-    if (_selectedMeals.isEmpty) {
-      _showWarningSnackBar('Please select at least one meal (e.g. Lunch or Dinner).');
-      return;
-    }
-
     final instructions = _menuInstructionsController.text.trim();
     if (instructions.isNotEmpty && instructions.length < 10) {
       setState(() => _hasError = true);
       _showWarningSnackBar('Menu instructions / preferences must be at least 10 characters.');
       return;
+    }
+
+    if (_selectedCookingType == null) {
+      _showWarningSnackBar('Please select cooking service *');
+      return;
+    }
+
+    if (_selectedHeadcount == null) {
+      _showWarningSnackBar('Please select headcount *');
+      return;
+    }
+
+    if (_selectedDiet == null) {
+      _showWarningSnackBar('Please select dietary preference *');
+      return;
+    }
+
+    if (_selectedMeals.isEmpty) {
+      _showWarningSnackBar('Please select at least one meal *');
+      return;
+    }
+
+    if (_selectedHeadcount!.contains('10+')) {
+      final customCount = int.tryParse(_customHeadcountController.text.trim());
+      if (customCount == null || customCount <= 10) {
+        _showWarningSnackBar('Please enter the exact headcount (greater than 10) for your party booking *');
+        return;
+      }
     }
 
     final photoUrls = await MultiServiceBookingService.instance.uploadPhotos(
@@ -293,13 +311,13 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
                   children: [
                     // Cooking Service Type
                     const Text(
-                      'Select Cooking Service',
+                      'Select Cooking Service *',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 10),
                     ..._cookingTypes.map((type) {
                       final isSelected = _selectedCookingType == type;
-                      final mult = _headcountMultipliers[_selectedHeadcount] ?? 1.0;
+                      final mult = _selectedHeadcount != null ? (_headcountMultipliers[_selectedHeadcount!] ?? 1.0) : 1.0;
                       final price = ((_cookingBasePrices[type] ?? 399.0) * mult).roundToDouble();
 
                       return GestureDetector(
@@ -353,7 +371,7 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
 
                     // 2. Headcount / Persons to Cook For (Moved to Upper Section per C4 & C5)
                     const Text(
-                      'Headcount (Number of Persons)',
+                      'Headcount (Number of Persons) *',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 8),
@@ -404,7 +422,7 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
                     ),
 
                     // Dynamic Prompt for 10+ Headcount (Bug C5)
-                    if (_selectedHeadcount.contains('10+')) ...[
+                    if (_selectedHeadcount != null && _selectedHeadcount!.contains('10+')) ...[
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(14),
@@ -451,7 +469,7 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
 
                     // 3. Dietary Preference (Now after Headcount)
                     const Text(
-                      'Dietary Preference',
+                      'Dietary Preference *',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 8),
@@ -489,7 +507,7 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
 
                     // Meals Required (Multi-Select)
                     const Text(
-                      'Meals to Prepare',
+                      'Meals to Prepare *',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 8),
@@ -529,7 +547,7 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
 
                     // Specific Menu or Dietary Restrictions (Min 10 chars)
                     const Text(
-                      'Dishes, Spice Level & Allergies',
+                      'Dishes, Spice Level & Allergies (Optional)',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 4),
@@ -583,9 +601,11 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Kitchen / Recipe Photos (Optional)',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                        const Expanded(
+                          child: Text(
+                            'Kitchen / Recipe Photos (Optional)',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                          ),
                         ),
                         TextButton.icon(
                           onPressed: _pickPhoto,
@@ -625,35 +645,41 @@ class _CookingRequirementScreenState extends ConsumerState<CookingRequirementScr
                   BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, -4)),
                 ],
               ),
-              child: Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Estimated Rate', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                      Text(
-                        '₹${_calculatedPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: SizedBox(
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _handleContinue,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3B49DF),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Estimated Rate', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        Text(
+                          _calculatedPrice > 0 ? '₹${_calculatedPrice.toStringAsFixed(0)}' : '₹0',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
                         ),
-                        child: const Text('Select Cooking Schedule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ],
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _handleContinue,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3B49DF),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('Select Cooking Schedule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

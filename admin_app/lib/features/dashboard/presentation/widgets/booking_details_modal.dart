@@ -58,26 +58,26 @@ class BookingDetailsModal {
                 // Customer Info
                 const Text('Customer Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                 const SizedBox(height: 8),
-                _buildInfoRow(Icons.person_outline, 'Name', booking['customer_name'] ?? 'Rahul Sharma'),
-                _buildInfoRow(Icons.phone_outlined, 'Phone', booking['customer_phone'] ?? '+91 98765 43210'),
-                _buildInfoRow(Icons.location_on_outlined, 'Address', booking['address'] ?? 'Patel Colony, Jamnagar, Gujarat'),
+                _buildInfoRow(Icons.person_outline, 'Name', booking['customer_name'] ?? 'Not specified'),
+                _buildInfoRow(Icons.phone_outlined, 'Phone', booking['customer_phone'] ?? 'Not provided'),
+                _buildInfoRow(Icons.location_on_outlined, 'Address', booking['customer_address'] ?? booking['address'] ?? 'Not provided'),
                 const SizedBox(height: 14),
 
                 // AC Issue Info
                 const Text('AC Appliance & Problem', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                 const SizedBox(height: 8),
-                _buildInfoRow(Icons.mode_fan_off_outlined, 'AC Type', booking['ac_type'] ?? 'Split AC'),
-                _buildInfoRow(Icons.branding_watermark_outlined, 'Brand', booking['ac_brand'] ?? 'Voltas 1.5 Ton'),
-                _buildInfoRow(Icons.history_outlined, 'AC Age', booking['ac_age'] ?? '1-2 Years'),
-                _buildInfoRow(Icons.description_outlined, 'Problem', booking['problem_description'] ?? 'Cooling not working properly, strange noise from indoor blower unit.'),
+                _buildInfoRow(Icons.mode_fan_off_outlined, 'AC Type', booking['ac_type'] ?? 'N/A'),
+                _buildInfoRow(Icons.branding_watermark_outlined, 'Brand', booking['ac_brand'] ?? 'N/A'),
+                _buildInfoRow(Icons.history_outlined, 'AC Age', booking['ac_age'] ?? 'N/A'),
+                _buildInfoRow(Icons.description_outlined, 'Problem', booking['problem_description'] ?? 'No description provided'),
                 const SizedBox(height: 14),
 
                 // Schedule & Slot
                 const Text('Service Schedule', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                 const SizedBox(height: 8),
-                _buildInfoRow(Icons.calendar_month_outlined, 'Date', booking['service_date'] ?? 'Tomorrow (31 May 2025)'),
-                _buildInfoRow(Icons.schedule_outlined, 'Time Slot', booking['service_time'] ?? '10:30 AM - 11:30 AM'),
-                _buildInfoRow(Icons.currency_rupee_rounded, 'Estimated Price', '₹${booking['estimated_amount'] ?? '499.00'}'),
+                _buildInfoRow(Icons.calendar_month_outlined, 'Date', booking['scheduled_date'] ?? booking['service_date'] ?? booking['booking_date_formatted'] ?? 'N/A'),
+                _buildInfoRow(Icons.schedule_outlined, 'Time Slot', booking['scheduled_time_slot'] ?? booking['service_time'] ?? booking['scheduled_time'] ?? 'N/A'),
+                _buildInfoRow(Icons.currency_rupee_rounded, 'Estimated Price', '₹${booking['estimated_amount'] ?? booking['price'] ?? booking['final_amount'] ?? '0'}'),
                 const SizedBox(height: 20),
 
                 // Actions

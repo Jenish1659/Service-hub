@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive/hive.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../location/providers/location_provider.dart';
@@ -359,8 +360,8 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
   int _currentStep = 1; // 1: Describe, 2: Slot, 3: Confirm
   final TextEditingController _issueController = TextEditingController();
   final TextEditingController _promoController = TextEditingController();
-  String _selectedDate = 'Today, August 9';
-  String _selectedTime = '06:30 PM';
+  String? _selectedDate;
+  String? _selectedTime;
   String _selectedPayment = 'Cash on Service';
   bool _isSubmitting = false;
   bool _useWallet = false;
@@ -399,7 +400,7 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
     }
 
     final box = Hive.box('customer_cache');
-    final double walletBalance = box.get('wallet_balance_inr', defaultValue: 50.0) as double;
+    final double walletBalance = (box.get('wallet_balance_inr', defaultValue: 0.0) as num).toDouble();
     double walletDeduction = 0.0;
     if (_useWallet) {
       final double subTotal = widget.servicePrice - _promoDiscount;
@@ -411,7 +412,7 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
     if (_useWallet) {
       box.put('wallet_balance_inr', walletBalance - walletDeduction);
     }
-    final int currentCoins = box.get('wallet_coins', defaultValue: 500) as int;
+    final int currentCoins = (box.get('wallet_coins', defaultValue: 0) as num).toInt();
     box.put('wallet_coins', currentCoins + 100);
 
     final userName = user?.userMetadata?['name'] as String? ?? 
@@ -629,7 +630,7 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
 
         // 2. Issue Description
         const Text(
-          'Describe the Issue / Requirements',
+          'Describe the Issue / Requirements *',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 8),
@@ -645,24 +646,28 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
   }
 
   Widget _buildSlotStep() {
+    final now = DateTime.now();
+    final dateOptions = [
+      'Today, ${DateFormat('MMMM d').format(now)}',
+      'Tomorrow, ${DateFormat('MMMM d').format(now.add(const Duration(days: 1)))}',
+      DateFormat('EEEE, MMMM d').format(now.add(const Duration(days: 2))),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Select Date Slot',
+          'Select Date Slot *',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           initialValue: _selectedDate,
+          hint: const Text('Choose a date slot'),
           decoration: const InputDecoration(
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
-          items: const [
-            DropdownMenuItem(value: 'Today, August 9', child: Text('Today, August 9')),
-            DropdownMenuItem(value: 'Tomorrow, August 10', child: Text('Tomorrow, August 10')),
-            DropdownMenuItem(value: 'Monday, August 11', child: Text('Monday, August 11')),
-          ],
+          items: dateOptions.map((opt) => DropdownMenuItem<String>(value: opt, child: Text(opt))).toList(),
           onChanged: (val) {
             if (val != null) {
               setState(() {
@@ -673,12 +678,13 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
         ),
         const SizedBox(height: 16),
         const Text(
-          'Select Time Slot',
+          'Select Time Slot *',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           initialValue: _selectedTime,
+          hint: const Text('Choose a time slot'),
           decoration: const InputDecoration(
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
@@ -702,7 +708,7 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
 
   Widget _buildConfirmStep() {
     final box = Hive.box('customer_cache');
-    final double walletBalance = box.get('wallet_balance_inr', defaultValue: 50.0) as double;
+    final double walletBalance = (box.get('wallet_balance_inr', defaultValue: 0.0) as num).toDouble();
     
     double walletDeduction = 0.0;
     if (_useWallet) {
@@ -736,7 +742,7 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
               const Divider(height: 20),
               _buildDetailRow('Service Location', location?.address ?? 'Selected Hyperlocal Location'),
               const Divider(height: 20),
-              _buildDetailRow('Schedule', '$_selectedDate at $_selectedTime'),
+              _buildDetailRow('Schedule', (_selectedDate != null && _selectedTime != null) ? '$_selectedDate at $_selectedTime' : 'Not selected'),
               const Divider(height: 20),
               _buildDetailRow('Original Price', '₹${widget.servicePrice.toStringAsFixed(0)}'),
               if (_appliedPromoCode != null) ...[
@@ -859,10 +865,40 @@ class _BookingFlowWidgetState extends ConsumerState<_BookingFlowWidget> {
   }
 
   void _onNext() {
-    if (_currentStep < 3) {
-      setState(() {
-        _currentStep++;
-      });
+    if (_currentStep == 1) {
+      if (_issueController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter the required issue details.'),
+            backgroundColor: Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      setState(() => _currentStep++);
+    } else if (_currentStep == 2) {
+      if (_selectedDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a date slot.'),
+            backgroundColor: Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      if (_selectedTime == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a time slot.'),
+            backgroundColor: Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      setState(() => _currentStep++);
     } else {
       _createBooking();
     }

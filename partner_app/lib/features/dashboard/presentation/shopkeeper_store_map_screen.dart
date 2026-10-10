@@ -55,9 +55,9 @@ class _ShopkeeperStoreMapScreenState extends State<ShopkeeperStoreMapScreen>
   static const LatLng _jamnagarStoreBase = LatLng(22.4707, 70.0577);
   LatLng _storeLocation = _jamnagarStoreBase;
 
-  String _shopName = 'ServiceHub Central Store';
-  String _shopAddress = 'Patel Colony, Jamnagar, Gujarat';
-  String _shopPhone = '+91 98244 11223';
+  String _shopName = 'ServiceHub Store';
+  String _shopAddress = '';
+  String _shopPhone = '';
   bool _isStoreOpen = true;
 
   // Radius visibility filters: 2km, 5km, 10km
@@ -1206,7 +1206,9 @@ class _ShopkeeperStoreMapScreenState extends State<ShopkeeperStoreMapScreen>
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              '$_shopAddress • $_shopPhone',
+                              _shopAddress.isNotEmpty
+                                  ? (_shopPhone.isNotEmpty ? '$_shopAddress • $_shopPhone' : _shopAddress)
+                                  : (_shopPhone.isNotEmpty ? _shopPhone : 'Location not specified'),
                               style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                               overflow: TextOverflow.ellipsis,
                             ),

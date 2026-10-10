@@ -25,9 +25,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   bool _isSaving = false;
 
   void _showAddBreakDialog() {
-    String start = '01:00 PM';
-    String end = '02:00 PM';
-    final labelCtrl = TextEditingController(text: 'Lunch Break');
+    String? start;
+    String? end;
+    final labelCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -41,7 +41,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               TextField(
                 controller: labelCtrl,
                 style: const TextStyle(fontSize: 13),
-                decoration: const InputDecoration(labelText: 'Break Label (e.g. Tea Break)'),
+                decoration: const InputDecoration(labelText: 'Break Label * (e.g. Lunch Break)'),
               ),
               const SizedBox(height: 12),
               Row(
@@ -50,7 +50,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     child: DropdownButtonFormField<String>(
                       initialValue: start,
                       isDense: true,
-                      decoration: const InputDecoration(labelText: 'Start Time'),
+                      decoration: const InputDecoration(labelText: 'Start Time *'),
+                      hint: const Text('Select', style: TextStyle(fontSize: 12)),
                       items: _timeOptions.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12)))).toList(),
                       onChanged: (v) {
                         if (v != null) setDialogState(() => start = v);
@@ -62,7 +63,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     child: DropdownButtonFormField<String>(
                       initialValue: end,
                       isDense: true,
-                      decoration: const InputDecoration(labelText: 'End Time'),
+                      decoration: const InputDecoration(labelText: 'End Time *'),
+                      hint: const Text('Select', style: TextStyle(fontSize: 12)),
                       items: _timeOptions.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12)))).toList(),
                       onChanged: (v) {
                         if (v != null) setDialogState(() => end = v);
@@ -80,12 +82,24 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             ),
             ElevatedButton(
               onPressed: () {
+                if (labelCtrl.text.trim().isEmpty) {
+                  TopToast.show(context, 'Please enter break label *', isError: true);
+                  return;
+                }
+                if (start == null || start!.isEmpty) {
+                  TopToast.show(context, 'Please select start time *', isError: true);
+                  return;
+                }
+                if (end == null || end!.isEmpty) {
+                  TopToast.show(context, 'Please select end time *', isError: true);
+                  return;
+                }
                 widget.controller.addBreakTime(
                   PartnerBreakTime(
                     id: 'break_${DateTime.now().millisecondsSinceEpoch}',
-                    startTime: start,
-                    endTime: end,
-                    label: labelCtrl.text.trim().isNotEmpty ? labelCtrl.text.trim() : 'Break',
+                    startTime: start!,
+                    endTime: end!,
+                    label: labelCtrl.text.trim(),
                   ),
                 );
                 Navigator.pop(ctx);
@@ -107,7 +121,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     setState(() => _isSaving = false);
 
     if (success) {
-      TopToast.show(context, '? Availability saved successfully!', isError: false);
+      TopToast.show(context, 'Availability saved successfully!', isError: false);
       Navigator.pop(context);
     } else {
       TopToast.show(context, 'Failed to save availability', isError: true);

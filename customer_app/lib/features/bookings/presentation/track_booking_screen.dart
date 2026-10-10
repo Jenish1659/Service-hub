@@ -30,16 +30,16 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
   StreamSubscription<Map<String, dynamic>>? _localBookingSub;
 
   // Active status trackers
-  String _status = 'ON_THE_WAY'; // SCHEDULED, SEARCHING, ON_THE_WAY, ARRIVED, IN_PROGRESS, COMPLETED
-  String _entrancePin = '4821';
-  String _completionOtp = '8294';
+  String _status = 'SEARCHING'; // SCHEDULED, SEARCHING, ON_THE_WAY, ARRIVED, IN_PROGRESS, COMPLETED
+  String _entrancePin = '';
+  String _completionOtp = '';
 
   // Partner info
-  String _partnerName = 'Jenish Bheda';
-  String _partnerPhone = '+91 75730 21659';
-  double _partnerRating = 4.9;
-  int _partnerJobs = 42;
-  String _partnerVehicle = 'Honda Activa 6G (GJ-10-BD-0933)';
+  String _partnerName = '';
+  String _partnerPhone = '';
+  double _partnerRating = 0.0;
+  int _partnerJobs = 0;
+  String _partnerVehicle = '';
 
   // Geolocation
   LatLng _customerLocation = const LatLng(22.4707, 70.0577);
@@ -160,11 +160,11 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
         _bookingData ??= {
           'id': widget.bookingId,
           'booking_id': widget.bookingId,
-          'service_name': 'AC Regular Servicing',
-          'scheduled_date': 'Today',
-          'scheduled_time': '10:00 AM - 12:00 PM',
-          'status': 'ON_THE_WAY',
-          'price': 498.0,
+          'service_name': 'Service Booking',
+          'scheduled_date': '',
+          'scheduled_time': '',
+          'status': 'SEARCHING',
+          'price': 0.0,
         };
         _loading = false;
       });
@@ -196,8 +196,8 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
     // Partner profile extraction
     String pName = (data['technician_name'] ?? data['partner_name'] ?? '').toString();
     String pPhone = (data['technician_phone'] ?? data['partner_phone'] ?? '').toString();
-    double pRating = (data['partner_rating'] as num?)?.toDouble() ?? 4.9;
-    int pJobs = (data['partner_jobs'] as num?)?.toInt() ?? 42;
+    double pRating = (data['partner_rating'] as num?)?.toDouble() ?? 0.0;
+    int pJobs = (data['partner_jobs'] as num?)?.toInt() ?? 0;
 
     final partnersMap = data['partners'] as Map<String, dynamic>?;
     if (partnersMap != null) {
@@ -957,22 +957,26 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _partnerName,
+                                _partnerName.isNotEmpty ? _partnerName : 'Assigned Technician',
                                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                               ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  const Icon(Icons.star_rounded, color: Colors.amber, size: 15),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '$_partnerRating ($_partnerJobs completed jobs)',
-                                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(_partnerVehicle, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                              if (_partnerRating > 0 || _partnerJobs > 0) ...[
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.star_rounded, color: Colors.amber, size: 15),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '$_partnerRating ($_partnerJobs completed jobs)',
+                                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              if (_partnerVehicle.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(_partnerVehicle, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                              ],
                             ],
                           ),
                         ),

@@ -294,7 +294,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                           keyboardType: TextInputType.name,
                           textCapitalization: TextCapitalization.words,
                           decoration: InputDecoration(
-                            hintText: 'e.g. Jenish Bheda',
+                            hintText: 'e.g. John Doe',
                             prefixIcon: const Icon(Icons.person_outline, size: 20),
                             filled: true,
                             fillColor: const Color(0xfff8fafc),

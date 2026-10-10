@@ -20,9 +20,9 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
   void _showAddServiceSheet() {
     final nameCtrl = TextEditingController();
     final priceCtrl = TextEditingController();
-    final durationCtrl = TextEditingController(text: '1–2 hours');
+    final durationCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    String serviceType = 'On-site';
+    String? serviceType;
 
     showModalBottomSheet(
       context: context,
@@ -61,16 +61,16 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                   ),
                   const SizedBox(height: 16),
-                  _buildSheetField('Service Name', nameCtrl, 'e.g. AC Filter Replacement'),
+                  _buildSheetField('Service Name *', nameCtrl, 'e.g. AC Filter Replacement'),
                   const SizedBox(height: 12),
-                  _buildSheetField('Starting Price (?)', priceCtrl, 'e.g. 750', keyboardType: TextInputType.number),
+                  _buildSheetField('Starting Price (₹) *', priceCtrl, 'e.g. 750', keyboardType: TextInputType.number),
                   const SizedBox(height: 12),
-                  _buildSheetField('Duration', durationCtrl, 'e.g. 1–2 hours'),
+                  _buildSheetField('Duration *', durationCtrl, 'e.g. 1–2 hours'),
                   const SizedBox(height: 12),
-                  _buildSheetField('Description', descCtrl, 'Brief explanation of what is included'),
+                  _buildSheetField('Description (Optional)', descCtrl, 'Brief explanation of what is included'),
                   const SizedBox(height: 12),
                   const Text(
-                    'Service Delivery Type',
+                    'Service Delivery Type *',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
                   ),
                   const SizedBox(height: 6),
@@ -103,10 +103,22 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         if (nameCtrl.text.trim().isEmpty) {
-                          TopToast.show(context, 'Please enter service name', isError: true);
+                          TopToast.show(context, 'Please enter service name *', isError: true);
                           return;
                         }
-                        final price = double.tryParse(priceCtrl.text.trim()) ?? 0.0;
+                        final price = double.tryParse(priceCtrl.text.trim());
+                        if (price == null || price <= 0) {
+                          TopToast.show(context, 'Please enter a valid starting price *', isError: true);
+                          return;
+                        }
+                        if (durationCtrl.text.trim().isEmpty) {
+                          TopToast.show(context, 'Please enter service duration *', isError: true);
+                          return;
+                        }
+                        if (serviceType == null || serviceType!.isEmpty) {
+                          TopToast.show(context, 'Please select service delivery type *', isError: true);
+                          return;
+                        }
                         final newSrv = PartnerServiceItem(
                           id: 'srv_${DateTime.now().millisecondsSinceEpoch}',
                           name: nameCtrl.text.trim(),
@@ -114,14 +126,14 @@ class _MyServicesScreenState extends State<MyServicesScreen> {
                               ? descCtrl.text.trim()
                               : 'Professional service provided on-site',
                           startingPrice: price,
-                          duration: durationCtrl.text.trim().isNotEmpty ? durationCtrl.text.trim() : '1–2 hours',
-                          serviceType: serviceType,
+                          duration: durationCtrl.text.trim(),
+                          serviceType: serviceType!,
                           isActive: true,
                         );
                         widget.controller.addNewService(newSrv);
                         Navigator.pop(ctx);
                         setState(() {});
-                        TopToast.show(context, '? Service added successfully!', isError: false);
+                        TopToast.show(context, 'Service added successfully!', isError: false);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1E293B),

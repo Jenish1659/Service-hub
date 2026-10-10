@@ -156,8 +156,8 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
     String realCustomerId = '3e2584b1-4943-4196-abaa-1de62a456703'; // Real customer in DB
     String realAddressId = '0cbd6285-4c82-4af4-9849-f9b910bb0c14'; // Real customer address in DB
     String realServiceId = 'f27fbac4-115c-4674-9c93-6b6ff8e1d080'; // Real AC Deep Cleaning in DB
-    String userName = widget.issueDetails['customer_name'] ?? 'Jenish Bheda';
-    String userPhone = widget.issueDetails['customer_phone'] ?? '+919876543210';
+    String userName = widget.issueDetails['customer_name'] ?? '';
+    String userPhone = widget.issueDetails['customer_phone'] ?? '';
 
     try {
       final user = supabase.auth.currentUser;
@@ -207,7 +207,7 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
     final acType = widget.issueDetails['ac_type'] ?? '';
     final acBrand = widget.issueDetails['ac_brand'] ?? '';
     final problemDesc = widget.issueDetails['problem_description'] ?? '';
-    final address = widget.issueDetails['customer_address'] ?? 'Patel Colony, Jamnagar';
+    final address = widget.issueDetails['customer_address']?.toString() ?? '';
 
     // Visiting ₹449 + Protection ₹49
     const visitingCharge = 449.0;

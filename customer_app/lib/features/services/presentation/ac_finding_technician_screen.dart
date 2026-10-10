@@ -162,17 +162,20 @@ class _ACFindingTechnicianScreenState extends State<ACFindingTechnicianScreen> w
     if (_isAssigned) return;
 
     final pId = (bookingRecord['partner_id'] ?? '').toString();
+    final pName = (bookingRecord['technician_name'] ?? bookingRecord['partner_name'] ?? '').toString();
+    final pPhone = (bookingRecord['technician_phone'] ?? bookingRecord['partner_phone'] ?? '').toString();
     Map<String, dynamic> partnerInfo = {
       'partner_id': pId,
-      'name': bookingRecord['technician_name'] ?? bookingRecord['partner_name'] ?? 'Jenish Bheda',
-      'phone': bookingRecord['technician_phone'] ?? bookingRecord['partner_phone'] ?? '+91 75730 21659',
-      'rating': 4.9,
-      'total_jobs': 42,
-      'experience_years': 5,
-      'specialty': 'Certified AC Jet Cleaning, Gas Refill & Diagnostics',
-      'vehicle_model': 'Honda Activa 6G',
-      'vehicle_number': 'GJ-10-BD-0933',
-      'bio': 'Certified AC technician with 5+ years experience in split and inverter AC servicing.',
+      'name': pName.isNotEmpty ? pName : 'Assigned Partner',
+      'partner_name': pName.isNotEmpty ? pName : 'Assigned Partner',
+      'phone': pPhone,
+      'rating': (bookingRecord['partner_rating'] as num?)?.toDouble() ?? 0.0,
+      'total_jobs': (bookingRecord['partner_jobs'] as num?)?.toInt() ?? 0,
+      'experience_years': bookingRecord['experience_years'] ?? 0,
+      'specialty': bookingRecord['specialty'] ?? 'Certified AC Specialist',
+      'vehicle_model': bookingRecord['vehicle_model'] ?? '',
+      'vehicle_number': bookingRecord['vehicle_number'] ?? '',
+      'bio': bookingRecord['bio'] ?? '',
     };
 
     if (pId.isNotEmpty) {
@@ -192,10 +195,10 @@ class _ACFindingTechnicianScreenState extends State<ACFindingTechnicianScreen> w
           final fullName = '${prof['first_name'] ?? ""} ${prof['last_name'] ?? ""}'.trim();
           partnerInfo['name'] = fullName.isNotEmpty ? fullName : (u['username'] ?? 'Certified Partner');
           partnerInfo['phone'] = u['phone'] ?? partnerInfo['phone'];
-          partnerInfo['rating'] = (sProf['rating'] as num?)?.toDouble() ?? 4.9;
-          partnerInfo['total_jobs'] = sProf['total_jobs'] ?? 42;
-          partnerInfo['experience_years'] = sProf['experience_years'] ?? 5;
-          partnerInfo['bio'] = sProf['about'] ?? 'Certified AC technician with 5+ years experience.';
+          partnerInfo['rating'] = (sProf['rating'] as num?)?.toDouble() ?? 0.0;
+          partnerInfo['total_jobs'] = sProf['total_jobs'] ?? 0;
+          partnerInfo['experience_years'] = sProf['experience_years'] ?? 0;
+          partnerInfo['bio'] = sProf['about'] ?? '';
         }
       } catch (_) {}
     }
@@ -212,21 +215,21 @@ class _ACFindingTechnicianScreenState extends State<ACFindingTechnicianScreen> w
     final pName = (partnerData['name'] ??
             partnerData['partner_name'] ??
             partnerData['technician_name'] ??
-            'Jenish Bheda')
+            'Certified Partner')
         .toString();
 
     final partnerMap = {
       'partner_id': partnerData['partner_id'] ?? partnerData['id'] ?? '',
       'name': pName,
       'partner_name': pName,
-      'phone': partnerData['phone'] ?? partnerData['partner_phone'] ?? partnerData['technician_phone'] ?? '+91 75730 21659',
-      'rating': (partnerData['rating'] as num?)?.toDouble() ?? 4.9,
-      'total_jobs': partnerData['total_jobs'] ?? 42,
-      'experience_years': partnerData['experience_years'] ?? 5,
-      'specialty': partnerData['specialty'] ?? 'Certified AC Jet Cleaning, Gas Refill & Diagnostics',
-      'vehicle_model': partnerData['vehicle_model'] ?? 'Honda Activa 6G',
-      'vehicle_number': partnerData['vehicle_number'] ?? 'GJ-10-BD-0933',
-      'bio': partnerData['bio'] ?? 'Certified AC technician with 5+ years experience in split and inverter AC servicing.',
+      'phone': (partnerData['phone'] ?? partnerData['partner_phone'] ?? partnerData['technician_phone'] ?? '').toString(),
+      'rating': (partnerData['rating'] as num?)?.toDouble() ?? 0.0,
+      'total_jobs': partnerData['total_jobs'] ?? 0,
+      'experience_years': partnerData['experience_years'] ?? 0,
+      'specialty': partnerData['specialty'] ?? 'Certified AC Specialist',
+      'vehicle_model': partnerData['vehicle_model'] ?? '',
+      'vehicle_number': partnerData['vehicle_number'] ?? '',
+      'bio': partnerData['bio'] ?? '',
     };
 
     setState(() {
@@ -834,11 +837,15 @@ class _ACFindingTechnicianScreenState extends State<ACFindingTechnicianScreen> w
 
   Widget _buildAssignedPartnerCard() {
     final partner = _assignedPartner ?? {};
-    final name = (partner['name'] ?? partner['partner_name'] ?? 'Jenish Bheda').toString();
-    final phone = (partner['phone'] ?? partner['partner_phone'] ?? '+91 75730 21659').toString();
-    final rating = (partner['rating'] as num?)?.toDouble() ?? 4.9;
-    final totalJobs = partner['total_jobs'] ?? 42;
-    final vehicle = '${partner['vehicle_model'] ?? "Honda Activa 6G"} • ${partner['vehicle_number'] ?? "GJ-10-BD-0933"}';
+    final name = (partner['name'] ?? partner['partner_name'] ?? 'Certified Partner').toString();
+    final phone = (partner['phone'] ?? partner['partner_phone'] ?? '').toString();
+    final rating = (partner['rating'] as num?)?.toDouble() ?? 0.0;
+    final totalJobs = partner['total_jobs'] ?? 0;
+    final vehicleModel = partner['vehicle_model']?.toString() ?? '';
+    final vehicleNumber = partner['vehicle_number']?.toString() ?? '';
+    final vehicle = vehicleModel.isNotEmpty && vehicleNumber.isNotEmpty
+        ? '$vehicleModel • $vehicleNumber'
+        : (vehicleModel.isNotEmpty ? vehicleModel : (vehicleNumber.isNotEmpty ? vehicleNumber : ''));
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -902,45 +909,48 @@ class _ACFindingTechnicianScreenState extends State<ACFindingTechnicianScreen> w
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEF3C7),
-                            borderRadius: BorderRadius.circular(8),
+                        if (rating > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star_rounded, color: Color(0xFFD97706), size: 14),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '$rating',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFFB45309)),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.star_rounded, color: Color(0xFFD97706), size: 14),
-                              const SizedBox(width: 3),
-                              Text(
-                                '$rating',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFFB45309)),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'AC Specialist • $totalJobs+ jobs completed',
+                      totalJobs > 0 ? 'AC Specialist • $totalJobs+ jobs completed' : 'Certified AC Specialist',
                       style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(Icons.two_wheeler_rounded, color: Color(0xFF94A3B8), size: 14),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            vehicle,
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                            overflow: TextOverflow.ellipsis,
+                    if (vehicle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.two_wheeler_rounded, color: Color(0xFF94A3B8), size: 14),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              vehicle,
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

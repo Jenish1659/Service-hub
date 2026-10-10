@@ -146,7 +146,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Laundry Service'), findsWidgets);
-      expect(find.text('Wash & Steam Iron'), findsWidgets);
+      expect(find.text('Select Laundry Service Type *'), findsWidgets);
 
       // Enter 5 chars in special instructions
       final textField = find.byType(TextField);
@@ -181,7 +181,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Car Service & Repair'), findsOneWidget);
-      expect(find.text('Select Vehicle Type'), findsOneWidget);
+      expect(find.text('Select Vehicle Type *'), findsOneWidget);
 
       // Enter short instruction in problem description
       final problemField = find.widgetWithText(TextField, '');
@@ -210,7 +210,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Care Taker & Nursing'), findsOneWidget);
-      expect(find.text('Type of Care Needed'), findsOneWidget);
+      expect(find.text('Type of Care Needed *'), findsOneWidget);
 
       // Short notes test
       final textFields = find.byType(TextField);
@@ -238,7 +238,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Home Cook & Chef'), findsOneWidget);
-      expect(find.text('Select Cooking Service'), findsOneWidget);
+      expect(find.text('Select Cooking Service *'), findsOneWidget);
 
       final instructionsField = find.byType(TextField);
       expect(instructionsField, findsOneWidget);
@@ -265,7 +265,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Plumbing Services & Repair'), findsOneWidget);
-      expect(find.text('Select Plumbing Issue'), findsOneWidget);
+      expect(find.text('Select Plumbing Issue(s) *'), findsOneWidget);
 
       final problemField = find.byType(TextField);
       expect(problemField, findsOneWidget);

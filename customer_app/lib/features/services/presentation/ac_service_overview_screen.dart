@@ -71,9 +71,9 @@ class _ACServiceOverviewScreenState extends ConsumerState<ACServiceOverviewScree
 
   @override
   Widget build(BuildContext context) {
-    final acType = _activeIssueDetails['ac_type'] ?? 'Split AC';
-    final acBrand = _activeIssueDetails['ac_brand'] ?? 'Daikin';
-    final problemDesc = _activeIssueDetails['problem_description'] ?? 'Not cooling properly';
+    final String? acType = _activeIssueDetails['ac_type'] as String?;
+    final String? acBrand = _activeIssueDetails['ac_brand'] as String?;
+    final String? problemDesc = _activeIssueDetails['problem_description'] as String?;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -311,41 +311,47 @@ class _ACServiceOverviewScreenState extends ConsumerState<ACServiceOverviewScree
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Row(
+                            Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Your AC',
-                                  style: TextStyle(
+                                  (acType != null || acBrand != null) ? 'Your AC' : 'Your AC Details *',
+                                  style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF0F172A),
                                   ),
                                 ),
-                                Icon(Icons.chevron_right_rounded, color: Color(0xFF3B49DF), size: 20),
+                                const Icon(Icons.chevron_right_rounded, color: Color(0xFF3B49DF), size: 20),
                               ],
                             ),
                             const SizedBox(height: 6),
-                            if (acType.isNotEmpty || acBrand.isNotEmpty)
+                            if ((acType != null && acType.isNotEmpty) || (acBrand != null && acBrand.isNotEmpty))
                               Row(
                                 children: [
-                                  if (acType.isNotEmpty) ...[
+                                  if (acType != null && acType.isNotEmpty) ...[
                                     _buildTag('Type', acType),
                                     const SizedBox(width: 6),
                                   ],
-                                  if (acBrand.isNotEmpty)
+                                  if (acBrand != null && acBrand.isNotEmpty)
                                     _buildTag('Brand', acBrand),
                                 ],
                               ),
                             const SizedBox(height: 4),
                             Text(
-                              problemDesc.isNotEmpty ? 'Issue: $problemDesc' : 'Tap to specify your AC issue details',
+                              (problemDesc != null && problemDesc.isNotEmpty)
+                                  ? 'Issue: $problemDesc'
+                                  : 'Tap to configure AC type, brand & problem details *',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 11.5,
-                                color: problemDesc.isNotEmpty ? const Color(0xFF64748B) : const Color(0xFF3B49DF),
-                                fontWeight: problemDesc.isNotEmpty ? FontWeight.normal : FontWeight.w600,
+                                color: (problemDesc != null && problemDesc.isNotEmpty)
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF3B49DF),
+                                fontWeight: (problemDesc != null && problemDesc.isNotEmpty)
+                                    ? FontWeight.normal
+                                    : FontWeight.w600,
                               ),
                             ),
                           ],

@@ -169,7 +169,7 @@ class _TrackOrderScreenState extends ConsumerState<TrackOrderScreen> {
   }
 
   Future<void> _showCancelConfirmation() async {
-    String selectedReason = 'Ordered by mistake';
+    String? selectedReason;
     final List<String> reasons = [
       'Ordered by mistake',
       'Delivery time is too long',
@@ -205,7 +205,7 @@ class _TrackOrderScreenState extends ConsumerState<TrackOrderScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Are you sure you want to cancel this order? Please select a reason:',
+                    'Are you sure you want to cancel this order? Please select a reason *:',
                     style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryColor),
                   ),
                   const SizedBox(height: 12),
@@ -241,12 +241,21 @@ class _TrackOrderScreenState extends ConsumerState<TrackOrderScreen> {
                             backgroundColor: AppTheme.dangerColor,
                           ),
                           onPressed: () async {
+                            if (selectedReason == null || selectedReason!.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please select a cancellation reason *'),
+                                  backgroundColor: AppTheme.dangerColor,
+                                ),
+                              );
+                              return;
+                            }
                             Navigator.pop(ctx);
                             setState(() {
                               _isCancelling = true;
                             });
                             _refreshTimer?.cancel();
-                            await ref.read(ordersServiceProvider).cancelOrder(widget.orderId, reason: selectedReason);
+                            await ref.read(ordersServiceProvider).cancelOrder(widget.orderId, reason: selectedReason!);
                             if (mounted) {
                               setState(() {
                                 _isCancelling = false;

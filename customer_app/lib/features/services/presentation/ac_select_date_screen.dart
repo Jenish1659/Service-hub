@@ -22,16 +22,14 @@ class ACSelectDateScreen extends ConsumerStatefulWidget {
 class _ACSelectDateScreenState extends ConsumerState<ACSelectDateScreen> {
   late Map<String, dynamic> _activeIssueDetails;
   late DateTime _displayedMonth;
-  late DateTime _selectedDate;
+  DateTime? _selectedDate;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _displayedMonth = DateTime(now.year, now.month, 1);
-
-    // Current day (Today) is available and default selected
-    _selectedDate = DateTime(now.year, now.month, now.day);
+    _selectedDate = null;
 
     _initData();
   }
@@ -42,6 +40,14 @@ class _ACSelectDateScreenState extends ConsumerState<ACSelectDateScreen> {
     } else {
       final draft = ACIssueBookingService.instance.loadDraft();
       _activeIssueDetails = draft ?? {};
+    }
+    final bookingDateStr = _activeIssueDetails['booking_date'] as String?;
+    if (bookingDateStr != null && bookingDateStr.isNotEmpty) {
+      try {
+        _selectedDate = DateTime.parse(bookingDateStr);
+      } catch (_) {
+        _selectedDate = null;
+      }
     }
     if (mounted) {
       setState(() {});
@@ -65,15 +71,27 @@ class _ACSelectDateScreenState extends ConsumerState<ACSelectDateScreen> {
   }
 
   bool _isSelectedDate(DateTime date) {
-    return _selectedDate.year == date.year &&
-        _selectedDate.month == date.month &&
-        _selectedDate.day == date.day;
+    if (_selectedDate == null) return false;
+    return _selectedDate!.year == date.year &&
+        _selectedDate!.month == date.month &&
+        _selectedDate!.day == date.day;
   }
 
   void _handleNext() async {
-    final dayName = DateFormat('EEE').format(_selectedDate);
-    final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
-    final userFormattedDate = DateFormat('EEE, dd MMM yyyy').format(_selectedDate);
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select an appointment date *'),
+          backgroundColor: Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final dayName = DateFormat('EEE').format(_selectedDate!);
+    final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate!);
+    final userFormattedDate = DateFormat('EEE, dd MMM yyyy').format(_selectedDate!);
 
     final updatedDraft = Map<String, dynamic>.from(_activeIssueDetails);
     updatedDraft['booking_date'] = formattedDate;
@@ -84,12 +102,12 @@ class _ACSelectDateScreenState extends ConsumerState<ACSelectDateScreen> {
     await ACIssueBookingService.instance.saveDraft(updatedDraft);
 
     final dateOption = BookingDateOption(
-      date: _selectedDate,
+      date: _selectedDate!,
       dayName: dayName,
-      dateNumber: DateFormat('dd').format(_selectedDate),
-      monthName: DateFormat('MMM').format(_selectedDate),
+      dateNumber: DateFormat('dd').format(_selectedDate!),
+      monthName: DateFormat('MMM').format(_selectedDate!),
       formattedIso: formattedDate,
-      isTomorrow: _selectedDate.day == DateTime.now().add(const Duration(days: 1)).day,
+      isTomorrow: _selectedDate!.day == DateTime.now().add(const Duration(days: 1)).day,
     );
 
     if (!mounted) return;
@@ -110,7 +128,9 @@ class _ACSelectDateScreenState extends ConsumerState<ACSelectDateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final selectedFormatted = DateFormat('EEE, dd MMM yyyy').format(_selectedDate);
+    final selectedFormatted = _selectedDate != null
+        ? DateFormat('EEE, dd MMM yyyy').format(_selectedDate!)
+        : 'Please select an appointment date *';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -169,7 +189,7 @@ class _ACSelectDateScreenState extends ConsumerState<ACSelectDateScreen> {
                   children: [
                     // Header Title & Subtitle (Matching Screen 2 Reference)
                     const Text(
-                      'Select Date',
+                      'Select Date *',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
@@ -291,10 +311,10 @@ class _ACSelectDateScreenState extends ConsumerState<ACSelectDateScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 selectedFormatted,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0F172A),
+                                  color: _selectedDate != null ? const Color(0xFF0F172A) : const Color(0xFFDC2626),
                                 ),
                               ),
                             ],

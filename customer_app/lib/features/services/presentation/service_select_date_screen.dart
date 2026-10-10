@@ -24,15 +24,24 @@ class ServiceSelectDateScreen extends ConsumerStatefulWidget {
 class _ServiceSelectDateScreenState extends ConsumerState<ServiceSelectDateScreen> {
   late Map<String, dynamic> _activeIssueDetails;
   late DateTime _displayedMonth;
-  late DateTime _selectedDate;
+  DateTime? _selectedDate;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _displayedMonth = DateTime(now.year, now.month, 1);
-    _selectedDate = DateTime(now.year, now.month, now.day);
     _activeIssueDetails = Map<String, dynamic>.from(widget.issueDetails);
+    final bookingDateStr = _activeIssueDetails['booking_date'] as String?;
+    if (bookingDateStr != null && bookingDateStr.isNotEmpty) {
+      try {
+        _selectedDate = DateTime.parse(bookingDateStr);
+      } catch (_) {
+        _selectedDate = null;
+      }
+    } else {
+      _selectedDate = null;
+    }
   }
 
   void _previousMonth() {
@@ -52,15 +61,27 @@ class _ServiceSelectDateScreenState extends ConsumerState<ServiceSelectDateScree
   }
 
   bool _isSelectedDate(DateTime date) {
-    return _selectedDate.year == date.year &&
-        _selectedDate.month == date.month &&
-        _selectedDate.day == date.day;
+    if (_selectedDate == null) return false;
+    return _selectedDate!.year == date.year &&
+        _selectedDate!.month == date.month &&
+        _selectedDate!.day == date.day;
   }
 
   void _handleNext() async {
-    final dayName = DateFormat('EEE').format(_selectedDate);
-    final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
-    final userFormattedDate = DateFormat('EEE, dd MMM yyyy').format(_selectedDate);
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select an appointment date *'),
+          backgroundColor: Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final dayName = DateFormat('EEE').format(_selectedDate!);
+    final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate!);
+    final userFormattedDate = DateFormat('EEE, dd MMM yyyy').format(_selectedDate!);
 
     final updatedDraft = Map<String, dynamic>.from(_activeIssueDetails);
     updatedDraft['booking_date'] = formattedDate;
@@ -72,12 +93,12 @@ class _ServiceSelectDateScreenState extends ConsumerState<ServiceSelectDateScree
     await MultiServiceBookingService.instance.saveDraft(catId, updatedDraft);
 
     final dateOption = BookingDateOption(
-      date: _selectedDate,
+      date: _selectedDate!,
       dayName: dayName,
-      dateNumber: DateFormat('dd').format(_selectedDate),
-      monthName: DateFormat('MMM').format(_selectedDate),
+      dateNumber: DateFormat('dd').format(_selectedDate!),
+      monthName: DateFormat('MMM').format(_selectedDate!),
       formattedIso: formattedDate,
-      isTomorrow: _selectedDate.day == DateTime.now().add(const Duration(days: 1)).day,
+      isTomorrow: _selectedDate!.day == DateTime.now().add(const Duration(days: 1)).day,
     );
 
     if (!mounted) return;
@@ -98,7 +119,9 @@ class _ServiceSelectDateScreenState extends ConsumerState<ServiceSelectDateScree
 
   @override
   Widget build(BuildContext context) {
-    final selectedFormatted = DateFormat('EEE, dd MMM yyyy').format(_selectedDate);
+    final selectedFormatted = _selectedDate != null
+        ? DateFormat('EEE, dd MMM yyyy').format(_selectedDate!)
+        : 'Please select an appointment date *';
     final serviceName = _activeIssueDetails['service_name'] ?? 'Service';
 
     return Scaffold(
@@ -157,7 +180,7 @@ class _ServiceSelectDateScreenState extends ConsumerState<ServiceSelectDateScree
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Select Date for $serviceName',
+                      'Select Date for $serviceName *',
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
@@ -270,10 +293,10 @@ class _ServiceSelectDateScreenState extends ConsumerState<ServiceSelectDateScree
                                 const SizedBox(height: 2),
                                 Text(
                                   selectedFormatted,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1E1B4B),
+                                    color: _selectedDate != null ? const Color(0xFF1E1B4B) : const Color(0xFFDC2626),
                                   ),
                                 ),
                               ],

@@ -26,6 +26,16 @@ void main() {
       expect(find.text('Car Service & Repair'), findsOneWidget);
       expect(find.text('Select Service Date'), findsOneWidget);
 
+      // Select mandatory vehicle type, car brand, and package
+      await tester.tap(find.text('Hatchback'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Select Car Brand *'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Maruti Suzuki').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Periodic Standard Service'));
+      await tester.pumpAndSettle();
+
       // Tap Select Service Date without uploading photos
       await tester.tap(find.text('Select Service Date'));
       await tester.pumpAndSettle();
@@ -51,9 +61,17 @@ void main() {
 
       // Verify electrical screen loaded
       expect(find.text('Electrical Service & Repair'), findsOneWidget);
-      expect(find.text('Select Electrical Issue(s)'), findsOneWidget);
+      expect(find.text('Select Electrical Issue(s) *'), findsOneWidget);
       expect(find.text('Switchboard & Socket Repair'), findsOneWidget);
       expect(find.text('Ceiling Fan Installation & Repair'), findsOneWidget);
+
+      // Select an issue to satisfy mandatory validation
+      await tester.tap(find.text('Switchboard & Socket Repair'));
+      await tester.pumpAndSettle();
+
+      // Select property type to satisfy mandatory validation
+      await tester.tap(find.text('Apartment'));
+      await tester.pumpAndSettle();
 
       // Tap Select Service Date
       await tester.tap(find.text('Select Service Date'));

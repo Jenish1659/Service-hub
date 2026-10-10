@@ -32,10 +32,10 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
 
-  String _selectedCareType = 'Elderly Companion & Assistance';
-  String _selectedShift = '8 Hours (Full Day Shift)';
-  String _selectedGenderPref = 'Any Qualified Professional';
-  String _selectedMobility = 'Needs Support / Walker';
+  String? _selectedCareType;
+  String? _selectedShift;
+  String? _selectedGenderPref;
+  String? _selectedMobility;
 
   final List<String> _careTypes = [
     'Elderly Companion & Assistance',
@@ -125,9 +125,10 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
   }
 
   void _saveDraft() {
+    if (_selectedCareType == null && _selectedShift == null) return;
     final draft = {
       'category_id': 'care_taker',
-      'service_name': _selectedCareType,
+      'service_name': _selectedCareType ?? 'Care Taker Service',
       'care_type': _selectedCareType,
       'shift_duration': _selectedShift,
       'gender_preference': _selectedGenderPref,
@@ -143,7 +144,8 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
   }
 
   double get _calculatedPrice {
-    final base = _careTypeBasePrices[_selectedCareType] ?? (widget.servicePrice ?? 599.0);
+    if (_selectedCareType == null || _selectedShift == null) return 0.0;
+    final base = _careTypeBasePrices[_selectedCareType] ?? 0.0;
     final mult = _shiftMultipliers[_selectedShift] ?? 1.0;
     return (base * mult).roundToDouble();
   }
@@ -184,6 +186,15 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
     if (notes.isNotEmpty && notes.length < 10) {
       setState(() => _hasError = true);
       _showWarningSnackBar('Medical notes / instructions must be at least 10 characters.');
+      return;
+    }
+
+    if (_selectedCareType == null) {
+      _showWarningSnackBar('Please select the type of care needed *');
+      return;
+    }
+    if (_selectedShift == null) {
+      _showWarningSnackBar('Please select the shift duration *');
       return;
     }
 
@@ -263,7 +274,7 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
                   children: [
                     // Care Category
                     const Text(
-                      'Type of Care Needed',
+                      'Type of Care Needed *',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 10),
@@ -321,7 +332,7 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
 
                     // Shift Duration
                     const Text(
-                      'Shift Duration',
+                      'Shift Duration *',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 8),
@@ -368,10 +379,11 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Caretaker Gender Preference', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                          const Text('Caretaker Gender Preference (Optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
                             initialValue: _selectedGenderPref,
+                            hint: const Text('Select Gender Preference (Optional)', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
                             decoration: InputDecoration(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
@@ -385,10 +397,11 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
                             },
                           ),
                           const SizedBox(height: 14),
-                          const Text('Patient Mobility Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                          const Text('Patient Mobility Status (Optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
                             initialValue: _selectedMobility,
+                            hint: const Text('Select Mobility Status (Optional)', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
                             decoration: InputDecoration(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
@@ -423,7 +436,7 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
 
                     // Daily Tasks Checklist
                     const Text(
-                      'Daily Assistance Tasks Required',
+                      'Daily Assistance Tasks Required (Optional)',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 8),
@@ -463,7 +476,7 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
 
                     // Medical Notes (Min 10 characters)
                     const Text(
-                      'Medical Condition & Care Instructions',
+                      'Medical Condition & Care Instructions (Optional)',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
                     ),
                     const SizedBox(height: 4),
@@ -517,9 +530,11 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Prescriptions / Notes (Optional)',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                        const Expanded(
+                          child: Text(
+                            'Prescriptions / Notes (Optional)',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                          ),
                         ),
                         TextButton.icon(
                           onPressed: _pickPhoto,
@@ -559,35 +574,44 @@ class _CareTakerRequirementScreenState extends ConsumerState<CareTakerRequiremen
                   BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, -4)),
                 ],
               ),
-              child: Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Estimated Rate', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                      Text(
-                        '₹${_calculatedPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: SizedBox(
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _handleContinue,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3B49DF),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Estimated Rate', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        Text(
+                          _calculatedPrice > 0 ? '₹${_calculatedPrice.toStringAsFixed(0)}' : '₹0',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
                         ),
-                        child: const Text('Select Care Schedule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ],
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: SizedBox(
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _handleContinue,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3B49DF),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Select Care Schedule',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

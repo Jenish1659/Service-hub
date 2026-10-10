@@ -174,7 +174,7 @@ class _ServiceReviewConfirmScreenState extends ConsumerState<ServiceReviewConfir
 
     final serviceName = widget.issueDetails['service_name'] ?? config.categoryName;
     final problemDesc = widget.issueDetails['problem_description'] ?? widget.issueDetails['notes'] ?? 'Standard Service Request';
-    final address = widget.issueDetails['customer_address'] ?? 'Patel Colony, Jamnagar';
+    final address = widget.issueDetails['customer_address']?.toString() ?? '';
 
     // Pricing calculation
     final serviceBasePrice = (widget.issueDetails['service_price'] as num?)?.toDouble() ??
@@ -417,7 +417,7 @@ class _ServiceReviewConfirmScreenState extends ConsumerState<ServiceReviewConfir
     final catId = (widget.issueDetails['category_id'] ?? 'ac_service').toString();
     final config = MultiServiceBookingService.getConfig(catId);
     final serviceName = widget.issueDetails['service_name'] ?? config.categoryName;
-    final address = widget.issueDetails['customer_address'] ?? 'Patel Colony, Jamnagar';
+    final address = widget.issueDetails['customer_address']?.toString() ?? '';
 
     final serviceBasePrice = (widget.issueDetails['service_price'] as num?)?.toDouble() ??
         (widget.issueDetails['estimated_amount'] as num?)?.toDouble() ??

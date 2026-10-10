@@ -68,7 +68,7 @@ class _ServiceAddressDetailsScreenState extends ConsumerState<ServiceAddressDeta
 
     final locState = ref.read(locationProvider);
     final activeLocation = locState.selectedLocation ?? locState.currentLocation;
-    final address = activeLocation?.address ?? 'Patel Colony, Jamnagar';
+    final address = activeLocation?.address ?? '';
 
     if (widget.issueDetails['customer_name'] != null &&
         (widget.issueDetails['customer_name'] as String).isNotEmpty) {
@@ -115,15 +115,15 @@ class _ServiceAddressDetailsScreenState extends ConsumerState<ServiceAddressDeta
     final notes = _notesController.text.trim();
 
     if (name.isEmpty) {
-      _showWarningSnackBar('Please enter your full name.');
+      _showWarningSnackBar('Please enter your full name *');
       return;
     }
     if (phone.isEmpty) {
-      _showWarningSnackBar('Please enter your contact phone number.');
+      _showWarningSnackBar('Please enter your contact phone number *');
       return;
     }
     if (address.isEmpty) {
-      _showWarningSnackBar('Please enter your complete service address.');
+      _showWarningSnackBar('Please enter your complete service address *');
       return;
     }
 
@@ -285,7 +285,7 @@ class _ServiceAddressDetailsScreenState extends ConsumerState<ServiceAddressDeta
                     const SizedBox(height: 24),
 
                     // Customer Name
-                    const Text('Full Name', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    const Text('Full Name *', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -307,7 +307,7 @@ class _ServiceAddressDetailsScreenState extends ConsumerState<ServiceAddressDeta
                     const SizedBox(height: 18),
 
                     // Phone Number
-                    const Text('Contact Phone', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    const Text('Contact Phone *', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -333,7 +333,7 @@ class _ServiceAddressDetailsScreenState extends ConsumerState<ServiceAddressDeta
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Service Address (Jamnagar)', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                        const Text('Service Address (Jamnagar) *', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(

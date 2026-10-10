@@ -210,18 +210,18 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
   bool _isSubmitting = false;
 
   // Step 1: Issue Details
-  String _acType = 'Split AC';
-  String _acBrand = 'Daikin';
-  final TextEditingController _problemController = TextEditingController(text: 'AC Not Cooling properly, needs deep jet wash service');
+  String? _acType;
+  String? _acBrand;
+  final TextEditingController _problemController = TextEditingController();
 
   // Step 2: Date & Time
-  late BookingDateOption _selectedDate;
-  String _selectedTime = '10:00 AM';
+  BookingDateOption? _selectedDate;
+  String? _selectedTime;
 
   // Step 3: Customer Details
-  final TextEditingController _nameController = TextEditingController(text: 'Customer');
-  final TextEditingController _phoneController = TextEditingController(text: '+91 98765 43210');
-  final TextEditingController _addressController = TextEditingController(text: '12, Shanti Nagar, Ahmedabad, Gujarat 380001');
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
 
   // Pricing
   final double _visitingCharge = 449.0;
@@ -232,15 +232,6 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
   @override
   void initState() {
     super.initState();
-    final dates = ACAvailabilityService.instance.getNext3BookingDates();
-    _selectedDate = dates.isNotEmpty ? dates.first : BookingDateOption(
-      date: DateTime.now().add(const Duration(days: 1)),
-      dayName: 'Tomorrow',
-      dateNumber: '${DateTime.now().add(const Duration(days: 1)).day}',
-      monthName: 'Current',
-      formattedIso: DateTime.now().add(const Duration(days: 1)).toIso8601String().split('T').first,
-      isTomorrow: true,
-    );
 
     if (widget.initialIssueDetails != null) {
       final d = widget.initialIssueDetails!;
@@ -267,9 +258,13 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
       if (Hive.isBoxOpen('customer_cache')) {
         final box = Hive.box('customer_cache');
         final savedName = box.get('user_name') as String?;
-        if (savedName != null && savedName.isNotEmpty) _nameController.text = savedName;
+        if (savedName != null && savedName.isNotEmpty && _nameController.text.isEmpty) {
+          _nameController.text = savedName;
+        }
         final savedPhone = box.get('user_phone') as String?;
-        if (savedPhone != null && savedPhone.isNotEmpty) _phoneController.text = savedPhone;
+        if (savedPhone != null && savedPhone.isNotEmpty && _phoneController.text.isEmpty) {
+          _phoneController.text = savedPhone;
+        }
       }
     } catch (_) {}
   }
@@ -288,7 +283,45 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
     return (subtotal - _couponDiscount).clamp(0.0, 99999.0);
   }
 
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFDC2626),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _submitBookingFlow() async {
+    final customerName = _nameController.text.trim();
+    if (customerName.isEmpty) {
+      _showSnackBar('Please enter your full name.');
+      return;
+    }
+
+    final phone = _phoneController.text.trim();
+    if (phone.length < 10) {
+      _showSnackBar('Please enter a valid 10-digit phone number.');
+      return;
+    }
+
+    final customerAddress = _addressController.text.trim();
+    if (customerAddress.isEmpty) {
+      _showSnackBar('Please enter your service address.');
+      return;
+    }
+
+    if (_selectedDate == null) {
+      _showSnackBar('Please select a service date.');
+      return;
+    }
+
+    if (_selectedTime == null) {
+      _showSnackBar('Please select a service time slot.');
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     final locState = ref.read(locationProvider);
@@ -296,24 +329,20 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
     final lat = activeLoc?.latitude ?? 22.4707;
     final lng = activeLoc?.longitude ?? 70.0577;
 
-    final customerName = _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : 'Customer';
-    final customerAddress = _addressController.text.trim().isNotEmpty
-        ? _addressController.text.trim()
-        : '12, Shanti Nagar, Ahmedabad, Gujarat';
-    final scheduledAt = '${_selectedDate.formattedIso} $_selectedTime';
+    final scheduledAt = '${_selectedDate!.formattedIso} ${_selectedTime!}';
 
     final createdBooking = await ACBookingFlowScreen.submitACBooking(
       customerName: customerName,
-      customerPhone: _phoneController.text.trim(),
+      customerPhone: phone,
       address: customerAddress,
       finalAmount: _finalPayable,
       scheduledAt: scheduledAt,
-      scheduledDate: _selectedDate.formattedIso,
-      scheduledTime: _selectedTime,
-      acBrand: _acBrand,
-      acType: _acType,
-      problemDescription: '$_acType ($_acBrand) - ${_problemController.text.trim()}',
-      serviceName: 'AC Service ($_acType)',
+      scheduledDate: _selectedDate!.formattedIso,
+      scheduledTime: _selectedTime!,
+      acBrand: _acBrand ?? 'AC Unit',
+      acType: _acType ?? 'Split AC',
+      problemDescription: '${_acType ?? "AC"} (${_acBrand ?? "Unit"}) - ${_problemController.text.trim()}',
+      serviceName: 'AC Service (${_acType ?? "General"})',
       status: 'PENDING',
       customerLat: lat,
       customerLng: lng,
@@ -329,9 +358,9 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
       MaterialPageRoute(
         builder: (context) => ACBookingConfirmedScreen(
           bookingData: createdBooking,
-          selectedDateFormatted: '${_selectedDate.dayName}, ${_selectedDate.dateNumber} ${_selectedDate.monthName}',
-          selectedTime: _selectedTime,
-          serviceTitle: 'AC Service ($_acType)',
+          selectedDateFormatted: '${_selectedDate!.dayName}, ${_selectedDate!.dateNumber} ${_selectedDate!.monthName}',
+          selectedTime: _selectedTime!,
+          serviceTitle: 'AC Service (${_acType ?? "General"})',
           address: customerAddress,
           visitingCharge: _visitingCharge,
           protectionFee: _protectionFee,
@@ -427,7 +456,43 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
                       onPressed: _isSubmitting
                           ? null
                           : () {
-                              if (_currentStep < 3) {
+                              if (_currentStep == 0) {
+                                if (_acType == null) {
+                                  _showSnackBar('Please select an AC type.');
+                                  return;
+                                }
+                                if (_acBrand == null) {
+                                  _showSnackBar('Please select an AC brand.');
+                                  return;
+                                }
+                                if (_problemController.text.trim().isEmpty) {
+                                  _showSnackBar('Please describe the problem you are facing.');
+                                  return;
+                                }
+                                setState(() => _currentStep++);
+                              } else if (_currentStep == 1) {
+                                if (_selectedDate == null) {
+                                  _showSnackBar('Please select a service date.');
+                                  return;
+                                }
+                                if (_selectedTime == null) {
+                                  _showSnackBar('Please select a preferred time slot.');
+                                  return;
+                                }
+                                setState(() => _currentStep++);
+                              } else if (_currentStep == 2) {
+                                if (_nameController.text.trim().isEmpty) {
+                                  _showSnackBar('Please enter your full name.');
+                                  return;
+                                }
+                                if (_phoneController.text.trim().length < 10) {
+                                  _showSnackBar('Please enter a valid 10-digit phone number.');
+                                  return;
+                                }
+                                if (_addressController.text.trim().isEmpty) {
+                                  _showSnackBar('Please enter your service address.');
+                                  return;
+                                }
                                 setState(() => _currentStep++);
                               } else {
                                 _submitBookingFlow();
@@ -511,26 +576,24 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
         const Text('Select your appliance type and explain the issue you are facing.', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
         const SizedBox(height: 20),
 
-        const Text('AC Type', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+        const Text('AC Type *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
         const SizedBox(height: 8),
-        Row(
+        Wrap(
+          spacing: 8,
           children: ['Split AC', 'Window AC', 'Cassette AC'].map((type) {
             final isSel = _acType == type;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(type),
-                selected: isSel,
-                selectedColor: const Color(0xFF2563EB),
-                labelStyle: TextStyle(color: isSel ? Colors.white : const Color(0xFF334155), fontWeight: FontWeight.bold),
-                onSelected: (val) => setState(() => _acType = type),
-              ),
+            return ChoiceChip(
+              label: Text(type),
+              selected: isSel,
+              selectedColor: const Color(0xFF2563EB),
+              labelStyle: TextStyle(color: isSel ? Colors.white : const Color(0xFF334155), fontWeight: FontWeight.bold),
+              onSelected: (val) => setState(() => _acType = val ? type : null),
             );
           }).toList(),
         ),
         const SizedBox(height: 16),
 
-        const Text('AC Brand', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+        const Text('AC Brand *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -541,13 +604,13 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
               selected: isSel,
               selectedColor: const Color(0xFF2563EB),
               labelStyle: TextStyle(color: isSel ? Colors.white : const Color(0xFF334155), fontWeight: FontWeight.bold),
-              onSelected: (val) => setState(() => _acBrand = brand),
+              onSelected: (val) => setState(() => _acBrand = val ? brand : null),
             );
           }).toList(),
         ),
         const SizedBox(height: 16),
 
-        const Text('Describe Problem', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+        const Text('Describe Problem *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
         const SizedBox(height: 8),
         TextField(
           controller: _problemController,
@@ -575,15 +638,17 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
         const Text('Choose a preferred slot for technician arrival.', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
         const SizedBox(height: 20),
 
-        const Text('Available Dates', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+        const Text('Available Dates *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
         const SizedBox(height: 8),
-        Row(
-          children: dates.map((d) {
-            final isSel = _selectedDate.formattedIso == d.formattedIso;
-            return Expanded(
-              child: GestureDetector(
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: dates.map((d) {
+              final isSel = _selectedDate?.formattedIso == d.formattedIso;
+              return GestureDetector(
                 onTap: () => setState(() => _selectedDate = d),
                 child: Container(
+                  width: 105,
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
@@ -601,13 +666,13 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
                     ],
                   ),
                 ),
-              ),
-            );
-          }).toList(),
+              );
+            }).toList(),
+          ),
         ),
         const SizedBox(height: 20),
 
-        const Text('Preferred Time Slot', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+        const Text('Preferred Time Slot *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -619,7 +684,7 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
               selected: isSel,
               selectedColor: const Color(0xFF2563EB),
               labelStyle: TextStyle(color: isSel ? Colors.white : const Color(0xFF334155), fontWeight: FontWeight.bold),
-              onSelected: (val) => setState(() => _selectedTime = t),
+              onSelected: (val) => setState(() => _selectedTime = val ? t : null),
             );
           }).toList(),
         ),
@@ -636,7 +701,7 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
         const Text('Where should our certified AC technician visit?', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
         const SizedBox(height: 20),
 
-        const Text('Full Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+        const Text('Full Name *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
         const SizedBox(height: 8),
         TextField(
           controller: _nameController,
@@ -649,13 +714,13 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
         ),
         const SizedBox(height: 16),
 
-        const Text('Phone Number', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+        const Text('Phone Number *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
         const SizedBox(height: 8),
         TextField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
           decoration: InputDecoration(
-            hintText: '+91 98765 43210',
+            hintText: '10-digit mobile number',
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
@@ -663,7 +728,7 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
         ),
         const SizedBox(height: 16),
 
-        const Text('Service Address', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+        const Text('Service Address *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
         const SizedBox(height: 8),
         TextField(
           controller: _addressController,
@@ -702,11 +767,11 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('AC Service ($_acType)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A))),
+                  Text('AC Service (${_acType ?? "General"})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A))),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(6)),
-                    child: Text(_acBrand, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                    child: Text(_acBrand ?? 'AC Unit', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
                   ),
                 ],
               ),
@@ -715,7 +780,7 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
                 children: [
                   const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF64748B)),
                   const SizedBox(width: 6),
-                  Text('${_selectedDate.dayName}, ${_selectedDate.dateNumber} ${_selectedDate.monthName} • $_selectedTime', style: const TextStyle(fontSize: 12.5, color: Color(0xFF475569))),
+                  Text('${_selectedDate?.dayName ?? ""}, ${_selectedDate?.dateNumber ?? ""} ${_selectedDate?.monthName ?? ""} • ${_selectedTime ?? ""}', style: const TextStyle(fontSize: 12.5, color: Color(0xFF475569))),
                 ],
               ),
               const SizedBox(height: 6),
@@ -725,7 +790,7 @@ class _ACBookingFlowScreenState extends ConsumerState<ACBookingFlowScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : 'Ahmedabad, Gujarat',
+                      _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : 'Address not specified',
                       style: const TextStyle(fontSize: 12.5, color: Color(0xFF475569)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
