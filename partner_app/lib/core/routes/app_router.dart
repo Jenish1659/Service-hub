@@ -75,6 +75,15 @@ import '../../features/laundry_partner/presentation/screens/laundry_partner_dash
 import '../../features/laundry_partner/presentation/screens/laundry_partner_profile_screen.dart';
 import '../../features/car_service_partner/presentation/screens/car_partner_dashboard_screen.dart';
 import '../../features/car_service_partner/presentation/screens/car_partner_profile_screen.dart';
+import '../../features/car_service_partner/presentation/screens/car_live_map_screen.dart';
+import '../../features/car_service_partner/presentation/screens/car_request_details_screen.dart';
+import '../../features/car_service_partner/presentation/screens/car_personal_info_screen.dart';
+import '../../features/car_service_partner/presentation/screens/car_business_info_screen.dart';
+import '../../features/car_service_partner/presentation/screens/car_service_pricing_screen.dart';
+import '../../features/car_service_partner/presentation/screens/car_working_hours_screen.dart';
+import '../../features/car_service_partner/presentation/screens/car_documents_screen.dart';
+import '../../features/car_service_partner/presentation/screens/car_bank_details_screen.dart';
+import '../../features/car_service_partner/presentation/screens/car_settings_screen.dart';
 import '../../features/plumbing_partner/presentation/screens/plumbing_partner_dashboard_screen.dart';
 import '../../features/plumbing_partner/presentation/screens/plumbing_partner_profile_screen.dart';
 import '../../features/plumbing_partner/presentation/screens/plumbing_live_map_screen.dart';
@@ -293,6 +302,61 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/profile/car-service',
       builder: (context, state) => const CarPartnerProfileScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/car-service/map',
+      builder: (context, state) => const CarLiveMapScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/car-service/request-details',
+      builder: (context, state) {
+        final b = state.extra as Map<String, dynamic>? ?? {};
+        return CarRequestDetailsScreen(booking: b);
+      },
+    ),
+    GoRoute(
+      path: '/profile/car-service/personal',
+      builder: (context, state) => const CarPersonalInfoScreen(),
+    ),
+    GoRoute(
+      path: '/profile/car-service/personal-info',
+      builder: (context, state) => const CarPersonalInfoScreen(),
+    ),
+    GoRoute(
+      path: '/profile/car-service/business',
+      builder: (context, state) => const CarBusinessInfoScreen(),
+    ),
+    GoRoute(
+      path: '/profile/car-service/business-info',
+      builder: (context, state) => const CarBusinessInfoScreen(),
+    ),
+    GoRoute(
+      path: '/profile/car-service/pricing',
+      builder: (context, state) => const CarServicePricingScreen(),
+    ),
+    GoRoute(
+      path: '/profile/car-service/service-pricing',
+      builder: (context, state) => const CarServicePricingScreen(),
+    ),
+    GoRoute(
+      path: '/profile/car-service/hours',
+      builder: (context, state) => const CarWorkingHoursScreen(),
+    ),
+    GoRoute(
+      path: '/profile/car-service/working-hours',
+      builder: (context, state) => const CarWorkingHoursScreen(),
+    ),
+    GoRoute(
+      path: '/profile/car-service/documents',
+      builder: (context, state) => const CarDocumentsScreen(),
+    ),
+    GoRoute(
+      path: '/profile/car-service/bank',
+      builder: (context, state) => const CarBankDetailsScreen(),
+    ),
+    GoRoute(
+      path: '/profile/car-service/settings',
+      builder: (context, state) => const CarSettingsScreen(),
     ),
     GoRoute(
       path: '/profile/plumbing',

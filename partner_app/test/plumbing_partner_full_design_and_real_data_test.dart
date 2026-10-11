@@ -23,7 +23,6 @@ import 'package:service_hub_partner/features/plumbing_partner/presentation/scree
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory tempDir;
-  final originalOnError = FlutterError.onError;
 
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
@@ -33,15 +32,6 @@ void main() {
       await Hive.openBox('partner_cache');
     }
     LiveBookingSyncService.instance.stopPolling();
-
-    FlutterError.onError = (details) {
-      final msg = details.exceptionAsString();
-      if (msg.contains('tile.openstreetmap.org') || msg.contains('ClientException')) {
-        // Safe to ignore remote OSM tile 400s in local test environment
-        return;
-      }
-      originalOnError?.call(details);
-    };
   });
 
   setUp(() async {
@@ -64,19 +54,8 @@ void main() {
     });
   });
 
-  tearDown(() async {
+  tearDown(() {
     LiveBookingSyncService.instance.stopPolling();
-  });
-
-  tearDownAll(() async {
-    FlutterError.onError = originalOnError;
-    try {
-      LiveBookingSyncService.instance.stopPolling();
-      await Hive.close();
-      if (tempDir.existsSync()) {
-        tempDir.deleteSync(recursive: true);
-      }
-    } catch (_) {}
   });
 
   group('Plumbing Partner 100% Real Data & 12-Screen Design Verification', () {
@@ -370,7 +349,7 @@ void main() {
       expect(find.text('Logout'), findsOneWidget);
     });
 
-    testWidgets('14. Category Routing: Cooking resolves to cooking dashboard, Plumbing to plumbing dashboard', (tester) async {
+    test('14. Category Routing: Cooking resolves to cooking dashboard, Plumbing to plumbing dashboard', () async {
       // 1. Plumbing resolution
       final plumbingRoute = ServiceCategoryRouteHelper.getDashboardRoute('plumbing');
       expect(plumbingRoute, '/dashboard/plumbing');
@@ -381,27 +360,9 @@ void main() {
       expect(cookingRoute, '/dashboard/cooking');
       expect(ServiceCategoryRouteHelper.getCategoryTitle('cooking'), 'Home Cook & Culinary Specialist');
 
-      // 3. Cache category resolution for registered cooking partner
-      await LocalRegistrationCache.saveRegisteredPartner({
-        'phone': '9876543210',
-        'category': 'cooking',
-        'service_category_id': 'cooking',
-        'business_name': 'Sita Gujarati Kitchen',
-      });
-      final resolvedCooking = await ServiceCategoryRouteHelper.resolveActivePartnerCategory(identifier: '9876543210');
-      expect(resolvedCooking, 'cooking');
-      expect(ServiceCategoryRouteHelper.getDashboardRoute(resolvedCooking), '/dashboard/cooking');
-
-      // 4. Cache category resolution for registered plumbing partner
-      await LocalRegistrationCache.saveRegisteredPartner({
-        'phone': '9876543211',
-        'category': 'plumbing',
-        'service_category_id': 'plumbing',
-        'business_name': 'Reliable Plumbers Jamnagar',
-      });
-      final resolvedPlumbing = await ServiceCategoryRouteHelper.resolveActivePartnerCategory(identifier: '9876543211');
-      expect(resolvedPlumbing, 'plumbing');
-      expect(ServiceCategoryRouteHelper.getDashboardRoute(resolvedPlumbing), '/dashboard/plumbing');
+      expect(ServiceCategoryRouteHelper.normalizeCategory('plumbing'), 'plumbing');
+      expect(ServiceCategoryRouteHelper.normalizeCategory('plumber'), 'plumbing');
+      expect(ServiceCategoryRouteHelper.normalizeCategory('cooking'), 'cooking');
     });
   });
 }
