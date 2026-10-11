@@ -77,6 +77,14 @@ import '../../features/car_service_partner/presentation/screens/car_partner_dash
 import '../../features/car_service_partner/presentation/screens/car_partner_profile_screen.dart';
 import '../../features/plumbing_partner/presentation/screens/plumbing_partner_dashboard_screen.dart';
 import '../../features/plumbing_partner/presentation/screens/plumbing_partner_profile_screen.dart';
+import '../../features/plumbing_partner/presentation/screens/plumbing_live_map_screen.dart';
+import '../../features/plumbing_partner/presentation/screens/plumbing_request_details_screen.dart';
+import '../../features/plumbing_partner/presentation/screens/plumbing_personal_info_screen.dart';
+import '../../features/plumbing_partner/presentation/screens/plumbing_business_info_screen.dart';
+import '../../features/plumbing_partner/presentation/screens/plumbing_service_pricing_screen.dart';
+import '../../features/plumbing_partner/presentation/screens/plumbing_working_hours_screen.dart';
+import '../../features/plumbing_partner/presentation/screens/plumbing_documents_screen.dart';
+import '../../features/plumbing_partner/presentation/screens/plumbing_settings_screen.dart';
 import '../utils/service_category_route_helper.dart';
 
 final appRouter = GoRouter(
@@ -289,6 +297,41 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/profile/plumbing',
       builder: (context, state) => const PlumbingPartnerProfileScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/plumbing/map',
+      builder: (context, state) => const PlumbingLiveMapScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/plumbing/request-details',
+      builder: (context, state) {
+        final b = state.extra as Map<String, dynamic>? ?? {};
+        return PlumbingRequestDetailsScreen(booking: b);
+      },
+    ),
+    GoRoute(
+      path: '/profile/plumbing/personal-info',
+      builder: (context, state) => const PlumbingPersonalInfoScreen(),
+    ),
+    GoRoute(
+      path: '/profile/plumbing/business-info',
+      builder: (context, state) => const PlumbingBusinessInfoScreen(),
+    ),
+    GoRoute(
+      path: '/profile/plumbing/service-pricing',
+      builder: (context, state) => const PlumbingServicePricingScreen(),
+    ),
+    GoRoute(
+      path: '/profile/plumbing/working-hours',
+      builder: (context, state) => const PlumbingWorkingHoursScreen(),
+    ),
+    GoRoute(
+      path: '/profile/plumbing/documents',
+      builder: (context, state) => const PlumbingDocumentsScreen(),
+    ),
+    GoRoute(
+      path: '/profile/plumbing/settings',
+      builder: (context, state) => const PlumbingSettingsScreen(),
     ),
 
     // Provider Live Radar Map Route

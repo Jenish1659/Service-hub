@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../storage/local_registration_cache.dart';
+import '../utils/service_category_route_helper.dart';
 import 'live_booking_sync_service.dart';
 
 class AuthResult {
@@ -247,43 +248,73 @@ class SupabaseAuthService {
         if (syncRecord != null && syncRecord['category'] != null && syncRecord['category'].toString().isNotEmpty) {
           resolvedCategory = syncRecord['category'].toString();
         } else {
-          // 2. Try verification_requests remarks
-          try {
-            final vrRemark = await client
-                .from('verification_requests')
-                .select('remarks')
-                .eq('user_id', usersRes['user_id'])
-                .order('submitted_at', ascending: false)
-                .limit(1)
-                .maybeSingle();
-            if (vrRemark != null && vrRemark['remarks'] != null) {
-              final remarksStr = vrRemark['remarks'].toString();
-              final catMatch = RegExp(r'Category:\s*([a-zA-Z0-9_\-]+)', caseSensitive: false).firstMatch(remarksStr);
-              if (catMatch != null && catMatch.group(1) != null) {
-                resolvedCategory = catMatch.group(1)!.trim();
-              }
+          // 2. Try Local Registration Cache by identifier / phone / user_id
+          final localPartner = await LocalRegistrationCache.getRegisteredPartnerByIdentifier(cleanId) ??
+              await LocalRegistrationCache.getRegisteredPartnerByIdentifier(usersRes['user_id']?.toString() ?? '') ??
+              (userPhone != null ? await LocalRegistrationCache.getRegisteredPartnerByIdentifier(userPhone) : null);
+          if (localPartner != null) {
+            final lpCat = localPartner['category'] ?? localPartner['service_category_id'];
+            if (lpCat != null && lpCat.toString().isNotEmpty) {
+              resolvedCategory = lpCat.toString();
             }
-          } catch (_) {}
+          }
 
-          // 3. Try provider_services join to services
-          if (resolvedCategory == 'ac_service' && resolvedProviderId != null && resolvedProviderId.isNotEmpty) {
+          // 3. Try service_provider_profiles 'about' description
+          if (resolvedCategory == 'ac_service' && spp is Map && spp['about'] != null) {
+            final aboutStr = spp['about'].toString().toLowerCase();
+            if (aboutStr.contains('cook') || aboutStr.contains('chef') || aboutStr.contains('culinary')) {
+              resolvedCategory = 'cooking';
+            } else if (aboutStr.contains('plumb') || aboutStr.contains('pipe') || aboutStr.contains('leak') || aboutStr.contains('drain') || aboutStr.contains('sanitat')) {
+              resolvedCategory = 'plumbing';
+            } else if (aboutStr.contains('car') || aboutStr.contains('auto')) {
+              resolvedCategory = 'car_service';
+            } else if (aboutStr.contains('elder') || aboutStr.contains('patient') || aboutStr.contains('care_taker') || aboutStr.contains('caretaker')) {
+              resolvedCategory = 'care_taker';
+            } else if (aboutStr.contains('laundry') || aboutStr.contains('dry clean')) {
+              resolvedCategory = 'laundry';
+            }
+          }
+
+          // 4. Try verification_requests remarks
+          if (resolvedCategory == 'ac_service') {
             try {
-              final provSrv = await client
-                  .from('provider_services')
-                  .select('services(category_id)')
-                  .eq('provider_id', resolvedProviderId)
+              final vrRemark = await client
+                  .from('verification_requests')
+                  .select('remarks')
+                  .eq('user_id', usersRes['user_id'])
+                  .order('submitted_at', ascending: false)
                   .limit(1)
                   .maybeSingle();
-              if (provSrv != null && provSrv['services'] != null) {
-                final sCat = (provSrv['services'] as Map)['category_id']?.toString();
-                if (sCat != null && sCat.isNotEmpty) {
-                  resolvedCategory = sCat;
+              if (vrRemark != null && vrRemark['remarks'] != null) {
+                final remarksStr = vrRemark['remarks'].toString();
+                final catMatch = RegExp(r'Category:\s*([a-zA-Z0-9_\-]+)', caseSensitive: false).firstMatch(remarksStr);
+                if (catMatch != null && catMatch.group(1) != null) {
+                  resolvedCategory = catMatch.group(1)!.trim();
                 }
               }
             } catch (_) {}
           }
 
-          // 4. Try local cached session
+          // 5. Try provider_services join to services
+          if (resolvedCategory == 'ac_service' && resolvedProviderId != null && resolvedProviderId.isNotEmpty) {
+            try {
+              final provSrv = await client
+                  .from('provider_services')
+                  .select('services(category_id)')
+                  .eq('provider_id', resolvedProviderId);
+              if (provSrv.isNotEmpty) {
+                for (final ps in provSrv) {
+                  final sCat = (ps['services'] as Map?)?['category_id']?.toString();
+                  if (sCat != null && sCat.isNotEmpty) {
+                    resolvedCategory = sCat;
+                    break;
+                  }
+                }
+              }
+            } catch (_) {}
+          }
+
+          // 6. Try local active cached session
           if (resolvedCategory == 'ac_service') {
             final localCached = await LocalRegistrationCache.getActiveServiceProvider();
             final localCat = localCached?['category'] ?? localCached?['service_category_id'];
@@ -293,6 +324,8 @@ class SupabaseAuthService {
           }
         }
       }
+
+      resolvedCategory = ServiceCategoryRouteHelper.normalizeCategory(resolvedCategory);
 
       // 6. Store active session locally
       final sessionData = {
@@ -685,7 +718,7 @@ class SupabaseAuthService {
           'role': 'service_provider',
           'role_name': 'service_provider',
           'category': serviceCategoryId,
-          'category_name': 'AC Service Provider',
+          'category_name': ServiceCategoryRouteHelper.getCategoryTitle(serviceCategoryId),
           'business_name': cleanBusinessName,
           'business_address': cleanBusinessAddress,
           'city': city,
@@ -715,16 +748,25 @@ class SupabaseAuthService {
       }
 
       // Offline / Local save fallback
+      final fallbackBizName = (businessName != null && businessName.trim().isNotEmpty)
+          ? businessName.trim()
+          : '$firstName Services';
+      final fallbackBizAddress = (businessAddress != null && businessAddress.trim().isNotEmpty)
+          ? businessAddress.trim()
+          : '$city, $state';
       final fallbackSession = {
         'user_id': 'user_${DateTime.now().millisecondsSinceEpoch}',
         'username': username.trim().toLowerCase(),
         'name': '$firstName $lastName'.trim(),
-        'business_name': '$firstName AC Service Center',
+        'business_name': fallbackBizName,
+        'business_address': fallbackBizAddress,
         'phone': phone.trim(),
         'email': email.trim(),
         'password': password,
         'role_name': 'service_provider',
         'category': serviceCategoryId,
+        'service_category_id': serviceCategoryId,
+        'category_name': ServiceCategoryRouteHelper.getCategoryTitle(serviceCategoryId),
         'verification_status': 'PENDING',
         'is_online': false,
       };

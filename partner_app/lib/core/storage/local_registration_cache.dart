@@ -417,6 +417,31 @@ class LocalRegistrationCache {
     }
   }
 
+  static Future<Map<String, dynamic>?> getRegisteredPartnerByIdentifier(String identifier) async {
+    final cleanId = identifier.trim().toLowerCase().replaceAll('@', '').replaceAll('+', '').replaceAll(' ', '');
+    try {
+      final box = _getBox();
+      final List<dynamic> rawList = box.get('registered_partners_list', defaultValue: []) as List<dynamic>;
+      final List<Map<String, dynamic>> partners = rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+
+      for (final p in partners.reversed) {
+        final pPhone = (p['phone'] ?? p['mobile'] ?? '').toString().toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+        final pEmail = (p['email'] ?? '').toString().toLowerCase().replaceAll('@', '').replaceAll(' ', '');
+        final pUser = (p['username'] ?? '').toString().toLowerCase().replaceAll('@', '').replaceAll(' ', '');
+        final pId = (p['id'] ?? p['user_id'] ?? p['partner_id'] ?? '').toString().toLowerCase();
+
+        if (pPhone == cleanId ||
+            pEmail == cleanId ||
+            pUser == cleanId ||
+            pId == cleanId ||
+            (cleanId.length >= 10 && pPhone.endsWith(cleanId))) {
+          return p;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   static Future<Map<String, dynamic>?> authenticateProvider(String identifier, String password) async {
     final cleanId = identifier.trim().toLowerCase();
     final cleanPass = password.trim();

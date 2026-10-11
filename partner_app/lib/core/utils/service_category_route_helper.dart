@@ -143,8 +143,21 @@ class ServiceCategoryRouteHelper {
   }
 
   /// Resolves the active partner category from session cache.
-  static Future<String> resolveActivePartnerCategory() async {
+  static Future<String> resolveActivePartnerCategory({String? identifier}) async {
     try {
+      if (identifier != null && identifier.trim().isNotEmpty) {
+        final match = await LocalRegistrationCache.getRegisteredPartnerByIdentifier(identifier);
+        if (match != null) {
+          final cat = match['category'] ??
+              match['service_category_id'] ??
+              match['serviceCategoryId'] ??
+              match['business_type'];
+          if (cat != null && cat.toString().trim().isNotEmpty) {
+            return normalizeCategory(cat.toString());
+          }
+        }
+      }
+
       final activeProvider = await LocalRegistrationCache.getActiveServiceProvider();
       if (activeProvider != null) {
         final cat = activeProvider['category'] ??
@@ -161,6 +174,16 @@ class ServiceCategoryRouteHelper {
         final cat = activePartner['category'] ??
             activePartner['service_category_id'] ??
             activePartner['business_type'];
+        if (cat != null && cat.toString().trim().isNotEmpty) {
+          return normalizeCategory(cat.toString());
+        }
+      }
+
+      final registeredPartner = await LocalRegistrationCache.getRegisteredPartner();
+      if (registeredPartner != null) {
+        final cat = registeredPartner['category'] ??
+            registeredPartner['service_category_id'] ??
+            registeredPartner['business_type'];
         if (cat != null && cat.toString().trim().isNotEmpty) {
           return normalizeCategory(cat.toString());
         }
