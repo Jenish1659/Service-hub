@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/vector_avatar_widgets.dart';
 import '../../../core/services/supabase_auth_service.dart';
+import '../../../core/utils/service_category_route_helper.dart';
 
 class ServiceProviderLoginScreen extends StatefulWidget {
   const ServiceProviderLoginScreen({super.key});
@@ -54,7 +55,9 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
             behavior: SnackBarBehavior.floating,
           ),
         );
-        context.go('/dashboard');
+        final cat = result.userData?['category'] ?? result.userData?['service_category_id'];
+        final targetRoute = ServiceCategoryRouteHelper.getDashboardRoute(cat?.toString());
+        context.go(targetRoute);
       } else {
         final errorMsg = result.errorMessage ?? 'Invalid credentials. Please check your username/phone and password.';
         if (errorMsg.contains('PENDING_APPROVAL')) {

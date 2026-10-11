@@ -368,7 +368,9 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
     try {
       final localPending = LiveBookingSyncService.instance.getPendingPartnerVerifications();
       for (final lp in localPending) {
-        _upsertCanonicalCandidate(tickCandidates, Map<String, dynamic>.from(lp));
+        if (!_isPartnerResolved(lp)) {
+          _upsertCanonicalCandidate(tickCandidates, Map<String, dynamic>.from(lp));
+        }
       }
     } catch (_) {}
 

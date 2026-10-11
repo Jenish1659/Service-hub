@@ -440,14 +440,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(width: 14),
 
-                    // Card 6: Electrical
+                    // Card 6: Laundry
                     _buildPillServiceCard(
                       context: context,
-                      title: 'Electrical',
-                      badgeColor: const Color(0xfff59e0b),
-                      badgeBg: const Color(0xfffef3c7),
-                      badgeIcon: Icons.electrical_services_rounded,
-                      categoryCode: 'Electrical',
+                      title: 'Laundry',
+                      badgeColor: const Color(0xff059669),
+                      badgeBg: const Color(0xffd1fae5),
+                      badgeIcon: Icons.local_laundry_service_rounded,
+                      categoryCode: 'Laundry',
                     ),
                     const SizedBox(width: 14),
 
@@ -694,8 +694,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           context.push('/services/laundry/requirements');
         } else if (code.contains('plumb')) {
           context.push('/services/plumbing/requirements');
-        } else if (code.contains('elec')) {
-          context.push('/services/electrical/requirements');
         } else {
           context.go('/discover?category=$categoryCode');
         }

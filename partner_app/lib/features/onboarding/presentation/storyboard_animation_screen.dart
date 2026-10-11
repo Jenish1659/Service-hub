@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/sh_logo_widget.dart';
 
 import '../../../core/storage/local_registration_cache.dart';
+import '../../../core/utils/service_category_route_helper.dart';
 
 class StoryboardAnimationScreen extends StatefulWidget {
   const StoryboardAnimationScreen({super.key});
@@ -44,10 +45,17 @@ class _StoryboardAnimationScreenState extends State<StoryboardAnimationScreen> {
             context.go('/dashboard/delivery');
             return;
           } else if (role == 'shopkeeper' || role.contains('shop') || role.contains('store')) {
-            context.go('/dashboard/shopkeeper');
+            final cat = (activePartner['category'] ?? activePartner['business_type'] ?? '').toString().toLowerCase();
+            if (cat.contains('laundry')) {
+              context.go('/dashboard/laundry');
+            } else {
+              context.go('/dashboard/shopkeeper');
+            }
             return;
           } else if (role == 'service_provider' || role.contains('provider') || role.contains('expert') || role.contains('technician')) {
-            context.go('/dashboard');
+            final cat = activePartner['category'] ?? activePartner['service_category_id'];
+            final targetRoute = ServiceCategoryRouteHelper.getDashboardRoute(cat?.toString());
+            context.go(targetRoute);
             return;
           } else {
             // Unresolved role: do not assume a role dashboard

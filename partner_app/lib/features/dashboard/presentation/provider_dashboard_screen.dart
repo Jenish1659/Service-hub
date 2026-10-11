@@ -733,7 +733,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
 
         // Profile Avatar with Online Indicator Dot
         GestureDetector(
-          onTap: () => context.push('/profile'),
+          onTap: () => context.push('/profile/ac'),
           child: Padding(
             padding: const EdgeInsets.only(right: 16, left: 4),
             child: Stack(
@@ -2027,7 +2027,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                 isSelected: _currentBottomNavIndex == 4,
                 onTap: () {
                   setState(() => _currentBottomNavIndex = 4);
-                  context.push('/profile');
+                  context.push('/profile/ac');
                 },
               ),
             ],

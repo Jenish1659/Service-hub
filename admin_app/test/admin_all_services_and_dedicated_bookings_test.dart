@@ -37,7 +37,7 @@ void main() {
       expect(find.text('Laundry Bookings'), findsOneWidget);
       expect(find.text('Car Service Bookings'), findsOneWidget);
       expect(find.text('Plumbing Bookings'), findsOneWidget);
-      expect(find.text('Electrical Bookings'), findsOneWidget);
+      expect(find.text('Cooking Bookings'), findsOneWidget);
       expect(find.text('All Bookings'), findsOneWidget);
 
       // Tap on Car Service Bookings
@@ -115,14 +115,14 @@ void main() {
           home: Scaffold(
             body: AdminBookingsView(
               allBookings: [],
-              serviceCategory: 'electrical',
-              title: 'Electrical Bookings',
+              serviceCategory: 'cooking',
+              title: 'Cooking Bookings',
             ),
           ),
         ),
       );
 
-      expect(find.text('No bookings found for "Electrical Bookings"'), findsOneWidget);
+      expect(find.text('No bookings found for "Cooking Bookings"'), findsOneWidget);
     });
   });
 }

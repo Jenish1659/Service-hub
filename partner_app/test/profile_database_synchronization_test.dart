@@ -170,25 +170,25 @@ void main() {
       controller.shopData = {'user_id': 'shop_404', 'partner_id': 'part_shop_404'};
 
       await controller.updateStoreDetails(
-        newShopName: 'Reliance Spares & Electricals',
+        newShopName: 'Reliance Spares & Hardware',
         newOwnerName: 'Dhirubhai Merchant',
         newPhone: '+91 99999 88888',
         newEmail: 'reliance.spares@servicehub.in',
         newAddress: 'MG Road, Commercial Center',
         newCity: 'Jamnagar',
         newPincode: '361005',
-        newCategory: 'AC Electricals',
-        newDescription: 'Top quality electrical and spare components',
+        newCategory: 'AC Hardware & Parts',
+        newDescription: 'Top quality hardware and spare components',
       );
 
-      expect(controller.shopName, 'Reliance Spares & Electricals');
+      expect(controller.shopName, 'Reliance Spares & Hardware');
       expect(controller.ownerName, 'Dhirubhai Merchant');
       expect(controller.address, 'MG Road, Commercial Center');
       expect(controller.pincode, '361005');
 
       final cached = await LocalRegistrationCache.getActiveShopkeeper();
       expect(cached, isNotNull);
-      expect(cached!['business_name'], 'Reliance Spares & Electricals');
+      expect(cached!['business_name'], 'Reliance Spares & Hardware');
       expect(cached['name'], 'Dhirubhai Merchant');
 
       // Test bank details update

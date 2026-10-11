@@ -20,7 +20,6 @@ import '../../features/services/presentation/car_service_requirement_screen.dart
 import '../../features/services/presentation/care_taker_requirement_screen.dart';
 import '../../features/services/presentation/cooking_requirement_screen.dart';
 import '../../features/services/presentation/plumbing_requirement_screen.dart';
-import '../../features/services/presentation/electrical_requirement_screen.dart';
 import '../../features/services/presentation/service_select_date_screen.dart';
 import '../../features/services/presentation/service_select_time_screen.dart';
 import '../../features/services/presentation/service_address_details_screen.dart';
@@ -271,11 +270,6 @@ final GoRouter appRouter = GoRouter(
       path: '/services/plumbing/requirements',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (BuildContext context, GoRouterState state) => const PlumbingRequirementScreen(),
-    ),
-    GoRoute(
-      path: '/services/electrical/requirements',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (BuildContext context, GoRouterState state) => const ElectricalRequirementScreen(),
     ),
 
     // Universal Multi-Service Booking Steps

@@ -42,6 +42,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
   bool _isFetching = false;
   DateTime _lastFetchTime = DateTime.fromMillisecondsSinceEpoch(0);
   int _currentNavIndex = 0;
+  String _partnerId = '';
   StreamSubscription? _liveBookingSub;
 
   @override
@@ -229,10 +230,11 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
         client = Supabase.instance.client;
       } catch (_) {}
       final userId = activeUser['user_id'] ?? activeUser['id'];
+      _partnerId = (activeUser['partner_id'] ?? '').toString();
       String? agentId = activeUser['delivery_agent_id']?.toString();
 
       // Look up partner & delivery_agent_id from Supabase if not in session
-      if (agentId == null && userId != null && client != null && !_isTestMode) {
+      if (userId != null && client != null && !_isTestMode) {
         try {
           final partnerRes = await client
               .from('partners')
@@ -241,6 +243,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
               .maybeSingle()
               .timeout(const Duration(seconds: 3));
           if (partnerRes != null) {
+            _partnerId = partnerRes['partner_id']?.toString() ?? _partnerId;
             final agentRes = await client
                 .from('delivery_agent_profiles')
                 .select('delivery_agent_id')
@@ -600,7 +603,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
                       isOnline: _isOnline,
                       shiftHours: '9:00 AM – 8:00 PM',
                       locationCity: _agentCity,
-                      onToggleOnline: (val) {
+                      onToggleOnline: (val) async {
                         setState(() => _isOnline = val);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -610,6 +613,14 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
+                        if (_partnerId.isNotEmpty && !_isTestMode) {
+                          try {
+                            await Supabase.instance.client
+                                .from('partners')
+                                .update({'availability_status': val ? 'ONLINE' : 'OFFLINE'})
+                                .eq('partner_id', _partnerId);
+                          } catch (_) {}
+                        }
                       },
                     ),
 

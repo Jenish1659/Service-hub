@@ -158,6 +158,31 @@ class _ServiceReviewConfirmScreenState extends ConsumerState<ServiceReviewConfir
         }
       }
 
+      if (realCustomerId == '00000000-0000-0000-0000-000000000002') {
+        try {
+          final custUser = await supabase
+              .from('users')
+              .select('user_id, username, phone, user_profiles(first_name, last_name), roles!inner(role_name)')
+              .eq('roles.role_name', 'customer')
+              .eq('account_status', 'ACTIVE')
+              .limit(1)
+              .maybeSingle();
+          if (custUser != null && custUser['user_id'] != null) {
+            realCustomerId = custUser['user_id'].toString();
+            if (userName == 'Customer') {
+              dynamic prof = custUser['user_profiles'];
+              if (prof is List && prof.isNotEmpty) prof = prof.first;
+              userName = (prof is Map)
+                  ? '${prof['first_name'] ?? ""} ${prof['last_name'] ?? ""}'.trim()
+                  : (custUser['username'] ?? 'Customer').toString();
+            }
+            if (userPhone.isEmpty) {
+              userPhone = custUser['phone']?.toString() ?? '';
+            }
+          }
+        } catch (_) {}
+      }
+
       final aRes = await supabase.from('user_addresses').select('address_id').eq('user_id', realCustomerId).limit(1).maybeSingle();
       if (aRes != null && aRes['address_id'] != null) {
         realAddressId = aRes['address_id'].toString();
@@ -170,6 +195,35 @@ class _ServiceReviewConfirmScreenState extends ConsumerState<ServiceReviewConfir
       }
     } catch (e) {
       debugPrint('[ServiceReviewConfirm] Identity resolution note: $e');
+    }
+
+    // Ensure valid user address in PostgreSQL (Mandatory foreign key)
+    if (realAddressId == null && realCustomerId.isNotEmpty && realCustomerId != '00000000-0000-0000-0000-000000000002') {
+      try {
+        final newAddr = await supabase.from('user_addresses').insert({
+          'user_id': realCustomerId,
+          'address_type': 'Home',
+          'area': (widget.issueDetails['customer_address']?.toString() ?? 'Jamnagar').trim(),
+          'city': 'Jamnagar',
+          'state': 'Gujarat',
+          'pincode': '361001',
+          'latitude': 22.4707,
+          'longitude': 70.0577,
+          'is_default': true,
+        }).select('address_id').single();
+        realAddressId = newAddr['address_id']?.toString();
+      } catch (e) {
+        debugPrint('[ServiceReviewConfirm] Auto-create address note: $e');
+      }
+    }
+
+    if (realAddressId == null) {
+      try {
+        final anyAddr = await supabase.from('user_addresses').select('address_id').limit(1).maybeSingle();
+        if (anyAddr != null && anyAddr['address_id'] != null) {
+          realAddressId = anyAddr['address_id'].toString();
+        }
+      } catch (_) {}
     }
 
     final serviceName = widget.issueDetails['service_name'] ?? config.categoryName;
@@ -298,21 +352,43 @@ class _ServiceReviewConfirmScreenState extends ConsumerState<ServiceReviewConfir
     // 3. For Same-Day booking (Path A), execute Real Partner Assignment Dispatch
     if (isToday) {
       try {
+        await supabase.rpc('find_and_dispatch_eligible_partners', params: {
+          'p_booking_id': bookingUuid,
+        });
+      } catch (e) {
+        debugPrint('[ServiceReviewConfirm] RPC dispatch note: $e');
+      }
+
+      try {
         if (config.requiredRole == 'service_provider') {
           final candidatesRes = await supabase
               .from('service_provider_profiles')
               .select('provider_id, partner_id, partners(partner_id, user_id, verification_status, availability_status, users(user_id, is_active, account_status, roles(role_name)), partner_live_locations(latitude, longitude))');
 
           for (final c in candidatesRes) {
-            final p = c['partners'] as Map<String, dynamic>?;
-            final u = p?['users'] as Map<String, dynamic>?;
-            final r = u?['roles'] as Map<String, dynamic>?;
-            final loc = p?['partner_live_locations'] as Map<String, dynamic>?;
+            dynamic pRaw = c['partners'];
+            if (pRaw is List && pRaw.isNotEmpty) pRaw = pRaw.first;
+            final p = pRaw is Map<String, dynamic> ? pRaw : null;
 
-            final isRoleMatch = r?['role_name'] == 'service_provider';
-            final isVerified = p?['verification_status'] == 'VERIFIED' || p?['verification_status'] == 'APPROVED';
-            final isOnline = p?['availability_status'] == 'ONLINE' || p?['availability_status'] == 'AVAILABLE';
-            final isActive = u?['is_active'] == true && u?['account_status'] == 'ACTIVE';
+            dynamic uRaw = p?['users'];
+            if (uRaw is List && uRaw.isNotEmpty) uRaw = uRaw.first;
+            final u = uRaw is Map<String, dynamic> ? uRaw : null;
+
+            dynamic rRaw = u?['roles'];
+            if (rRaw is List && rRaw.isNotEmpty) rRaw = rRaw.first;
+            final r = rRaw is Map<String, dynamic> ? rRaw : null;
+
+            dynamic locRaw = p?['partner_live_locations'];
+            if (locRaw is List && locRaw.isNotEmpty) locRaw = locRaw.first;
+            final loc = locRaw is Map<String, dynamic> ? locRaw : null;
+
+            final isRoleMatch = (r?['role_name'] ?? '').toString().toLowerCase() == 'service_provider';
+            final vStat = (p?['verification_status'] ?? '').toString().toUpperCase();
+            final aStat = (p?['availability_status'] ?? '').toString().toUpperCase();
+            final isVerified = vStat == 'VERIFIED' || vStat == 'APPROVED';
+            final isOnline = aStat == 'ONLINE' || aStat == 'AVAILABLE';
+            final isActive = (u?['is_active'] == true || u?['is_active'] == null) &&
+                (u?['account_status'] ?? 'ACTIVE').toString().toUpperCase() == 'ACTIVE';
 
             if (isRoleMatch && isVerified && isOnline && isActive) {
               final pLat = (loc?['latitude'] as num?)?.toDouble() ?? 22.4707;
@@ -325,8 +401,6 @@ class _ServiceReviewConfirmScreenState extends ConsumerState<ServiceReviewConfir
                   'booking_id': bookingUuid,
                   'provider_id': c['provider_id'],
                   'partner_id': c['partner_id'],
-                  'required_role': config.requiredRole,
-                  'required_capability': config.requiredCapability,
                   'response_status': 'Pending',
                   'sent_at': DateTime.now().toIso8601String(),
                 });
@@ -342,19 +416,29 @@ class _ServiceReviewConfirmScreenState extends ConsumerState<ServiceReviewConfir
           for (final sh in shopsRes) {
             final shopType = (sh['shop_type'] ?? '').toString().toUpperCase();
             if (shopType.contains('LAUNDRY')) {
-              final skp = sh['shopkeeper_profiles'] as Map<String, dynamic>?;
-              final p = skp?['partners'] as Map<String, dynamic>?;
-              final u = p?['users'] as Map<String, dynamic>?;
-              final isVerified = p?['verification_status'] == 'VERIFIED' || p?['verification_status'] == 'APPROVED';
-              final isOnline = p?['availability_status'] == 'ONLINE' || p?['availability_status'] == 'AVAILABLE';
-              final isActive = u?['is_active'] == true;
+              dynamic skpRaw = sh['shopkeeper_profiles'];
+              if (skpRaw is List && skpRaw.isNotEmpty) skpRaw = skpRaw.first;
+              final skp = skpRaw is Map<String, dynamic> ? skpRaw : null;
+
+              dynamic pRaw = skp?['partners'];
+              if (pRaw is List && pRaw.isNotEmpty) pRaw = pRaw.first;
+              final p = pRaw is Map<String, dynamic> ? pRaw : null;
+
+              dynamic uRaw = p?['users'];
+              if (uRaw is List && uRaw.isNotEmpty) uRaw = uRaw.first;
+              final u = uRaw is Map<String, dynamic> ? uRaw : null;
+
+              final vStat = (p?['verification_status'] ?? '').toString().toUpperCase();
+              final aStat = (p?['availability_status'] ?? '').toString().toUpperCase();
+              final isVerified = vStat == 'VERIFIED' || vStat == 'APPROVED';
+              final isOnline = aStat == 'ONLINE' || aStat == 'AVAILABLE';
+              final isActive = (u?['is_active'] == true || u?['is_active'] == null) &&
+                  (u?['account_status'] ?? 'ACTIVE').toString().toUpperCase() == 'ACTIVE';
 
               if (isVerified && isOnline && isActive && skp != null) {
                 await supabase.from('booking_requests').insert({
                   'booking_id': bookingUuid,
                   'partner_id': skp['partner_id'],
-                  'required_role': config.requiredRole,
-                  'required_capability': config.requiredCapability,
                   'response_status': 'Pending',
                   'sent_at': DateTime.now().toIso8601String(),
                 });

@@ -86,7 +86,7 @@ class AdminSidebar extends StatelessWidget {
                   _buildNavItem('Laundry Bookings', Icons.local_laundry_service_rounded),
                   _buildNavItem('Car Service Bookings', Icons.directions_car_rounded),
                   _buildNavItem('Plumbing Bookings', Icons.plumbing_rounded),
-                  _buildNavItem('Electrical Bookings', Icons.electrical_services_rounded),
+                  _buildNavItem('Cooking Bookings', Icons.restaurant_rounded),
                   _buildNavItem('All Bookings', Icons.list_alt_rounded),
 
                   _buildGroupHeader('PARTNER OPERATIONS'),

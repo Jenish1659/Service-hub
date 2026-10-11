@@ -31,7 +31,7 @@ class _ShopkeeperEditProfileScreenState extends State<ShopkeeperEditProfileScree
     'AC Parts',
     'Appliance Parts',
     'Hardware',
-    'Electrical',
+    'Tools & Equipment',
   ];
   String? _selectedCategory;
 

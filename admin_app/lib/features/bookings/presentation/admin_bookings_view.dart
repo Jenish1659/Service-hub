@@ -65,14 +65,6 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
             sName.contains('pipe') ||
             sName.contains('tap') ||
             sName.contains('leak');
-      case 'electrical':
-        return catId == 'electrical' ||
-            catName.contains('electr') ||
-            sName.contains('electr') ||
-            sName.contains('switch') ||
-            sName.contains('fan') ||
-            sName.contains('wire') ||
-            sName.contains('mcb');
       case 'cooking':
         return catId == 'cooking' ||
             catName.contains('cook') ||
@@ -131,8 +123,8 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
           return _matchesCategory(b, 'car_service');
         case 'Plumbing Bookings':
           return _matchesCategory(b, 'plumbing');
-        case 'Electrical Bookings':
-          return _matchesCategory(b, 'electrical');
+        case 'Cooking Bookings':
+          return _matchesCategory(b, 'cooking');
         case 'Booking Requests':
           return status == 'PENDING' || status == 'SEARCHING_PROVIDER';
         case 'Assigned Bookings':
@@ -173,7 +165,7 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
                   const SizedBox(width: 8),
                   _buildFilterChip('Plumbing Bookings', baseBookings.where((b) => _matchesCategory(b, 'plumbing')).length),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Electrical Bookings', baseBookings.where((b) => _matchesCategory(b, 'electrical')).length),
+                  _buildFilterChip('Cooking Bookings', baseBookings.where((b) => _matchesCategory(b, 'cooking')).length),
                 ],
                 const SizedBox(width: 8),
                 _buildFilterChip('Booking Requests', baseBookings.where((b) {

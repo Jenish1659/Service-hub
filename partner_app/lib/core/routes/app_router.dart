@@ -14,7 +14,6 @@ import '../../features/registration/presentation/screens/provider_review_applica
 import '../../features/registration/presentation/screens/provider_registration_success_screen.dart';
 import '../../features/registration/presentation/screens/provider_application_status_screen.dart';
 import '../../features/registration/presentation/screens/shopkeeper_registration_flow_screen.dart';
-import '../../features/dashboard/presentation/provider_dashboard_screen.dart';
 import '../../features/dashboard/presentation/delivery_dashboard_screen.dart';
 import '../../features/dashboard/presentation/shopkeeper_dashboard_screen.dart';
 import '../../features/dashboard/presentation/ac_active_job_navigation_screen.dart';
@@ -22,7 +21,6 @@ import '../../features/dashboard/presentation/delivery_live_map_screen.dart';
 import '../../features/dashboard/presentation/shopkeeper_store_map_screen.dart';
 import '../../features/dashboard/presentation/provider_live_radar_map_screen.dart';
 import '../../features/registration/presentation/screens/delivery_partner_registration_flow_screen.dart';
-import 'package:service_hub_partner/features/profile/presentation/screens/my_profile_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/my_services_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/availability_screen.dart';
@@ -67,6 +65,19 @@ import 'package:service_hub_partner/features/profile/presentation/screens/delive
 import 'package:service_hub_partner/features/profile/presentation/screens/delivery_settings_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/screens/delivery_help_support_screen.dart';
 import 'package:service_hub_partner/features/profile/presentation/controllers/delivery_agent_profile_controller.dart';
+import '../../features/ac_service_partner/presentation/screens/ac_partner_dashboard_screen.dart';
+import '../../features/ac_service_partner/presentation/screens/ac_partner_profile_screen.dart';
+import '../../features/care_taker_partner/presentation/screens/care_partner_dashboard_screen.dart';
+import '../../features/care_taker_partner/presentation/screens/care_partner_profile_screen.dart';
+import '../../features/cooking_partner/presentation/screens/cooking_partner_dashboard_screen.dart';
+import '../../features/cooking_partner/presentation/screens/cooking_partner_profile_screen.dart';
+import '../../features/laundry_partner/presentation/screens/laundry_partner_dashboard_screen.dart';
+import '../../features/laundry_partner/presentation/screens/laundry_partner_profile_screen.dart';
+import '../../features/car_service_partner/presentation/screens/car_partner_dashboard_screen.dart';
+import '../../features/car_service_partner/presentation/screens/car_partner_profile_screen.dart';
+import '../../features/plumbing_partner/presentation/screens/plumbing_partner_dashboard_screen.dart';
+import '../../features/plumbing_partner/presentation/screens/plumbing_partner_profile_screen.dart';
+import '../utils/service_category_route_helper.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -218,10 +229,66 @@ final appRouter = GoRouter(
       ),
     ),
 
-    // Provider Main Dashboard Route (AC & Services)
+    // Provider Main Dashboard Route (AC & Services fallback with dynamic category resolution)
     GoRoute(
       path: '/dashboard',
-      builder: (context, state) => const ProviderDashboardScreen(),
+      redirect: (context, state) async {
+        final cat = await ServiceCategoryRouteHelper.resolveActivePartnerCategory();
+        return ServiceCategoryRouteHelper.getDashboardRoute(cat);
+      },
+      builder: (context, state) => const ACPartnerDashboardScreen(),
+    ),
+
+    // Service-Wise Dedicated Partner Dashboards
+    GoRoute(
+      path: '/dashboard/ac',
+      builder: (context, state) => const ACPartnerDashboardScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/care-taker',
+      builder: (context, state) => const CarePartnerDashboardScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/cooking',
+      builder: (context, state) => const CookingPartnerDashboardScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/laundry',
+      builder: (context, state) => const LaundryPartnerDashboardScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/car-service',
+      builder: (context, state) => const CarPartnerDashboardScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/plumbing',
+      builder: (context, state) => const PlumbingPartnerDashboardScreen(),
+    ),
+
+    // Service-Wise Dedicated Partner Profiles
+    GoRoute(
+      path: '/profile/ac',
+      builder: (context, state) => const ACPartnerProfileScreen(),
+    ),
+    GoRoute(
+      path: '/profile/care-taker',
+      builder: (context, state) => const CarePartnerProfileScreen(),
+    ),
+    GoRoute(
+      path: '/profile/cooking',
+      builder: (context, state) => const CookingPartnerProfileScreen(),
+    ),
+    GoRoute(
+      path: '/profile/laundry',
+      builder: (context, state) => const LaundryPartnerProfileScreen(),
+    ),
+    GoRoute(
+      path: '/profile/car-service',
+      builder: (context, state) => const CarPartnerProfileScreen(),
+    ),
+    GoRoute(
+      path: '/profile/plumbing',
+      builder: (context, state) => const PlumbingPartnerProfileScreen(),
     ),
 
     // Provider Live Radar Map Route
@@ -444,10 +511,14 @@ final appRouter = GoRouter(
       },
     ),
 
-    // Service Provider Profile Routes (Strictly for Service Provider Only)
+    // Service Provider Profile Routes (Strictly for Service Provider Only, with dynamic category redirect)
     GoRoute(
       path: '/profile',
-      builder: (context, state) => const MyProfileScreen(),
+      redirect: (context, state) async {
+        final cat = await ServiceCategoryRouteHelper.resolveActivePartnerCategory();
+        return ServiceCategoryRouteHelper.getProfileRoute(cat);
+      },
+      builder: (context, state) => const ACPartnerProfileScreen(),
     ),
     GoRoute(
       path: '/profile/edit',

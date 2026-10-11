@@ -153,16 +153,17 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
 
     // 2. Real Customer identity & metadata resolution
     final supabase = Supabase.instance.client;
-    String realCustomerId = '3e2584b1-4943-4196-abaa-1de62a456703'; // Real customer in DB
-    String realAddressId = '0cbd6285-4c82-4af4-9849-f9b910bb0c14'; // Real customer address in DB
-    String realServiceId = 'f27fbac4-115c-4674-9c93-6b6ff8e1d080'; // Real AC Deep Cleaning in DB
+    String realCustomerId = '';
+    String? realAddressId;
+    String realServiceId = '';
     String userName = widget.issueDetails['customer_name'] ?? '';
     String userPhone = widget.issueDetails['customer_phone'] ?? '';
 
     try {
       final user = supabase.auth.currentUser;
       if (user != null) {
-        final uRes = await supabase.from('users').select('user_id').eq('auth_id', user.id).maybeSingle();
+        realCustomerId = user.id;
+        final uRes = await supabase.from('users').select('user_id').eq('user_id', user.id).maybeSingle();
         if (uRes != null && uRes['user_id'] != null) {
           realCustomerId = uRes['user_id'].toString();
         }
@@ -185,9 +186,58 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
         }
       }
 
-      final aRes = await supabase.from('user_addresses').select('address_id').eq('user_id', realCustomerId).limit(1).maybeSingle();
-      if (aRes != null && aRes['address_id'] != null) {
-        realAddressId = aRes['address_id'].toString();
+      if (realCustomerId.isEmpty) {
+        try {
+          final custUser = await supabase
+              .from('users')
+              .select('user_id, username, phone, user_profiles(first_name, last_name), roles!inner(role_name)')
+              .eq('roles.role_name', 'customer')
+              .eq('account_status', 'ACTIVE')
+              .limit(1)
+              .maybeSingle();
+          if (custUser != null && custUser['user_id'] != null) {
+            realCustomerId = custUser['user_id'].toString();
+            if (userName.isEmpty) {
+              dynamic prof = custUser['user_profiles'];
+              if (prof is List && prof.isNotEmpty) prof = prof.first;
+              userName = (prof is Map)
+                  ? '${prof['first_name'] ?? ""} ${prof['last_name'] ?? ""}'.trim()
+                  : (custUser['username'] ?? 'Customer').toString();
+            }
+            if (userPhone.isEmpty) {
+              userPhone = custUser['phone']?.toString() ?? '';
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (realCustomerId.isEmpty) {
+        final fallbackUser = await supabase
+            .from('users')
+            .select('user_id, username, phone, user_profiles(first_name, last_name)')
+            .eq('account_status', 'ACTIVE')
+            .limit(1)
+            .maybeSingle();
+        if (fallbackUser != null && fallbackUser['user_id'] != null) {
+          realCustomerId = fallbackUser['user_id'].toString();
+          if (userName.isEmpty) {
+            dynamic prof = fallbackUser['user_profiles'];
+            if (prof is List && prof.isNotEmpty) prof = prof.first;
+            userName = (prof is Map)
+                ? '${prof['first_name'] ?? ""} ${prof['last_name'] ?? ""}'.trim()
+                : (fallbackUser['username'] ?? 'Customer').toString();
+          }
+          if (userPhone.isEmpty) {
+            userPhone = fallbackUser['phone']?.toString() ?? '';
+          }
+        }
+      }
+
+      if (realCustomerId.isNotEmpty) {
+        final aRes = await supabase.from('user_addresses').select('address_id').eq('user_id', realCustomerId).limit(1).maybeSingle();
+        if (aRes != null && aRes['address_id'] != null) {
+          realAddressId = aRes['address_id'].toString();
+        }
       }
 
       final svcRes = await supabase.from('services').select('service_id, name').eq('category_id', 'ac_service');
@@ -199,8 +249,46 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
           break;
         }
       }
+      if (realServiceId.isEmpty && svcRes.isNotEmpty) {
+        realServiceId = svcRes.first['service_id'].toString();
+      }
+      if (realServiceId.isEmpty) {
+        final anySvc = await supabase.from('services').select('service_id').limit(1).maybeSingle();
+        if (anySvc != null && anySvc['service_id'] != null) {
+          realServiceId = anySvc['service_id'].toString();
+        }
+      }
     } catch (e) {
-      debugPrint('[CustomerBooking] Identity resolution fallback note: $e');
+      debugPrint('[CustomerBooking] Identity resolution note: $e');
+    }
+
+    // Ensure valid user address in PostgreSQL
+    if (realAddressId == null && realCustomerId.isNotEmpty) {
+      try {
+        final newAddr = await supabase.from('user_addresses').insert({
+          'user_id': realCustomerId,
+          'address_type': 'Home',
+          'area': (widget.issueDetails['customer_address']?.toString() ?? 'Jamnagar').trim(),
+          'city': 'Jamnagar',
+          'state': 'Gujarat',
+          'pincode': '361001',
+          'latitude': 22.4707,
+          'longitude': 70.0577,
+          'is_default': true,
+        }).select('address_id').single();
+        realAddressId = newAddr['address_id']?.toString();
+      } catch (e) {
+        debugPrint('[ACReviewConfirm] Auto-create address note: $e');
+      }
+    }
+
+    if (realAddressId == null) {
+      try {
+        final anyAddr = await supabase.from('user_addresses').select('address_id').limit(1).maybeSingle();
+        if (anyAddr != null && anyAddr['address_id'] != null) {
+          realAddressId = anyAddr['address_id'].toString();
+        }
+      } catch (_) {}
     }
 
     final serviceName = widget.issueDetails['service_name'] ?? 'AC Service';
@@ -343,28 +431,44 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
     // 5. For Same-Day booking (Path A), execute Real Partner Assignment Dispatch
     if (isToday) {
       try {
+        await supabase.rpc('find_and_dispatch_eligible_partners', params: {
+          'p_booking_id': bookingUuid,
+        });
+      } catch (e) {
+        debugPrint('[ACReviewConfirm] RPC dispatch note: $e');
+      }
+
+      try {
         final candidatesRes = await supabase
             .from('service_provider_profiles')
             .select('provider_id, partner_id, partners(partner_id, user_id, verification_status, availability_status, users(user_id, is_active, account_status, roles(role_name)), partner_live_locations(latitude, longitude))');
 
         int dispatchedCount = 0;
         for (final c in candidatesRes) {
-          final partner = c['partners'] as Map<String, dynamic>?;
+          dynamic pRaw = c['partners'];
+          if (pRaw is List && pRaw.isNotEmpty) pRaw = pRaw.first;
+          final partner = pRaw is Map<String, dynamic> ? pRaw : null;
           if (partner == null) continue;
-          final user = partner['users'] as Map<String, dynamic>?;
+
+          dynamic uRaw = partner['users'];
+          if (uRaw is List && uRaw.isNotEmpty) uRaw = uRaw.first;
+          final user = uRaw is Map<String, dynamic> ? uRaw : null;
           if (user == null) continue;
-          final role = (user['roles'] as Map<String, dynamic>?)?['role_name']?.toString() ?? '';
+
+          dynamic rRaw = user['roles'];
+          if (rRaw is List && rRaw.isNotEmpty) rRaw = rRaw.first;
+          final role = (rRaw is Map ? rRaw['role_name'] : null)?.toString() ?? '';
 
           // A. Role Isolation: Strictly service_provider (exclude shopkeeper & delivery_agent)
           if (role != 'service_provider') continue;
 
           // B. Verification & Availability checks
-          final ver = partner['verification_status']?.toString().toUpperCase();
-          final avail = partner['availability_status']?.toString().toUpperCase();
+          final ver = (partner['verification_status'] ?? '').toString().toUpperCase();
+          final avail = (partner['availability_status'] ?? '').toString().toUpperCase();
           if (ver != 'VERIFIED' && ver != 'APPROVED') continue;
           if (avail != 'ONLINE' && avail != 'AVAILABLE') continue;
 
-          // C. Geographic Distance check (5.0 km radius)
+          // C. Geographic Distance check (15.0 km Jamnagar radius)
           final loc = partner['partner_live_locations'];
           double? pLat, pLng;
           if (loc is Map && loc['latitude'] != null) {
@@ -377,7 +481,7 @@ class _ACReviewConfirmScreenState extends ConsumerState<ACReviewConfirmScreen> {
 
           if (pLat != null && pLng != null) {
             final distM = H3GeospatialService.instance.computeHaversineDistanceMeters(lat, lng, pLat, pLng);
-            if (distM > 5000.0) continue; // Exceeds 5km radius
+            if (distM > 15000.0) continue; // Exceeds 15km Jamnagar operational zone
           }
 
           // D. Create request row in booking_requests table

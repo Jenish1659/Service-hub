@@ -35,6 +35,7 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
   bool _isEmergency = false;
 
   final List<String> _issueOptions = [
+    'Tap & Pipe Leakage Repair',
     'Tap / Faucet & Shower Leakage',
     'Water Tank & Float Valve Overflow',
     'Blocked Drain & Pipe Clogging',
@@ -45,6 +46,7 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
   ];
 
   final Map<String, double> _issueBasePrices = {
+    'Tap & Pipe Leakage Repair': 249.0,
     'Tap / Faucet & Shower Leakage': 249.0,
     'Water Tank & Float Valve Overflow': 399.0,
     'Blocked Drain & Pipe Clogging': 349.0,
@@ -172,10 +174,7 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
       return;
     }
 
-    if (_selectedProperty == null) {
-      _showWarningSnackBar('Please select a property type *');
-      return;
-    }
+    final propertyType = _selectedProperty ?? 'Apartment / Flat';
 
     List<String> photoUrls = [];
     if (_uploadedPhotos.isNotEmpty) {
@@ -189,7 +188,7 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
     final issueNames = _selectedIssues.join(', ');
     final autoDesc = problemDesc.isNotEmpty
         ? problemDesc
-        : '$issueNames at $_selectedProperty${_isEmergency ? " (Emergency Priority)" : ""}';
+        : '$issueNames at $propertyType${_isEmergency ? " (Emergency Priority)" : ""}';
 
     final payload = {
       'category_id': 'plumbing',
@@ -198,7 +197,7 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
       'selected_issues': _selectedIssues.toList(),
       'service_price': _calculatedPrice,
       'estimated_amount': _calculatedPrice,
-      'property_type': _selectedProperty,
+      'property_type': propertyType,
       'is_emergency': _isEmergency,
       'photo_urls': photoUrls,
       'problem_description': autoDesc,
@@ -210,7 +209,7 @@ class _PlumbingRequirementScreenState extends ConsumerState<PlumbingRequirementS
 
     if (!mounted) return;
 
-    Navigator.of(context, rootNavigator: true).push(
+    Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ServiceSelectDateScreen(issueDetails: payload),
       ),

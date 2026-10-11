@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/utils/service_category_route_helper.dart';
 
 class ProviderApplicationStatusScreen extends StatefulWidget {
   final String? initialIdentifier;
@@ -1005,7 +1006,12 @@ class _ProviderApplicationStatusScreenState
                                     sessionPayload['role_name'] = 'shopkeeper';
                                     await LocalRegistrationCache.updateActiveShopkeeper(sessionPayload);
                                     if (context.mounted) {
-                                      context.go('/dashboard/shopkeeper');
+                                      final skCat = (sessionPayload['category'] ?? sessionPayload['business_type'] ?? '').toString().toLowerCase();
+                                      if (skCat.contains('laundry')) {
+                                        context.go('/dashboard/laundry');
+                                      } else {
+                                        context.go('/dashboard/shopkeeper');
+                                      }
                                     }
                                   } else if (isDelivery) {
                                     sessionPayload['role_name'] = 'delivery_agent';
@@ -1017,7 +1023,9 @@ class _ProviderApplicationStatusScreenState
                                     sessionPayload['role_name'] = 'service_provider';
                                     await LocalRegistrationCache.updateActiveServiceProvider(sessionPayload);
                                     if (context.mounted) {
-                                      context.go('/dashboard');
+                                      final cat = sessionPayload['category'] ?? sessionPayload['service_category_id'] ?? liveRecord?['category'];
+                                      final targetRoute = ServiceCategoryRouteHelper.getDashboardRoute(cat?.toString());
+                                      context.go(targetRoute);
                                     }
                                   }
                                 } else if (isRejected) {

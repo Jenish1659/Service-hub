@@ -13,6 +13,17 @@ ALTER TABLE public.booking_requests ADD COLUMN IF NOT EXISTS expires_at TIMESTAM
 -- Safely allow provider_id to be NULL for non-provider roles (such as Laundry Shopkeepers)
 ALTER TABLE public.booking_requests ALTER COLUMN provider_id DROP NOT NULL;
 
+-- Hardening service_bookings columns
+ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS partner_id UUID REFERENCES public.partners(partner_id) ON DELETE SET NULL;
+ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS service_status TEXT DEFAULT 'SEARCHING_PROVIDER';
+ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS customer_latitude DOUBLE PRECISION;
+ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS customer_longitude DOUBLE PRECISION;
+ALTER TABLE public.service_bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+-- Hardening booking_assignment columns
+ALTER TABLE public.booking_assignment ADD COLUMN IF NOT EXISTS partner_id UUID;
+ALTER TABLE public.booking_assignment ALTER COLUMN provider_id DROP NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_booking_requests_partner_status ON public.booking_requests(partner_id, response_status);
 CREATE INDEX IF NOT EXISTS idx_booking_requests_role_cap ON public.booking_requests(required_role, required_capability);
 CREATE INDEX IF NOT EXISTS idx_booking_requests_booking ON public.booking_requests(booking_id);
@@ -108,8 +119,8 @@ BEGIN
             JOIN public.service_provider_profiles spp ON spp.partner_id = p.partner_id
             LEFT JOIN public.partner_live_locations pll ON pll.partner_id = p.partner_id
             WHERE r.role_name = 'service_provider'
-              AND p.verification_status IN ('VERIFIED', 'APPROVED')
-              AND p.availability_status IN ('ONLINE', 'AVAILABLE')
+              AND UPPER(p.verification_status) IN ('VERIFIED', 'APPROVED')
+              AND UPPER(p.availability_status) IN ('ONLINE', 'AVAILABLE')
               AND u.is_active = true
               AND u.account_status = 'ACTIVE'
               -- Strict Capability Match: Must support the requested category
@@ -123,6 +134,17 @@ BEGIN
                   )
                   OR (v_req_cap = 'ac_service' AND (spp.about ILIKE '%AC%' OR spp.about ILIKE '%Air%'))
                   OR NOT EXISTS (SELECT 1 FROM public.provider_services ps_any WHERE ps_any.provider_id = spp.provider_id)
+              )
+              -- Operational Distance: within 15 km Jamnagar operational zone
+              AND (
+                  v_booking.customer_latitude IS NULL OR
+                  (6371 * acos(
+                      least(1.0, greatest(-1.0, 
+                          cos(radians(v_booking.customer_latitude)) * cos(radians(COALESCE(pll.latitude, 22.4707))) *
+                          cos(radians(COALESCE(pll.longitude, 70.0577)) - radians(v_booking.customer_longitude)) +
+                          sin(radians(v_booking.customer_latitude)) * sin(radians(COALESCE(pll.latitude, 22.4707)))
+                      ))
+                  )) <= 15.0
               )
               -- Conflict Check: Not already assigned on an active booking at that time
               AND NOT EXISTS (
@@ -139,7 +161,7 @@ BEGIN
                   SELECT 1 FROM public.booking_requests br
                   WHERE br.booking_id = p_booking_id AND (br.partner_id = p.partner_id OR br.provider_id = spp.provider_id)
               )
-            LIMIT 10
+            LIMIT 15
         LOOP
             INSERT INTO public.booking_requests (
                 booking_id,
@@ -173,8 +195,8 @@ BEGIN
             JOIN public.shopkeeper_profiles skp ON skp.partner_id = p.partner_id
             JOIN public.shops sh ON sh.shopkeeper_id = skp.shopkeeper_id
             WHERE r.role_name = 'shopkeeper'
-              AND p.verification_status IN ('VERIFIED', 'APPROVED')
-              AND p.availability_status IN ('ONLINE', 'AVAILABLE')
+              AND UPPER(p.verification_status) IN ('VERIFIED', 'APPROVED')
+              AND UPPER(p.availability_status) IN ('ONLINE', 'AVAILABLE')
               AND u.is_active = true
               AND (
                   sh.shop_type ILIKE '%LAUNDRY%' OR EXISTS (
@@ -187,7 +209,7 @@ BEGIN
                   SELECT 1 FROM public.booking_requests br
                   WHERE br.booking_id = p_booking_id AND br.partner_id = p.partner_id
               )
-            LIMIT 10
+            LIMIT 15
         LOOP
             INSERT INTO public.booking_requests (
                 booking_id,
@@ -210,6 +232,12 @@ BEGIN
         END LOOP;
     END IF;
 
+    IF v_dispatched_count > 0 THEN
+        UPDATE public.service_bookings 
+        SET status = 'OFFERED_TO_PROVIDERS', service_status = 'OFFERED_TO_PROVIDERS', updated_at = NOW()
+        WHERE booking_id = p_booking_id;
+    END IF;
+
     RETURN jsonb_build_object(
         'success', true, 
         'dispatched_count', v_dispatched_count,
@@ -222,7 +250,8 @@ $$ LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, extensions;
 -- 5. Hardened Atomic Accept RPC Supporting Both Roles
 CREATE OR REPLACE FUNCTION public.atomic_accept_booking_request(
     p_request_id UUID,
-    p_partner_id UUID DEFAULT NULL
+    p_partner_id UUID DEFAULT NULL,
+    p_provider_id UUID DEFAULT NULL
 )
 RETURNS JSON AS $$
 DECLARE
@@ -268,7 +297,7 @@ BEGIN
     END IF;
 
     -- Resolve partner identity
-    v_winner_partner_id := COALESCE(p_partner_id, v_request.partner_id);
+    v_winner_partner_id := COALESCE(p_partner_id, p_provider_id, v_request.partner_id);
 
     -- 3. Atomically Assign Booking to Winning Partner
     UPDATE public.service_bookings 
@@ -333,6 +362,206 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, extensions;
 
--- Grant permissions to authenticated roles
+-- Overload for 2-parameter callers
+CREATE OR REPLACE FUNCTION public.atomic_accept_booking_request(
+    p_request_id UUID,
+    p_provider_id UUID
+)
+RETURNS JSON AS $$
+BEGIN
+    RETURN public.atomic_accept_booking_request(p_request_id, p_provider_id, p_provider_id);
+END;
+$$ LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, extensions;
+
+-- 6. Dynamic Redispatch Engine for Newly Online/Available Partners
+CREATE OR REPLACE FUNCTION public.dispatch_pending_bookings_for_partner(p_partner_id UUID)
+RETURNS JSONB AS $$
+DECLARE
+    v_partner RECORD;
+    v_role_name TEXT;
+    v_provider_id UUID;
+    v_shopkeeper_id UUID;
+    v_booking RECORD;
+    v_dispatched_count INTEGER := 0;
+BEGIN
+    -- 1. Identify partner and active role
+    SELECT p.*, r.role_name INTO v_partner
+    FROM public.partners p
+    JOIN public.users u ON u.user_id = p.user_id
+    JOIN public.roles r ON r.role_id = u.role_id
+    WHERE p.partner_id = p_partner_id;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'message', 'Partner not found');
+    END IF;
+
+    -- Only dispatch if partner is online/available and verified
+    IF UPPER(COALESCE(v_partner.availability_status, '')) NOT IN ('ONLINE', 'AVAILABLE') 
+       OR UPPER(COALESCE(v_partner.verification_status, '')) NOT IN ('VERIFIED', 'APPROVED') THEN
+        RETURN jsonb_build_object('success', true, 'dispatched_count', 0, 'reason', 'Partner not online or not verified');
+    END IF;
+
+    v_role_name := v_partner.role_name;
+
+    IF v_role_name = 'service_provider' THEN
+        SELECT provider_id INTO v_provider_id 
+        FROM public.service_provider_profiles 
+        WHERE partner_id = p_partner_id;
+
+        -- Find pending unassigned bookings matching this provider's category
+        FOR v_booking IN
+            SELECT sb.booking_id, sb.service_id, COALESCE(s.category_id, 'ac_service') AS category_id
+            FROM public.service_bookings sb
+            JOIN public.services s ON s.service_id = sb.service_id
+            WHERE sb.status IN ('SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS', 'PENDING')
+              AND sb.partner_id IS NULL
+              AND s.category_id != 'laundry'
+              -- Strict Capability Match: Must support requested service
+              AND (
+                  EXISTS (
+                      SELECT 1 FROM public.provider_services ps
+                      WHERE ps.provider_id = v_provider_id
+                        AND ps.is_available = true
+                        AND (ps.service_id = sb.service_id OR EXISTS (
+                            SELECT 1 FROM public.services s2 
+                            WHERE s2.service_id = ps.service_id AND s2.category_id = s.category_id
+                        ))
+                  )
+                  OR (s.category_id = 'ac_service' AND EXISTS (
+                      SELECT 1 FROM public.service_provider_profiles spp 
+                      WHERE spp.provider_id = v_provider_id AND (spp.about ILIKE '%AC%' OR spp.about ILIKE '%Air%'))
+                  )
+                  OR NOT EXISTS (SELECT 1 FROM public.provider_services ps_any WHERE ps_any.provider_id = v_provider_id)
+              )
+              -- Prevent duplicate requests for this booking & partner
+              AND NOT EXISTS (
+                  SELECT 1 FROM public.booking_requests br
+                  WHERE br.booking_id = sb.booking_id 
+                    AND (br.partner_id = p_partner_id OR (v_provider_id IS NOT NULL AND br.provider_id = v_provider_id))
+              )
+            ORDER BY sb.created_at DESC
+            LIMIT 15
+        LOOP
+            INSERT INTO public.booking_requests (
+                booking_id,
+                partner_id,
+                provider_id,
+                required_role,
+                required_capability,
+                response_status,
+                sent_at,
+                expires_at
+            ) VALUES (
+                v_booking.booking_id,
+                p_partner_id,
+                v_provider_id,
+                'service_provider',
+                v_booking.category_id,
+                'Pending',
+                NOW(),
+                NOW() + INTERVAL '10 minutes'
+            );
+
+            UPDATE public.service_bookings 
+            SET status = 'OFFERED_TO_PROVIDERS', service_status = 'OFFERED_TO_PROVIDERS', updated_at = NOW()
+            WHERE booking_id = v_booking.booking_id AND status = 'SEARCHING_PROVIDER';
+
+            v_dispatched_count := v_dispatched_count + 1;
+        END LOOP;
+
+    ELSIF v_role_name = 'shopkeeper' THEN
+        SELECT shopkeeper_id INTO v_shopkeeper_id 
+        FROM public.shopkeeper_profiles 
+        WHERE partner_id = p_partner_id;
+
+        FOR v_booking IN
+            SELECT sb.booking_id, sb.service_id, s.category_id
+            FROM public.service_bookings sb
+            JOIN public.services s ON s.service_id = sb.service_id
+            WHERE sb.status IN ('SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS', 'PENDING')
+              AND sb.partner_id IS NULL
+              AND s.category_id = 'laundry'
+              AND NOT EXISTS (
+                  SELECT 1 FROM public.booking_requests br
+                  WHERE br.booking_id = sb.booking_id AND br.partner_id = p_partner_id
+              )
+            ORDER BY sb.created_at DESC
+            LIMIT 15
+        LOOP
+            INSERT INTO public.booking_requests (
+                booking_id,
+                partner_id,
+                required_role,
+                required_capability,
+                response_status,
+                sent_at,
+                expires_at
+            ) VALUES (
+                v_booking.booking_id,
+                p_partner_id,
+                'shopkeeper',
+                'laundry',
+                'Pending',
+                NOW(),
+                NOW() + INTERVAL '10 minutes'
+            );
+
+            UPDATE public.service_bookings 
+            SET status = 'OFFERED_TO_PROVIDERS', service_status = 'OFFERED_TO_PROVIDERS', updated_at = NOW()
+            WHERE booking_id = v_booking.booking_id AND status = 'SEARCHING_PROVIDER';
+
+            v_dispatched_count := v_dispatched_count + 1;
+        END LOOP;
+    END IF;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'partner_id', p_partner_id,
+        'dispatched_count', v_dispatched_count
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, extensions;
+
+-- 7. Partner Online Trigger for Automatic Redispatch
+CREATE OR REPLACE FUNCTION public.trig_partner_online_redispatch()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.availability_status IS NOT NULL 
+       AND UPPER(NEW.availability_status) IN ('ONLINE', 'AVAILABLE') 
+       AND (OLD.availability_status IS NULL OR UPPER(OLD.availability_status) NOT IN ('ONLINE', 'AVAILABLE')) THEN
+        PERFORM public.dispatch_pending_bookings_for_partner(NEW.partner_id);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, extensions;
+
+DROP TRIGGER IF EXISTS tr_partner_online_redispatch ON public.partners;
+CREATE TRIGGER tr_partner_online_redispatch
+    AFTER UPDATE OF availability_status ON public.partners
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trig_partner_online_redispatch();
+
+-- 8. Enable Realtime Publications
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.service_bookings;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.booking_requests;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.partners;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+-- Grant permissions to authenticated and anon roles
 GRANT EXECUTE ON FUNCTION public.find_and_dispatch_eligible_partners(UUID) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.dispatch_pending_bookings_for_partner(UUID) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.atomic_accept_booking_request(UUID, UUID, UUID) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.atomic_accept_booking_request(UUID, UUID) TO authenticated, anon;

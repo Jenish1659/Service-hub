@@ -97,7 +97,7 @@ void main() {
       await LocalRegistrationCache.updateActiveShopkeeper({
         'user_id': 'shop_999',
         'role_name': 'shopkeeper',
-        'business_name': 'Super Electricals',
+        'business_name': 'Super Hardware',
       });
       await LocalRegistrationCache.updateActiveDeliveryAgent({
         'user_id': 'deliv_888',
@@ -116,7 +116,7 @@ void main() {
       await prefs.setString('partner_role', 'shopkeeper');
       await prefs.setString('saved_user_id', 'shop_999');
       await prefs.setString('saved_role_id', 'role_shop_001');
-      await prefs.setString('cached_shopkeeper_data', '{"shop":"Super Electricals"}');
+      await prefs.setString('cached_shopkeeper_data', '{"shop":"Super Hardware"}');
       await prefs.setString('cached_delivery_data', '{"agent":"deliv_888"}');
 
       // Verify active role & sessions exist

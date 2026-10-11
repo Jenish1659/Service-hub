@@ -96,7 +96,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       if (Navigator.canPop(context)) {
                         Navigator.pop(context);
                       } else {
-                        context.go('/dashboard');
+                        context.go('/dashboard/ac');
                       }
                     },
                     borderRadius: BorderRadius.circular(20),

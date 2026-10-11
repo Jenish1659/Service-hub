@@ -40,6 +40,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   int _ratingReviewsCount = 0;
   int _activeNavIndex = 0;
   bool _isLoading = false;
+  String _partnerId = '';
   StreamSubscription? _liveBookingSub;
 
   // Real dynamically queried orders list (Supabase & Hive)
@@ -234,6 +235,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
             if (pRes != null) {
               final pId = pRes['partner_id']?.toString();
               if (pId != null && pId.isNotEmpty) {
+                _partnerId = pId;
                 final revRes = await client
                     .from('reviews')
                     .select('rating')
@@ -428,7 +430,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     }
   }
 
-  void _toggleShopStatus(bool val) {
+  void _toggleShopStatus(bool val) async {
     setState(() => _isOpen = val);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -455,6 +457,21 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+
+    if (_partnerId.isNotEmpty && !_isTestMode) {
+      try {
+        await Supabase.instance.client
+            .from('partners')
+            .update({'availability_status': val ? 'ONLINE' : 'OFFLINE'})
+            .eq('partner_id', _partnerId);
+
+        if (val) {
+          await Supabase.instance.client.rpc('dispatch_pending_bookings_for_partner', params: {
+            'p_partner_id': _partnerId,
+          });
+        }
+      } catch (_) {}
+    }
   }
 
   void _showAddProductModal() {
@@ -543,7 +560,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                         DropdownMenuItem(value: 'Water Purifier', child: Text('Water Purifier / RO Parts')),
                         DropdownMenuItem(value: 'Appliance Parts', child: Text('Washing Machine & Appliance')),
                         DropdownMenuItem(value: 'Plumbing Parts', child: Text('Plumbing Supplies & Taps')),
-                        DropdownMenuItem(value: 'Electrical Supplies', child: Text('Electrical & Wiring')),
+                        DropdownMenuItem(value: 'Tools & Equipment', child: Text('Tools & Hardware Equipment')),
                       ],
                       onChanged: (v) {
                         if (v != null) setModalState(() => selectedCat = v);
@@ -1881,7 +1898,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   Widget _buildBannerAndAlerts() {
     return LayoutBuilder(
       builder: (ctx, constraints) {
-        final isNarrow = constraints.maxWidth < 650;
+        final isNarrow = constraints.maxWidth < 768;
 
         final banner = Container(
           padding: const EdgeInsets.all(18),
@@ -1976,8 +1993,13 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                 children: [
                   const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 20),
                   const SizedBox(width: 8),
-                  const Text('Inventory Alerts', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
-                  const Spacer(),
+                  const Expanded(
+                    child: Text(
+                      'Inventory Alerts',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                   InkWell(
                     onTap: _showInventorySheet,
                     child: const Text('Restock Now >', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF059669))),
@@ -1985,7 +2007,9 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1995,6 +2019,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                       border: Border.all(color: const Color(0xFFFDE68A)),
                     ),
                     child: const Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.trending_down_rounded, color: Color(0xFFB45309), size: 14),
                         SizedBox(width: 6),
@@ -2002,7 +2027,6 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
@@ -2011,6 +2035,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                       border: Border.all(color: const Color(0xFFFECACA)),
                     ),
                     child: const Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.remove_circle_outline_rounded, color: Color(0xFFDC2626), size: 14),
                         SizedBox(width: 6),

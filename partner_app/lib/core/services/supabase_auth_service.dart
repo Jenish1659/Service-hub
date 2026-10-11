@@ -192,6 +192,108 @@ class SupabaseAuthService {
           syncStatus == 'REJECTED' ||
           accountStatus == 'REJECTED';
 
+      // Safe extraction of nested profile data
+      dynamic spp = partnersData?['service_provider_profiles'];
+      if (spp is List && spp.isNotEmpty) {
+        spp = spp.first;
+      } else if (spp is! Map) {
+        spp = null;
+      }
+      String? resolvedProviderId = (spp is Map) ? spp['provider_id']?.toString() : null;
+
+      dynamic skp = partnersData?['shopkeeper_profiles'];
+      if (skp is List && skp.isNotEmpty) {
+        skp = skp.first;
+      } else if (skp is! Map) {
+        skp = null;
+      }
+      final resolvedBusinessName = (skp is Map) ? skp['business_name']?.toString() : null;
+      final resolvedShopkeeperId = (skp is Map) ? skp['shopkeeper_id']?.toString() : null;
+
+      dynamic dap = partnersData?['delivery_agent_profiles'];
+      if (dap is List && dap.isNotEmpty) {
+        dap = dap.first;
+      } else if (dap is! Map) {
+        dap = null;
+      }
+      final resolvedAgentId = (dap is Map) ? dap['agent_id']?.toString() : null;
+
+      // Fallback direct provider query if needed
+      final currentPartnerId = partnersData?['partner_id']?.toString() ?? usersRes['user_id']?.toString() ?? '';
+      if (resolvedProviderId == null && roleName == 'service_provider' && currentPartnerId.isNotEmpty) {
+        try {
+          final pRes = await client
+              .from('service_provider_profiles')
+              .select('provider_id')
+              .eq('partner_id', currentPartnerId)
+              .maybeSingle();
+          if (pRes != null && pRes['provider_id'] != null) {
+            resolvedProviderId = pRes['provider_id'].toString();
+          }
+        } catch (_) {}
+      }
+
+      // Resolve partner service category strictly
+      String resolvedCategory = 'ac_service';
+      if (roleName == 'shopkeeper') {
+        final bType = (skp is Map) ? skp['business_type']?.toString().toLowerCase() : null;
+        if (bType != null && bType.isNotEmpty) {
+          resolvedCategory = bType;
+        } else {
+          resolvedCategory = 'laundry';
+        }
+      } else if (roleName == 'service_provider') {
+        // 1. Try LiveBookingSyncService memory
+        if (syncRecord != null && syncRecord['category'] != null && syncRecord['category'].toString().isNotEmpty) {
+          resolvedCategory = syncRecord['category'].toString();
+        } else {
+          // 2. Try verification_requests remarks
+          try {
+            final vrRemark = await client
+                .from('verification_requests')
+                .select('remarks')
+                .eq('user_id', usersRes['user_id'])
+                .order('submitted_at', ascending: false)
+                .limit(1)
+                .maybeSingle();
+            if (vrRemark != null && vrRemark['remarks'] != null) {
+              final remarksStr = vrRemark['remarks'].toString();
+              final catMatch = RegExp(r'Category:\s*([a-zA-Z0-9_\-]+)', caseSensitive: false).firstMatch(remarksStr);
+              if (catMatch != null && catMatch.group(1) != null) {
+                resolvedCategory = catMatch.group(1)!.trim();
+              }
+            }
+          } catch (_) {}
+
+          // 3. Try provider_services join to services
+          if (resolvedCategory == 'ac_service' && resolvedProviderId != null && resolvedProviderId.isNotEmpty) {
+            try {
+              final provSrv = await client
+                  .from('provider_services')
+                  .select('services(category_id)')
+                  .eq('provider_id', resolvedProviderId)
+                  .limit(1)
+                  .maybeSingle();
+              if (provSrv != null && provSrv['services'] != null) {
+                final sCat = (provSrv['services'] as Map)['category_id']?.toString();
+                if (sCat != null && sCat.isNotEmpty) {
+                  resolvedCategory = sCat;
+                }
+              }
+            } catch (_) {}
+          }
+
+          // 4. Try local cached session
+          if (resolvedCategory == 'ac_service') {
+            final localCached = await LocalRegistrationCache.getActiveServiceProvider();
+            final localCat = localCached?['category'] ?? localCached?['service_category_id'];
+            if (localCat != null && localCat.toString().isNotEmpty) {
+              resolvedCategory = localCat.toString();
+            }
+          }
+        }
+      }
+
       // 6. Store active session locally
       final sessionData = {
         'user_id': usersRes['user_id'],
@@ -199,14 +301,16 @@ class SupabaseAuthService {
         'email': usersRes['email'],
         'phone': usersRes['phone'],
         'role_name': roleName,
+        'category': resolvedCategory,
+        'service_category_id': resolvedCategory,
         'name': usersRes['user_profiles']?['first_name'] != null
             ? '${usersRes['user_profiles']['first_name']} ${usersRes['user_profiles']['last_name'] ?? ""}'.trim()
             : usersRes['username'],
-        'business_name': (partnersData?['shopkeeper_profiles'] is Map)
-            ? partnersData['shopkeeper_profiles']['business_name']
-            : null,
-        'partner_id': partnersData?['partner_id'] ?? usersRes['user_id'],
-        'provider_id': partnersData?['service_provider_profiles']?['provider_id'],
+        'business_name': resolvedBusinessName,
+        'partner_id': currentPartnerId,
+        'provider_id': resolvedProviderId,
+        'shopkeeper_id': resolvedShopkeeperId,
+        'agent_id': resolvedAgentId,
         'verification_status': isApproved ? 'VERIFIED' : (isRejected ? 'REJECTED' : 'PENDING'),
         'status': isApproved ? 'APPROVED' : (isRejected ? 'REJECTED' : 'PENDING'),
         'account_status': isApproved ? 'ACTIVE' : (isRejected ? 'REJECTED' : 'PENDING_VERIFICATION'),
@@ -465,6 +569,28 @@ class SupabaseAuthService {
         } catch (_) {}
       }
 
+      // 7b. Link official services for selected category into provider_services
+      if (providerId != null && providerId.isNotEmpty) {
+        try {
+          final srvList = await client
+              .from('services')
+              .select('service_id, base_price')
+              .eq('category_id', serviceCategoryId);
+          for (final srv in srvList) {
+            final sId = srv['service_id'];
+            final basePrice = srv['base_price'];
+            if (sId != null) {
+              await client.from('provider_services').upsert({
+                'provider_id': providerId,
+                'service_id': sId,
+                'price': (basePrice as num?)?.toDouble() ?? 499.0,
+                'is_available': true,
+              }, onConflict: 'provider_id,service_id');
+            }
+          }
+        } catch (_) {}
+      }
+
       // 8. Insert into verification_requests table (Unlimited KYC applications)
       final remarksParts = <String>[
         'New registration application for $cleanUsername',
@@ -530,6 +656,8 @@ class SupabaseAuthService {
         'email': cleanEmail,
         'phone': cleanPhone,
         'role_name': 'service_provider',
+        'category': serviceCategoryId,
+        'service_category_id': serviceCategoryId,
         'name': '$firstName $lastName'.trim(),
         'business_name': cleanBusinessName,
         'business_address': cleanBusinessAddress,

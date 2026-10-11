@@ -48,7 +48,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     String? targetAgentId = partnerMap?['delivery_agent_id']?.toString();
     String? targetUserId = partnerMap?['user_id']?.toString();
 
-    // 1. Update verification_requests table: STRICTLY target the specific verification_id
+    // 1. Update verification_requests table: target verification_id and user_id
     if (verId != null && _isUuid(verId)) {
       try {
         await client
@@ -59,6 +59,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         debugPrint('[AdminDashboard] Verification request approval error: $e');
       }
     }
+    if (targetUserId != null && _isUuid(targetUserId)) {
+      try {
+        await client
+            .from('verification_requests')
+            .update({'status': 'APPROVED', 'reviewed_at': nowIso})
+            .eq('user_id', targetUserId);
+      } catch (_) {}
+    }
 
     // 2. Resolve specific targetPartnerId if not already present
     if ((targetPartnerId == null || targetPartnerId.isEmpty) && _isUuid(profileId)) {
@@ -67,8 +75,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         if (p != null) targetPartnerId = p['partner_id']?.toString();
       } catch (_) {}
     }
+    if ((targetPartnerId == null || targetPartnerId.isEmpty) && targetUserId != null && _isUuid(targetUserId)) {
+      try {
+        final p = await client.from('partners').select('partner_id').eq('user_id', targetUserId).maybeSingle();
+        if (p != null) targetPartnerId = p['partner_id']?.toString();
+      } catch (_) {}
+    }
 
-    // 3. Update partners table: STRICTLY target the specific partner_id
+    // 3. Update partners table: STRICTLY target partner_id and user_id
     if (targetPartnerId != null && _isUuid(targetPartnerId)) {
       try {
         await client.from('partners').update({
@@ -79,6 +93,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       } catch (e) {
         debugPrint('[AdminDashboard] Partner update error: $e');
       }
+    }
+    if (targetUserId != null && _isUuid(targetUserId)) {
+      try {
+        await client.from('partners').update({
+          'verification_status': 'VERIFIED',
+          'availability_status': 'ONLINE',
+          'approved_at': nowIso,
+        }).eq('user_id', targetUserId);
+      } catch (_) {}
     }
 
     // 4. Role-specific profile updates
@@ -151,8 +174,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         ? partnerMap['verification_id'].toString()
         : (_isUuid(profileId) ? profileId : null);
     String? targetPartnerId = partnerMap?['partner_id']?.toString();
+    String? targetUserId = partnerMap?['user_id']?.toString();
 
-    // 1. Update verification_requests table: STRICTLY target the specific verification_id
+    // 1. Update verification_requests table: target verification_id and user_id
     if (verId != null && _isUuid(verId)) {
       try {
         await client.from('verification_requests').update({
@@ -164,6 +188,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         debugPrint('[AdminDashboard] Verification request reject error: $e');
       }
     }
+    if (targetUserId != null && _isUuid(targetUserId)) {
+      try {
+        await client.from('verification_requests').update({
+          'status': 'REJECTED',
+          'reviewed_at': nowIso,
+          'remarks': reasonText,
+        }).eq('user_id', targetUserId);
+      } catch (_) {}
+    }
 
     // 2. Resolve specific targetPartnerId if not already present
     if ((targetPartnerId == null || targetPartnerId.isEmpty) && _isUuid(profileId)) {
@@ -172,8 +205,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         if (p != null) targetPartnerId = p['partner_id']?.toString();
       } catch (_) {}
     }
+    if ((targetPartnerId == null || targetPartnerId.isEmpty) && targetUserId != null && _isUuid(targetUserId)) {
+      try {
+        final p = await client.from('partners').select('partner_id').eq('user_id', targetUserId).maybeSingle();
+        if (p != null) targetPartnerId = p['partner_id']?.toString();
+      } catch (_) {}
+    }
 
-    // 3. Update partners table: STRICTLY target the specific partner_id
+    // 3. Update partners table: STRICTLY target partner_id and user_id
     if (targetPartnerId != null && _isUuid(targetPartnerId)) {
       try {
         await client.from('partners').update({
@@ -183,6 +222,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       } catch (e) {
         debugPrint('[AdminDashboard] Partner reject error: $e');
       }
+    }
+    if (targetUserId != null && _isUuid(targetUserId)) {
+      try {
+        await client.from('partners').update({
+          'verification_status': 'REJECTED',
+          'availability_status': 'OFFLINE',
+        }).eq('user_id', targetUserId);
+      } catch (_) {}
     }
 
     // 4. Role-specific profile updates
@@ -354,8 +401,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     if (_activeTab == 'Plumbing Bookings') {
       return AdminBookingsView(allBookings: allBookings, serviceCategory: 'plumbing', title: 'Plumbing Bookings');
     }
-    if (_activeTab == 'Electrical Bookings') {
-      return AdminBookingsView(allBookings: allBookings, serviceCategory: 'electrical', title: 'Electrical Bookings');
+    if (_activeTab == 'Cooking Bookings') {
+      return AdminBookingsView(allBookings: allBookings, serviceCategory: 'cooking', title: 'Cooking Bookings');
     }
     if (_activeTab == 'Partner Verification' ||
         _activeTab == 'Service Provider Verification' ||
