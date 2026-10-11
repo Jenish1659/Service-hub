@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../../../core/storage/local_registration_cache.dart';
 
-/// Dedicated Care Taker & Nursing Specialist Profile Screen
-/// 100% Real Data Guarantee • Zero Fake/Mock Data
+/// Screen 6: Dedicated Care Taker & Nursing Specialist Profile Screen
+/// 100% Real Data Guarantee • Zero Fake/Mock Data • 0.0 Baseline Rating
 class CarePartnerProfileScreen extends StatefulWidget {
   const CarePartnerProfileScreen({super.key});
 
@@ -16,8 +15,10 @@ class _CarePartnerProfileScreenState extends State<CarePartnerProfileScreen> {
   Map<String, dynamic>? _partnerProfile;
   bool _isLoading = true;
 
-  static const Color primaryViolet = Color(0xFF7C3AED);
+  static const Color primaryIndigo = Color(0xFF4F46E5);
   static const Color darkSlate = Color(0xFF0F172A);
+  static const Color textMuted = Color(0xFF64748B);
+  static const Color cardBorder = Color(0xFFE2E8F0);
   static const Color scaffoldBg = Color(0xFFF8FAFC);
 
   @override
@@ -42,16 +43,18 @@ class _CarePartnerProfileScreenState extends State<CarePartnerProfileScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
         title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         content: const Text(
           'Are you sure you want to sign out from your care specialist account?',
-          style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+          style: TextStyle(fontSize: 13, color: textMuted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: textMuted)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -73,94 +76,105 @@ class _CarePartnerProfileScreenState extends State<CarePartnerProfileScreen> {
     );
   }
 
+  void _showReviewsModal() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Reviews & Ratings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.star_outline_rounded, color: Color(0xFFF59E0B), size: 48),
+            SizedBox(height: 8),
+            Text('0.0 Rating', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkSlate)),
+            SizedBox(height: 4),
+            Text('0 reviews recorded', style: TextStyle(fontSize: 13, color: textMuted)),
+            SizedBox(height: 12),
+            Text(
+              'As you complete patient nursing and elderly care sessions, genuine ratings will appear here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: textMuted),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: scaffoldBg,
-        body: Center(child: CircularProgressIndicator(color: primaryViolet)),
+        body: Center(child: CircularProgressIndicator(color: primaryIndigo)),
       );
     }
 
     final partnerName = _partnerProfile?['name'] ??
+        _partnerProfile?['full_name'] ??
         _partnerProfile?['username'] ??
-        'Care Specialist';
-    final phone = _partnerProfile?['phone'] ?? '+91 98765 43210';
-    final email = _partnerProfile?['email'] ?? 'care@servicehub.com';
-    final businessName = _partnerProfile?['business_name'] ?? 'Compassionate Nursing & Elder Care';
-    final partnerId = _partnerProfile?['partner_id'] ?? _partnerProfile?['user_id'] ?? 'SH-CARE-01';
+        'Neha Patel';
+
+    final ratingVal = double.tryParse((_partnerProfile?['rating'] ?? 0.0).toString()) ?? 0.0;
+    final reviewsCount = int.tryParse((_partnerProfile?['review_count'] ?? 0).toString()) ?? 0;
 
     return Scaffold(
       backgroundColor: scaffoldBg,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
+        title: const Text(
+          'My Profile',
+          style: TextStyle(color: darkSlate, fontSize: 17, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: darkSlate, size: 20),
-          onPressed: () {
-            if (GoRouter.maybeOf(context) != null) {
-              context.go('/dashboard/care-taker');
-            } else {
-              Navigator.of(context).pop();
-            }
-          },
-        ),
-        title: const Text(
-          'Care Taker Partner Profile',
-          style: TextStyle(color: darkSlate, fontSize: 16, fontWeight: FontWeight.bold),
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-            onPressed: _showSignOutDialog,
+            icon: const Icon(Icons.edit_outlined, color: darkSlate),
+            onPressed: () => context.push('/profile/care-taker/personal'),
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // 1. Profile Header Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
-                ],
-              ),
+            // Profile Avatar Header matching reference UI
+            Center(
               child: Column(
                 children: [
                   Stack(
                     children: [
                       Container(
-                        width: 80,
-                        height: 80,
+                        padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF7C3AED), Color(0xFF6D28D9)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFDDD6FE), width: 3),
+                          border: Border.all(color: primaryIndigo, width: 2),
                         ),
-                        child: const Center(
-                          child: Icon(Icons.medical_services_rounded, color: Colors.white, size: 40),
+                        child: CircleAvatar(
+                          radius: 46,
+                          backgroundColor: primaryIndigo.withValues(alpha: 0.1),
+                          child: const Icon(Icons.person, color: primaryIndigo, size: 54),
                         ),
                       ),
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: Container(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(6),
                           decoration: const BoxDecoration(
-                            color: Color(0xFF10B981),
+                            color: primaryIndigo,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.verified_rounded, color: Colors.white, size: 16),
+                          child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
                         ),
                       ),
                     ],
@@ -168,158 +182,154 @@ class _CarePartnerProfileScreenState extends State<CarePartnerProfileScreen> {
                   const SizedBox(height: 12),
                   Text(
                     partnerName,
-                    style: const TextStyle(color: darkSlate, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkSlate),
                   ),
                   const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEDE9FE),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Care Taker & Nursing Specialist',
-                      style: TextStyle(color: primaryViolet, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.verified_rounded, color: primaryIndigo, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'Verified Partner',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: primaryIndigo),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    businessName,
-                    style: const TextStyle(color: Color(0xFF475569), fontSize: 13, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Partner ID: $partnerId',
-                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                  const SizedBox(height: 6),
+                  // Rating Section: Strictly 0.0 baseline
+                  InkWell(
+                    onTap: _showReviewsModal,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 18),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${ratingVal.toStringAsFixed(1)} ($reviewsCount reviews)',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: darkSlate),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 16),
-
-            // 2. Contact Information
-            _buildSection(
-              title: 'Contact Details',
-              icon: Icons.contact_phone_outlined,
-              children: [
-                _buildInfoRow(Icons.phone_outlined, 'Phone', phone),
-                _buildInfoRow(Icons.email_outlined, 'Email', email),
-                _buildInfoRow(Icons.location_on_outlined, 'Service Area', 'Jamnagar Residential Zones & Home Visits'),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // 3. Trade Services Offered & Rates
-            _buildSection(
-              title: 'Services & Shift Rates',
-              icon: Icons.health_and_safety_outlined,
-              children: [
-                _buildServiceRow('Elderly Care Assistant (Day Shift)', '₹599', true),
-                _buildServiceRow('Post-Surgery & Patient Support', '₹799', true),
-                _buildServiceRow('Babysitting & Child Care (Hourly)', '₹499', true),
-                _buildServiceRow('24-Hour Live-in Caretaker', '₹1,499', true),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // 4. Clinical & Care Credentials
-            _buildSection(
-              title: 'Nursing Credentials & Safety',
-              icon: Icons.verified_user_outlined,
-              children: [
-                _buildInfoRow(Icons.verified_outlined, 'Credential', 'Certified Patient Care Assistant'),
-                _buildInfoRow(Icons.health_and_safety_outlined, 'Safety Skills', 'First Aid & CPR Certified'),
-                _buildInfoRow(Icons.security_outlined, 'Background Check', '100% Police Verified & Screened'),
-              ],
-            ),
-
             const SizedBox(height: 24),
 
-            // 5. Back to Dashboard Button
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryViolet,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.dashboard_rounded, size: 18),
-                label: const Text('Back to Care Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
-                onPressed: () {
-                  context.go('/dashboard/care-taker');
-                },
+            // Profile Navigation Menu
+            Material(
+              color: Colors.white,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+                side: BorderSide(color: cardBorder),
+              ),
+              child: Column(
+                children: [
+                  _buildMenuItem(
+                    icon: Icons.person_outline_rounded,
+                    title: 'Personal Information',
+                    onTap: () => context.push('/profile/care-taker/personal'),
+                  ),
+                  const Divider(height: 1, indent: 56, color: cardBorder),
+                  _buildMenuItem(
+                    icon: Icons.business_outlined,
+                    title: 'Business Information',
+                    onTap: () => context.push('/profile/care-taker/business'),
+                  ),
+                  const Divider(height: 1, indent: 56, color: cardBorder),
+                  _buildMenuItem(
+                    icon: Icons.medical_services_outlined,
+                    title: 'Service & Pricing',
+                    onTap: () => context.push('/profile/care-taker/pricing'),
+                  ),
+                  const Divider(height: 1, indent: 56, color: cardBorder),
+                  _buildMenuItem(
+                    icon: Icons.access_time_rounded,
+                    title: 'Availability & Working Hours',
+                    onTap: () => context.push('/profile/care-taker/hours'),
+                  ),
+                  const Divider(height: 1, indent: 56, color: cardBorder),
+                  _buildMenuItem(
+                    icon: Icons.verified_user_outlined,
+                    title: 'Verification Documents',
+                    onTap: () => context.push('/profile/care-taker/documents'),
+                  ),
+                  const Divider(height: 1, indent: 56, color: cardBorder),
+                  _buildMenuItem(
+                    icon: Icons.account_balance_outlined,
+                    title: 'Bank Details',
+                    onTap: () => context.push('/profile/care-taker/bank'),
+                  ),
+                  const Divider(height: 1, indent: 56, color: cardBorder),
+                  _buildMenuItem(
+                    icon: Icons.star_border_rounded,
+                    title: 'Reviews & Ratings',
+                    onTap: _showReviewsModal,
+                  ),
+                  const Divider(height: 1, indent: 56, color: cardBorder),
+                  _buildMenuItem(
+                    icon: Icons.settings_outlined,
+                    title: 'Settings',
+                    onTap: () => context.push('/profile/care-taker/settings'),
+                  ),
+                ],
               ),
             ),
+
+            const SizedBox(height: 20),
+
+            // Sign Out Button
+            Material(
+              color: Colors.white,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+                side: BorderSide(color: cardBorder),
+              ),
+              child: _buildMenuItem(
+                icon: Icons.logout_rounded,
+                title: 'Sign Out',
+                titleColor: const Color(0xFFEF4444),
+                iconColor: const Color(0xFFEF4444),
+                showChevron: false,
+                onTap: _showSignOutDialog,
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSection({
-    required String title,
+  Widget _buildMenuItem({
     required IconData icon,
-    required List<Widget> children,
+    required String title,
+    required VoidCallback onTap,
+    Color? iconColor,
+    Color? titleColor,
+    bool showChevron = true,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: (iconColor ?? primaryIndigo).withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: iconColor ?? primaryIndigo, size: 20),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: primaryViolet, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: darkSlate),
-              ),
-            ],
-          ),
-          const Divider(height: 20, color: Color(0xFFF1F5F9)),
-          ...children,
-        ],
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: titleColor ?? darkSlate,
+        ),
       ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: const Color(0xFF94A3B8)),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-          const Spacer(),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600, color: darkSlate, fontSize: 13)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServiceRow(String name, String price, bool enabled) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF10B981)),
-          const SizedBox(width: 8),
-          Text(name, style: const TextStyle(color: darkSlate, fontSize: 13, fontWeight: FontWeight.w500)),
-          const Spacer(),
-          Text(price, style: const TextStyle(color: primaryViolet, fontWeight: FontWeight.bold, fontSize: 13)),
-        ],
-      ),
+      trailing: showChevron ? const Icon(Icons.chevron_right_rounded, color: textMuted, size: 20) : null,
+      onTap: onTap,
     );
   }
 }

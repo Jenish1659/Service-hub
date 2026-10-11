@@ -69,6 +69,15 @@ import '../../features/ac_service_partner/presentation/screens/ac_partner_dashbo
 import '../../features/ac_service_partner/presentation/screens/ac_partner_profile_screen.dart';
 import '../../features/care_taker_partner/presentation/screens/care_partner_dashboard_screen.dart';
 import '../../features/care_taker_partner/presentation/screens/care_partner_profile_screen.dart';
+import '../../features/care_taker_partner/presentation/screens/care_live_map_screen.dart';
+import '../../features/care_taker_partner/presentation/screens/care_request_details_screen.dart';
+import '../../features/care_taker_partner/presentation/screens/care_personal_info_screen.dart';
+import '../../features/care_taker_partner/presentation/screens/care_business_info_screen.dart';
+import '../../features/care_taker_partner/presentation/screens/care_service_pricing_screen.dart';
+import '../../features/care_taker_partner/presentation/screens/care_working_hours_screen.dart';
+import '../../features/care_taker_partner/presentation/screens/care_documents_screen.dart';
+import '../../features/care_taker_partner/presentation/screens/care_bank_details_screen.dart';
+import '../../features/care_taker_partner/presentation/screens/care_settings_screen.dart';
 import '../../features/cooking_partner/presentation/screens/cooking_partner_dashboard_screen.dart';
 import '../../features/cooking_partner/presentation/screens/cooking_partner_profile_screen.dart';
 import '../../features/laundry_partner/presentation/screens/laundry_partner_dashboard_screen.dart';
@@ -290,6 +299,61 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/profile/care-taker',
       builder: (context, state) => const CarePartnerProfileScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/care-taker/map',
+      builder: (context, state) => const CareLiveMapScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/care-taker/request-details',
+      builder: (context, state) {
+        final b = state.extra as Map<String, dynamic>? ?? {};
+        return CareRequestDetailsScreen(booking: b);
+      },
+    ),
+    GoRoute(
+      path: '/profile/care-taker/personal',
+      builder: (context, state) => const CarePersonalInfoScreen(),
+    ),
+    GoRoute(
+      path: '/profile/care-taker/personal-info',
+      builder: (context, state) => const CarePersonalInfoScreen(),
+    ),
+    GoRoute(
+      path: '/profile/care-taker/business',
+      builder: (context, state) => const CareBusinessInfoScreen(),
+    ),
+    GoRoute(
+      path: '/profile/care-taker/business-info',
+      builder: (context, state) => const CareBusinessInfoScreen(),
+    ),
+    GoRoute(
+      path: '/profile/care-taker/pricing',
+      builder: (context, state) => const CareServicePricingScreen(),
+    ),
+    GoRoute(
+      path: '/profile/care-taker/service-pricing',
+      builder: (context, state) => const CareServicePricingScreen(),
+    ),
+    GoRoute(
+      path: '/profile/care-taker/hours',
+      builder: (context, state) => const CareWorkingHoursScreen(),
+    ),
+    GoRoute(
+      path: '/profile/care-taker/working-hours',
+      builder: (context, state) => const CareWorkingHoursScreen(),
+    ),
+    GoRoute(
+      path: '/profile/care-taker/documents',
+      builder: (context, state) => const CareDocumentsScreen(),
+    ),
+    GoRoute(
+      path: '/profile/care-taker/bank',
+      builder: (context, state) => const CareBankDetailsScreen(),
+    ),
+    GoRoute(
+      path: '/profile/care-taker/settings',
+      builder: (context, state) => const CareSettingsScreen(),
     ),
     GoRoute(
       path: '/profile/cooking',
