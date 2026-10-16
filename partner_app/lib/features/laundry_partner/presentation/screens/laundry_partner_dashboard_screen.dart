@@ -45,6 +45,7 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
     super.initState();
     _loadPartnerSession();
     _subscribeToLiveRequests();
+    LiveBookingSyncService.instance.syncWithSupabaseNow();
   }
 
   @override
@@ -54,15 +55,49 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
   }
 
   Future<void> _loadPartnerSession() async {
-    final cached = await LocalRegistrationCache.getActiveServiceProvider() ??
+    var cached = await LocalRegistrationCache.getActiveServiceProvider() ??
         await LocalRegistrationCache.getActiveShopkeeper() ??
-        await LocalRegistrationCache.getActivePartner();
+        await LocalRegistrationCache.getActivePartner('shopkeeper');
+
+    if (cached == null) {
+      try {
+        final supabase = Supabase.instance.client;
+        final res = await supabase
+            .from('partners')
+            .select('partner_id, availability_status, verification_status, users(user_id, username, phone, user_profiles(first_name, last_name)), service_provider_profiles(provider_id, about), shopkeeper_profiles(shopkeeper_id, business_name, business_type)')
+            .eq('verification_status', 'VERIFIED')
+            .eq('availability_status', 'ONLINE')
+            .limit(10);
+        for (final row in res) {
+          final skpList = row['shopkeeper_profiles'];
+          dynamic skp = skpList is List && skpList.isNotEmpty ? skpList.first : (skpList is Map ? skpList : null);
+          final bType = (skp?['business_type'] ?? '').toString().toLowerCase();
+          final sppList = row['service_provider_profiles'];
+          dynamic spp = sppList is List && sppList.isNotEmpty ? sppList.first : (sppList is Map ? sppList : null);
+          final about = (spp?['about'] ?? '').toString().toLowerCase();
+
+          if (bType.contains('laundry') || about.contains('laundry') || about.contains('wash') || about.contains('iron')) {
+            cached = {
+              'partner_id': row['partner_id'],
+              'shopkeeper_id': skp?['shopkeeper_id'],
+              'provider_id': spp?['provider_id'],
+              'is_online': true,
+              'availability_status': 'ONLINE',
+              'verification_status': 'VERIFIED',
+              'role': skp != null ? 'shopkeeper' : 'service_provider',
+              'category': 'laundry',
+            };
+            break;
+          }
+        }
+      } catch (_) {}
+    }
 
     if (mounted) {
       setState(() {
         _partnerProfile = cached;
-        _isOnline = (cached?['is_online'] == true) ||
-            (cached?['availability_status']?.toString().toUpperCase() == 'ONLINE');
+        _isOnline = cached == null ? true : ((cached['is_online'] == true) ||
+            (cached['availability_status']?.toString().toUpperCase() == 'ONLINE'));
         _isLoading = false;
       });
     }
@@ -82,21 +117,10 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
     // Filter strictly for Laundry and Dry Cleaning orders
     final laundryBookings = bookings.where((b) {
       final bPartnerId = (b['partner_id'] ?? '').toString();
-      final cat = (b['category'] ?? b['category_id'] ?? b['service_id'] ?? b['service_name'] ?? '')
-          .toString()
-          .toLowerCase();
-
-      final isLaundryService = cat.contains('laundry') ||
-          cat.contains('wash') ||
-          cat.contains('dry_clean') ||
-          cat.contains('iron') ||
-          cat.contains('cloth');
-
-      // Include if it's assigned to this partner, or if unassigned pending request
       if (bPartnerId.isNotEmpty && partnerId.isNotEmpty && bPartnerId == partnerId) {
         return true;
       }
-      return isLaundryService;
+      return LiveBookingSyncService.isBookingMatchingCategory(b, 'laundry');
     }).toList();
 
     final List<Map<String, dynamic>> newBucket = [];
@@ -105,11 +129,15 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
 
     for (final b in laundryBookings) {
       final status = (b['status'] ?? '').toString().toUpperCase();
+      final bPartnerId = (b['partner_id'] ?? '').toString();
       if (status == 'PENDING' ||
           status == 'SEARCHING_PROVIDER' ||
           status == 'OFFERED_TO_PROVIDERS' ||
-          status == 'BROADCASTED') {
-        newBucket.add(b);
+          status == 'BROADCASTED' ||
+          status == 'SCHEDULED') {
+        if (_isOnline && bPartnerId.isEmpty) {
+          newBucket.add(b);
+        }
       } else if (status == 'ACCEPTED' ||
           status == 'PICKED_UP' ||
           status == 'PROCESSING' ||
@@ -134,6 +162,7 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
 
   Future<void> _toggleOnlineStatus(bool value) async {
     setState(() => _isOnline = value);
+    _refreshBookings();
     try {
       final partnerId = _partnerProfile?['partner_id']?.toString() ??
           _partnerProfile?['user_id']?.toString() ??
@@ -151,6 +180,9 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
       updated['availability_status'] = value ? 'ONLINE' : 'OFFLINE';
       await LocalRegistrationCache.updateActiveServiceProvider(updated);
     } catch (_) {}
+    if (value) {
+      LiveBookingSyncService.instance.syncWithSupabaseNow();
+    }
   }
 
   Future<void> _acceptBooking(Map<String, dynamic> booking) async {

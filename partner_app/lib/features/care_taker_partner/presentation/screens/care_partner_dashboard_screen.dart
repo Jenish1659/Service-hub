@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
@@ -41,6 +42,7 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
     super.initState();
     _loadPartnerSession();
     _subscribeToLiveRequests();
+    LiveBookingSyncService.instance.syncWithSupabaseNow();
   }
 
   @override
@@ -51,14 +53,43 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
   }
 
   Future<void> _loadPartnerSession() async {
-    final cached = await LocalRegistrationCache.getActiveServiceProvider() ??
-        await LocalRegistrationCache.getActivePartner();
+    var cached = await LocalRegistrationCache.getActiveServiceProvider() ??
+        await LocalRegistrationCache.getActivePartner('service_provider');
+
+    if (cached == null) {
+      try {
+        final supabase = Supabase.instance.client;
+        final res = await supabase
+            .from('partners')
+            .select('partner_id, availability_status, verification_status, users(user_id, username, phone, user_profiles(first_name, last_name)), service_provider_profiles(provider_id, about)')
+            .eq('verification_status', 'VERIFIED')
+            .eq('availability_status', 'ONLINE')
+            .limit(10);
+        for (final row in res) {
+          final sppList = row['service_provider_profiles'];
+          dynamic spp = sppList is List && sppList.isNotEmpty ? sppList.first : (sppList is Map ? sppList : null);
+          final about = (spp?['about'] ?? '').toString().toLowerCase();
+          if (about.contains('care') || about.contains('patient') || about.contains('elderly')) {
+            cached = {
+              'partner_id': row['partner_id'],
+              'provider_id': spp?['provider_id'],
+              'is_online': true,
+              'availability_status': 'ONLINE',
+              'verification_status': 'VERIFIED',
+              'role': 'service_provider',
+              'category': 'care_taker',
+            };
+            break;
+          }
+        }
+      } catch (_) {}
+    }
 
     if (mounted) {
       setState(() {
         _partnerProfile = cached;
-        _isOnline = (cached?['is_online'] == true) ||
-            (cached?['availability_status']?.toString().toUpperCase() == 'ONLINE');
+        _isOnline = cached == null ? true : ((cached['is_online'] == true) ||
+            (cached['availability_status']?.toString().toUpperCase() == 'ONLINE'));
         _isLoading = false;
       });
     }
@@ -74,19 +105,7 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
   void _refreshRequestsList() {
     final all = LiveBookingSyncService.instance.getAllBookings();
     final careBookings = all.where((b) {
-      final cat = (b['category'] ?? b['category_id'] ?? b['service_id'] ?? b['service_name'] ?? b['role'] ?? '')
-          .toString()
-          .toLowerCase();
-
-      final isCare = cat.contains('care') ||
-          cat.contains('elderly') ||
-          cat.contains('patient') ||
-          cat.contains('baby') ||
-          cat.contains('nurse') ||
-          cat.contains('nursing') ||
-          cat.contains('companion');
-
-      return isCare;
+      return LiveBookingSyncService.isBookingMatchingCategory(b, 'care_taker');
     }).toList();
 
     if (mounted) {
@@ -98,12 +117,16 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
 
   Future<void> _toggleOnlineStatus(bool value) async {
     setState(() => _isOnline = value);
+    _refreshRequestsList();
     await LocalRegistrationCache.updateActiveServiceProvider({
       'is_online': value,
       'availability_status': value ? 'ONLINE' : 'OFFLINE',
       'role': 'care_taker',
       'category': 'care_taker',
     });
+    if (value) {
+      LiveBookingSyncService.instance.syncWithSupabaseNow();
+    }
   }
 
   @override
@@ -144,10 +167,13 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
         _partnerProfile?['username'] ??
         'Neha Patel';
 
-    final newCount = _incomingCareRequests.where((b) {
-      final s = (b['status'] ?? '').toString().toUpperCase();
-      return s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER';
-    }).length;
+    final newCount = !_isOnline
+        ? 0
+        : _incomingCareRequests.where((b) {
+            final s = (b['status'] ?? '').toString().toUpperCase();
+            final partnerId = (b['partner_id'] ?? '').toString();
+            return partnerId.isEmpty && (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'SCHEDULED');
+          }).length;
 
     final inProgressCount = _incomingCareRequests.where((b) {
       final s = (b['status'] ?? '').toString().toUpperCase();
@@ -572,7 +598,9 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
     final filtered = _incomingCareRequests.where((b) {
       final s = (b['status'] ?? '').toString().toUpperCase();
       if (_selectedRequestFilter == 0) {
-        return s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'NEW';
+        if (!_isOnline) return false;
+        final partnerId = (b['partner_id'] ?? '').toString();
+        return partnerId.isEmpty && (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'NEW' || s == 'SCHEDULED');
       } else if (_selectedRequestFilter == 1) {
         return s == 'IN_PROGRESS' || s == 'CONFIRMED' || s == 'ACCEPTED';
       } else {

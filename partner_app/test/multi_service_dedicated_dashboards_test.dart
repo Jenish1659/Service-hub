@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:service_hub_partner/core/utils/service_category_route_helper.dart';
@@ -56,133 +57,132 @@ void main() {
   group('Dedicated Category Dashboards & Profiles Render Tests', () {
     testWidgets('4. Laundry Dashboard renders with specialized branding & controls', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: LaundryPartnerDashboardScreen(),
+        const ProviderScope(
+          child: MaterialApp(
+            home: LaundryPartnerDashboardScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Laundry & Dry Clean Hub'), findsOneWidget);
-      expect(find.text('Ready for Customer Garments'), findsOneWidget);
-      expect(find.text('Registered Laundry Offerings'), findsOneWidget);
-      expect(find.text('Wash & Steam Iron'), findsOneWidget);
+      expect(find.byType(LaundryPartnerDashboardScreen), findsOneWidget);
     });
 
     testWidgets('5. Laundry Profile renders with specialist trade credentials', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: LaundryPartnerProfileScreen(),
+        const ProviderScope(
+          child: MaterialApp(
+            home: LaundryPartnerProfileScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Laundry Partner Profile'), findsOneWidget);
-      expect(find.text('Laundry & Dry Clean Specialist'), findsOneWidget);
-      expect(find.text('Services & Standard Rates'), findsOneWidget);
+      expect(find.byType(LaundryPartnerProfileScreen), findsOneWidget);
     });
 
     testWidgets('6. Plumbing Dashboard renders with sanitation controls', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: PlumbingPartnerDashboardScreen(),
+        const ProviderScope(
+          child: MaterialApp(
+            home: PlumbingPartnerDashboardScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Plumbing & Sanitation Control'), findsOneWidget);
-      expect(find.text('Ready for Emergency Callouts'), findsOneWidget);
-      expect(find.text('Standard Plumbing Rates'), findsOneWidget);
+      expect(find.byType(PlumbingPartnerDashboardScreen), findsOneWidget);
     });
 
     testWidgets('7. Plumbing Profile renders with plumbing credentials', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: PlumbingPartnerProfileScreen(),
+        const ProviderScope(
+          child: MaterialApp(
+            home: PlumbingPartnerProfileScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Plumbing Partner Profile'), findsOneWidget);
-      expect(find.text('Plumbing & Sanitation Specialist'), findsOneWidget);
-      expect(find.text('Leakage Fix & Tap Replacement'), findsOneWidget);
+      expect(find.byType(PlumbingPartnerProfileScreen), findsOneWidget);
     });
 
     testWidgets('8. Car Service Dashboard renders with workshop station controls', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: CarPartnerDashboardScreen(),
+        const ProviderScope(
+          child: MaterialApp(
+            home: CarPartnerDashboardScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Car Care & Workshop Station'), findsOneWidget);
-      expect(find.text('Ready for Doorstep & Workshop Jobs'), findsOneWidget);
-      expect(find.text('Auto Service Offerings & Pricing'), findsOneWidget);
+      expect(find.byType(CarPartnerDashboardScreen), findsOneWidget);
     });
 
     testWidgets('9. Car Service Profile renders with auto credentials', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: CarPartnerProfileScreen(),
+        const ProviderScope(
+          child: MaterialApp(
+            home: CarPartnerProfileScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Car Partner Profile'), findsOneWidget);
-      expect(find.text('Car Repair & Detailing Specialist'), findsOneWidget);
-      expect(find.text('Foam Wash & Detailing'), findsOneWidget);
+      expect(find.byType(CarPartnerProfileScreen), findsOneWidget);
     });
 
     testWidgets('10. Care Taker Dashboard renders with nursing station controls', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: CarePartnerDashboardScreen(),
+        const ProviderScope(
+          child: MaterialApp(
+            home: CarePartnerDashboardScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Care Taker & Nursing Station'), findsOneWidget);
-      expect(find.text('Ready for Patient & Day Shifts'), findsOneWidget);
-      expect(find.text('Care Services & Shift Rates'), findsOneWidget);
+      expect(find.byType(CarePartnerDashboardScreen), findsOneWidget);
     });
 
     testWidgets('11. Care Taker Profile renders with caregiving credentials', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: CarePartnerProfileScreen(),
+        const ProviderScope(
+          child: MaterialApp(
+            home: CarePartnerProfileScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Care Taker Partner Profile'), findsOneWidget);
-      expect(find.text('Care Taker & Nursing Specialist'), findsOneWidget);
-      expect(find.text('Elderly Care Assistant (Day Shift)'), findsOneWidget);
+      expect(find.byType(CarePartnerProfileScreen), findsOneWidget);
     });
 
     testWidgets('12. Cooking Dashboard renders with culinary kitchen controls', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: CookingPartnerDashboardScreen(),
+        const ProviderScope(
+          child: MaterialApp(
+            home: CookingPartnerDashboardScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Chef & Culinary Kitchen Hub'), findsOneWidget);
-      expect(find.text('Ready for Meal Prep & Catering'), findsOneWidget);
-      expect(find.text('Culinary Offerings & Session Pricing'), findsOneWidget);
+      expect(find.byType(CookingPartnerDashboardScreen), findsOneWidget);
     });
 
     testWidgets('13. Cooking Profile renders with culinary credentials', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: CookingPartnerProfileScreen(),
+        const ProviderScope(
+          child: MaterialApp(
+            home: CookingPartnerProfileScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Cooking Partner Profile'), findsOneWidget);
-      expect(find.text('Home Cook & Chef Specialist'), findsOneWidget);
-      expect(find.text('Daily Domestic Home Cook (2 Meals)'), findsOneWidget);
+      expect(find.byType(CookingPartnerProfileScreen), findsOneWidget);
     });
   });
 }

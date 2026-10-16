@@ -4,6 +4,8 @@ import 'dart:io' show Directory, File, Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../storage/local_registration_cache.dart';
 import 'secure_otp_engine.dart';
 
 /// Universal Cross-Platform Synchronization Service (Web + Desktop + Mobile + Supabase)
@@ -31,10 +33,88 @@ class LiveBookingSyncService {
           name.contains('rajiv patel') ||
           name.contains('meera trivedi');
       if (isFakeOrTest) return false;
-      return (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'OFFERED_TO_PROVIDERS') &&
+      return (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'OFFERED_TO_PROVIDERS' || s == 'SCHEDULED') &&
           partnerId.isEmpty;
     }).toList();
   });
+
+  /// Authoritative Category Matcher for Strict Multi-Service Isolation
+  static bool isBookingMatchingCategory(Map<String, dynamic> b, String targetCategory) {
+    final target = targetCategory.toLowerCase().trim();
+    final exactCatId = (b['category_id'] ?? '').toString().toLowerCase().trim();
+    if (exactCatId.isNotEmpty) {
+      if (target == 'ac_service' || target == 'ac') return exactCatId == 'ac_service' || exactCatId == 'ac';
+      if (target == 'car_service' || target == 'car') return exactCatId == 'car_service' || exactCatId == 'car';
+      if (target == 'care_taker' || target == 'care') return exactCatId == 'care_taker' || exactCatId == 'care';
+      if (target == 'plumbing') return exactCatId == 'plumbing';
+      if (target == 'cooking') return exactCatId == 'cooking';
+      if (target == 'laundry') return exactCatId == 'laundry';
+      if (target == 'shopkeeper' || target == 'store') return exactCatId == 'store' || exactCatId == 'shopkeeper' || exactCatId == 'ecommerce';
+      if (target == 'delivery' || target == 'delivery_agent') return exactCatId == 'delivery' || exactCatId == 'delivery_agent';
+      if (exactCatId == target) return true;
+    }
+
+    final cat = (b['category'] ?? b['category_name'] ?? b['service_id'] ?? b['service_name'] ?? '')
+        .toString()
+        .toLowerCase();
+
+    if (target == 'ac_service' || target == 'ac') {
+      final isCar = (cat.contains('car ') || cat.contains('car_') || cat.contains(' car') || cat.contains('auto') || cat.contains('vehicle')) && !cat.contains('care') && !cat.contains('carpet');
+      return (cat.contains('ac') || cat.contains('air conditioning') || cat.contains('hvac') || cat.contains('cooling')) && !isCar;
+    } else if (target == 'care_taker' || target == 'care') {
+      return cat.contains('care') || cat.contains('elderly') || cat.contains('patient') || cat.contains('babysitt') || cat.contains('nurse') || cat.contains('companion');
+    } else if (target == 'cooking') {
+      return cat.contains('cook') || cat.contains('chef') || cat.contains('meal') || cat.contains('kitchen') || cat.contains('culinary') || cat.contains('tiffin');
+    } else if (target == 'plumbing') {
+      return cat.contains('plumb') || cat.contains('pipe') || cat.contains('leak') || cat.contains('drain') || cat.contains('tap') || cat.contains('sanitat') || cat.contains('commode');
+    } else if (target == 'laundry') {
+      final isCar = (cat.contains('car ') || cat.contains('car_') || cat.contains(' car') || cat.contains('vehicle')) && !cat.contains('carpet');
+      final isAc = cat.contains('ac') && !cat.contains('pack');
+      return (cat.contains('laundry') || cat.contains('dry clean') || cat.contains('iron') || cat.contains('garment') || cat.contains('carpet') || (cat.contains('wash') && !isCar && !isAc));
+    } else if (target == 'car_service' || target == 'car') {
+      final isCareOrCarpet = cat.contains('care') || cat.contains('carpet');
+      return !isCareOrCarpet && (cat.contains('car') || cat.contains('auto') || cat.contains('vehicle') || cat.contains('mechanic') || cat.contains('garage') || cat.contains('oil_change') || cat.contains('roadside') || cat.contains('tyre') || cat.contains('brake'));
+    } else if (target == 'shopkeeper' || target == 'store' || target == 'ecommerce') {
+      return (b['type'] == 'DELIVERY_ORDER' || cat.contains('store') || cat.contains('grocery') || cat.contains('mart')) && !cat.contains('laundry');
+    } else if (target == 'delivery' || target == 'delivery_agent') {
+      return b['type'] == 'DELIVERY_ORDER' || cat.contains('delivery') || cat.contains('courier') || cat.contains('parcel');
+    }
+    return cat == target || cat.contains(target);
+  }
+
+  /// Category-Isolated Stream of Incoming Offers
+  Stream<List<Map<String, dynamic>>> streamIncomingOffersForCategory(String categoryId) {
+    return _bookingsStreamController.stream.map((list) {
+      return list.where((b) {
+        final s = (b['status'] ?? '').toString().toUpperCase();
+        final partnerId = (b['partner_id'] ?? '').toString();
+        final id = (b['id'] ?? b['booking_id'] ?? '').toString().toLowerCase();
+        final name = (b['customer_name'] ?? '').toString().toLowerCase();
+        final isFakeOrTest = id.startsWith('test_') ||
+            id == 'booking_unassigned_999' ||
+            name.contains('rajiv patel') ||
+            name.contains('meera trivedi');
+        if (isFakeOrTest) return false;
+        final isPending = (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'OFFERED_TO_PROVIDERS' || s == 'SCHEDULED') &&
+            partnerId.isEmpty;
+        if (!isPending) return false;
+        return isBookingMatchingCategory(b, categoryId);
+      }).toList();
+    });
+  }
+
+  /// Category-Isolated Synchronous Pending Offers
+  List<Map<String, dynamic>> getPendingOffersForCategory(String categoryId) {
+    reloadAllFromDisk();
+    return getAllBookings().where((b) {
+      final status = (b['status'] ?? '').toString().toUpperCase();
+      final partnerId = (b['partner_id'] ?? '').toString();
+      final isPending = (status == 'PENDING' || status == 'SEARCHING_PROVIDER' || status == 'OFFERED_TO_PROVIDERS' || status == 'BROADCASTED' || status == 'SCHEDULED') &&
+          partnerId.isEmpty;
+      if (!isPending) return false;
+      return isBookingMatchingCategory(b, categoryId);
+    }).toList();
+  }
 
   Timer? _pollingTimer;
 
@@ -101,6 +181,43 @@ class LiveBookingSyncService {
     return list;
   }
 
+  RealtimeChannel? _realtimeChannel;
+
+  bool _isSupabaseReady() {
+    try {
+      return Supabase.instance.isInitialized;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _setupRealtimeSubscription() {
+    if (!_isSupabaseReady()) return;
+    try {
+      final supabase = Supabase.instance.client;
+      _realtimeChannel = supabase.channel('public:service_bookings_sync')
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'service_bookings',
+          callback: (_) {
+            _syncWithSupabase();
+          },
+        )
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'booking_requests',
+          callback: (_) {
+            _syncWithSupabase();
+          },
+        )
+        ..subscribe();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[LiveBookingSyncService] Realtime setup note: $e');
+    }
+  }
+
   void _initializeSync() {
     reloadAllFromDisk();
 
@@ -113,15 +230,249 @@ class LiveBookingSyncService {
       } catch (_) {}
     }
 
-    _pollingTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+    _setupRealtimeSubscription();
+
+    _pollingTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) {
       reloadAllFromDisk();
       _pollHttpBridge();
+      _syncWithSupabase();
     });
+
+    _syncWithSupabase();
+  }
+
+  Future<void> syncWithSupabaseNow() async {
+    await _syncWithSupabase();
+  }
+
+  static String _inferCategory(String catId, String sName, String pDesc) {
+    final cat = catId.toLowerCase().trim();
+    if (cat == 'ac_service' || cat == 'ac') return 'ac_service';
+    if (cat == 'car_service' || cat == 'car') return 'car_service';
+    if (cat == 'care_taker' || cat == 'care') return 'care_taker';
+    if (cat == 'plumbing') return 'plumbing';
+    if (cat == 'cooking') return 'cooking';
+    if (cat == 'laundry') return 'laundry';
+    if (cat == 'shopkeeper' || cat == 'store') return 'shopkeeper';
+    if (cat == 'delivery' || cat == 'delivery_agent') return 'delivery';
+
+    final combined = '$cat $sName $pDesc'.toLowerCase();
+    if (combined.contains('care') || combined.contains('elderly') || combined.contains('patient') || combined.contains('nurse') || combined.contains('babysitt') || combined.contains('companion')) {
+      return 'care_taker';
+    }
+    if (combined.contains('cook') || combined.contains('chef') || combined.contains('meal') || combined.contains('kitchen') || combined.contains('culinary') || combined.contains('tiffin')) {
+      return 'cooking';
+    }
+    if (combined.contains('plumb') || combined.contains('pipe') || combined.contains('tap') || combined.contains('drain') || combined.contains('leak') || combined.contains('toilet') || combined.contains('sanitat')) {
+      return 'plumbing';
+    }
+    if (combined.contains('laundry') || combined.contains('dry clean') || combined.contains('garment') || combined.contains('iron') || combined.contains('steam press') || (combined.contains('wash') && combined.contains('shoe'))) {
+      return 'laundry';
+    }
+    if (combined.contains('roadside') || combined.contains('engine repair') || combined.contains('tyre') || combined.contains('brake') || combined.contains('denting') || (combined.contains('car') && !combined.contains('care') && !combined.contains('carpet'))) {
+      return 'car_service';
+    }
+    if (combined.contains('ac') || combined.contains('air condition') || combined.contains('cooling') || combined.contains('jet wash')) {
+      return 'ac_service';
+    }
+    return 'ac_service';
+  }
+
+  static String _defaultServiceName(String category) {
+    switch (category) {
+      case 'ac_service':
+        return 'Split AC Deep Cleaning (Jet Wash)';
+      case 'car_service':
+        return 'Periodic Standard Service & Inspection';
+      case 'care_taker':
+        return 'Elderly & Patient Care Assistant';
+      case 'cooking':
+        return 'Daily Domestic Home Cook (2 Meals)';
+      case 'plumbing':
+        return 'Tap & Pipe Leakage Repair';
+      case 'laundry':
+        return 'Wash & Steam Ironing';
+      default:
+        return 'Professional Home Service';
+    }
+  }
+
+  static String _categoryDisplayName(String category) {
+    switch (category) {
+      case 'ac_service':
+        return 'AC Service Provider';
+      case 'car_service':
+        return 'Car Service Specialist';
+      case 'care_taker':
+        return 'Care Taker Specialist';
+      case 'cooking':
+        return 'Cooking Specialist';
+      case 'plumbing':
+        return 'Plumbing Specialist';
+      case 'laundry':
+        return 'Laundry Specialist';
+      default:
+        return 'Service Partner';
+    }
+  }
+
+  Future<void> _syncWithSupabase() async {
+    if (!_isSupabaseReady()) return;
+    try {
+      final supabase = Supabase.instance.client;
+
+      // 1. Query pending unassigned bookings across all service categories (Immediate + Scheduled)
+      List<dynamic> rows = [];
+      try {
+        rows = await supabase
+            .from('service_bookings')
+            .select('booking_id, customer_id, service_id, address_id, booking_date, scheduled_time, problem_description, estimated_amount, final_amount, status, service_status, partner_id, customer_latitude, customer_longitude, entrance_pin, completion_otp, created_at, services(service_id, name, category_id), user_addresses(area, city, latitude, longitude)')
+            .filter('status', 'in', ['SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS', 'PENDING', 'BROADCASTED', 'SCHEDULED'])
+            .filter('partner_id', 'is', 'null')
+            .order('created_at', ascending: false)
+            .limit(50);
+      } catch (_) {
+        try {
+          rows = await supabase
+              .from('service_bookings')
+              .select('*')
+              .filter('status', 'in', ['SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS', 'PENDING', 'BROADCASTED', 'SCHEDULED'])
+              .filter('partner_id', 'is', 'null')
+              .order('created_at', ascending: false)
+              .limit(50);
+        } catch (_) {}
+      }
+
+      // 2. Fetch assigned / in-progress bookings AND direct booking_requests for logged-in partner
+      try {
+        final cachedPartner = await LocalRegistrationCache.getActivePartner() ??
+            await LocalRegistrationCache.getActiveServiceProvider();
+        final pId = (cachedPartner?['partner_id'] ?? cachedPartner?['id'] ?? '').toString();
+        final provId = (cachedPartner?['provider_id'] ?? '').toString();
+
+        if (pId.isNotEmpty) {
+          final assignedRows = await supabase
+              .from('service_bookings')
+              .select('booking_id, customer_id, service_id, address_id, booking_date, scheduled_time, problem_description, estimated_amount, final_amount, status, service_status, partner_id, customer_latitude, customer_longitude, entrance_pin, completion_otp, created_at, services(service_id, name, category_id), user_addresses(area, city, latitude, longitude)')
+              .eq('partner_id', pId)
+              .filter('status', 'in', ['ACCEPTED', 'ASSIGNED', 'ON_THE_WAY', 'ARRIVED', 'SERVICE_STARTED', 'IN_PROGRESS', 'COMPLETED'])
+              .limit(30);
+          rows.addAll(assignedRows);
+        }
+
+        // Direct candidate requests addressed to this partner
+        if (pId.isNotEmpty || provId.isNotEmpty) {
+          try {
+            final filterCol = pId.isNotEmpty ? 'partner_id' : 'provider_id';
+            final filterVal = pId.isNotEmpty ? pId : provId;
+            final reqs = await supabase
+                .from('booking_requests')
+                .select('booking_id')
+                .eq(filterCol, filterVal)
+                .eq('response_status', 'Pending')
+                .limit(20);
+            for (final rq in reqs) {
+              final bId = (rq['booking_id'] ?? '').toString();
+              if (bId.isNotEmpty && !rows.any((r) => (r['booking_id'] ?? r['id'] ?? '').toString() == bId)) {
+                final bRow = await supabase
+                    .from('service_bookings')
+                    .select('booking_id, customer_id, service_id, address_id, booking_date, scheduled_time, problem_description, estimated_amount, final_amount, status, service_status, partner_id, customer_latitude, customer_longitude, entrance_pin, completion_otp, created_at, services(service_id, name, category_id), user_addresses(area, city, latitude, longitude)')
+                    .eq('booking_id', bId)
+                    .maybeSingle();
+                if (bRow != null) {
+                  rows.add(bRow);
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
+
+      bool hasChanges = false;
+      for (final r in rows) {
+        if (r is! Map<String, dynamic>) continue;
+        final bId = (r['booking_id'] ?? r['id'] ?? '').toString();
+        if (bId.isEmpty) continue;
+
+        dynamic svc = r['services'];
+        if (svc is List && svc.isNotEmpty) svc = svc.first;
+        final svcMap = svc is Map<String, dynamic> ? svc : null;
+
+        dynamic addr = r['user_addresses'];
+        if (addr is List && addr.isNotEmpty) addr = addr.first;
+        final addrMap = addr is Map<String, dynamic> ? addr : null;
+
+        final rawCat = (svcMap?['category_id'] ?? r['category_id'] ?? r['category'] ?? '').toString();
+        final sName = (svcMap?['name'] ?? r['service_name'] ?? '').toString();
+        final pDesc = (r['problem_description'] ?? '').toString();
+
+        final resolvedCat = _inferCategory(rawCat, sName, pDesc);
+
+        final price = (r['final_amount'] as num?)?.toDouble() ??
+            (r['estimated_amount'] as num?)?.toDouble() ?? 499.0;
+        final lat = (r['customer_latitude'] as num?)?.toDouble() ??
+            (addrMap?['latitude'] as num?)?.toDouble() ?? 22.4707;
+        final lng = (r['customer_longitude'] as num?)?.toDouble() ??
+            (addrMap?['longitude'] as num?)?.toDouble() ?? 70.0577;
+        final addressText = addrMap != null
+            ? '${addrMap['area'] ?? ""}, ${addrMap['city'] ?? "Jamnagar"}'.trim()
+            : (r['address'] ?? 'Jamnagar').toString();
+
+        final status = (r['status'] ?? 'PENDING').toString().toUpperCase();
+        final partnerId = (r['partner_id'] ?? '').toString();
+
+        final existing = _inMemoryBookings[bId];
+        if (existing == null || existing['status'] != status || existing['partner_id'] != partnerId) {
+          final normalized = Map<String, dynamic>.from(existing ?? {});
+          normalized['id'] = bId;
+          normalized['booking_id'] = bId;
+          normalized['customer_id'] = (r['customer_id'] ?? '').toString();
+          normalized['customer_name'] = existing?['customer_name'] ?? 'Customer';
+          normalized['customer_phone'] = existing?['customer_phone'] ?? '';
+          normalized['service_id'] = (r['service_id'] ?? '').toString();
+          normalized['service_name'] = sName.isNotEmpty ? sName : _defaultServiceName(resolvedCat);
+          normalized['category_id'] = resolvedCat;
+          normalized['category'] = resolvedCat;
+          normalized['category_name'] = _categoryDisplayName(resolvedCat);
+          normalized['problem_description'] = pDesc;
+          normalized['status'] = status;
+          normalized['service_status'] = status;
+          normalized['partner_id'] = partnerId;
+          normalized['price'] = price;
+          normalized['final_amount'] = price;
+          normalized['estimated_amount'] = price;
+          normalized['scheduled_date'] = (r['booking_date'] ?? 'Today').toString();
+          normalized['scheduled_time'] = (r['scheduled_time'] ?? 'Immediate').toString();
+          normalized['scheduled_at'] = '${r['booking_date'] ?? ""} ${r['scheduled_time'] ?? ""}'.trim();
+          normalized['customer_address'] = addressText;
+          normalized['address'] = addressText;
+          normalized['customer_lat'] = lat;
+          normalized['customer_lng'] = lng;
+          normalized['entrance_pin'] = (r['entrance_pin'] ?? '7429').toString();
+          normalized['completion_otp'] = (r['completion_otp'] ?? '5892').toString();
+          normalized['created_at'] = (r['created_at'] ?? DateTime.now().toIso8601String()).toString();
+
+          _inMemoryBookings[bId] = normalized;
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        _writeAllBookings(_inMemoryBookings);
+        _broadcastBookingChanges();
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[LiveBookingSyncService] Supabase sync note: $e');
+    }
   }
 
   void stopPolling() {
     _pollingTimer?.cancel();
     _pollingTimer = null;
+    try {
+      _realtimeChannel?.unsubscribe();
+      _realtimeChannel = null;
+    } catch (_) {}
   }
 
   void clearBookingsForTest() {
@@ -451,13 +802,7 @@ class LiveBookingSyncService {
   }
 
   List<Map<String, dynamic>> getPendingACOffers({String? categoryId, String? serviceCategoryId}) {
-    reloadAllFromDisk();
-    return getAllBookings().where((b) {
-      final status = (b['status'] ?? '').toString().toUpperCase();
-      final partnerId = (b['partner_id'] ?? '').toString();
-      return (status == 'PENDING' || status == 'SEARCHING_PROVIDER' || status == 'OFFERED_TO_PROVIDERS' || status == 'BROADCASTED') &&
-          partnerId.isEmpty;
-    }).toList();
+    return getPendingOffersForCategory(categoryId ?? serviceCategoryId ?? 'ac_service');
   }
 
   Future<void> updatePartnerLocation(
@@ -493,6 +838,37 @@ class LiveBookingSyncService {
       all[bookingId] = booking;
       _writeAllBookings(all);
       await _broadcastToHttpBridge('/api/bookings', booking);
+
+      try {
+        if (_isSupabaseReady()) {
+          final supabase = Supabase.instance.client;
+          final statusStr = (booking['status'] ?? 'COMPLETED').toString().toUpperCase();
+          await supabase.from('service_bookings').update({
+            'status': statusStr,
+            'service_status': statusStr,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('booking_id', bookingId);
+
+          if (statusStr == 'COMPLETED') {
+            final pId = (booking['partner_id'] ?? '').toString();
+            final price = (booking['final_amount'] as num?)?.toDouble() ?? (booking['price'] as num?)?.toDouble() ?? 499.0;
+            if (pId.isNotEmpty) {
+              try {
+                await supabase.from('partner_earnings').insert({
+                  'partner_id': pId,
+                  'booking_id': bookingId,
+                  'gross_amount': price,
+                  'net_amount': price * 0.85,
+                  'platform_fee': price * 0.15,
+                  'earned_at': DateTime.now().toIso8601String(),
+                });
+              } catch (_) {}
+            }
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[LiveBookingSyncService] Supabase status update note: $e');
+      }
     }
   }
 
@@ -545,6 +921,38 @@ class LiveBookingSyncService {
       all[bookingId] = booking;
       _writeAllBookings(all);
       await _broadcastToHttpBridge('/api/bookings', booking);
+
+      try {
+        if (_isSupabaseReady()) {
+          final supabase = Supabase.instance.client;
+          final pId = (booking['partner_id'] ?? '').toString();
+          await supabase.from('service_bookings').update({
+            'status': 'ACCEPTED',
+            'service_status': 'ACCEPTED',
+            'partner_id': pId.isNotEmpty ? pId : null,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('booking_id', bookingId);
+
+          if (pId.isNotEmpty) {
+            try {
+              await supabase.from('booking_requests').update({
+                'response_status': 'Accepted',
+                'response_at': DateTime.now().toIso8601String(),
+              }).eq('booking_id', bookingId);
+            } catch (_) {}
+            try {
+              await supabase.from('booking_assignment').upsert({
+                'booking_id': bookingId,
+                'partner_id': pId,
+                'assigned_at': DateTime.now().toIso8601String(),
+                'status': 'ASSIGNED',
+              });
+            } catch (_) {}
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[LiveBookingSyncService] Supabase accept note: $e');
+      }
       return true;
     }
     return false;

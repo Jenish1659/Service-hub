@@ -162,12 +162,12 @@ class ACBookingFlowScreen extends ConsumerStatefulWidget {
     }
 
     // 2. Real Partner Assignment Dispatch
-    final isSearching = status.toUpperCase() == 'SEARCHING_PROVIDER' || status.toUpperCase() == 'PENDING';
+    final isSearching = status.toUpperCase() == 'SEARCHING_PROVIDER' || status.toUpperCase() == 'PENDING' || status.toUpperCase() == 'SCHEDULED';
     if (isSearching && supabase != null) {
       try {
         final candidatesRes = await supabase
             .from('service_provider_profiles')
-            .select('provider_id, partner_id, partners(partner_id, user_id, verification_status, availability_status, users(user_id, is_active, account_status, roles(role_name)), partner_live_locations(latitude, longitude))');
+            .select('provider_id, partner_id, about, partners(partner_id, user_id, verification_status, availability_status, users(user_id, is_active, account_status, roles(role_name)), partner_live_locations(latitude, longitude))');
 
         for (final c in candidatesRes) {
           final partner = c['partners'] as Map<String, dynamic>?;
@@ -181,6 +181,20 @@ class ACBookingFlowScreen extends ConsumerStatefulWidget {
           final avail = partner['availability_status']?.toString().toUpperCase();
           if (ver != 'VERIFIED' && ver != 'APPROVED') continue;
           if (avail != 'ONLINE' && avail != 'AVAILABLE') continue;
+
+          // Category Isolation: Strictly AC Service technician
+          final about = (c['about'] ?? '').toString().toLowerCase();
+          final isOtherSpecialist = (about.contains('plumb') ||
+                  about.contains('cook') ||
+                  about.contains('chef') ||
+                  about.contains('car ') ||
+                  about.contains('mechanic') ||
+                  about.contains('care taker') ||
+                  about.contains('elderly') ||
+                  about.contains('laundry')) &&
+              !about.contains('ac') &&
+              !about.contains('air');
+          if (isOtherSpecialist) continue;
 
           final reqId = const Uuid().v4();
           await supabase.from('booking_requests').insert({

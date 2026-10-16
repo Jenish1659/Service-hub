@@ -321,6 +321,15 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
       try {
         final localBookings = LiveBookingSyncService.instance.getAllBookings();
         for (final b in localBookings) {
+          final cat = (b['category_id'] ?? b['category'] ?? '').toString().toLowerCase();
+          final isHomeService = cat == 'ac_service' ||
+              cat == 'plumbing' ||
+              cat == 'cooking' ||
+              cat == 'car_service' ||
+              cat == 'care_taker' ||
+              cat == 'laundry';
+          if (isHomeService) continue;
+
           final isDelivery = b['type'] == 'DELIVERY_ORDER' ||
               (b['service_id'] ?? '').toString().toLowerCase().contains('delivery') ||
               ((b['order_id'] != null || b['order_code'] != null) && b['type'] != 'SERVICE_BOOKING');

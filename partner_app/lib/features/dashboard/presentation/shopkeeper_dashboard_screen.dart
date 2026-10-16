@@ -336,12 +336,12 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
       try {
         final syncBookings = LiveBookingSyncService.instance.getAllBookings();
         for (final b in syncBookings) {
-          final isStoreOrder = b['type'] == 'DELIVERY_ORDER' ||
+          final isStoreOrder = (b['type'] == 'DELIVERY_ORDER' ||
               (b['service_id'] ?? '').toString().contains('delivery') ||
-              (b['category_id'] ?? '').toString() == 'laundry' ||
-              (b['category_name'] ?? '').toString().toLowerCase().contains('laundry') ||
-              (b['service_name'] ?? '').toString().toLowerCase().contains('laundry') ||
-              b['order_code'] != null;
+              b['order_code'] != null) &&
+              (b['category_id'] ?? '').toString() != 'laundry' &&
+              !(b['category_name'] ?? '').toString().toLowerCase().contains('laundry') &&
+              !(b['service_name'] ?? '').toString().toLowerCase().contains('laundry');
           if (!isStoreOrder) continue;
 
           final bCode = (b['order_code'] ?? b['order_id'] ?? b['id'] ?? '').toString();

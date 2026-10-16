@@ -47,6 +47,7 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
     super.initState();
     _loadPartnerSession();
     _subscribeToLiveRequests();
+    LiveBookingSyncService.instance.syncWithSupabaseNow();
   }
 
   @override
@@ -56,14 +57,43 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
   }
 
   Future<void> _loadPartnerSession() async {
-    final cached = await LocalRegistrationCache.getActiveServiceProvider() ??
-        await LocalRegistrationCache.getActivePartner();
+    var cached = await LocalRegistrationCache.getActiveServiceProvider() ??
+        await LocalRegistrationCache.getActivePartner('service_provider');
+
+    if (cached == null) {
+      try {
+        final supabase = Supabase.instance.client;
+        final res = await supabase
+            .from('partners')
+            .select('partner_id, availability_status, verification_status, users(user_id, username, phone, user_profiles(first_name, last_name)), service_provider_profiles(provider_id, about)')
+            .eq('verification_status', 'VERIFIED')
+            .eq('availability_status', 'ONLINE')
+            .limit(10);
+        for (final row in res) {
+          final sppList = row['service_provider_profiles'];
+          dynamic spp = sppList is List && sppList.isNotEmpty ? sppList.first : (sppList is Map ? sppList : null);
+          final about = (spp?['about'] ?? '').toString().toLowerCase();
+          if (about.contains('plumb') || about.contains('pipe') || about.contains('leak') || about.contains('tap')) {
+            cached = {
+              'partner_id': row['partner_id'],
+              'provider_id': spp?['provider_id'],
+              'is_online': true,
+              'availability_status': 'ONLINE',
+              'verification_status': 'VERIFIED',
+              'role': 'service_provider',
+              'category': 'plumbing',
+            };
+            break;
+          }
+        }
+      } catch (_) {}
+    }
 
     if (mounted) {
       setState(() {
         _partnerProfile = cached;
-        _isOnline = (cached?['is_online'] == true) ||
-            (cached?['availability_status']?.toString().toUpperCase() == 'ONLINE');
+        _isOnline = cached == null ? true : ((cached['is_online'] == true) ||
+            (cached['availability_status']?.toString().toUpperCase() == 'ONLINE'));
         _isLoading = false;
       });
     }
@@ -83,26 +113,10 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
     // Filter strictly for Plumbing & Sanitation requests
     final plumbingBookings = bookings.where((b) {
       final bPartnerId = (b['partner_id'] ?? '').toString();
-      final cat = (b['category'] ?? b['category_id'] ?? b['service_id'] ?? b['service_name'] ?? '')
-          .toString()
-          .toLowerCase();
-
-      final isPlumbingService = cat.contains('plumb') ||
-          cat.contains('pipe') ||
-          cat.contains('leak') ||
-          cat.contains('drain') ||
-          cat.contains('tap') ||
-          cat.contains('motor') ||
-          cat.contains('tank') ||
-          cat.contains('toilet') ||
-          cat.contains('commode') ||
-          cat.contains('sanitat') ||
-          cat.contains('water');
-
       if (bPartnerId.isNotEmpty && partnerId.isNotEmpty && bPartnerId == partnerId) {
         return true;
       }
-      return isPlumbingService;
+      return LiveBookingSyncService.isBookingMatchingCategory(b, 'plumbing');
     }).toList();
 
     final List<Map<String, dynamic>> newBucket = [];
@@ -111,11 +125,15 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
 
     for (final b in plumbingBookings) {
       final status = (b['status'] ?? '').toString().toUpperCase();
+      final bPartnerId = (b['partner_id'] ?? '').toString();
       if (status == 'PENDING' ||
           status == 'SEARCHING_PROVIDER' ||
           status == 'OFFERED_TO_PROVIDERS' ||
-          status == 'BROADCASTED') {
-        newBucket.add(b);
+          status == 'BROADCASTED' ||
+          status == 'SCHEDULED') {
+        if (_isOnline && bPartnerId.isEmpty) {
+          newBucket.add(b);
+        }
       } else if (status == 'ACCEPTED' ||
           status == 'ASSIGNED' ||
           status == 'IN_PROGRESS' ||
@@ -138,6 +156,7 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
 
   Future<void> _toggleOnlineStatus(bool value) async {
     setState(() => _isOnline = value);
+    _refreshBookings();
     try {
       final partnerId = _partnerProfile?['partner_id']?.toString() ??
           _partnerProfile?['user_id']?.toString();
@@ -156,6 +175,9 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
             .eq('partner_id', partnerId);
       }
     } catch (_) {}
+    if (value) {
+      LiveBookingSyncService.instance.syncWithSupabaseNow();
+    }
   }
 
   double get _totalEarnings {

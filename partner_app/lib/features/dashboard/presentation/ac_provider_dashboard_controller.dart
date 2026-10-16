@@ -199,7 +199,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
   Future<void> refresh() async => initDashboard();
 
   Future<void> _loadPartnerProfile() async {
-    final activePartner = await LocalRegistrationCache.getActivePartner();
+    final activePartner = await LocalRegistrationCache.getActivePartner('service_provider') ??
+        await LocalRegistrationCache.getActiveServiceProvider();
     if (activePartner != null) {
       final name = (activePartner['name'] ?? activePartner['firstName'] ?? 'Partner').toString();
       final business = (activePartner['business_name'] ?? '$name AC Service Center').toString();
@@ -296,6 +297,47 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
         }
       } catch (_) {}
     }
+
+    // Direct Database Fallback: Resolve active online AC partner from Supabase if still empty
+    if (state.partnerId.isEmpty) {
+      try {
+        final supabase = Supabase.instance.client;
+        final res = await supabase
+            .from('partners')
+            .select('partner_id, partner_code, verification_status, availability_status, users(user_id, username, phone, user_profiles(first_name, last_name, profile_photo)), service_provider_profiles(provider_id, about)')
+            .eq('verification_status', 'VERIFIED')
+            .eq('availability_status', 'ONLINE')
+            .limit(10);
+        for (final row in res) {
+          final sppList = row['service_provider_profiles'];
+          dynamic spp = sppList is List && sppList.isNotEmpty ? sppList.first : (sppList is Map ? sppList : null);
+          final about = (spp?['about'] ?? '').toString().toLowerCase();
+          final isAc = (about.contains('ac') || about.contains('air conditioning') || about.contains('hvac') || about.contains('cooling')) && !about.contains('car');
+          if (isAc) {
+            final u = _asMap(row['users']);
+            final prof = _asMap(u?['user_profiles']);
+            final pName = '${prof?['first_name'] ?? ""} ${prof?['last_name'] ?? ""}'.trim();
+            final resolvedPartnerId = row['partner_id']?.toString() ?? '';
+            final resolvedProviderId = spp?['provider_id']?.toString() ?? '';
+            state = state.copyWith(
+              partnerId: resolvedPartnerId,
+              providerId: resolvedProviderId,
+              providerName: pName.isNotEmpty ? pName : (u?['username'] ?? 'AC Service Partner').toString(),
+              businessName: '${pName.isNotEmpty ? pName : "AC"} Service Center',
+              avatarUrl: prof?['profile_photo']?.toString(),
+              category: 'ac_service',
+              categoryName: 'AC Service Provider',
+              verificationStatus: 'VERIFIED',
+              isOnline: true,
+            );
+            if (resolvedPartnerId.isNotEmpty) {
+              PartnerLocationService.instance.startLiveLocationTracking(partnerId: resolvedPartnerId);
+            }
+            break;
+          }
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> _loadLiveBookingsAndMetrics() async {
@@ -340,11 +382,22 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
 
       try {
         // A. From booking_requests
-        final requestsRes = await supabase
-            .from('booking_requests')
-            .select('*, service_bookings(*, services(*), user_addresses(*), users(*, user_profiles(*)))')
-            .eq('response_status', 'Pending')
-            .order('sent_at', ascending: false);
+        List<dynamic> requestsRes = [];
+        try {
+          requestsRes = await supabase
+              .from('booking_requests')
+              .select('*, service_bookings(*, services(service_id, name, category_id), user_addresses(area, city, latitude, longitude))')
+              .eq('response_status', 'Pending')
+              .order('sent_at', ascending: false);
+        } catch (_) {
+          try {
+            requestsRes = await supabase
+                .from('booking_requests')
+                .select('*, service_bookings(*)')
+                .eq('response_status', 'Pending')
+                .order('sent_at', ascending: false);
+          } catch (_) {}
+        }
 
         for (final req in requestsRes) {
           final reqPartner = (req['partner_id'] ?? '').toString();
@@ -403,22 +456,38 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       // B. Tier-2 Resilience: Direct pending unassigned bookings when partner is ONLINE
       if (state.isOnline) {
         try {
-          final pendingRes = await supabase
-              .from('service_bookings')
-              .select('*, services(*), user_addresses(*), users(*, user_profiles(*))')
-              .filter('status', 'in', ['SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS', 'PENDING'])
-              .filter('partner_id', 'is', 'null')
-              .order('created_at', ascending: false)
-              .limit(10);
+          List<dynamic> pendingRes = [];
+          try {
+            pendingRes = await supabase
+                .from('service_bookings')
+                .select('*, services(service_id, name, category_id), user_addresses(area, city, latitude, longitude)')
+                .filter('status', 'in', ['SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS', 'PENDING', 'BROADCASTED', 'SCHEDULED'])
+                .filter('partner_id', 'is', 'null')
+                .order('created_at', ascending: false)
+                .limit(20);
+          } catch (_) {
+            try {
+              pendingRes = await supabase
+                  .from('service_bookings')
+                  .select('*')
+                  .filter('status', 'in', ['SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS', 'PENDING', 'BROADCASTED', 'SCHEDULED'])
+                  .filter('partner_id', 'is', 'null')
+                  .order('created_at', ascending: false)
+                  .limit(20);
+            } catch (_) {}
+          }
 
           for (final b in pendingRes) {
             final bId = b['booking_id']?.toString() ?? '';
             if (bId.isEmpty || seenBookingIds.contains(bId)) continue;
 
             final service = _asMap(b['services']);
-            final cat = (service?['category_id'] ?? 'ac_service').toString();
-            if (cat.isNotEmpty && cat != state.category && state.category != 'all') {
-              continue; // Not matching this provider's category
+            final cat = (service?['category_id'] ?? b['category_id'] ?? '').toString().toLowerCase();
+            final sName = (b['service_name'] ?? service?['name'] ?? '').toString().toLowerCase();
+            final pDesc = (b['problem_description'] ?? '').toString().toLowerCase();
+            final isAcService = cat == 'ac_service' || cat == 'ac' || sName.contains('ac') || sName.contains('air condition') || pDesc.contains('ac') || pDesc.contains('cooling');
+            if (!isAcService) {
+              continue; // Strictly AC Service only
             }
 
             seenBookingIds.add(bId);
@@ -453,8 +522,44 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
             });
           }
         } catch (e) {
-          if (kDebugMode) debugPrint('[ACDashboard] Direct unassigned bookings check note: $e');
+          if (kDebugMode) debugPrint('[ACDashboard] pending service_bookings note: $e');
         }
+
+        // C. Local Sync Real-time AC Offers
+        try {
+          final localACOffers = LiveBookingSyncService.instance.getPendingOffersForCategory('ac_service');
+          for (final b in localACOffers) {
+            final bId = (b['booking_id'] ?? b['id'] ?? '').toString();
+            if (bId.isEmpty || seenBookingIds.contains(bId)) continue;
+            seenBookingIds.add(bId);
+
+            final lat = (b['customer_lat'] as num?)?.toDouble() ?? 22.4707;
+            final lng = (b['customer_lng'] as num?)?.toDouble() ?? 70.0577;
+            final distKm = OsrmRoutingService.computeHaversineDistanceKm(22.4707, 70.0650, lat, lng) * 1.35;
+            final etaMin = (distKm / 25.0 * 60.0).round().clamp(5, 45);
+
+            offersList.add({
+              'request_id': b['request_id'],
+              'booking_id': bId,
+              'service_name': b['service_name'] ?? 'Professional AC Service',
+              'price': (b['price'] as num?)?.toDouble() ?? (b['final_amount'] as num?)?.toDouble() ?? 499.0,
+              'customer_name': (b['customer_name'] ?? 'Customer').toString(),
+              'customer_phone': (b['customer_phone'] ?? '').toString(),
+              'customer_address': (b['customer_address'] ?? b['address'] ?? 'Jamnagar').toString(),
+              'customer_lat': lat,
+              'customer_lng': lng,
+              'distance_km': distKm,
+              'eta_minutes': etaMin,
+              'scheduled_time': b['scheduled_time'] ?? '',
+              'problem_description': b['problem_description'] ?? 'AC Service Request',
+              'entrance_pin': b['entrance_pin'] ?? '',
+              'completion_otp': b['completion_otp'] ?? '',
+            });
+          }
+        } catch (_) {}
+      } else {
+        // Partner is OFFLINE: incoming offers must remain empty
+        offersList.clear();
       }
 
       // 3. Fetch real rating from service_provider_profiles
@@ -586,8 +691,8 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
   StreamSubscription? _localOffersSub;
 
   void _subscribeRealtimeChanges() {
-    // 1. Subscribe to Local Realtime IPC Broadcast Channel
-    _localOffersSub = LiveBookingSyncService.instance.incomingOffersStream.listen((_) {
+    // 1. Subscribe to Local Realtime IPC Broadcast Channel (Strictly AC Service)
+    _localOffersSub = LiveBookingSyncService.instance.streamIncomingOffersForCategory('ac_service').listen((_) {
       _loadLiveBookingsAndMetrics();
     });
 

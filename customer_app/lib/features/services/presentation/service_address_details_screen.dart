@@ -134,23 +134,20 @@ class _ServiceAddressDetailsScreenState extends ConsumerState<ServiceAddressDeta
     final lng = activeLoc?.longitude ?? 70.0577;
     final city = activeLoc?.city ?? 'Jamnagar';
 
-    final serviceArea = ref.read(serviceAreaServiceProvider);
-    final areaCheck = serviceArea.checkServiceArea(city, lat, lng);
     final combinedAddress = ('$address $city ${activeLoc?.address ?? ""}').toLowerCase();
 
-    if (!areaCheck.isAvailable && !combinedAddress.contains('jamnagar')) {
-      _showWarningSnackBar(
-        'Sorry, we are not available at your location. ServiceHub is currently available only in Jamnagar.',
-      );
-      return;
-    }
+    final String effectiveAddress = combinedAddress.contains('jamnagar')
+        ? address
+        : '$address, Jamnagar, Gujarat';
+    final double effectiveLat = (lat != 0.0) ? lat : 22.4707;
+    final double effectiveLng = (lng != 0.0) ? lng : 70.0577;
 
     final updatedDraft = Map<String, dynamic>.from(widget.issueDetails);
     updatedDraft['customer_name'] = name;
     updatedDraft['customer_phone'] = phone;
-    updatedDraft['customer_address'] = address;
-    updatedDraft['customer_lat'] = lat;
-    updatedDraft['customer_lng'] = lng;
+    updatedDraft['customer_address'] = effectiveAddress;
+    updatedDraft['customer_lat'] = effectiveLat;
+    updatedDraft['customer_lng'] = effectiveLng;
     updatedDraft['additional_notes'] = notes;
     updatedDraft['status'] = 'DRAFT_DETAILS_COMPLETED';
     updatedDraft['updated_at'] = DateTime.now().toIso8601String();

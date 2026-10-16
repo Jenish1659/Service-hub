@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 import 'car_live_map_screen.dart';
@@ -44,6 +45,7 @@ class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
     super.initState();
     _loadPartnerSession();
     _subscribeToLiveRequests();
+    LiveBookingSyncService.instance.syncWithSupabaseNow();
   }
 
   @override
@@ -54,14 +56,43 @@ class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
   }
 
   Future<void> _loadPartnerSession() async {
-    final cached = await LocalRegistrationCache.getActiveServiceProvider() ??
-        await LocalRegistrationCache.getActivePartner();
+    var cached = await LocalRegistrationCache.getActiveServiceProvider() ??
+        await LocalRegistrationCache.getActivePartner('service_provider');
+
+    if (cached == null) {
+      try {
+        final supabase = Supabase.instance.client;
+        final res = await supabase
+            .from('partners')
+            .select('partner_id, availability_status, verification_status, users(user_id, username, phone, user_profiles(first_name, last_name)), service_provider_profiles(provider_id, about)')
+            .eq('verification_status', 'VERIFIED')
+            .eq('availability_status', 'ONLINE')
+            .limit(10);
+        for (final row in res) {
+          final sppList = row['service_provider_profiles'];
+          dynamic spp = sppList is List && sppList.isNotEmpty ? sppList.first : (sppList is Map ? sppList : null);
+          final about = (spp?['about'] ?? '').toString().toLowerCase();
+          if (about.contains('car') || about.contains('auto') || about.contains('mechanic')) {
+            cached = {
+              'partner_id': row['partner_id'],
+              'provider_id': spp?['provider_id'],
+              'is_online': true,
+              'availability_status': 'ONLINE',
+              'verification_status': 'VERIFIED',
+              'role': 'service_provider',
+              'category': 'car_service',
+            };
+            break;
+          }
+        }
+      } catch (_) {}
+    }
 
     if (mounted) {
       setState(() {
         _partnerProfile = cached;
-        _isOnline = (cached?['is_online'] == true) ||
-            (cached?['availability_status']?.toString().toUpperCase() == 'ONLINE');
+        _isOnline = cached == null ? true : ((cached['is_online'] == true) ||
+            (cached['availability_status']?.toString().toUpperCase() == 'ONLINE'));
         _isLoading = false;
       });
     }
@@ -77,27 +108,17 @@ class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
   void _refreshRequestsList() {
     final all = LiveBookingSyncService.instance.getAllBookings();
     final carBookings = all.where((b) {
-      final cat = (b['category'] ?? b['category_id'] ?? b['service_id'] ?? b['service_name'] ?? b['role'] ?? '')
-          .toString()
-          .toLowerCase();
-
-      final isCar = cat.contains('car') ||
-          cat.contains('auto') ||
-          cat.contains('vehicle') ||
-          cat.contains('brake') ||
-          cat.contains('mechanic') ||
-          cat.contains('garage') ||
-          cat.contains('oil_change');
-
-      return isCar;
+      return LiveBookingSyncService.isBookingMatchingCategory(b, 'car_service');
     }).toList();
 
-    final newReq = carBookings.where((b) {
-      final s = (b['status'] ?? '').toString().toUpperCase();
-      final partnerId = (b['partner_id'] ?? '').toString();
-      return partnerId.isEmpty &&
-          (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'OFFERED_TO_PROVIDERS');
-    }).toList();
+    final newReq = !_isOnline
+        ? <Map<String, dynamic>>[]
+        : carBookings.where((b) {
+            final s = (b['status'] ?? '').toString().toUpperCase();
+            final partnerId = (b['partner_id'] ?? '').toString();
+            return partnerId.isEmpty &&
+                (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'OFFERED_TO_PROVIDERS' || s == 'SCHEDULED');
+          }).toList();
 
     final inProg = carBookings.where((b) {
       final s = (b['status'] ?? '').toString().toUpperCase();
@@ -118,12 +139,16 @@ class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
 
   Future<void> _toggleOnlineStatus(bool value) async {
     setState(() => _isOnline = value);
+    _refreshRequestsList();
     try {
       await LocalRegistrationCache.updateActiveServiceProvider({
         'is_online': value,
         'availability_status': value ? 'ONLINE' : 'OFFLINE',
       });
     } catch (_) {}
+    if (value) {
+      LiveBookingSyncService.instance.syncWithSupabaseNow();
+    }
   }
 
   num get _totalEarnings {

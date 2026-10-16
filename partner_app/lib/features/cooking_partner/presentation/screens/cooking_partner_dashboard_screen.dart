@@ -47,6 +47,7 @@ class _CookingPartnerDashboardScreenState extends State<CookingPartnerDashboardS
     super.initState();
     _loadPartnerSession();
     _subscribeToLiveRequests();
+    LiveBookingSyncService.instance.syncWithSupabaseNow();
   }
 
   @override
@@ -56,14 +57,43 @@ class _CookingPartnerDashboardScreenState extends State<CookingPartnerDashboardS
   }
 
   Future<void> _loadPartnerSession() async {
-    final cached = await LocalRegistrationCache.getActiveServiceProvider() ??
-        await LocalRegistrationCache.getActivePartner();
+    var cached = await LocalRegistrationCache.getActiveServiceProvider() ??
+        await LocalRegistrationCache.getActivePartner('service_provider');
+
+    if (cached == null) {
+      try {
+        final supabase = Supabase.instance.client;
+        final res = await supabase
+            .from('partners')
+            .select('partner_id, availability_status, verification_status, users(user_id, username, phone, user_profiles(first_name, last_name)), service_provider_profiles(provider_id, about)')
+            .eq('verification_status', 'VERIFIED')
+            .eq('availability_status', 'ONLINE')
+            .limit(10);
+        for (final row in res) {
+          final sppList = row['service_provider_profiles'];
+          dynamic spp = sppList is List && sppList.isNotEmpty ? sppList.first : (sppList is Map ? sppList : null);
+          final about = (spp?['about'] ?? '').toString().toLowerCase();
+          if (about.contains('cook') || about.contains('chef') || about.contains('culinary')) {
+            cached = {
+              'partner_id': row['partner_id'],
+              'provider_id': spp?['provider_id'],
+              'is_online': true,
+              'availability_status': 'ONLINE',
+              'verification_status': 'VERIFIED',
+              'role': 'service_provider',
+              'category': 'cooking',
+            };
+            break;
+          }
+        }
+      } catch (_) {}
+    }
 
     if (mounted) {
       setState(() {
         _partnerProfile = cached;
-        _isOnline = (cached?['is_online'] == true) ||
-            (cached?['availability_status']?.toString().toUpperCase() == 'ONLINE');
+        _isOnline = cached == null ? true : ((cached['is_online'] == true) ||
+            (cached['availability_status']?.toString().toUpperCase() == 'ONLINE'));
         _isLoading = false;
       });
     }
@@ -83,21 +113,10 @@ class _CookingPartnerDashboardScreenState extends State<CookingPartnerDashboardS
     // Filter strictly for Cooking & Culinary orders
     final cookingBookings = bookings.where((b) {
       final bPartnerId = (b['partner_id'] ?? '').toString();
-      final cat = (b['category'] ?? b['category_id'] ?? b['service_id'] ?? b['service_name'] ?? '')
-          .toString()
-          .toLowerCase();
-
-      final isCookingService = cat.contains('cook') ||
-          cat.contains('chef') ||
-          cat.contains('meal') ||
-          cat.contains('kitchen') ||
-          cat.contains('food') ||
-          cat.contains('culinary');
-
       if (bPartnerId.isNotEmpty && partnerId.isNotEmpty && bPartnerId == partnerId) {
         return true;
       }
-      return isCookingService;
+      return LiveBookingSyncService.isBookingMatchingCategory(b, 'cooking');
     }).toList();
 
     final List<Map<String, dynamic>> newBucket = [];
@@ -106,11 +125,15 @@ class _CookingPartnerDashboardScreenState extends State<CookingPartnerDashboardS
 
     for (final b in cookingBookings) {
       final status = (b['status'] ?? '').toString().toUpperCase();
+      final bPartnerId = (b['partner_id'] ?? '').toString();
       if (status == 'PENDING' ||
           status == 'SEARCHING_PROVIDER' ||
           status == 'OFFERED_TO_PROVIDERS' ||
-          status == 'BROADCASTED') {
-        newBucket.add(b);
+          status == 'BROADCASTED' ||
+          status == 'SCHEDULED') {
+        if (_isOnline && bPartnerId.isEmpty) {
+          newBucket.add(b);
+        }
       } else if (status == 'ACCEPTED' ||
           status == 'ASSIGNED' ||
           status == 'IN_PROGRESS' ||
@@ -133,6 +156,7 @@ class _CookingPartnerDashboardScreenState extends State<CookingPartnerDashboardS
 
   Future<void> _toggleOnlineStatus(bool value) async {
     setState(() => _isOnline = value);
+    _refreshBookings();
     try {
       final partnerId = _partnerProfile?['partner_id']?.toString() ??
           _partnerProfile?['user_id']?.toString() ??
@@ -150,6 +174,9 @@ class _CookingPartnerDashboardScreenState extends State<CookingPartnerDashboardS
       updated['availability_status'] = value ? 'ONLINE' : 'OFFLINE';
       await LocalRegistrationCache.updateActiveServiceProvider(updated);
     } catch (_) {}
+    if (value) {
+      LiveBookingSyncService.instance.syncWithSupabaseNow();
+    }
   }
 
   Future<void> _acceptBooking(Map<String, dynamic> booking) async {
