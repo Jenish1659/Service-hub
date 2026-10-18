@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/local_registration_cache.dart';
 
 /// Screen 3: Dedicated Care Taker Request Details Screen
 /// Displays genuine patient and order specifications matching reference UI
@@ -75,26 +77,43 @@ class _CareRequestDetailsScreenState extends State<CareRequestDetailsScreen> {
     );
   }
 
-  void _handleAccept() {
-    setState(() => _status = 'ACCEPTED');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Care request accepted successfully!'),
-        backgroundColor: primaryIndigo,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _handleAccept() async {
+    final bId = (widget.booking?['id'] ?? widget.booking?['booking_id'] ?? '').toString();
+    final partnerData = await LocalRegistrationCache.getActiveServiceProvider() ??
+        await LocalRegistrationCache.getActivePartner() ??
+        {};
+    if (bId.isNotEmpty) {
+      await LiveBookingSyncService.instance.acceptBooking(bId, partnerData);
+    }
+    if (mounted) {
+      setState(() => _status = 'ACCEPTED');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Care request accepted successfully!'),
+          backgroundColor: primaryIndigo,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pop(true);
+    }
   }
 
-  void _handleReject() {
-    setState(() => _status = 'REJECTED');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Care request rejected.'),
-        backgroundColor: Color(0xFFEF4444),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _handleReject() async {
+    final bId = (widget.booking?['id'] ?? widget.booking?['booking_id'] ?? '').toString();
+    if (bId.isNotEmpty) {
+      await LiveBookingSyncService.instance.declineBooking(bId);
+    }
+    if (mounted) {
+      setState(() => _status = 'REJECTED');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Care request rejected.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pop(true);
+    }
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -20,6 +21,7 @@ class ProviderDashboardScreen extends ConsumerStatefulWidget {
 
 class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScreen> with WidgetsBindingObserver {
   int _currentBottomNavIndex = 0;
+  DateTime? _lastBackPressTime;
   bool _hasNotificationPermission = true;
   bool _hasDisplayOverAppsPermission = true;
   bool _isOverlayShowing = false;
@@ -566,10 +568,32 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
       }
     });
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F9FD),
-      appBar: _buildCustomHeader(context, dashboardState),
-      body: dashboardState.isLoading
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (_currentBottomNavIndex != 0) {
+          setState(() => _currentBottomNavIndex = 0);
+          return;
+        }
+        final now = DateTime.now();
+        if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+        await SystemNavigator.pop();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF6F9FD),
+        appBar: _buildCustomHeader(context, dashboardState),
+        body: dashboardState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: () => ref.read(acProviderDashboardProvider.notifier).initDashboard(),
@@ -631,6 +655,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
               ),
             ),
       bottomNavigationBar: _buildElevatedBottomNav(context, dashboardState),
+      ),
     );
   }
 

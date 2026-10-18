@@ -178,9 +178,9 @@ void main() {
       expect(find.text('Current Location'), findsOneWidget);
       expect(find.text('Customer Location'), findsOneWidget);
 
-      // Verify Floating Navigation Card
-      expect(find.text('Navigate'), findsOneWidget);
-      expect(find.text('3.2 km • 10 mins'), findsOneWidget);
+      // Verify Floating Live Cooking Radar Card (100% Real Live Standby Radar when no job is active)
+      expect(find.text('Live Cooking Radar Active'), findsOneWidget);
+      expect(find.text('GPS Tracking Active • Ready for orders'), findsOneWidget);
     });
 
     testWidgets('4. Earnings tab shows zero financial totals and clean transaction history', (tester) async {

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/live_booking_sync_service.dart';
@@ -22,6 +23,7 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
   int _orderFilterIndex = 0; // 0: New, 1: In Progress, 2: Completed
   String _searchQuery = '';
   String _earningsPeriod = 'This Week';
+  DateTime? _lastBackPressTime;
   bool _isOnline = true;
   bool _isLoading = true;
   Map<String, dynamic>? _partnerProfile;
@@ -114,12 +116,8 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
     final bookings = LiveBookingSyncService.instance.getAllBookings();
     final partnerId = (_partnerProfile?['partner_id'] ?? _partnerProfile?['user_id'] ?? '').toString();
 
-    // Filter strictly for Laundry and Dry Cleaning orders
+    // Filter strictly for Laundry and Dry Cleaning orders: MANDATORY Category Isolation!
     final laundryBookings = bookings.where((b) {
-      final bPartnerId = (b['partner_id'] ?? '').toString();
-      if (bPartnerId.isNotEmpty && partnerId.isNotEmpty && bPartnerId == partnerId) {
-        return true;
-      }
       return LiveBookingSyncService.isBookingMatchingCategory(b, 'laundry');
     }).toList();
 
@@ -130,23 +128,29 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
     for (final b in laundryBookings) {
       final status = (b['status'] ?? '').toString().toUpperCase();
       final bPartnerId = (b['partner_id'] ?? '').toString();
+      final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
       if (status == 'PENDING' ||
           status == 'SEARCHING_PROVIDER' ||
           status == 'OFFERED_TO_PROVIDERS' ||
           status == 'BROADCASTED' ||
           status == 'SCHEDULED') {
-        if (_isOnline && bPartnerId.isEmpty) {
+        if (_isOnline && bPartnerId.isEmpty && !LiveBookingSyncService.instance.isBookingAccepted(bId)) {
           newBucket.add(b);
         }
       } else if (status == 'ACCEPTED' ||
+          status == 'CONFIRMED' ||
           status == 'PICKED_UP' ||
           status == 'PROCESSING' ||
           status == 'READY_FOR_DELIVERY' ||
           status == 'IN_PROGRESS' ||
           status == 'ASSIGNED') {
-        inProgressBucket.add(b);
+        if (partnerId.isEmpty || bPartnerId.isEmpty || bPartnerId == partnerId) {
+          inProgressBucket.add(b);
+        }
       } else if (status == 'COMPLETED' || status == 'DELIVERED') {
-        completedBucket.add(b);
+        if (partnerId.isEmpty || bPartnerId.isEmpty || bPartnerId == partnerId) {
+          completedBucket.add(b);
+        }
       }
     }
 
@@ -187,6 +191,17 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
 
   Future<void> _acceptBooking(Map<String, dynamic> booking) async {
     final bookingId = (booking['id'] ?? booking['booking_id'] ?? '').toString();
+    // Instantly remove from incoming queue and insert into in-progress queue with zero latency
+    setState(() {
+      _newOrders.removeWhere((r) => (r['id'] ?? r['booking_id'] ?? '').toString() == bookingId);
+      final acceptedCopy = Map<String, dynamic>.from(booking);
+      acceptedCopy['status'] = 'ACCEPTED';
+      acceptedCopy['service_status'] = 'ACCEPTED';
+      if (!_inProgressOrders.any((j) => (j['id'] ?? j['booking_id'] ?? '').toString() == bookingId)) {
+        _inProgressOrders.insert(0, acceptedCopy);
+      }
+    });
+
     final success = await LiveBookingSyncService.instance.acceptBooking(
       bookingId,
       _partnerProfile ?? {},
@@ -203,6 +218,7 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
         );
         _refreshBookings();
       } else {
+        _refreshBookings();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not accept order. It may have expired or been claimed.'),
@@ -242,18 +258,41 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
       );
     }
 
-    return Scaffold(
-      backgroundColor: scaffoldBg,
-      body: IndexedStack(
-        index: _activeNavIndex,
-        children: [
-          _buildHomeTab(),
-          _buildOrdersTab(),
-          _buildEarningsTab(),
-          const LaundryPartnerProfileScreen(showBackButton: false),
-        ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (_activeNavIndex != 0) {
+          setState(() => _activeNavIndex = 0);
+          return;
+        }
+        final now = DateTime.now();
+        if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+        await SystemNavigator.pop();
+      },
+      child: Scaffold(
+        backgroundColor: scaffoldBg,
+        body: IndexedStack(
+          index: _activeNavIndex,
+          children: [
+            _buildHomeTab(),
+            _buildOrdersTab(),
+            _buildEarningsTab(),
+            const LaundryPartnerProfileScreen(showBackButton: false),
+          ],
+        ),
+        bottomNavigationBar: _buildBottomNav(),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 

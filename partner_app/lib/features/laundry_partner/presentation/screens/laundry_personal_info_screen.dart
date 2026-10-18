@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 
 /// Screen 8: Personal Information Screen (Matching Design)
@@ -181,6 +182,16 @@ class _LaundryPersonalInfoScreenState extends State<LaundryPersonalInfoScreen> {
         TextField(
           controller: controller,
           keyboardType: keyboardType,
+          maxLength: keyboardType == TextInputType.phone ? 10 : null,
+          buildCounter: keyboardType == TextInputType.phone
+              ? (context, {required currentLength, required isFocused, maxLength}) => null
+              : null,
+          inputFormatters: keyboardType == TextInputType.phone
+              ? [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ]
+              : null,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),

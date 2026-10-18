@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../controllers/shopkeeper_profile_controller.dart';
 
 class ShopkeeperContactDetailsScreen extends StatefulWidget {
@@ -207,6 +208,12 @@ class _ShopkeeperContactDetailsScreenState extends State<ShopkeeperContactDetail
                     TextFormField(
                       controller: whatsappCtrl,
                       keyboardType: TextInputType.phone,
+                      maxLength: 10,
+                      buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
                       decoration: InputDecoration(
                         hintText: 'e.g. +91 98765 43210',
                         prefixIcon: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF16A34A), size: 20),
@@ -336,6 +343,16 @@ class _ShopkeeperContactDetailsScreenState extends State<ShopkeeperContactDetail
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          maxLength: keyboardType == TextInputType.phone ? 10 : null,
+          buildCounter: keyboardType == TextInputType.phone
+              ? (context, {required currentLength, required isFocused, maxLength}) => null
+              : null,
+          inputFormatters: keyboardType == TextInputType.phone
+              ? [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ]
+              : null,
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,

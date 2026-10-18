@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/services/supabase_auth_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 import '../controllers/delivery_agent_profile_controller.dart';
@@ -326,6 +327,16 @@ class _DeliveryEditProfileScreenState extends State<DeliveryEditProfileScreen> {
                 child: TextField(
                   controller: controller,
                   keyboardType: keyboardType,
+                  maxLength: keyboardType == TextInputType.phone ? 10 : null,
+                  buildCounter: keyboardType == TextInputType.phone
+                      ? (context, {required currentLength, required isFocused, maxLength}) => null
+                      : null,
+                  inputFormatters: keyboardType == TextInputType.phone
+                      ? [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ]
+                      : null,
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
                   decoration: InputDecoration(
                     hintText: hint,

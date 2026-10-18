@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -24,6 +25,7 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
   int _jobsFilterIndex = 0; // 0: New, 1: In Progress, 2: Completed
   String _searchQuery = '';
   String _earningsPeriod = 'This Week';
+  DateTime? _lastBackPressTime;
   bool _isOnline = true;
   bool _isLoading = false;
   Map<String, dynamic>? _partnerProfile;
@@ -110,12 +112,8 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
     final bookings = LiveBookingSyncService.instance.getAllBookings();
     final partnerId = (_partnerProfile?['partner_id'] ?? _partnerProfile?['user_id'] ?? '').toString();
 
-    // Filter strictly for Plumbing & Sanitation requests
+    // Filter strictly for Plumbing & Sanitation requests: MANDATORY Category Isolation!
     final plumbingBookings = bookings.where((b) {
-      final bPartnerId = (b['partner_id'] ?? '').toString();
-      if (bPartnerId.isNotEmpty && partnerId.isNotEmpty && bPartnerId == partnerId) {
-        return true;
-      }
       return LiveBookingSyncService.isBookingMatchingCategory(b, 'plumbing');
     }).toList();
 
@@ -126,23 +124,29 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
     for (final b in plumbingBookings) {
       final status = (b['status'] ?? '').toString().toUpperCase();
       final bPartnerId = (b['partner_id'] ?? '').toString();
+      final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
       if (status == 'PENDING' ||
           status == 'SEARCHING_PROVIDER' ||
           status == 'OFFERED_TO_PROVIDERS' ||
           status == 'BROADCASTED' ||
           status == 'SCHEDULED') {
-        if (_isOnline && bPartnerId.isEmpty) {
+        if (_isOnline && bPartnerId.isEmpty && !LiveBookingSyncService.instance.isBookingAccepted(bId)) {
           newBucket.add(b);
         }
       } else if (status == 'ACCEPTED' ||
+          status == 'CONFIRMED' ||
           status == 'ASSIGNED' ||
           status == 'IN_PROGRESS' ||
           status == 'ON_THE_WAY' ||
           status == 'ARRIVED' ||
           status == 'SERVICE_STARTED') {
-        inProgressBucket.add(b);
+        if (partnerId.isEmpty || bPartnerId.isEmpty || bPartnerId == partnerId) {
+          inProgressBucket.add(b);
+        }
       } else if (status == 'COMPLETED' || status == 'DELIVERED') {
-        completedBucket.add(b);
+        if (partnerId.isEmpty || bPartnerId.isEmpty || bPartnerId == partnerId) {
+          completedBucket.add(b);
+        }
       }
     }
 
@@ -203,6 +207,17 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
 
   Future<void> _acceptBooking(Map<String, dynamic> booking) async {
     final bId = (booking['id'] ?? booking['booking_id'] ?? '').toString();
+    // Instantly remove from incoming queue and insert into in-progress queue with zero latency
+    setState(() {
+      _newRequests.removeWhere((r) => (r['id'] ?? r['booking_id'] ?? '').toString() == bId);
+      final acceptedCopy = Map<String, dynamic>.from(booking);
+      acceptedCopy['status'] = 'ACCEPTED';
+      acceptedCopy['service_status'] = 'ACCEPTED';
+      if (!_inProgressJobs.any((j) => (j['id'] ?? j['booking_id'] ?? '').toString() == bId)) {
+        _inProgressJobs.insert(0, acceptedCopy);
+      }
+    });
+
     final partnerData = _partnerProfile ?? {};
     final success = await LiveBookingSyncService.instance.acceptBooking(bId, partnerData);
 
@@ -217,6 +232,7 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
         ),
       );
     } else {
+      _refreshBookings();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Could not accept request. It may have expired or been assigned.'),
@@ -236,23 +252,46 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
       );
     }
 
-    return Scaffold(
-      backgroundColor: scaffoldBg,
-      body: SafeArea(
-        child: IndexedStack(
-          index: _activeNavIndex,
-          children: [
-            _buildHomeTab(), // Index 0: Home Dashboard
-            _buildServiceRequestsTab(), // Index 1: Jobs
-            _activeNavIndex == 2
-                ? const PlumbingLiveMapScreen(showAppBar: false)
-                : const SizedBox.shrink(), // Index 2: Live Map
-            _buildEarningsTab(), // Index 3: Earnings
-            const PlumbingPartnerProfileScreen(isEmbeddedInBottomNav: true), // Index 4: Profile
-          ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (_activeNavIndex != 0) {
+          setState(() => _activeNavIndex = 0);
+          return;
+        }
+        final now = DateTime.now();
+        if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+        await SystemNavigator.pop();
+      },
+      child: Scaffold(
+        backgroundColor: scaffoldBg,
+        body: SafeArea(
+          child: IndexedStack(
+            index: _activeNavIndex,
+            children: [
+              _buildHomeTab(), // Index 0: Home Dashboard
+              _buildServiceRequestsTab(), // Index 1: Jobs
+              _activeNavIndex == 2
+                  ? const PlumbingLiveMapScreen(showAppBar: false)
+                  : const SizedBox.shrink(), // Index 2: Live Map
+              _buildEarningsTab(), // Index 3: Earnings
+              const PlumbingPartnerProfileScreen(isEmbeddedInBottomNav: true), // Index 4: Profile
+            ],
+          ),
         ),
+        bottomNavigationBar: _buildElevatedBottomNav(),
       ),
-      bottomNavigationBar: _buildElevatedBottomNav(),
     );
   }
 

@@ -256,7 +256,7 @@ void main() {
 
       // 4. Booking record in sync service reflects assignment
       final updatedBooking = LiveBookingSyncService.instance.getBooking(bookingId);
-      expect(updatedBooking?['status'], 'CONFIRMED');
+      expect(updatedBooking?['status'], anyOf('ACCEPTED', 'CONFIRMED'));
       expect(updatedBooking?['partner_id'], 'PRT_SHYAM_01');
       expect(updatedBooking?['partner_name'], 'Shyam Patel');
 

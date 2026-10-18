@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 
 /// Screen 7: Subpage 1 - Personal Information for Car Service Provider
@@ -138,8 +139,14 @@ class _CarPersonalInfoScreenState extends State<CarPersonalInfoScreen> {
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
-                decoration: _inputDecoration('Enter your phone number'),
-                validator: (v) => v == null || v.trim().isEmpty ? 'Phone number is required' : null,
+                maxLength: 10,
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
+                decoration: _inputDecoration('Enter your 10-digit phone number'),
+                validator: (v) => v == null || v.trim().length != 10 ? 'Valid 10-digit phone number is required' : null,
               ),
               const SizedBox(height: 18),
 

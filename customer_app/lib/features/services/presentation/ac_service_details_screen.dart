@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive/hive.dart';
@@ -358,6 +359,16 @@ class _ACServiceDetailsScreenState extends ConsumerState<ACServiceDetailsScreen>
                   controller: controller,
                   maxLines: maxLines,
                   keyboardType: keyboardType,
+                  maxLength: keyboardType == TextInputType.phone ? 10 : null,
+                  buildCounter: keyboardType == TextInputType.phone
+                      ? (context, {required currentLength, required isFocused, maxLength}) => null
+                      : null,
+                  inputFormatters: keyboardType == TextInputType.phone
+                      ? [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ]
+                      : null,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,

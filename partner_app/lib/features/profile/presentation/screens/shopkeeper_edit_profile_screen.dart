@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../controllers/shopkeeper_profile_controller.dart';
 
@@ -449,10 +450,14 @@ class _ShopkeeperEditProfileScreenState extends State<ShopkeeperEditProfileScree
                     label: 'Phone Number',
                     controller: _phoneCtrl,
                     icon: Icons.phone_rounded,
-                    hint: '+91 98765 43210',
+                    hint: '9876543210',
                     keyboardType: TextInputType.phone,
                     suffixIcon: const Icon(Icons.edit_outlined, size: 18, color: emeraldPrimary),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Phone number is required' : null,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Phone number is required';
+                      if (v.trim().length != 10) return 'Phone number must be exactly 10 digits';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
 
@@ -564,6 +569,13 @@ class _ShopkeeperEditProfileScreenState extends State<ShopkeeperEditProfileScree
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          maxLength: keyboardType == TextInputType.phone ? 10 : null,
+          buildCounter: keyboardType == TextInputType.phone
+              ? (context, {required currentLength, required isFocused, maxLength}) => null
+              : null,
+          inputFormatters: keyboardType == TextInputType.phone
+              ? [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)]
+              : null,
           validator: validator,
           style: const TextStyle(fontSize: 14, color: Color(0xFF0F172A)),
           decoration: InputDecoration(

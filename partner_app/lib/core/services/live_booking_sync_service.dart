@@ -82,12 +82,32 @@ class LiveBookingSyncService {
     return cat == target || cat.contains(target);
   }
 
+  final Set<String> _locallyAcceptedBookingIds = {};
+
+  bool isBookingAccepted(String bookingId) {
+    if (bookingId.isEmpty) return false;
+    if (_locallyAcceptedBookingIds.contains(bookingId)) return true;
+    final b = _inMemoryBookings[bookingId];
+    if (b != null) {
+      final s = (b['status'] ?? '').toString().toUpperCase();
+      final p = (b['partner_id'] ?? '').toString();
+      if (s == 'ACCEPTED' || s == 'CONFIRMED' || s == 'ASSIGNED' || s == 'IN_PROGRESS' || p.isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Category-Isolated Stream of Incoming Offers
   Stream<List<Map<String, dynamic>>> streamIncomingOffersForCategory(String categoryId) {
     return _bookingsStreamController.stream.map((list) {
       return list.where((b) {
+        final bId = (b['booking_id'] ?? b['id'] ?? '').toString();
+        if (bId.isNotEmpty && _locallyAcceptedBookingIds.contains(bId)) return false;
         final s = (b['status'] ?? '').toString().toUpperCase();
         final partnerId = (b['partner_id'] ?? '').toString();
+        if (partnerId.isNotEmpty) return false;
+        if (s == 'ACCEPTED' || s == 'CONFIRMED' || s == 'ASSIGNED' || s == 'IN_PROGRESS' || s == 'ON_THE_WAY' || s == 'ARRIVED' || s == 'SERVICE_STARTED') return false;
         final id = (b['id'] ?? b['booking_id'] ?? '').toString().toLowerCase();
         final name = (b['customer_name'] ?? '').toString().toLowerCase();
         final isFakeOrTest = id.startsWith('test_') ||
@@ -107,8 +127,12 @@ class LiveBookingSyncService {
   List<Map<String, dynamic>> getPendingOffersForCategory(String categoryId) {
     reloadAllFromDisk();
     return getAllBookings().where((b) {
+      final bId = (b['booking_id'] ?? b['id'] ?? '').toString();
+      if (bId.isNotEmpty && _locallyAcceptedBookingIds.contains(bId)) return false;
       final status = (b['status'] ?? '').toString().toUpperCase();
       final partnerId = (b['partner_id'] ?? '').toString();
+      if (partnerId.isNotEmpty) return false;
+      if (status == 'ACCEPTED' || status == 'CONFIRMED' || status == 'ASSIGNED' || status == 'IN_PROGRESS' || status == 'ON_THE_WAY' || status == 'ARRIVED' || status == 'SERVICE_STARTED') return false;
       final isPending = (status == 'PENDING' || status == 'SEARCHING_PROVIDER' || status == 'OFFERED_TO_PROVIDERS' || status == 'BROADCASTED' || status == 'SCHEDULED') &&
           partnerId.isEmpty;
       if (!isPending) return false;
@@ -422,6 +446,13 @@ class LiveBookingSyncService {
         final partnerId = (r['partner_id'] ?? '').toString();
 
         final existing = _inMemoryBookings[bId];
+        final existingStatus = (existing?['status'] ?? '').toString().toUpperCase();
+        final existingPartner = (existing?['partner_id'] ?? '').toString();
+        // Never revert an accepted, confirmed, or in-progress booking back to pending
+        if ((existingStatus == 'ACCEPTED' || existingStatus == 'CONFIRMED' || existingStatus == 'IN_PROGRESS' || existingPartner.isNotEmpty) &&
+            (status == 'PENDING' || status == 'SEARCHING_PROVIDER' || status == 'OFFERED_TO_PROVIDERS' || status == 'BROADCASTED' || status == 'SCHEDULED')) {
+          continue;
+        }
         if (existing == null || existing['status'] != status || existing['partner_id'] != partnerId) {
           final normalized = Map<String, dynamic>.from(existing ?? {});
           normalized['id'] = bId;
@@ -659,6 +690,18 @@ class LiveBookingSyncService {
         }
       }
       return true;
+    }).map((b) {
+      final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
+      if (bId.isNotEmpty && _locallyAcceptedBookingIds.contains(bId)) {
+        final copy = Map<String, dynamic>.from(b);
+        final curStatus = (copy['status'] ?? '').toString().toUpperCase();
+        if (curStatus == 'PENDING' || curStatus == 'SEARCHING_PROVIDER' || curStatus == 'OFFERED_TO_PROVIDERS' || curStatus == 'BROADCASTED') {
+          copy['status'] = 'ACCEPTED';
+          copy['service_status'] = 'ACCEPTED';
+        }
+        return copy;
+      }
+      return b;
     }).toList();
   }
 
@@ -894,7 +937,31 @@ class LiveBookingSyncService {
 
   Future<bool> acceptBooking(String bookingId, dynamic partnerDataOrId, [String? partnerName, String? partnerPhone]) async {
     final all = _readAllBookings();
-    final booking = all[bookingId] as Map<String, dynamic>? ?? _inMemoryBookings[bookingId];
+    Map<String, dynamic>? booking = all[bookingId] as Map<String, dynamic>? ?? _inMemoryBookings[bookingId];
+    if (booking == null) {
+      // If not in local cache yet, attempt to fetch from Supabase
+      if (_isSupabaseReady()) {
+        try {
+          final row = await Supabase.instance.client
+              .from('service_bookings')
+              .select('*, services(service_id, name, category_id), user_addresses(area, city, latitude, longitude)')
+              .eq('booking_id', bookingId)
+              .maybeSingle();
+          if (row != null) {
+            final cat = (row['services']?['category_id'] ?? row['category_id'] ?? 'ac_service').toString();
+            booking = {
+              'id': bookingId,
+              'booking_id': bookingId,
+              'category_id': cat,
+              'status': 'PENDING',
+              'service_status': 'PENDING',
+              'price': (row['final_amount'] ?? row['estimated_amount'] ?? 499.0) as num,
+            };
+          }
+        } catch (_) {}
+      }
+    }
+
     if (booking != null) {
       final currentStatus = (booking['status'] ?? '').toString().toUpperCase();
       // Cannot accept cancelled or expired booking
@@ -902,49 +969,122 @@ class LiveBookingSyncService {
         return false;
       }
       final existingPartner = booking['partner_id']?.toString() ?? '';
-      // If already claimed by another partner or already confirmed, reject duplicate claim
+      // If already claimed by another partner or already accepted, reject duplicate claim
       if (existingPartner.isNotEmpty || currentStatus == 'CONFIRMED' || currentStatus == 'ACCEPTED') {
         return false;
       }
+
+      String pId = '';
+      String pName = '';
+      String pPhone = '';
       if (partnerDataOrId is Map<String, dynamic>) {
-        booking['partner_id'] = (partnerDataOrId['partner_id'] ?? '').toString();
-        booking['partner_name'] = (partnerDataOrId['partner_name'] ?? partnerDataOrId['name'] ?? '').toString();
-        booking['partner_phone'] = (partnerDataOrId['partner_phone'] ?? partnerDataOrId['phone'] ?? '').toString();
-      } else {
-        booking['partner_id'] = partnerDataOrId.toString();
-        booking['partner_name'] = partnerName ?? '';
-        booking['partner_phone'] = partnerPhone ?? '';
+        pId = (partnerDataOrId['partner_id'] ?? partnerDataOrId['id'] ?? partnerDataOrId['user_id'] ?? partnerDataOrId['provider_id'] ?? '').toString();
+        pName = (partnerDataOrId['partner_name'] ?? partnerDataOrId['name'] ?? partnerDataOrId['full_name'] ?? partnerDataOrId['username'] ?? '').toString();
+        pPhone = (partnerDataOrId['partner_phone'] ?? partnerDataOrId['phone'] ?? '').toString();
+      } else if (partnerDataOrId != null) {
+        pId = partnerDataOrId.toString();
+        pName = partnerName ?? '';
+        pPhone = partnerPhone ?? '';
       }
-      booking['status'] = 'CONFIRMED';
-      booking['service_status'] = 'CONFIRMED';
+
+      if (pId.isEmpty) {
+        try {
+          final cached = await LocalRegistrationCache.getActivePartner() ??
+              await LocalRegistrationCache.getActiveServiceProvider();
+          pId = (cached?['partner_id'] ?? cached?['id'] ?? cached?['user_id'] ?? cached?['provider_id'] ?? '').toString();
+          if (pName.isEmpty) pName = (cached?['partner_name'] ?? cached?['name'] ?? cached?['full_name'] ?? '').toString();
+          if (pPhone.isEmpty) pPhone = (cached?['partner_phone'] ?? cached?['phone'] ?? '').toString();
+        } catch (_) {}
+      }
+
+      if (pId.isEmpty && _isSupabaseReady()) {
+        try {
+          final curr = Supabase.instance.client.auth.currentUser;
+          if (curr != null) pId = curr.id;
+        } catch (_) {}
+      }
+
+      _locallyAcceptedBookingIds.add(bookingId);
+      final altId = (booking['id'] ?? booking['booking_id'] ?? '').toString();
+      if (altId.isNotEmpty) _locallyAcceptedBookingIds.add(altId);
+
+      booking['partner_id'] = pId;
+      booking['partner_name'] = pName;
+      booking['partner_phone'] = pPhone;
+      booking['status'] = 'ACCEPTED';
+      booking['service_status'] = 'ACCEPTED';
       booking['accepted_at'] = DateTime.now().toIso8601String();
       all[bookingId] = booking;
+      _inMemoryBookings[bookingId] = booking;
+
+      final acceptedAtIso = booking['accepted_at'];
+      all.forEach((k, v) {
+        if (v is Map<String, dynamic>) {
+          final id = (v['id'] ?? v['booking_id'] ?? '').toString();
+          if (k == bookingId || id == bookingId || (altId.isNotEmpty && id == altId)) {
+            v['status'] = 'ACCEPTED';
+            v['service_status'] = 'ACCEPTED';
+            v['partner_id'] = pId;
+            v['partner_name'] = pName;
+            v['partner_phone'] = pPhone;
+            v['accepted_at'] = acceptedAtIso;
+          }
+        }
+      });
+      _inMemoryBookings.forEach((k, v) {
+        final id = (v['id'] ?? v['booking_id'] ?? '').toString();
+        if (k == bookingId || id == bookingId || (altId.isNotEmpty && id == altId)) {
+          v['status'] = 'ACCEPTED';
+          v['service_status'] = 'ACCEPTED';
+          v['partner_id'] = pId;
+          v['partner_name'] = pName;
+          v['partner_phone'] = pPhone;
+          v['accepted_at'] = acceptedAtIso;
+        }
+      });
+
       _writeAllBookings(all);
+      _bookingsStreamController.add(getAllBookings());
       await _broadcastToHttpBridge('/api/bookings', booking);
 
       try {
         if (_isSupabaseReady()) {
           final supabase = Supabase.instance.client;
-          final pId = (booking['partner_id'] ?? '').toString();
+          final nowIso = DateTime.now().toIso8601String();
           await supabase.from('service_bookings').update({
             'status': 'ACCEPTED',
             'service_status': 'ACCEPTED',
             'partner_id': pId.isNotEmpty ? pId : null,
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': nowIso,
           }).eq('booking_id', bookingId);
 
           if (pId.isNotEmpty) {
             try {
               await supabase.from('booking_requests').update({
                 'response_status': 'Accepted',
-                'response_at': DateTime.now().toIso8601String(),
-              }).eq('booking_id', bookingId);
+                'response_at': nowIso,
+              }).eq('booking_id', bookingId).filter('partner_id', 'eq', pId);
+            } catch (_) {
+              try {
+                await supabase.from('booking_requests').update({
+                  'response_status': 'Accepted',
+                  'response_at': nowIso,
+                }).eq('booking_id', bookingId);
+              } catch (_) {}
+            }
+
+            try {
+              await supabase.from('booking_requests').update({
+                'response_status': 'Expired',
+                'response_at': nowIso,
+              }).eq('booking_id', bookingId).filter('partner_id', 'neq', pId);
             } catch (_) {}
+
             try {
               await supabase.from('booking_assignment').upsert({
                 'booking_id': bookingId,
                 'partner_id': pId,
-                'assigned_at': DateTime.now().toIso8601String(),
+                'assigned_at': nowIso,
                 'status': 'ASSIGNED',
               });
             } catch (_) {}

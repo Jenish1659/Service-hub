@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/sh_logo_widget.dart';
 
@@ -26,7 +27,37 @@ class _StoryboardAnimationScreenState extends State<StoryboardAnimationScreen> {
 
   Future<void> _checkActiveSession() async {
     try {
-      final activePartner = await LocalRegistrationCache.getActivePartner();
+      Map<String, dynamic>? activePartner = await LocalRegistrationCache.getActivePartner();
+
+      // Fallback: If local cache is null, check Supabase auth
+      if (activePartner == null) {
+        try {
+          final client = Supabase.instance.client;
+          final user = client.auth.currentUser;
+          if (user != null) {
+            final uRes = await client
+                .from('users')
+                .select('user_id, username, email, phone, role_name, partners(partner_id, verification_status, availability_status)')
+                .eq('user_id', user.id)
+                .maybeSingle();
+            if (uRes != null) {
+              dynamic pData = uRes['partners'];
+              if (pData is List && pData.isNotEmpty) pData = pData.first;
+              activePartner = {
+                'user_id': uRes['user_id'],
+                'username': uRes['username'],
+                'email': uRes['email'],
+                'phone': uRes['phone'],
+                'role_name': uRes['role_name'],
+                'partner_id': pData?['partner_id'] ?? uRes['user_id'],
+                'verification_status': pData?['verification_status'] ?? 'VERIFIED',
+              };
+              await LocalRegistrationCache.updateActivePartner(activePartner);
+            }
+          }
+        } catch (_) {}
+      }
+
       if (activePartner == null) {
         if (mounted) {
           setState(() {
@@ -38,30 +69,35 @@ class _StoryboardAnimationScreenState extends State<StoryboardAnimationScreen> {
 
       if (mounted) {
         final status = (activePartner['verification_status'] ?? activePartner['status'] ?? activePartner['account_status'] ?? '').toString().toUpperCase();
-        // Only auto-open dashboard if Admin has APPROVED / VERIFIED the partner
-        if (status == 'VERIFIED' || status == 'APPROVED' || status == 'ACTIVE') {
-          final role = (activePartner['role_name'] ?? activePartner['role'] ?? activePartner['partner_type'] ?? '').toString().toLowerCase();
-          if (role == 'delivery_agent' || (role.contains('delivery') && !role.contains('shop') && !role.contains('service'))) {
-            context.go('/dashboard/delivery');
-            return;
-          } else if (role == 'shopkeeper' || role.contains('shop') || role.contains('store')) {
-            final cat = (activePartner['category'] ?? activePartner['business_type'] ?? '').toString().toLowerCase();
-            if (cat.contains('laundry')) {
-              context.go('/dashboard/laundry');
-            } else {
-              context.go('/dashboard/shopkeeper');
-            }
-            return;
-          } else if (role == 'service_provider' || role.contains('provider') || role.contains('expert') || role.contains('technician')) {
-            final cat = activePartner['category'] ?? activePartner['service_category_id'];
-            final targetRoute = ServiceCategoryRouteHelper.getDashboardRoute(cat?.toString());
-            context.go(targetRoute);
-            return;
+
+        // If explicitly pending verification, redirect to status tracker
+        if (status == 'PENDING' || status == 'IN_REVIEW') {
+          final phoneOrUser = activePartner['phone'] ?? activePartner['username'] ?? activePartner['user_id'];
+          context.go('/register/status-tracker', extra: phoneOrUser?.toString());
+          return;
+        }
+
+        // For verified, active, or existing authenticated partners (non-empty role or partner_id)
+        final role = (activePartner['role_name'] ?? activePartner['role'] ?? activePartner['partner_type'] ?? '').toString().toLowerCase();
+        if (role == 'delivery_agent' || (role.contains('delivery') && !role.contains('shop') && !role.contains('service'))) {
+          context.go('/dashboard/delivery');
+          return;
+        } else if (role == 'shopkeeper' || role.contains('shop') || role.contains('store')) {
+          final cat = (activePartner['category'] ?? activePartner['business_type'] ?? '').toString().toLowerCase();
+          if (cat.contains('laundry')) {
+            context.go('/dashboard/laundry');
           } else {
-            // Unresolved role: do not assume a role dashboard
-            context.go('/role-selection');
-            return;
+            context.go('/dashboard/shopkeeper');
           }
+          return;
+        } else if (role == 'service_provider' || role.contains('provider') || role.contains('expert') || role.contains('technician')) {
+          final cat = activePartner['category'] ?? activePartner['service_category_id'];
+          final targetRoute = ServiceCategoryRouteHelper.getDashboardRoute(cat?.toString());
+          context.go(targetRoute);
+          return;
+        } else if (role.isNotEmpty) {
+          context.go('/role-selection');
+          return;
         }
       }
     } catch (_) {}

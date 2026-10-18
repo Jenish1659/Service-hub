@@ -57,17 +57,21 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
   @override
   Widget build(BuildContext context) {
     final booking = widget.booking;
-    final customerName = (booking?['customer_name'] ?? booking?['user_name'] ?? 'Customer').toString();
-    final address = (booking?['address'] ?? booking?['pickup_address'] ?? 'Customer Residence, Jamnagar').toString();
+    final customerName = (booking?['customer_name'] ?? booking?['user_name'] ?? '').toString();
+    final address = (booking?['address'] ?? booking?['pickup_address'] ?? booking?['customer_address'] ?? '').toString();
 
-    // Intermediate points for route polyline
+    // Intermediate points for route polyline (only when customer booking exists)
     final routePoints = [
       _cookLocation,
-      const LatLng(22.4740, 70.0610),
-      const LatLng(22.4785, 70.0635),
-      const LatLng(22.4810, 70.0660),
+      LatLng((_cookLocation.latitude * 2 + _customerLocation.latitude) / 3, (_cookLocation.longitude * 2 + _customerLocation.longitude) / 3),
+      LatLng((_cookLocation.latitude + _customerLocation.latitude * 2) / 3, (_cookLocation.longitude + _customerLocation.longitude * 2) / 3),
       _customerLocation,
     ];
+
+    final latDiff = (_customerLocation.latitude - _cookLocation.latitude).abs();
+    final lngDiff = (_customerLocation.longitude - _cookLocation.longitude).abs();
+    final distKm = ((latDiff + lngDiff) * 111.0).clamp(0.5, 30.0);
+    final etaMinutes = (distKm / 25.0 * 60.0).round().clamp(5, 60);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -132,16 +136,17 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
                 ],
               ),
 
-              // Road Route Polyline
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: routePoints,
-                    strokeWidth: 4.5,
-                    color: primaryOrange,
-                  ),
-                ],
-              ),
+              // Road Route Polyline (rendered only for active booking)
+              if (booking != null)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: routePoints,
+                      strokeWidth: 4.5,
+                      color: primaryOrange,
+                    ),
+                  ],
+                ),
 
               // Interactive Markers Layer
               MarkerLayer(
@@ -178,36 +183,37 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
                     ),
                   ),
 
-                  // Customer Destination Pin (Orange Pin with fork/knife or home)
-                  Marker(
-                    point: _customerLocation,
-                    width: 52,
-                    height: 52,
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: primaryOrange,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: const [
-                              BoxShadow(color: Color(0x33000000), blurRadius: 6, offset: Offset(0, 3)),
-                            ],
+                  // Customer Destination Pin (rendered only for real active booking)
+                  if (booking != null)
+                    Marker(
+                      point: _customerLocation,
+                      width: 52,
+                      height: 52,
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: primaryOrange,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: const [
+                                BoxShadow(color: Color(0x33000000), blurRadius: 6, offset: Offset(0, 3)),
+                              ],
+                            ),
+                            child: const Icon(Icons.soup_kitchen_rounded, color: Colors.white, size: 18),
                           ),
-                          child: const Icon(Icons.soup_kitchen_rounded, color: Colors.white, size: 18),
-                        ),
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: primaryOrange,
-                            shape: BoxShape.circle,
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: primaryOrange,
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             ],
@@ -285,37 +291,38 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
             ),
           ),
 
-          // 3. Floating Route Duration Chip
-          Positioned(
-            top: 72,
-            right: 20,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: cardBorder),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2)),
-                ],
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.directions_bike_rounded, size: 16, color: primaryOrange),
-                  SizedBox(width: 6),
-                  Text(
-                    '3.2 km • 10 mins',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: darkSlate),
-                  ),
-                ],
+          // 3. Floating Route Duration Chip (rendered only when active job exists)
+          if (booking != null)
+            Positioned(
+              top: 72,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: cardBorder),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x14000000), blurRadius: 8, offset: Offset(0, 2)),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.directions_bike_rounded, size: 16, color: primaryOrange),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${distKm.toStringAsFixed(1)} km • $etaMinutes mins',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: darkSlate),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
           // 4. Floating GPS Target Re-center Button
           Positioned(
-            bottom: booking != null ? 140 : 20,
+            bottom: booking != null ? 140 : 90,
             right: 16,
             child: FloatingActionButton.small(
               backgroundColor: Colors.white,
@@ -327,7 +334,7 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
             ),
           ),
 
-          // 5. Bottom Floating Customer Navigation Card (Screen 4)
+          // 5. Bottom Floating Card: Real Customer Navigation Card OR Clean Live Radar Card
           Positioned(
             bottom: 16,
             left: 16,
@@ -341,75 +348,109 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFFEDD5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.person_rounded, color: primaryOrange, size: 22),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                child: booking != null
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
                             children: [
-                              Text(
-                                customerName,
-                                style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: darkSlate),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFFFEDD5),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Center(
+                                  child: Icon(Icons.person_rounded, color: primaryOrange, size: 22),
+                                ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '$address • 3.2 km',
-                                style: const TextStyle(fontSize: 12, color: textMuted),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      customerName.isNotEmpty ? customerName : 'Customer',
+                                      style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: darkSlate),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      address.isNotEmpty ? '$address • ${distKm.toStringAsFixed(1)} km' : '${distKm.toStringAsFixed(1)} km away',
+                                      style: const TextStyle(fontSize: 12, color: textMuted),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 46,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryOrange,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        icon: Icon(_isNavigating ? Icons.navigation_rounded : Icons.near_me_rounded, size: 18),
-                        label: Text(
-                          _isNavigating ? 'Navigating in Live View...' : 'Navigate',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                        ),
-                        onPressed: () {
-                          setState(() => _isNavigating = !_isNavigating);
-                          _recenterMap(_customerLocation);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Live turn-by-turn navigation started to customer address.'),
-                              backgroundColor: primaryOrange,
-                              behavior: SnackBarBehavior.floating,
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 46,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryOrange,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: Icon(_isNavigating ? Icons.navigation_rounded : Icons.near_me_rounded, size: 18),
+                              label: Text(
+                                _isNavigating ? 'Navigating in Live View...' : 'Navigate',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                              onPressed: () {
+                                setState(() => _isNavigating = !_isNavigating);
+                                _recenterMap(_customerLocation);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Live turn-by-turn navigation started to customer address.'),
+                                    backgroundColor: primaryOrange,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
                             ),
-                          );
-                        },
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: primaryOrange.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.soup_kitchen_rounded, color: primaryOrange, size: 22),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Live Cooking Radar Active',
+                                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: darkSlate),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'GPS Tracking Active • Ready for orders',
+                                  style: TextStyle(fontSize: 12, color: textMuted),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ),

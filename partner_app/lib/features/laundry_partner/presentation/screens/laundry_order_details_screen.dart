@@ -112,6 +112,7 @@ class _LaundryOrderDetailsScreenState extends State<LaundryOrderDetailsScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+      Navigator.of(context).pop(true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

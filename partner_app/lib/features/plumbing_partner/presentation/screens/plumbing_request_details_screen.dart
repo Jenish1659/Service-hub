@@ -62,6 +62,7 @@ class _PlumbingRequestDetailsScreenState extends State<PlumbingRequestDetailsScr
           behavior: SnackBarBehavior.floating,
         ),
       );
+      Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

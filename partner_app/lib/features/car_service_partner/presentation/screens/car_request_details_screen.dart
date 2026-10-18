@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/local_registration_cache.dart';
 import 'car_live_map_screen.dart';
 
 /// Screen 3: Car Service Request & Order Details Screen
@@ -106,8 +107,22 @@ class _CarRequestDetailsScreenState extends State<CarRequestDetailsScreen> {
 
     try {
       if (nextStatus == 'ACCEPTED' || nextStatus == 'IN_PROGRESS') {
-        await LiveBookingSyncService.instance.updateBookingStatus(bookingId, 'IN_PROGRESS');
-        if (mounted) setState(() => _status = 'IN_PROGRESS');
+        final partnerData = await LocalRegistrationCache.getActiveServiceProvider() ??
+            await LocalRegistrationCache.getActivePartner() ??
+            {};
+        await LiveBookingSyncService.instance.acceptBooking(bookingId, partnerData);
+        if (mounted) {
+          setState(() => _status = 'ACCEPTED');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Car service request accepted successfully!'),
+              backgroundColor: primaryBlue,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          Navigator.of(context).pop(true);
+          return;
+        }
       } else if (nextStatus == 'REJECTED') {
         await LiveBookingSyncService.instance.updateBookingStatus(bookingId, 'CANCELLED');
         if (mounted) {

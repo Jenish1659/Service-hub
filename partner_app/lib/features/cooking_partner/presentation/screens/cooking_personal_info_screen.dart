@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 
 /// Screen 7: Personal Information Screen for Cooking Partner (Matching Design)
@@ -125,8 +126,14 @@ class _CookingPersonalInfoScreenState extends State<CookingPersonalInfoScreen> {
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
-                decoration: _inputDecoration('+91 98765 43210'),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Please enter your phone number' : null,
+                maxLength: 10,
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
+                decoration: _inputDecoration('Enter 10-digit phone number'),
+                validator: (val) => val == null || val.trim().length != 10 ? 'Valid 10-digit phone number is required' : null,
               ),
 
               const SizedBox(height: 16),

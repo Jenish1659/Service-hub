@@ -329,6 +329,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                           controller: _phoneController,
                           enabled: !isLoading,
                           keyboardType: TextInputType.phone,
+                          maxLength: 10,
+                          buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
                             LengthLimitingTextInputFormatter(10),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 
 /// Screen 7: Personal Information Screen for Plumbing Service Provider (Matching Design)
@@ -136,8 +137,14 @@ class _PlumbingPersonalInfoScreenState extends State<PlumbingPersonalInfoScreen>
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
+                maxLength: 10,
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
                 decoration: InputDecoration(
-                  hintText: '+91 98765 43210',
+                  hintText: 'Enter 10-digit phone number',
                   hintStyle: const TextStyle(fontSize: 14, color: textMuted),
                   filled: true,
                   fillColor: Colors.white,
@@ -146,7 +153,7 @@ class _PlumbingPersonalInfoScreenState extends State<PlumbingPersonalInfoScreen>
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: primaryBlue, width: 1.5)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Please enter your phone number' : null,
+                validator: (val) => val == null || val.trim().length != 10 ? 'Valid 10-digit phone number is required' : null,
               ),
               const SizedBox(height: 18),
 

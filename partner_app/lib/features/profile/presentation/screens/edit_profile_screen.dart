@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:service_hub_partner/core/widgets/top_toast.dart';
 import 'package:service_hub_partner/features/profile/presentation/controllers/profile_controller.dart';
@@ -646,6 +647,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: TextField(
                   controller: controller,
                   keyboardType: keyboardType,
+                  maxLength: keyboardType == TextInputType.phone ? 10 : null,
+                  buildCounter: keyboardType == TextInputType.phone
+                      ? (context, {required currentLength, required isFocused, maxLength}) => null
+                      : null,
+                  inputFormatters: keyboardType == TextInputType.phone
+                      ? [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ]
+                      : null,
                   readOnly: onTap != null,
                   onTap: onTap,
                   style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),

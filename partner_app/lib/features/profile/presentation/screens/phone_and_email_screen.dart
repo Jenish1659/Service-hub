@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:service_hub_partner/core/widgets/top_toast.dart';
 import 'package:service_hub_partner/core/storage/local_registration_cache.dart';
 import 'package:service_hub_partner/features/profile/presentation/controllers/profile_controller.dart';
@@ -57,6 +58,12 @@ class _PhoneAndEmailScreenState extends State<PhoneAndEmailScreen> {
                 TextField(
                   controller: phoneCtrl,
                   keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
                   style: const TextStyle(fontSize: 13.5),
                   decoration: const InputDecoration(
                     prefixText: '+91 ',
@@ -316,10 +323,16 @@ class _PhoneAndEmailScreenState extends State<PhoneAndEmailScreen> {
                           TextField(
                             controller: _emergencyPhoneCtrl,
                             keyboardType: TextInputType.phone,
+                            maxLength: 10,
+                            buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(10),
+                            ],
                             style: const TextStyle(fontSize: 13),
                             decoration: InputDecoration(
                               labelText: 'Alternate Phone Number',
-                              hintText: '+91 98250 00000',
+                              hintText: '98250 00000',
                               filled: true,
                               fillColor: const Color(0xFFF8FAFC),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),

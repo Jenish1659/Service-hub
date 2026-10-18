@@ -80,12 +80,32 @@ class LiveBookingSyncService {
     return cat == target || cat.contains(target);
   }
 
+  final Set<String> _locallyAcceptedBookingIds = {};
+
+  bool isBookingAccepted(String bookingId) {
+    if (bookingId.isEmpty) return false;
+    if (_locallyAcceptedBookingIds.contains(bookingId)) return true;
+    final b = _inMemoryBookings[bookingId];
+    if (b != null) {
+      final s = (b['status'] ?? '').toString().toUpperCase();
+      final p = (b['partner_id'] ?? '').toString();
+      if (s == 'ACCEPTED' || s == 'CONFIRMED' || s == 'ASSIGNED' || s == 'IN_PROGRESS' || p.isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Category-Isolated Stream of Incoming Offers
   Stream<List<Map<String, dynamic>>> streamIncomingOffersForCategory(String categoryId) {
     return _bookingsStreamController.stream.map((list) {
       return list.where((b) {
+        final bId = (b['booking_id'] ?? b['id'] ?? '').toString();
+        if (bId.isNotEmpty && _locallyAcceptedBookingIds.contains(bId)) return false;
         final s = (b['status'] ?? '').toString().toUpperCase();
         final partnerId = (b['partner_id'] ?? '').toString();
+        if (partnerId.isNotEmpty) return false;
+        if (s == 'ACCEPTED' || s == 'CONFIRMED' || s == 'ASSIGNED' || s == 'IN_PROGRESS' || s == 'ON_THE_WAY' || s == 'ARRIVED' || s == 'SERVICE_STARTED') return false;
         final id = (b['id'] ?? b['booking_id'] ?? '').toString().toLowerCase();
         final name = (b['customer_name'] ?? '').toString().toLowerCase();
         final isFakeOrTest = id.startsWith('test_') ||
@@ -105,8 +125,12 @@ class LiveBookingSyncService {
   List<Map<String, dynamic>> getPendingOffersForCategory(String categoryId) {
     reloadAllFromDisk();
     return getAllBookings().where((b) {
+      final bId = (b['booking_id'] ?? b['id'] ?? '').toString();
+      if (bId.isNotEmpty && _locallyAcceptedBookingIds.contains(bId)) return false;
       final status = (b['status'] ?? '').toString().toUpperCase();
       final partnerId = (b['partner_id'] ?? '').toString();
+      if (partnerId.isNotEmpty) return false;
+      if (status == 'ACCEPTED' || status == 'CONFIRMED' || status == 'ASSIGNED' || status == 'IN_PROGRESS' || status == 'ON_THE_WAY' || status == 'ARRIVED' || status == 'SERVICE_STARTED') return false;
       final isPending = (status == 'PENDING' || status == 'SEARCHING_PROVIDER' || status == 'OFFERED_TO_PROVIDERS' || status == 'BROADCASTED' || status == 'SCHEDULED') &&
           partnerId.isEmpty;
       if (!isPending) return false;
@@ -576,6 +600,18 @@ class LiveBookingSyncService {
         }
       }
       return true;
+    }).map((b) {
+      final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
+      if (bId.isNotEmpty && _locallyAcceptedBookingIds.contains(bId)) {
+        final copy = Map<String, dynamic>.from(b);
+        final curStatus = (copy['status'] ?? '').toString().toUpperCase();
+        if (curStatus == 'PENDING' || curStatus == 'SEARCHING_PROVIDER' || curStatus == 'OFFERED_TO_PROVIDERS' || curStatus == 'BROADCASTED') {
+          copy['status'] = 'CONFIRMED';
+          copy['service_status'] = 'CONFIRMED';
+        }
+        return copy;
+      }
+      return b;
     }).toList();
   }
 
@@ -815,10 +851,45 @@ class LiveBookingSyncService {
         booking['partner_name'] = partnerName ?? '';
         booking['partner_phone'] = partnerPhone ?? '';
       }
+      _locallyAcceptedBookingIds.add(bookingId);
+      final altId = (booking['id'] ?? booking['booking_id'] ?? '').toString();
+      if (altId.isNotEmpty) _locallyAcceptedBookingIds.add(altId);
+
       booking['status'] = 'CONFIRMED';
       booking['service_status'] = 'CONFIRMED';
       booking['accepted_at'] = DateTime.now().toIso8601String();
       all[bookingId] = booking;
+
+      final acceptedAtIso = booking['accepted_at'];
+      final bPartnerId = booking['partner_id'];
+      final bPartnerName = booking['partner_name'];
+      final bPartnerPhone = booking['partner_phone'];
+
+      all.forEach((k, v) {
+        if (v is Map<String, dynamic>) {
+          final id = (v['id'] ?? v['booking_id'] ?? '').toString();
+          if (k == bookingId || id == bookingId || (altId.isNotEmpty && id == altId)) {
+            v['status'] = 'CONFIRMED';
+            v['service_status'] = 'CONFIRMED';
+            v['partner_id'] = bPartnerId;
+            v['partner_name'] = bPartnerName;
+            v['partner_phone'] = bPartnerPhone;
+            v['accepted_at'] = acceptedAtIso;
+          }
+        }
+      });
+      _inMemoryBookings.forEach((k, v) {
+        final id = (v['id'] ?? v['booking_id'] ?? '').toString();
+        if (k == bookingId || id == bookingId || (altId.isNotEmpty && id == altId)) {
+          v['status'] = 'CONFIRMED';
+          v['service_status'] = 'CONFIRMED';
+          v['partner_id'] = bPartnerId;
+          v['partner_name'] = bPartnerName;
+          v['partner_phone'] = bPartnerPhone;
+          v['accepted_at'] = acceptedAtIso;
+        }
+      });
+
       _writeAllBookings(all);
       await _broadcastToHttpBridge('/api/bookings', booking);
 

@@ -158,6 +158,7 @@ class LocalRegistrationCache {
         await box.put(_spSessionKey, updated);
         await box.put(_activeRoleKey, 'service_provider');
         await box.put(_legacyPartnerKey, updated);
+        await box.flush();
       }
     } catch (_) {}
   }
@@ -206,6 +207,7 @@ class LocalRegistrationCache {
         await box.put(_shopSessionKey, updated);
         await box.put(_activeRoleKey, 'shopkeeper');
         await box.put(_legacyPartnerKey, updated);
+        await box.flush();
       }
     } catch (_) {}
   }
@@ -257,6 +259,7 @@ class LocalRegistrationCache {
         await box.put(_deliverySessionKey, updated);
         await box.put(_activeRoleKey, 'delivery_agent');
         await box.put(_legacyPartnerKey, updated);
+        await box.flush();
       }
     } catch (_) {}
   }

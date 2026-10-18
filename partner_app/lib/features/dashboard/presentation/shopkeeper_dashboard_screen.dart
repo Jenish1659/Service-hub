@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -41,6 +42,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   int _activeNavIndex = 0;
   bool _isLoading = false;
   String _partnerId = '';
+  DateTime? _lastBackPressTime;
   StreamSubscription? _liveBookingSub;
 
   // Real dynamically queried orders list (Supabase & Hive)
@@ -1155,7 +1157,30 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_activeNavIndex != 0) {
+          setState(() => _activeNavIndex = 0);
+          return;
+        }
+        final now = DateTime.now();
+        if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+              backgroundColor: Color(0xFF059669),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+        SystemNavigator.pop();
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: _buildAppBar(),
       body: _isLoading && _orders.isEmpty
@@ -1202,6 +1227,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
               ),
             ),
       bottomNavigationBar: _buildBottomNavigationBar(),
+      ),
     );
   }
 

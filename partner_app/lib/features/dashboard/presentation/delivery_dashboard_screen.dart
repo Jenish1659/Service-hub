@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/storage/local_registration_cache.dart';
@@ -43,6 +44,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
   DateTime _lastFetchTime = DateTime.fromMillisecondsSinceEpoch(0);
   int _currentNavIndex = 0;
   String _partnerId = '';
+  DateTime? _lastBackPressTime;
   StreamSubscription? _liveBookingSub;
 
   @override
@@ -554,7 +556,29 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_currentNavIndex != 0) {
+          setState(() => _currentNavIndex = 0);
+          return;
+        }
+        final now = DateTime.now();
+        if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+        SystemNavigator.pop();
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -725,6 +749,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
         },
         onOpenMap: () => _openLiveMap(),
       ),
-    );
-  }
+    ),
+  );
+}
 }

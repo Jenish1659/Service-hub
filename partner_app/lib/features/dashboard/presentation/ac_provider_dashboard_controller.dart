@@ -411,10 +411,10 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
           if (booking != null) {
             final bStatus = (booking['status'] ?? '').toString().toUpperCase();
             final bPartner = (booking['partner_id'] ?? '').toString();
-            if (bPartner.isNotEmpty && bPartner != state.partnerId) continue; // Already claimed by another technician
-            if (bStatus == 'ACCEPTED' || bStatus == 'SERVICE_COMPLETED' || bStatus == 'CLOSED' || bStatus.contains('CANCEL')) continue;
             final bId = booking['booking_id']?.toString() ?? '';
-            if (bId.isNotEmpty && !seenBookingIds.contains(bId)) {
+            if (bPartner.isNotEmpty) continue; // Any assigned partner means not pending
+            if (bStatus == 'ACCEPTED' || bStatus == 'CONFIRMED' || bStatus == 'ASSIGNED' || bStatus == 'IN_PROGRESS' || bStatus == 'ON_THE_WAY' || bStatus == 'ARRIVED' || bStatus == 'SERVICE_STARTED' || bStatus == 'SERVICE_COMPLETED' || bStatus == 'CLOSED' || bStatus.contains('CANCEL')) continue;
+            if (bId.isNotEmpty && !seenBookingIds.contains(bId) && !LiveBookingSyncService.instance.isBookingAccepted(bId)) {
               seenBookingIds.add(bId);
               final service = _asMap(booking['services']);
               final address = _asMap(booking['user_addresses']);
@@ -479,7 +479,7 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
 
           for (final b in pendingRes) {
             final bId = b['booking_id']?.toString() ?? '';
-            if (bId.isEmpty || seenBookingIds.contains(bId)) continue;
+            if (bId.isEmpty || seenBookingIds.contains(bId) || LiveBookingSyncService.instance.isBookingAccepted(bId)) continue;
 
             final service = _asMap(b['services']);
             final cat = (service?['category_id'] ?? b['category_id'] ?? '').toString().toLowerCase();
@@ -530,7 +530,7 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
           final localACOffers = LiveBookingSyncService.instance.getPendingOffersForCategory('ac_service');
           for (final b in localACOffers) {
             final bId = (b['booking_id'] ?? b['id'] ?? '').toString();
-            if (bId.isEmpty || seenBookingIds.contains(bId)) continue;
+            if (bId.isEmpty || seenBookingIds.contains(bId) || LiveBookingSyncService.instance.isBookingAccepted(bId)) continue;
             seenBookingIds.add(bId);
 
             final lat = (b['customer_lat'] as num?)?.toDouble() ?? 22.4707;
@@ -915,8 +915,17 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
       'accepted_at': DateTime.now().toIso8601String(),
     };
 
+    final bIdStr = (offer['booking_id'] ?? offer['id'] ?? '').toString();
+    final reqIdStr = (offer['request_id'] ?? '').toString();
+
     state = state.copyWith(
-      incomingOffers: state.incomingOffers.where((o) => o['booking_id'] != bookingId).toList(),
+      incomingOffers: state.incomingOffers.where((o) {
+        final oBId = (o['booking_id'] ?? o['id'] ?? '').toString();
+        final oReqId = (o['request_id'] ?? '').toString();
+        if (bIdStr.isNotEmpty && oBId == bIdStr) return false;
+        if (reqIdStr.isNotEmpty && oReqId == reqIdStr) return false;
+        return true;
+      }).toList(),
       activeJob: activeJobData,
       activeBookings: [...state.activeBookings, activeJobData],
     );

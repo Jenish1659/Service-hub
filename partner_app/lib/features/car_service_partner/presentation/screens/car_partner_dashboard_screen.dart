@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
@@ -18,6 +19,7 @@ class CarPartnerDashboardScreen extends StatefulWidget {
 
 class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
   int _activeNavIndex = 0;
+  DateTime? _lastBackPressTime;
   bool _isOnline = true;
   bool _isLoading = true;
   Map<String, dynamic>? _partnerProfile;
@@ -107,6 +109,8 @@ class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
 
   void _refreshRequestsList() {
     final all = LiveBookingSyncService.instance.getAllBookings();
+    final partnerId = (_partnerProfile?['partner_id'] ?? _partnerProfile?['user_id'] ?? '').toString();
+
     final carBookings = all.where((b) {
       return LiveBookingSyncService.isBookingMatchingCategory(b, 'car_service');
     }).toList();
@@ -115,19 +119,25 @@ class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
         ? <Map<String, dynamic>>[]
         : carBookings.where((b) {
             final s = (b['status'] ?? '').toString().toUpperCase();
-            final partnerId = (b['partner_id'] ?? '').toString();
-            return partnerId.isEmpty &&
+            final bPartnerId = (b['partner_id'] ?? '').toString();
+            final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
+            return bPartnerId.isEmpty &&
+                !LiveBookingSyncService.instance.isBookingAccepted(bId) &&
                 (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'OFFERED_TO_PROVIDERS' || s == 'SCHEDULED');
           }).toList();
 
     final inProg = carBookings.where((b) {
       final s = (b['status'] ?? '').toString().toUpperCase();
-      return s == 'IN_PROGRESS' || s == 'ACCEPTED' || s == 'ON_THE_WAY' || s == 'INSPECTION';
+      final bPartnerId = (b['partner_id'] ?? '').toString();
+      final isMine = partnerId.isEmpty || bPartnerId.isEmpty || bPartnerId == partnerId;
+      return isMine && (s == 'IN_PROGRESS' || s == 'ACCEPTED' || s == 'CONFIRMED' || s == 'ON_THE_WAY' || s == 'INSPECTION');
     }).toList();
 
     final completed = carBookings.where((b) {
       final s = (b['status'] ?? '').toString().toUpperCase();
-      return s == 'COMPLETED' || s == 'DELIVERED';
+      final bPartnerId = (b['partner_id'] ?? '').toString();
+      final isMine = partnerId.isEmpty || bPartnerId.isEmpty || bPartnerId == partnerId;
+      return isMine && (s == 'COMPLETED' || s == 'DELIVERED');
     }).toList();
 
     setState(() {
@@ -169,21 +179,44 @@ class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: scaffoldBg,
-      body: IndexedStack(
-        index: _activeNavIndex,
-        children: [
-          _buildHomeTab(),
-          _buildJobsTab(),
-          _activeNavIndex == 2
-              ? const CarLiveMapScreen(showAppBar: false)
-              : const SizedBox.shrink(),
-          _buildEarningsTab(),
-          const CarPartnerProfileScreen(),
-        ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (_activeNavIndex != 0) {
+          setState(() => _activeNavIndex = 0);
+          return;
+        }
+        final now = DateTime.now();
+        if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+        await SystemNavigator.pop();
+      },
+      child: Scaffold(
+        backgroundColor: scaffoldBg,
+        body: IndexedStack(
+          index: _activeNavIndex,
+          children: [
+            _buildHomeTab(),
+            _buildJobsTab(),
+            _activeNavIndex == 2
+                ? const CarLiveMapScreen(showAppBar: false)
+                : const SizedBox.shrink(),
+            _buildEarningsTab(),
+            const CarPartnerProfileScreen(),
+          ],
+        ),
+        bottomNavigationBar: _buildBottomNav(),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -995,12 +1028,23 @@ class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
                       ),
                       onPressed: () async {
                         final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
-                        await LiveBookingSyncService.instance.updateBookingStatus(bId, 'IN_PROGRESS');
+                        // Instantly remove from incoming queue and insert into in-progress with zero latency
+                        setState(() {
+                          _newRequests.removeWhere((r) => (r['id'] ?? r['booking_id'] ?? '').toString() == bId);
+                          final acceptedCopy = Map<String, dynamic>.from(b);
+                          acceptedCopy['status'] = 'ACCEPTED';
+                          acceptedCopy['service_status'] = 'ACCEPTED';
+                          if (!_inProgressJobs.any((j) => (j['id'] ?? j['booking_id'] ?? '').toString() == bId)) {
+                            _inProgressJobs.insert(0, acceptedCopy);
+                          }
+                        });
+                        final success = await LiveBookingSyncService.instance.acceptBooking(bId, _partnerProfile ?? {});
+                        _refreshRequestsList();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Car service request accepted!'),
-                              backgroundColor: primaryBlue,
+                            SnackBar(
+                              content: Text(success ? 'Car service request accepted!' : 'Could not accept request. It may have expired.'),
+                              backgroundColor: success ? primaryBlue : const Color(0xFFEF4444),
                               behavior: SnackBarBehavior.floating,
                             ),
                           );

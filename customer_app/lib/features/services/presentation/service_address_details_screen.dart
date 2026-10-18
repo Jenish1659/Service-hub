@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive/hive.dart';
@@ -316,6 +317,12 @@ class _ServiceAddressDetailsScreenState extends ConsumerState<ServiceAddressDeta
                       child: TextField(
                         controller: _phoneController,
                         keyboardType: TextInputType.phone,
+                        maxLength: 10,
+                        buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
                         decoration: const InputDecoration(
                           hintText: 'Enter 10-digit mobile number',
                           border: InputBorder.none,

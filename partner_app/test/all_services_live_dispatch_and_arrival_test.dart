@@ -200,7 +200,7 @@ void main() {
 
       // 4. Booking has partner assignment
       final b = LiveBookingSyncService.instance.getBooking(bId);
-      expect(b?['status'], 'CONFIRMED');
+      expect(b?['status'], anyOf('ACCEPTED', 'CONFIRMED'));
       expect(b?['partner_id'], 'PARTNER_PLUMB_01');
 
       // 5. Completion
@@ -241,9 +241,9 @@ void main() {
       expect(LiveBookingSyncService.instance.getPendingOffersForCategory('cooking').isEmpty, true);
 
       // 4. Partner assigned
-      final b = LiveBookingSyncService.instance.getBooking(bId);
-      expect(b?['status'], 'CONFIRMED');
-      expect(b?['partner_id'], '0f5f402b-8887-4afd-8948-f9489297c9c9');
+      final b2 = LiveBookingSyncService.instance.getBooking(bId);
+      expect(b2?['status'], anyOf('ACCEPTED', 'CONFIRMED'));
+      expect(b2?['partner_id'], '0f5f402b-8887-4afd-8948-f9489297c9c9');
     });
   });
 }

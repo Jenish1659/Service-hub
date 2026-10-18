@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 
 /// Screen 7: Dedicated Personal Information Sub-Screen for Care Taker Specialist
@@ -179,14 +180,21 @@ class _CarePersonalInfoScreenState extends State<CarePersonalInfoScreen> {
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
+                maxLength: 10,
+                buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
                 decoration: InputDecoration(
+                  hintText: 'Enter 10-digit phone number',
                   fillColor: Colors.white,
                   filled: true,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: cardBorder)),
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: cardBorder)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 ),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Phone number is required' : null,
+                validator: (val) => val == null || val.trim().length != 10 ? 'Valid 10-digit phone number is required' : null,
               ),
 
               const SizedBox(height: 16),

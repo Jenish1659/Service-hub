@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/live_booking_sync_service.dart';
@@ -19,6 +20,7 @@ class CarePartnerDashboardScreen extends StatefulWidget {
 
 class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen> {
   int _activeNavIndex = 0;
+  DateTime? _lastBackPressTime;
   bool _isOnline = true;
   bool _isLoading = true;
   Map<String, dynamic>? _partnerProfile;
@@ -104,14 +106,52 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
 
   void _refreshRequestsList() {
     final all = LiveBookingSyncService.instance.getAllBookings();
+    final partnerId = (_partnerProfile?['partner_id'] ?? _partnerProfile?['user_id'] ?? '').toString();
+
     final careBookings = all.where((b) {
-      return LiveBookingSyncService.isBookingMatchingCategory(b, 'care_taker');
+      if (!LiveBookingSyncService.isBookingMatchingCategory(b, 'care_taker')) {
+        return false;
+      }
+      final s = (b['status'] ?? '').toString().toUpperCase();
+      final bPartnerId = (b['partner_id'] ?? '').toString();
+      final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
+
+      if (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'OFFERED_TO_PROVIDERS' || s == 'SCHEDULED') {
+        return bPartnerId.isEmpty && !LiveBookingSyncService.instance.isBookingAccepted(bId);
+      }
+      return partnerId.isEmpty || bPartnerId.isEmpty || bPartnerId == partnerId;
     }).toList();
 
     if (mounted) {
       setState(() {
         _incomingCareRequests = careBookings;
       });
+    }
+  }
+
+  Future<void> _acceptBooking(Map<String, dynamic> item) async {
+    final bId = (item['id'] ?? item['booking_id'] ?? '').toString();
+    setState(() {
+      final index = _incomingCareRequests.indexWhere((r) => (r['id'] ?? r['booking_id'] ?? '').toString() == bId);
+      if (index != -1) {
+        final updated = Map<String, dynamic>.from(_incomingCareRequests[index]);
+        updated['status'] = 'ACCEPTED';
+        updated['service_status'] = 'ACCEPTED';
+        _incomingCareRequests[index] = updated;
+      }
+    });
+
+    final partnerData = _partnerProfile ?? await LocalRegistrationCache.getActiveServiceProvider() ?? {};
+    final success = await LiveBookingSyncService.instance.acceptBooking(bId, partnerData);
+    _refreshRequestsList();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Care request accepted! Switched to In Progress.' : 'Could not accept request. It may have expired.'),
+          backgroundColor: success ? primaryIndigo : const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -138,23 +178,46 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
       );
     }
 
-    return Scaffold(
-      backgroundColor: scaffoldBg,
-      body: SafeArea(
-        child: IndexedStack(
-          index: _activeNavIndex,
-          children: [
-            _buildHomeTab(),
-            _buildJobsTab(),
-            _activeNavIndex == 2
-                ? const CareLiveMapScreen(showAppBar: false)
-                : const SizedBox.shrink(),
-            _buildEarningsTab(),
-            const CarePartnerProfileScreen(),
-          ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (_activeNavIndex != 0) {
+          setState(() => _activeNavIndex = 0);
+          return;
+        }
+        final now = DateTime.now();
+        if (_lastBackPressTime == null || now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+        await SystemNavigator.pop();
+      },
+      child: Scaffold(
+        backgroundColor: scaffoldBg,
+        body: SafeArea(
+          child: IndexedStack(
+            index: _activeNavIndex,
+            children: [
+              _buildHomeTab(),
+              _buildJobsTab(),
+              _activeNavIndex == 2
+                  ? const CareLiveMapScreen(showAppBar: false)
+                  : const SizedBox.shrink(),
+              _buildEarningsTab(),
+              const CarePartnerProfileScreen(),
+            ],
+          ),
         ),
+        bottomNavigationBar: _buildBottomNavigationBar(),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
@@ -172,7 +235,8 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
         : _incomingCareRequests.where((b) {
             final s = (b['status'] ?? '').toString().toUpperCase();
             final partnerId = (b['partner_id'] ?? '').toString();
-            return partnerId.isEmpty && (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'SCHEDULED');
+            final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
+            return partnerId.isEmpty && !LiveBookingSyncService.instance.isBookingAccepted(bId) && (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'SCHEDULED');
           }).length;
 
     final inProgressCount = _incomingCareRequests.where((b) {
@@ -433,43 +497,60 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
           ),
           const SizedBox(height: 8),
 
-          if (_incomingCareRequests.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: cardBorder),
-              ),
-              child: const Column(
-                children: [
-                  Icon(Icons.event_available_rounded, size: 42, color: Color(0xFFCBD5E1)),
-                  SizedBox(height: 10),
-                  Text(
-                    'No Scheduled Care Services Today',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: darkSlate),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'All your active patient visits and elderly care sessions will appear here in real-time.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: textMuted),
-                  ),
-                ],
-              ),
-            )
-          else
-            ListView.separated(
+          () {
+            final activeJobs = _incomingCareRequests.where((b) {
+              final s = (b['status'] ?? '').toString().toUpperCase();
+              return s == 'IN_PROGRESS' || s == 'ACCEPTED' || s == 'CONFIRMED';
+            }).toList();
+            final newCareReqs = !_isOnline
+                ? <Map<String, dynamic>>[]
+                : _incomingCareRequests.where((b) {
+                    final s = (b['status'] ?? '').toString().toUpperCase();
+                    final partnerId = (b['partner_id'] ?? '').toString();
+                    final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
+                    return partnerId.isEmpty && !LiveBookingSyncService.instance.isBookingAccepted(bId) && (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'NEW' || s == 'SCHEDULED');
+                  }).toList();
+            final displaySchedule = activeJobs.isNotEmpty ? activeJobs : newCareReqs;
+
+            if (displaySchedule.isEmpty) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: cardBorder),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.event_available_rounded, size: 42, color: Color(0xFFCBD5E1)),
+                    SizedBox(height: 10),
+                    Text(
+                      'No Scheduled Care Services Today',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: darkSlate),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'All your active patient visits and elderly care sessions will appear here in real-time.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: textMuted),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: _incomingCareRequests.take(3).length,
+              itemCount: displaySchedule.take(3).length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
-                final item = _incomingCareRequests[index];
+                final item = displaySchedule[index];
                 return _buildScheduleItemCard(item);
               },
-            ),
+            );
+          }(),
 
           const SizedBox(height: 24),
         ],
@@ -600,7 +681,8 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
       if (_selectedRequestFilter == 0) {
         if (!_isOnline) return false;
         final partnerId = (b['partner_id'] ?? '').toString();
-        return partnerId.isEmpty && (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'NEW' || s == 'SCHEDULED');
+        final bId = (b['id'] ?? b['booking_id'] ?? '').toString();
+        return partnerId.isEmpty && !LiveBookingSyncService.instance.isBookingAccepted(bId) && (s == 'PENDING' || s == 'BROADCASTED' || s == 'SEARCHING_PROVIDER' || s == 'NEW' || s == 'SCHEDULED');
       } else if (_selectedRequestFilter == 1) {
         return s == 'IN_PROGRESS' || s == 'CONFIRMED' || s == 'ACCEPTED';
       } else {
@@ -738,6 +820,8 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
     final date = item['booking_date'] ?? '12 Oct 2026';
     final time = item['scheduled_time'] ?? '09:00 AM';
     final amount = item['total_amount'] ?? item['price'] ?? 699;
+    final s = (item['status'] ?? '').toString().toUpperCase();
+    final isClaimedOrInProgress = s == 'ACCEPTED' || s == 'CONFIRMED' || s == 'IN_PROGRESS';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -756,10 +840,19 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                  color: isClaimedOrInProgress
+                      ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                      : const Color(0xFFEF4444).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text('New', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
+                child: Text(
+                  isClaimedOrInProgress ? 'In Progress' : 'New',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isClaimedOrInProgress ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                  ),
+                ),
               ),
             ],
           ),
@@ -823,27 +916,25 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => CareRequestDetailsScreen(booking: item)),
-                    );
+                    ).then((_) => _refreshRequestsList());
                   },
                   child: const Text('View Details'),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryIndigo,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              if (!isClaimedOrInProgress && s != 'COMPLETED') ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryIndigo,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () => _acceptBooking(item),
+                    child: const Text('Accept'),
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Care order accepted!'), backgroundColor: primaryIndigo),
-                    );
-                  },
-                  child: const Text('Accept'),
                 ),
-              ),
+              ],
             ],
           ),
         ],
