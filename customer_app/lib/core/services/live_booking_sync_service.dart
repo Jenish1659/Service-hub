@@ -206,7 +206,9 @@ class LiveBookingSyncService {
   RealtimeChannel? _realtimeChannel;
 
   bool _isSupabaseReady() {
+    if (kIsWeb) return false;
     try {
+      if (Platform.environment.containsKey('FLUTTER_TEST')) return false;
       return Supabase.instance.isInitialized;
     } catch (_) {
       return false;
@@ -291,6 +293,19 @@ class LiveBookingSyncService {
     return 'ac_service';
   }
 
+  static String _prefixForCategory(String category) {
+    final c = category.toLowerCase();
+    if (c.contains('care')) return 'CARE';
+    if (c.contains('car')) return 'CAR';
+    if (c.contains('ac')) return 'AC';
+    if (c.contains('plumb')) return 'PLMB';
+    if (c.contains('laundry')) return 'LNDR';
+    if (c.contains('cook')) return 'COOK';
+    if (c.contains('store') || c.contains('shop')) return 'SHP';
+    if (c.contains('delivery')) return 'DLV';
+    return 'BK';
+  }
+
   static String _defaultServiceName(String category) {
     switch (category) {
       case 'ac_service':
@@ -338,16 +353,38 @@ class LiveBookingSyncService {
       try {
         rows = await supabase
             .from('service_bookings')
-            .select('booking_id, customer_id, service_id, address_id, booking_date, scheduled_time, problem_description, estimated_amount, final_amount, status, service_status, partner_id, customer_latitude, customer_longitude, entrance_pin, completion_otp, created_at, services(service_id, name, category_id), user_addresses(area, city, latitude, longitude), partners(partner_id, users(username, phone, user_profiles(first_name, last_name)))')
+            .select('booking_id, booking_code, customer_id, service_id, address_id, booking_date, scheduled_time, problem_description, estimated_amount, final_amount, status, service_status, partner_id, customer_latitude, customer_longitude, entrance_pin, completion_otp, created_at, services(service_id, name, category_id), user_addresses(area, city, latitude, longitude)')
             .order('created_at', ascending: false)
-            .limit(50);
+            .limit(100);
       } catch (_) {
         try {
           rows = await supabase
               .from('service_bookings')
               .select('*')
               .order('created_at', ascending: false)
-              .limit(50);
+              .limit(100);
+        } catch (_) {}
+      }
+
+      final Set<String> partnerIds = {};
+      for (final r in rows) {
+        if (r is Map) {
+          final pid = (r['partner_id'] ?? '').toString().trim();
+          if (pid.isNotEmpty && pid != 'null') partnerIds.add(pid);
+        }
+      }
+
+      Map<String, Map<String, dynamic>> partnerMap = {};
+      if (partnerIds.isNotEmpty) {
+        try {
+          final prtRows = await supabase
+              .from('partners')
+              .select('partner_id, users(username, phone, user_profiles(first_name, last_name))')
+              .inFilter('partner_id', partnerIds.toList());
+          for (final p in prtRows) {
+            final pid = (p['partner_id'] ?? '').toString().trim();
+            partnerMap[pid] = Map<String, dynamic>.from(p);
+          }
         } catch (_) {}
       }
 
@@ -365,9 +402,8 @@ class LiveBookingSyncService {
         if (addr is List && addr.isNotEmpty) addr = addr.first;
         final addrMap = addr is Map<String, dynamic> ? addr : null;
 
-        dynamic prt = r['partners'];
-        if (prt is List && prt.isNotEmpty) prt = prt.first;
-        final prtMap = prt is Map<String, dynamic> ? prt : null;
+        final partnerId = (r['partner_id'] ?? '').toString().trim();
+        final prtMap = partnerMap[partnerId];
 
         dynamic prtUser = prtMap?['users'];
         if (prtUser is List && prtUser.isNotEmpty) prtUser = prtUser.first;
@@ -399,7 +435,6 @@ class LiveBookingSyncService {
             : (r['address'] ?? 'Jamnagar').toString();
 
         final status = (r['status'] ?? 'PENDING').toString().toUpperCase();
-        final partnerId = (r['partner_id'] ?? '').toString();
 
         final existing = _inMemoryBookings[bId];
         if (existing == null || existing['status'] != status || existing['partner_id'] != partnerId) {
@@ -411,8 +446,29 @@ class LiveBookingSyncService {
           normalized['customer_phone'] = existing?['customer_phone'] ?? '';
           if (partnerName.isNotEmpty) normalized['partner_name'] = partnerName;
           if (partnerPhone.isNotEmpty) normalized['partner_phone'] = partnerPhone;
+          final dbBookingCode = (r['booking_code'] ?? '').toString().trim();
+          final cleanBookingCode = dbBookingCode.isNotEmpty
+              ? (dbBookingCode.toUpperCase().startsWith('SHB') ? '#$dbBookingCode' : '#$dbBookingCode')
+              : '#${_prefixForCategory(resolvedCat)}-${bId.replaceAll('-', '').substring(0, 6).toUpperCase()}';
+
+          String displayName = sName;
+          if (displayName.isEmpty) {
+            if (pDesc.isNotEmpty) {
+              if (pDesc.contains(' - ')) {
+                final split = pDesc.split(' - ').first.trim();
+                if (split.isNotEmpty) displayName = split;
+              } else if (pDesc.length <= 40) {
+                displayName = pDesc;
+              }
+            }
+          }
+          if (displayName.isEmpty) {
+            displayName = _defaultServiceName(resolvedCat);
+          }
+
+          normalized['booking_code'] = cleanBookingCode;
           normalized['service_id'] = (r['service_id'] ?? '').toString();
-          normalized['service_name'] = sName.isNotEmpty ? sName : _defaultServiceName(resolvedCat);
+          normalized['service_name'] = displayName;
           normalized['category_id'] = resolvedCat;
           normalized['category'] = resolvedCat;
           normalized['category_name'] = _categoryDisplayName(resolvedCat);
@@ -748,6 +804,14 @@ class LiveBookingSyncService {
     bookingData.forEach((k, v) {
       record[k] = v;
     });
+
+    final cat = (record['category'] ?? record['category_id'] ?? '').toString();
+    if (record['booking_code'] == null || record['booking_code'].toString().trim().isEmpty) {
+      final prefix = _prefixForCategory(cat);
+      final shortHex = bId.replaceAll('-', '').replaceAll(RegExp(r'[^A-Fa-f0-9]'), '');
+      final code = shortHex.length >= 6 ? shortHex.substring(0, 6).toUpperCase() : DateTime.now().millisecondsSinceEpoch.toString().substring(7);
+      record['booking_code'] = '#$prefix-$code';
+    }
 
     all[bId] = record;
     _writeAllBookings(all);

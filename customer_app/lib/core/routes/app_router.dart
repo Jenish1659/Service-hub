@@ -31,6 +31,17 @@ import '../../features/products/presentation/products_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/profile/presentation/support_screen.dart';
+import '../../features/profile/presentation/screens/customer_personal_info_screen.dart';
+import '../../features/profile/presentation/screens/customer_addresses_screen.dart';
+import '../../features/profile/presentation/screens/customer_add_address_screen.dart';
+import '../../features/profile/presentation/screens/customer_payment_methods_screen.dart';
+import '../../features/profile/presentation/screens/customer_add_payment_method_screen.dart';
+import '../../features/profile/presentation/screens/customer_my_bookings_screen.dart';
+import '../../features/profile/presentation/screens/customer_booking_details_screen.dart';
+import '../../features/profile/presentation/screens/customer_saved_services_screen.dart';
+import '../../features/profile/presentation/screens/customer_notifications_screen.dart';
+import '../../features/profile/presentation/screens/customer_settings_screen.dart';
+import '../../features/profile/presentation/screens/customer_help_support_screen.dart';
 import '../../features/bookings/presentation/track_booking_screen.dart';
 import '../../features/bookings/presentation/chat_screen.dart';
 import '../../features/orders/presentation/track_order_screen.dart';
@@ -96,6 +107,53 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/profile',
           builder: (BuildContext context, GoRouterState state) => const ProfileScreen(),
+        ),
+        GoRoute(
+          path: '/profile/personal-info',
+          builder: (BuildContext context, GoRouterState state) => const CustomerPersonalInfoScreen(),
+        ),
+        GoRoute(
+          path: '/profile/addresses',
+          builder: (BuildContext context, GoRouterState state) => const CustomerAddressesScreen(),
+        ),
+        GoRoute(
+          path: '/profile/addresses/add',
+          builder: (BuildContext context, GoRouterState state) => const CustomerAddAddressScreen(),
+        ),
+        GoRoute(
+          path: '/profile/payment-methods',
+          builder: (BuildContext context, GoRouterState state) => const CustomerPaymentMethodsScreen(),
+        ),
+        GoRoute(
+          path: '/profile/payment-methods/add',
+          builder: (BuildContext context, GoRouterState state) => const CustomerAddPaymentMethodScreen(),
+        ),
+        GoRoute(
+          path: '/profile/my-bookings',
+          builder: (BuildContext context, GoRouterState state) => const CustomerMyBookingsScreen(),
+        ),
+        GoRoute(
+          path: '/profile/my-bookings/details',
+          builder: (BuildContext context, GoRouterState state) {
+            final extra = state.extra as Map<String, dynamic>? ?? {};
+            return CustomerBookingDetailsScreen(booking: extra);
+          },
+        ),
+        GoRoute(
+          path: '/profile/saved-services',
+          builder: (BuildContext context, GoRouterState state) => const CustomerSavedServicesScreen(),
+        ),
+        GoRoute(
+          path: '/profile/notifications',
+          builder: (BuildContext context, GoRouterState state) => const CustomerNotificationsScreen(),
+        ),
+        GoRoute(
+          path: '/profile/settings',
+          builder: (BuildContext context, GoRouterState state) => const CustomerSettingsScreen(),
+        ),
+        GoRoute(
+          path: '/profile/help-support',
+          builder: (BuildContext context, GoRouterState state) => const CustomerHelpSupportScreen(),
         ),
       ],
     ),
