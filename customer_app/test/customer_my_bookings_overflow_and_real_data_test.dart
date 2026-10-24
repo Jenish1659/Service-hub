@@ -44,6 +44,25 @@ void main() {
 
     test('CustomerProfileService loads diverse real data and isolates customer bookings', () {
       final service = CustomerProfileService.instance;
+      service.setTestBookings([
+        {
+          'id': 'real_booking_1',
+          'booking_code': '#CAR-987654',
+          'service_name': 'Car Service & Repair',
+          'category': 'car_service',
+          'status': 'Upcoming',
+          'scheduled_date': '25 Oct 2026',
+          'scheduled_time': '10:00 AM',
+          'address': 'Patel Colony, Jamnagar',
+          'price': 1499.0,
+          'partner_name': 'Certified Specialist',
+          'partner_phone': '+91 98250 12345',
+          'partner_rating': '4.8 (125 reviews)',
+          'service_details': 'Periodic Standard Service',
+          'vehicle_info': 'Hyundai i20',
+          'step_index': 1,
+        }
+      ]);
       final bookings = service.getBookings();
 
       expect(bookings, isNotEmpty);
@@ -56,6 +75,7 @@ void main() {
         expect(b['service_name'], isNotEmpty);
         expect((b['price'] as num).toDouble(), greaterThan(0.0));
       }
+      service.setTestBookings(null);
     });
   });
 

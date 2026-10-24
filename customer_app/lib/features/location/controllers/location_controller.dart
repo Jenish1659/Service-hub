@@ -75,8 +75,8 @@ class LocationController extends StateNotifier<LocationState> {
         final cachedModel = LocationModel(
           latitude: lat,
           longitude: lng,
-          address: address ?? 'Kaushal Nagar, Jamnagar',
-          area: address?.split(',').first ?? 'Kaushal Nagar',
+          address: address ?? 'Current Location',
+          area: address?.split(',').first ?? 'Current Location',
           city: 'Jamnagar',
           state: 'Gujarat',
           country: 'India',

@@ -234,8 +234,8 @@ class _LoginAndSecurityScreenState extends State<LoginAndSecurityScreen> {
                         iconBg: const Color(0xFFFDF4FF),
                         iconColor: const Color(0xFFC026D3),
                         title: 'Email Address',
-                        subtitle: c.emailAddress.isNotEmpty ? c.emailAddress : 'partner@servicehub.in',
-                        trailingBadge: 'Verified',
+                        subtitle: c.emailAddress.isNotEmpty ? c.emailAddress : 'Not provided',
+                        trailingBadge: c.emailAddress.isNotEmpty ? 'Verified' : 'Add Email',
                         onTap: () {
                           Navigator.push(
                             context,

@@ -36,13 +36,13 @@ class _CustomerPersonalInfoScreenState extends State<CustomerPersonalInfoScreen>
   void initState() {
     super.initState();
     final profile = CustomerProfileService.instance.getProfile();
-    _nameController = TextEditingController(text: profile['full_name'] ?? 'Aryan Bheda');
-    _phoneController = TextEditingController(text: profile['phone'] ?? '+91 98765 43210');
-    _emailController = TextEditingController(text: profile['email'] ?? 'aryanbheda@example.com');
-    _dobController = TextEditingController(text: profile['dob'] ?? '15 March 2005');
+    _nameController = TextEditingController(text: profile['full_name'] ?? '');
+    _phoneController = TextEditingController(text: profile['phone'] ?? '');
+    _emailController = TextEditingController(text: profile['email'] ?? '');
+    _dobController = TextEditingController(text: profile['dob'] ?? '');
     _emergencyNameController = TextEditingController(text: profile['emergency_contact_name'] ?? '');
     _emergencyPhoneController = TextEditingController(text: profile['emergency_contact_phone'] ?? '');
-    _selectedGender = profile['gender'] ?? 'Male';
+    _selectedGender = (profile['gender'] != null && profile['gender'].toString().isNotEmpty) ? profile['gender'] : 'Male';
     _avatarUrl = profile['avatar_url']?.toString();
   }
 
@@ -352,7 +352,7 @@ class _CustomerPersonalInfoScreenState extends State<CustomerPersonalInfoScreen>
               _buildFieldLabel('Email Address'),
               _buildTextInput(
                 controller: _emailController,
-                hintText: 'aryanbheda@example.com',
+                hintText: 'Enter your email address',
                 keyboardType: TextInputType.emailAddress,
                 suffixWidget: Container(
                   margin: const EdgeInsets.only(right: 12),

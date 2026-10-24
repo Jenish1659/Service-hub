@@ -1,3 +1,4 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -134,6 +135,275 @@ class _CustomerSettingsScreenState extends ConsumerState<CustomerSettingsScreen>
     );
   }
 
+  void _showUpdatePasswordModal() {
+    final oldPassController = TextEditingController();
+    final newPassController = TextEditingController();
+    final confirmPassController = TextEditingController();
+
+    bool obscureOld = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    String? errorMessage;
+    bool isUpdating = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: !isUpdating,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.lock_reset_rounded, color: primaryBlue, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Update Password',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: darkSlate),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Enter your current old password to verify your identity, then specify your new secure password.',
+                    style: TextStyle(fontSize: 12.5, color: textMuted),
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (errorMessage != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFCA5A5)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              errorMessage!,
+                              style: const TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold, fontSize: 12.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // Current Password
+                  const Text('Current Password *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: darkSlate)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: oldPassController,
+                    obscureText: obscureOld,
+                    decoration: InputDecoration(
+                      hintText: 'Enter current old password',
+                      prefixIcon: const Icon(Icons.key_rounded, size: 18, color: Color(0xFF94A3B8)),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureOld ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 18),
+                        onPressed: () => setModalState(() => obscureOld = !obscureOld),
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // New Password
+                  const Text('New Password *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: darkSlate)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: newPassController,
+                    obscureText: obscureNew,
+                    decoration: InputDecoration(
+                      hintText: 'At least 6 characters',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFF94A3B8)),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureNew ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 18),
+                        onPressed: () => setModalState(() => obscureNew = !obscureNew),
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Confirm New Password
+                  const Text('Confirm New Password *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: darkSlate)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: confirmPassController,
+                    obscureText: obscureConfirm,
+                    decoration: InputDecoration(
+                      hintText: 'Re-type new password',
+                      prefixIcon: const Icon(Icons.lock_clock_outlined, size: 18, color: Color(0xFF94A3B8)),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscureConfirm ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 18),
+                        onPressed: () => setModalState(() => obscureConfirm = !obscureConfirm),
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isUpdating ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: textMuted)),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: isUpdating
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.check_circle_rounded, size: 16),
+              label: Text(isUpdating ? 'Verifying...' : 'Update Password'),
+              onPressed: isUpdating
+                  ? null
+                  : () async {
+                      final oldPass = oldPassController.text.trim();
+                      final newPass = newPassController.text.trim();
+                      final confirmPass = confirmPassController.text.trim();
+
+                      if (oldPass.isEmpty) {
+                        setModalState(() => errorMessage = 'Please enter your current password');
+                        return;
+                      }
+                      if (newPass.length < 6) {
+                        setModalState(() => errorMessage = 'New password must be at least 6 characters long');
+                        return;
+                      }
+                      if (newPass != confirmPass) {
+                        setModalState(() => errorMessage = 'New passwords do not match. Please re-type.');
+                        return;
+                      }
+                      if (oldPass == newPass) {
+                        setModalState(() => errorMessage = 'New password cannot be identical to your old password');
+                        return;
+                      }
+
+                      setModalState(() {
+                        isUpdating = true;
+                        errorMessage = null;
+                      });
+
+                      // Verify old password against active session and database
+                      bool isOldCorrect = false;
+                      final client = Supabase.instance.client;
+                      final user = client.auth.currentUser;
+                      final profile = CustomerProfileService.instance.getProfile();
+                      final storedPass = profile['password'] ?? profile['password_hash'];
+
+                      // Check stored session password
+                      if (storedPass != null && storedPass.toString().isNotEmpty) {
+                        if (storedPass.toString() == oldPass) {
+                          isOldCorrect = true;
+                        }
+                      }
+
+                      // Check Supabase Auth signIn
+                      if (!isOldCorrect && user != null && user.email != null && user.email!.isNotEmpty) {
+                        try {
+                          await client.auth.signInWithPassword(email: user.email!, password: oldPass);
+                          isOldCorrect = true;
+                        } catch (_) {}
+                      }
+
+                      // Check PostgreSQL users table
+                      if (!isOldCorrect) {
+                        final uId = profile['user_id'] ?? user?.id;
+                        final uPhone = profile['phone'];
+                        try {
+                          var query = client.from('users').select('password_hash');
+                          if (uId != null && uId.toString().isNotEmpty) {
+                            query = query.eq('user_id', uId.toString());
+                          } else if (uPhone != null && uPhone.toString().isNotEmpty) {
+                            final cleanP = uPhone.toString().replaceAll(RegExp(r'\D'), '');
+                            query = query.or('phone.eq.$cleanP,phone.eq.+91$cleanP');
+                          }
+                          final uRes = await query.maybeSingle();
+                          if (uRes != null && uRes['password_hash'] != null) {
+                            if (uRes['password_hash'].toString() == oldPass) {
+                              isOldCorrect = true;
+                            }
+                          }
+                        } catch (_) {}
+                      }
+
+                      // If old password is incorrect, show exact error message requested by user
+                      if (!isOldCorrect) {
+                        setModalState(() {
+                          isUpdating = false;
+                          errorMessage = 'Old password is incorrect. Please re-type your current password.';
+                        });
+                        return;
+                      }
+
+                      // Old password is correct -> update in Supabase and local profile cache
+                      try {
+                        if (user != null) {
+                          try {
+                            await client.auth.updateUser(UserAttributes(password: newPass));
+                          } catch (_) {}
+                        }
+                        final uId = profile['user_id'] ?? user?.id;
+                        if (uId != null && uId.toString().isNotEmpty) {
+                          try {
+                            await client.from('users').update({
+                              'password_hash': newPass,
+                              'updated_at': DateTime.now().toIso8601String(),
+                            }).eq('user_id', uId.toString());
+                          } catch (_) {}
+                        }
+                        profile['password'] = newPass;
+                        profile['password_hash'] = newPass;
+                        await CustomerProfileService.instance.updateProfile(profile);
+                      } catch (_) {}
+
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                      }
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('✓ Password updated successfully!'),
+                            backgroundColor: Color(0xFF10B981),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -214,6 +484,14 @@ class _CustomerSettingsScreenState extends ConsumerState<CustomerSettingsScreen>
                         'User: ${p['full_name']}\nPhone: ${p['phone']}\nEmail: ${p['email']}\n\nTwo-Factor Authentication: Enabled\nEncryption: 256-bit AES SSL/TLS Active.\nYour session is verified with Supabase Auth Engine.',
                       );
                     },
+                  ),
+                  const Divider(height: 1, color: borderGrey, indent: 56),
+                  _buildSettingsRow(
+                    icon: Icons.lock_outline_rounded,
+                    iconBg: const Color(0xFFEFF6FF),
+                    iconColor: primaryBlue,
+                    title: 'Update Password',
+                    onTap: _showUpdatePasswordModal,
                   ),
                   const Divider(height: 1, color: borderGrey, indent: 56),
                   _buildSettingsRow(

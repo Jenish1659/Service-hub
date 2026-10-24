@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/routes/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/profile/data/customer_profile_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +13,7 @@ void main() async {
   // Initialize Local Hive Cache
   await Hive.initFlutter();
   await Hive.openBox('customer_cache');
+  CustomerProfileService.instance.purgeLegacyMockData();
 
   // Initialize Supabase Client
   await Supabase.initialize(

@@ -664,7 +664,7 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
 
   Widget _buildScheduleItemCard(Map<String, dynamic> item) {
     final title = item['service_name'] ?? 'Elderly Care (8 Hours)';
-    final clientName = item['customer_name'] ?? 'Rajesh Kumar';
+    final clientName = item['customer_name'] ?? 'Customer';
     final time = item['scheduled_time'] ?? '09:00 AM';
     final status = (item['status'] ?? 'NEW').toString().toUpperCase();
 
@@ -878,7 +878,7 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
   Widget _buildRequestCard(Map<String, dynamic> item) {
     final id = item['id'] ?? item['booking_id'] ?? 'CARE-000125';
     final title = item['service_name'] ?? 'Elderly Companion & Assistance';
-    final customer = item['customer_name'] ?? 'Rajesh Kumar';
+    final customer = item['customer_name'] ?? 'Customer';
     final address = item['address'] ?? 'Shivam Apartment, Jamnagar';
     final date = item['booking_date'] ?? '12 Oct 2026';
     final time = item['scheduled_time'] ?? '09:00 AM';

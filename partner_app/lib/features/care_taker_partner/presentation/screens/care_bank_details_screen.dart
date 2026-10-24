@@ -49,11 +49,11 @@ class _CareBankDetailsScreenState extends State<CareBankDetailsScreen> {
         await LocalRegistrationCache.getActivePartner();
     if (mounted) {
       setState(() {
-        _holderController.text = (cached?['account_holder'] ?? cached?['name'] ?? 'Neha Patel').toString();
-        _bankNameController.text = (cached?['bank_name'] ?? 'HDFC Bank').toString();
-        _accountController.text = (cached?['account_number'] ?? '50100234567890').toString();
-        _ifscController.text = (cached?['ifsc_code'] ?? 'HDFC0000123').toString();
-        _upiController.text = (cached?['upi_id'] ?? 'nehapatel@okhdfcbank').toString();
+        _holderController.text = (cached?['account_holder'] ?? cached?['name'] ?? '').toString();
+        _bankNameController.text = (cached?['bank_name'] ?? '').toString();
+        _accountController.text = (cached?['account_number'] ?? '').toString();
+        _ifscController.text = (cached?['ifsc_code'] ?? '').toString();
+        _upiController.text = (cached?['upi_id'] ?? '').toString();
         _isLoading = false;
       });
     }

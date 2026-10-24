@@ -90,7 +90,7 @@ class _CareRequestDetailsScreenState extends State<CareRequestDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final bookingId = (widget.booking?['id'] ?? widget.booking?['booking_id'] ?? 'CARE-000125').toString();
-    final customerName = (widget.booking?['customer_name'] ?? 'Rajesh Kumar').toString();
+    final customerName = (widget.booking?['customer_name'] ?? 'Customer').toString();
     final customerPhone = (widget.booking?['customer_phone'] ?? '+91 98765 43210').toString();
     final serviceTitle = (widget.booking?['service_name'] ?? 'Elderly Companion & Assistance').toString();
     final scheduledDate = (widget.booking?['booking_date'] ?? '12 Oct 2026').toString();

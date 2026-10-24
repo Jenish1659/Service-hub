@@ -112,7 +112,7 @@ class _CarRequestDetailsScreenState extends State<CarRequestDetailsScreen> {
     final orderId = (b['id'] ?? b['booking_id'] ?? 'CAR-000125').toString();
     final formattedOrderId = orderId.startsWith('#') ? orderId : '#$orderId';
 
-    final customerName = (b['customer_name'] ?? 'Rahul Sharma').toString();
+    final customerName = (b['customer_name'] ?? 'Customer').toString();
     final customerPhone = (b['customer_phone'] ?? '+91 98765 43210').toString();
     final serviceName = (b['service_name'] ?? b['service_title'] ?? 'Periodic Standard Service').toString();
     final address = (b['address'] ?? b['pickup_address'] ?? 'Green Park, Jamnagar').toString();

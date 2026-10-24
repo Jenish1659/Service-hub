@@ -133,7 +133,7 @@ class _PlumbingRequestDetailsScreenState extends State<PlumbingRequestDetailsScr
     final rawId = (_booking['id'] ?? _booking['booking_id'] ?? '000125').toString();
     final orderId = _formatOrderId(rawId);
     final status = (_booking['status'] ?? 'PENDING').toString().toUpperCase();
-    final customerName = (_booking['customer_name'] ?? _booking['name'] ?? 'Jignesh Patel').toString();
+    final customerName = (_booking['customer_name'] ?? _booking['name'] ?? 'Customer').toString();
     final phone = (_booking['customer_phone'] ?? _booking['phone'] ?? '+91 98765 43210').toString();
     final serviceName = (_booking['service_name'] ?? _booking['service_title'] ?? _booking['category'] ?? 'Tap / Faucet & Shower Leakage').toString();
     final address = (_booking['address'] ?? _booking['pickup_address'] ?? 'Shivam Apartment, Jamnagar').toString();

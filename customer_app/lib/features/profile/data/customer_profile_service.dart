@@ -51,6 +51,110 @@ class CustomerProfileService {
     throw Exception('Hive box $_boxName is not open');
   }
 
+  /// Automatically purges legacy mock/dummy/meta data from local persistent Hive disk caches
+  void purgeLegacyMockData() {
+    try {
+      final box = _getBox();
+
+      // 1. Purge legacy fake bookings from customer_custom_bookings
+      final cachedBookings = box.get('customer_custom_bookings');
+      if (cachedBookings is List) {
+        final sanitizedBookings = cachedBookings.map((e) => Map<String, dynamic>.from(e as Map)).where((b) {
+          final id = (b['id'] ?? '').toString().toLowerCase();
+          final code = (b['booking_code'] ?? '').toString().toUpperCase();
+          final pName = (b['partner_name'] ?? '').toString().toLowerCase();
+          final addr = (b['address'] ?? '').toString().toLowerCase();
+          final sName = (b['service_name'] ?? '').toString().toLowerCase();
+          final isLegacyMock = id.startsWith('bk_') ||
+              id == '1' || id == '2' || id == '3' ||
+              code.contains('000125') ||
+              code.contains('000124') ||
+              code.contains('000123') ||
+              pName.contains('vikram') ||
+              pName.contains('ramesh') ||
+              pName.contains('kishore') ||
+              addr.contains('green park') ||
+              addr.contains('sunrise residency') ||
+              addr.contains('rajkot road') ||
+              addr.contains('vastrapur') ||
+              sName.contains('periodic standard');
+          return !isLegacyMock;
+        }).toList();
+        box.put('customer_custom_bookings', sanitizedBookings);
+      }
+
+      // 2. Purge legacy fake addresses from customer_addresses_list
+      final cachedAddrs = box.get('customer_addresses_list');
+      if (cachedAddrs is List) {
+        final sanitizedAddrs = cachedAddrs.map((e) => Map<String, dynamic>.from(e as Map)).where((a) {
+          final id = (a['id'] ?? '').toString().toLowerCase();
+          final full = (a['full_address'] ?? '').toString().toLowerCase();
+          final label = (a['label'] ?? '').toString().toLowerCase();
+          final isLegacyMock = id == 'addr_1' ||
+              id == 'addr_2' ||
+              id == 'addr_3' ||
+              full.contains('rajkot road') ||
+              full.contains('vastrapur') ||
+              full.contains('parents home') ||
+              full.contains('green park') ||
+              full.contains('sunrise residency') ||
+              full.contains('alpha one') ||
+              full.contains('city garden') ||
+              label.contains('parents home');
+          return !isLegacyMock;
+        }).toList();
+        box.put('customer_addresses_list', sanitizedAddrs);
+      }
+
+      // 3. Purge legacy fake payment methods from customer_payment_methods_list
+      final cachedPayments = box.get('customer_payment_methods_list');
+      if (cachedPayments is List) {
+        final sanitizedPayments = cachedPayments.map((e) => Map<String, dynamic>.from(e as Map)).where((p) {
+          final id = (p['id'] ?? '').toString().toLowerCase();
+          final detail = (p['detail'] ?? '').toString().toLowerCase();
+          final isLegacyMock = id == 'pay_1' ||
+              id == 'pay_2' ||
+              id == 'pay_3' ||
+              id == 'pay_4' ||
+              detail.contains('bheda.aryan') ||
+              detail.contains('4589') ||
+              detail.contains('8821') ||
+              detail.contains('1024');
+          return !isLegacyMock;
+        }).toList();
+        box.put('customer_payment_methods_list', sanitizedPayments);
+      }
+
+      // 4. Purge legacy fake saved services
+      final cachedServices = box.get('customer_saved_services_ids');
+      if (cachedServices is List) {
+        final set = Set<String>.from(cachedServices);
+        if (set.length == 2 && set.contains('ac_service') && set.contains('car_service')) {
+          box.put('customer_saved_services_ids', <String>[]);
+        }
+      }
+
+      // 5. Purge legacy fake notifications from customer_notifications_list
+      final cachedNotifs = box.get('customer_notifications_list');
+      if (cachedNotifs is List) {
+        final sanitizedNotifs = cachedNotifs.map((e) => Map<String, dynamic>.from(e as Map)).where((n) {
+          final id = (n['id'] ?? '').toString().toLowerCase();
+          final msg = (n['message'] ?? '').toString().toLowerCase();
+          final isLegacyMock = id.startsWith('notif_bk_') ||
+              id == 'notif_default_1' ||
+              msg.contains('000125') ||
+              msg.contains('000124') ||
+              msg.contains('000123') ||
+              msg.contains('vikram') ||
+              msg.contains('ramesh') ||
+              msg.contains('kishore');
+          return !isLegacyMock;
+        }).toList();
+        box.put('customer_notifications_list', sanitizedNotifs);
+      }
+    } catch (_) {}
+  }
+
   // --- 1. Personal Profile Data ---
   Map<String, dynamic> getProfile() {
     try {
@@ -62,13 +166,13 @@ class CustomerProfileService {
     } catch (_) {}
 
     // Check active session or cached login
-    String realName = 'Aryan Bheda';
-    String realPhone = '+91 98765 43210';
-    String realEmail = 'aryanbheda@example.com';
-    String realGender = 'Male';
-    String realDob = '15 March 2005';
-    String emergencyName = 'Rahul Bheda';
-    String emergencyPhone = '+91 87654 32109';
+    String realName = 'Customer User';
+    String realPhone = '';
+    String realEmail = '';
+    String realGender = '';
+    String realDob = '';
+    String emergencyName = '';
+    String emergencyPhone = '';
     String avatarUrl = '';
 
     try {
@@ -169,11 +273,30 @@ class CustomerProfileService {
 
   // --- 2. Addresses Management ---
   List<Map<String, dynamic>> getAddresses() {
+    purgeLegacyMockData();
     try {
       final box = _getBox();
       final raw = box.get('customer_addresses_list');
-      if (raw is List && raw.isNotEmpty) {
-        return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      if (raw is List) {
+        // Filter out any legacy hardcoded fake addresses that were previously saved
+        final list = raw.map((e) => Map<String, dynamic>.from(e as Map)).where((e) {
+          final id = (e['id'] ?? '').toString().toLowerCase();
+          final addr = (e['full_address'] ?? '').toString().toLowerCase();
+          final label = (e['label'] ?? '').toString().toLowerCase();
+          final isLegacyMock = id == 'addr_1' ||
+              id == 'addr_2' ||
+              id == 'addr_3' ||
+              addr.contains('rajkot road') ||
+              addr.contains('vastrapur') ||
+              addr.contains('parents home') ||
+              addr.contains('green park') ||
+              addr.contains('sunrise residency') ||
+              addr.contains('alpha one') ||
+              addr.contains('city garden') ||
+              label.contains('parents home');
+          return !isLegacyMock;
+        }).toList();
+        if (list.isNotEmpty) return list;
       }
     } catch (_) {}
 
@@ -184,48 +307,21 @@ class CustomerProfileService {
       locationAddress = box.get('location_address') as String?;
     } catch (_) {}
 
-    final realAddresses = [
-      {
-        'id': 'addr_1',
-        'label': 'Home',
-        'type': 'Home',
-        'full_address': locationAddress ?? '12, Sunrise Residency, Jamnagar, Gujarat 361001',
-        'landmark': 'Near Sunrise Mall',
-        'city': 'Jamnagar',
-        'state': 'Gujarat',
-        'pincode': '361001',
-        'is_default': true,
-      },
-      {
-        'id': 'addr_2',
-        'label': 'Office',
-        'type': 'Office',
-        'full_address': 'Rajkot Road, Vastrapur, Ahmedabad, Gujarat 380015',
-        'landmark': 'Near Alpha One Mall',
-        'city': 'Ahmedabad',
-        'state': 'Gujarat',
-        'pincode': '380015',
-        'is_default': false,
-      },
-      {
-        'id': 'addr_3',
-        'label': 'Parents Home',
-        'type': 'Others',
-        'full_address': 'Green Park, Jamnagar, Gujarat 361002',
-        'landmark': 'Opposite City Garden',
-        'city': 'Jamnagar',
-        'state': 'Gujarat',
-        'pincode': '361002',
-        'is_default': false,
-      },
-    ];
+    if (locationAddress != null && locationAddress.trim().isNotEmpty && !locationAddress.contains('Kaushal Nagar')) {
+      return [
+        {
+          'id': 'addr_current_gps',
+          'label': 'Current Location',
+          'type': 'Current Location',
+          'full_address': locationAddress.trim(),
+          'city': 'Jamnagar',
+          'state': 'Gujarat',
+          'is_default': true,
+        }
+      ];
+    }
 
-    try {
-      final box = _getBox();
-      box.put('customer_addresses_list', realAddresses);
-    } catch (_) {}
-
-    return realAddresses;
+    return [];
   }
 
   Future<void> saveAddress(Map<String, dynamic> address) async {
@@ -296,51 +392,28 @@ class CustomerProfileService {
 
   // --- 3. Payment Methods Management ---
   List<Map<String, dynamic>> getPaymentMethods() {
+    purgeLegacyMockData();
     try {
       final box = _getBox();
       final raw = box.get('customer_payment_methods_list');
       if (raw is List && raw.isNotEmpty) {
-        return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        return raw.map((e) => Map<String, dynamic>.from(e as Map)).where((p) {
+          final id = (p['id'] ?? '').toString().toLowerCase();
+          final detail = (p['detail'] ?? '').toString().toLowerCase();
+          final isLegacyMock = id == 'pay_1' ||
+              id == 'pay_2' ||
+              id == 'pay_3' ||
+              id == 'pay_4' ||
+              detail.contains('bheda.aryan') ||
+              detail.contains('4589') ||
+              detail.contains('8821') ||
+              detail.contains('1024');
+          return !isLegacyMock;
+        }).toList();
       }
     } catch (_) {}
 
-    final defaultPayments = [
-      {
-        'id': 'pay_1',
-        'type': 'UPI',
-        'title': 'UPI',
-        'detail': 'bheda.aryan@okhdfcbank',
-        'is_default': true,
-      },
-      {
-        'id': 'pay_2',
-        'type': 'Bank',
-        'title': 'HDFC Bank',
-        'detail': '•••• 4589',
-        'is_default': false,
-      },
-      {
-        'id': 'pay_3',
-        'type': 'Bank',
-        'title': 'SBI Bank',
-        'detail': '•••• 8821',
-        'is_default': false,
-      },
-      {
-        'id': 'pay_4',
-        'type': 'Card',
-        'title': 'Credit Card',
-        'detail': '•••• 1024',
-        'is_default': false,
-      },
-    ];
-
-    try {
-      final box = _getBox();
-      box.put('customer_payment_methods_list', defaultPayments);
-    } catch (_) {}
-
-    return defaultPayments;
+    return [];
   }
 
   Future<void> savePaymentMethod(Map<String, dynamic> method) async {
@@ -380,6 +453,7 @@ class CustomerProfileService {
 
   // --- 4. Saved / Favorite Services ---
   Set<String> getSavedServiceIds() {
+    purgeLegacyMockData();
     try {
       final box = _getBox();
       final list = box.get('customer_saved_services_ids');
@@ -387,7 +461,7 @@ class CustomerProfileService {
         return Set<String>.from(list);
       }
     } catch (_) {}
-    return {'ac_service', 'car_service'};
+    return <String>{};
   }
 
   Future<void> toggleSavedService(String serviceId) async {
@@ -458,11 +532,25 @@ class CustomerProfileService {
 
   // --- 5. Notifications ---
   List<Map<String, dynamic>> getNotifications() {
+    purgeLegacyMockData();
     try {
       final box = _getBox();
       final list = box.get('customer_notifications_list');
       if (list is List && list.isNotEmpty) {
-        return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        final realList = list.map((e) => Map<String, dynamic>.from(e as Map)).where((n) {
+          final id = (n['id'] ?? '').toString().toLowerCase();
+          final msg = (n['message'] ?? '').toString().toLowerCase();
+          final isLegacyMock = id.startsWith('notif_bk_') ||
+              id == 'notif_default_1' ||
+              msg.contains('000125') ||
+              msg.contains('000124') ||
+              msg.contains('000123') ||
+              msg.contains('vikram') ||
+              msg.contains('ramesh') ||
+              msg.contains('kishore');
+          return !isLegacyMock;
+        }).toList();
+        if (realList.isNotEmpty) return realList;
       }
     } catch (_) {}
 
@@ -510,23 +598,7 @@ class CustomerProfileService {
       }
     }
 
-    if (notifs.isEmpty) {
-      notifs.add({
-        'id': 'notif_default_1',
-        'section': 'Today',
-        'title': 'Welcome to ServiceHub',
-        'message': 'Book verified professional services at your doorstep in Jamnagar.',
-        'time': 'Just now',
-        'icon_type': 'service',
-        'is_read': false,
-      });
-    }
-
-    try {
-      final box = _getBox();
-      box.put('customer_notifications_list', notifs);
-    } catch (_) {}
-
+    // Return strictly authentic notifications (empty if no updates)
     return notifs;
   }
 
@@ -771,71 +843,33 @@ class CustomerProfileService {
       if (cached is List && cached.isNotEmpty) {
         for (final c in cached) {
           final map = Map<String, dynamic>.from(c as Map);
-          if (!combined.any((item) => item['id'] == map['id'])) {
+          final id = (map['id'] ?? '').toString().toLowerCase();
+          final code = (map['booking_code'] ?? '').toString().toUpperCase();
+          final pName = (map['partner_name'] ?? '').toString().toLowerCase();
+          final addr = (map['address'] ?? '').toString().toLowerCase();
+          final sName = (map['service_name'] ?? '').toString().toLowerCase();
+          final isLegacyMock = id.startsWith('bk_') ||
+              id == '1' || id == '2' || id == '3' ||
+              code.contains('000125') ||
+              code.contains('000124') ||
+              code.contains('000123') ||
+              pName.contains('vikram') ||
+              pName.contains('ramesh') ||
+              pName.contains('kishore') ||
+              addr.contains('green park') ||
+              addr.contains('sunrise residency') ||
+              addr.contains('rajkot road') ||
+              addr.contains('vastrapur') ||
+              sName.contains('periodic standard');
+          if (!isLegacyMock && !combined.any((item) => item['id'] == map['id'])) {
             combined.add(map);
           }
         }
       }
     } catch (_) {}
 
-    // 3. Fallback to distinct baseline multi-services if empty
-    if (combined.isEmpty) {
-      combined = [
-        {
-          'id': 'bk_1',
-          'booking_code': '#CAR-000125',
-          'service_name': 'Car Service & Repair',
-          'category': 'car_service',
-          'status': 'Upcoming',
-          'scheduled_date': '12 Oct 2026',
-          'scheduled_time': '10:00 AM',
-          'address': 'Green Park, Jamnagar',
-          'price': 1499.0,
-          'partner_name': 'Vikram Joshi',
-          'partner_phone': '+91 98250 12345',
-          'partner_rating': '4.8 (125 reviews)',
-          'service_details': 'Periodic Standard Service',
-          'vehicle_info': 'Hyundai i20 (GJ10AB1234)',
-          'step_index': 1,
-        },
-        {
-          'id': 'bk_2',
-          'booking_code': '#AC-000124',
-          'service_name': 'AC Service',
-          'category': 'ac_service',
-          'status': 'Completed',
-          'scheduled_date': '08 Oct 2026',
-          'scheduled_time': '02:00 PM',
-          'address': 'Sunrise Residency, Jamnagar',
-          'price': 1199.0,
-          'partner_name': 'Ramesh Patel',
-          'partner_phone': '+91 98251 23456',
-          'partner_rating': '4.9 (210 reviews)',
-          'service_details': 'Deep Jet AC Cleaning & Filter Wash',
-          'vehicle_info': '',
-          'step_index': 4,
-        },
-        {
-          'id': 'bk_3',
-          'booking_code': '#PLMB-000123',
-          'service_name': 'Plumbing Service',
-          'category': 'plumbing',
-          'status': 'Completed',
-          'scheduled_date': '05 Oct 2026',
-          'scheduled_time': '11:00 AM',
-          'address': '12, Sunrise Residency, Jamnagar',
-          'price': 349.0,
-          'partner_name': 'Kishore Dave',
-          'partner_phone': '+91 98252 34567',
-          'partner_rating': '4.7 (88 reviews)',
-          'service_details': 'Pipe Leakage Fix & Tap Replacement',
-          'vehicle_info': '',
-          'step_index': 4,
-        },
-      ];
-
-
-    }
+    // Return strictly authentic bookings (empty list if customer has zero bookings)
+    // No mock, dummy, or predefined bookings are injected.
 
     return combined;
   }

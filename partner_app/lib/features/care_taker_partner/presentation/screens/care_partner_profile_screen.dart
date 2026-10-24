@@ -353,7 +353,7 @@ class _CarePartnerProfileScreenState extends State<CarePartnerProfileScreen> {
     final partnerName = _partnerProfile?['name'] ??
         _partnerProfile?['full_name'] ??
         _partnerProfile?['username'] ??
-        'Neha Patel';
+        'Care Specialist';
 
     final ratingVal = double.tryParse((_partnerProfile?['rating'] ?? 0.0).toString()) ?? 0.0;
     final reviewsCount = int.tryParse((_partnerProfile?['review_count'] ?? 0).toString()) ?? 0;

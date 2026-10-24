@@ -282,7 +282,7 @@ class _PhoneAndEmailScreenState extends State<PhoneAndEmailScreen> {
                       iconBg: const Color(0xFFFDF4FF),
                       iconColor: const Color(0xFFC026D3),
                       title: 'Primary Email Address',
-                      value: c.emailAddress.isNotEmpty ? c.emailAddress : 'partner@servicehub.in',
+                      value: c.emailAddress.isNotEmpty ? c.emailAddress : 'Not provided',
                       description: 'Used for automated daily payout summaries, monthly earnings invoices, and official platform notifications.',
                       buttonLabel: 'Update Email',
                       onButtonTap: _showUpdateEmailSheet,

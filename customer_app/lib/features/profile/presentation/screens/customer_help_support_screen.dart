@@ -208,10 +208,11 @@ class _CustomerHelpSupportScreenState extends State<CustomerHelpSupportScreen> {
             ),
             onPressed: () {
               Navigator.pop(ctx);
+              final dynamicTicketId = 'TKT-${DateTime.now().millisecondsSinceEpoch % 100000}';
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('✓ Ticket #TKT-8902 created! Support team will reach out within 1 hour.'),
-                  backgroundColor: Color(0xFF10B981),
+                SnackBar(
+                  content: Text('✓ Ticket #$dynamicTicketId created! Support team will reach out within 1 hour.'),
+                  backgroundColor: const Color(0xFF10B981),
                 ),
               );
             },
@@ -231,33 +232,45 @@ class _CustomerHelpSupportScreenState extends State<CustomerHelpSupportScreen> {
         builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Share Your Feedback', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return IconButton(
-                    icon: Icon(
-                      index < rating ? Icons.star_rounded : Icons.star_border_rounded,
-                      color: const Color(0xFFF59E0B),
-                      size: 32,
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (index) {
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => setDialogState(() => rating = index + 1),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                            child: Icon(
+                              index < rating ? Icons.star_rounded : Icons.star_border_rounded,
+                              color: const Color(0xFFF59E0B),
+                              size: 30,
+                            ),
+                          ),
+                        );
+                      }),
                     ),
-                    onPressed: () => setDialogState(() => rating = index + 1),
-                  );
-                }),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: feedbackController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: 'Tell us how we can make ServiceHub even better...',
+                      hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: feedbackController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Tell us how we can make ServiceHub even better...',
-                  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ],
+            ),
           ),
           actions: [
             TextButton(

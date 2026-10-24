@@ -363,7 +363,7 @@ class _CarPartnerProfileScreenState extends State<CarPartnerProfileScreen> {
     final partnerName = _partnerProfile?['full_name'] ??
         _partnerProfile?['name'] ??
         _partnerProfile?['username'] ??
-        'Karan Mehta';
+        'Service Partner';
 
     final rating = num.tryParse((_partnerProfile?['rating'] ?? 0.0).toString()) ?? 0.0;
     final reviewsCount = int.tryParse((_partnerProfile?['review_count'] ?? 0).toString()) ?? 0;

@@ -202,7 +202,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      _profile['full_name'] ?? 'Aryan Bheda',
+                      _profile['full_name'] ?? 'Customer User',
                       style: const TextStyle(
                         fontSize: 19,
                         fontWeight: FontWeight.bold,

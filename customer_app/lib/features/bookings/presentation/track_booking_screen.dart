@@ -972,9 +972,12 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                                   children: [
                                     const Icon(Icons.star_rounded, color: Colors.amber, size: 15),
                                     const SizedBox(width: 3),
-                                    Text(
-                                      '$_partnerRating ($_partnerJobs completed jobs)',
-                                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                    Flexible(
+                                      child: Text(
+                                        '$_partnerRating ($_partnerJobs completed jobs)',
+                                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ],
                                 ),

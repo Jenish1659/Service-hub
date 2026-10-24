@@ -228,7 +228,7 @@ class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
     final partnerName = _partnerProfile?['full_name'] ??
         _partnerProfile?['name'] ??
         _partnerProfile?['username'] ??
-        'Karan Mehta';
+        'Service Partner';
 
     final rating = num.tryParse((_partnerProfile?['rating'] ?? 0.0).toString()) ?? 0.0;
 
@@ -921,7 +921,7 @@ class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
     final orderId = (b['id'] ?? b['booking_id'] ?? 'CAR-000125').toString();
     final formattedId = orderId.startsWith('#') ? orderId : '#$orderId';
     final serviceName = (b['service_name'] ?? 'Periodic Standard Service').toString();
-    final customerName = (b['customer_name'] ?? 'Rahul Sharma').toString();
+    final customerName = (b['customer_name'] ?? 'Customer').toString();
     final address = (b['address'] ?? 'Green Park, Jamnagar').toString();
     final date = (b['booking_date'] ?? '11 Oct 2026').toString();
     final time = (b['scheduled_time'] ?? '10:00 AM').toString();

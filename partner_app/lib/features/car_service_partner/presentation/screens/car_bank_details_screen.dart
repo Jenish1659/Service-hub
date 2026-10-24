@@ -53,11 +53,11 @@ class _CarBankDetailsScreenState extends State<CarBankDetailsScreen> {
 
     if (mounted) {
       setState(() {
-        _holderController.text = (cached?['bank_holder_name'] ?? cached?['full_name'] ?? 'Karan Mehta').toString();
-        _bankNameController.text = (cached?['bank_name'] ?? 'State Bank of India').toString();
-        _accountNumberController.text = (cached?['bank_account_number'] ?? 'XXXX-XXXX-4589').toString();
-        _ifscController.text = (cached?['ifsc_code'] ?? 'SBIN0001234').toString();
-        _upiController.text = (cached?['upi_id'] ?? 'karanmehta@sbi').toString();
+        _holderController.text = (cached?['bank_holder_name'] ?? cached?['full_name'] ?? '').toString();
+        _bankNameController.text = (cached?['bank_name'] ?? '').toString();
+        _accountNumberController.text = (cached?['bank_account_number'] ?? '').toString();
+        _ifscController.text = (cached?['ifsc_code'] ?? '').toString();
+        _upiController.text = (cached?['upi_id'] ?? '').toString();
         _isLoading = false;
       });
     }

@@ -943,7 +943,7 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
     final rawId = (b['id'] ?? b['booking_id'] ?? '000125').toString();
     final orderId = _formatPlumbingOrderId(rawId);
     final service = (b['service_name'] ?? b['category'] ?? 'Tap / Faucet Leakage').toString();
-    final customer = (b['customer_name'] ?? b['name'] ?? 'Jignesh Patel').toString();
+    final customer = (b['customer_name'] ?? b['name'] ?? 'Customer').toString();
     final address = (b['address'] ?? b['pickup_address'] ?? 'Shivam Apartment, Jamnagar').toString();
     final date = (b['booking_date'] ?? b['date'] ?? '12 Oct 2026').toString();
     final time = (b['scheduled_time'] ?? b['time'] ?? '10:00 AM').toString();
