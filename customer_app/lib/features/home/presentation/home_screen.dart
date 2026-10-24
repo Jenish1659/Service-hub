@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+import '../../products/services/product_reviews_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -912,9 +915,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final bool isWishlisted = _wishlistProducts.contains(id);
 
-    return Container(
-      width: 165,
-      height: 236, // Explicit fixed outer height to prevent layout overflow
+    return GestureDetector(
+      onTap: () => context.push('/products/details', extra: item),
+      child: Container(
+        width: 165,
+        height: 242, // Explicit fixed outer height to prevent layout overflow
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -949,15 +954,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     topLeft: Radius.circular(17),
                     topRight: Radius.circular(17),
                   ),
-                  child: imageUrl != null && imageUrl.startsWith('http')
-                      ? Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return _buildProductCategoryPlaceholder(cat);
-                          },
-                        )
-                      : _buildProductCategoryPlaceholder(cat),
+                  child: _buildHomeProductImage(imageUrl, cat),
+                ),
+              ),
+
+              Positioned(
+                left: 6,
+                top: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xfffef3c7),
+                    borderRadius: BorderRadius.circular(4),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.bolt_rounded, size: 10, color: Color(0xffb45309)),
+                      const SizedBox(width: 2),
+                      Text(
+                        item['area'] != null && item['area'].toString().isNotEmpty
+                            ? (item['area'].toString().split('(').first.trim())
+                            : '15 MINS',
+                        style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: Color(0xffb45309)),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -1030,6 +1053,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                     ],
+                    const Spacer(),
+                    () {
+                      final stats = ProductReviewsService.instance.getProductRatingStats(id);
+                      final bool hasRat = stats['has_ratings'] == true;
+                      final double rat = hasRat ? (stats['average_rating'] as num).toDouble() : 0.0;
+                      if (hasRat) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xff15803d),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                rat.toStringAsFixed(1),
+                                style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(width: 1),
+                              const Icon(Icons.star_rounded, size: 9, color: Colors.white),
+                            ],
+                          ),
+                        );
+                      }
+                      return const Text(
+                        '★ New',
+                        style: TextStyle(color: Color(0xff64748b), fontSize: 9, fontWeight: FontWeight.bold),
+                      );
+                    }(),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -1089,7 +1142,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
+    ),
     );
+  }
+
+  Widget _buildHomeProductImage(String? src, String cat) {
+    if (src == null || src.trim().isEmpty) {
+      return _buildProductCategoryPlaceholder(cat);
+    }
+    final s = src.trim();
+    if (s.startsWith('data:image/') || s.startsWith('base64,')) {
+      try {
+        final b64 = s.contains(',') ? s.split(',').last : s;
+        return Image.memory(
+          base64Decode(b64),
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildProductCategoryPlaceholder(cat),
+        );
+      } catch (_) {
+        return _buildProductCategoryPlaceholder(cat);
+      }
+    } else if (s.startsWith('http://') || s.startsWith('https://')) {
+      return Image.network(
+        s,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildProductCategoryPlaceholder(cat),
+      );
+    } else {
+      try {
+        final f = File(s);
+        if (f.existsSync()) {
+          return Image.file(
+            f,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildProductCategoryPlaceholder(cat),
+          );
+        }
+      } catch (_) {}
+      return _buildProductCategoryPlaceholder(cat);
+    }
   }
 
   Widget _buildProductCategoryPlaceholder(String cat) {

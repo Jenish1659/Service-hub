@@ -1021,25 +1021,51 @@ class LiveBookingSyncService {
       final altId = (booking['id'] ?? booking['booking_id'] ?? '').toString();
       if (altId.isNotEmpty) _locallyAcceptedBookingIds.add(altId);
 
+      String statusToSet = 'ACCEPTED';
+      if (partnerDataOrId is Map<String, dynamic> && partnerDataOrId['status'] != null) {
+        statusToSet = partnerDataOrId['status'].toString();
+      }
+
       booking['partner_id'] = pId;
       booking['partner_name'] = pName;
       booking['partner_phone'] = pPhone;
-      booking['status'] = 'ACCEPTED';
-      booking['service_status'] = 'ACCEPTED';
+      if (partnerDataOrId is Map<String, dynamic>) {
+        if (partnerDataOrId['shopkeeper_id'] != null) booking['shopkeeper_id'] = partnerDataOrId['shopkeeper_id'].toString();
+        if (partnerDataOrId['shopkeeper_name'] != null) booking['shopkeeper_name'] = partnerDataOrId['shopkeeper_name'].toString();
+        if (partnerDataOrId['shop_name'] != null) booking['shop_name'] = partnerDataOrId['shop_name'].toString();
+        if (partnerDataOrId['shopkeeper_address'] != null) booking['shopkeeper_address'] = partnerDataOrId['shopkeeper_address'].toString();
+        if (partnerDataOrId['shopkeeper_phone'] != null) booking['shopkeeper_phone'] = partnerDataOrId['shopkeeper_phone'].toString();
+        if (partnerDataOrId['delivery_agent_id'] != null) booking['delivery_agent_id'] = partnerDataOrId['delivery_agent_id'].toString();
+        if (partnerDataOrId['delivery_agent_name'] != null) booking['delivery_agent_name'] = partnerDataOrId['delivery_agent_name'].toString();
+        if (partnerDataOrId['delivery_agent_phone'] != null) booking['delivery_agent_phone'] = partnerDataOrId['delivery_agent_phone'].toString();
+      }
+      booking['status'] = statusToSet;
+      booking['service_status'] = statusToSet;
       booking['accepted_at'] = DateTime.now().toIso8601String();
       all[bookingId] = booking;
       _inMemoryBookings[bookingId] = booking;
 
       final acceptedAtIso = booking['accepted_at'];
+      final bShopName = booking['shop_name'] ?? booking['shopkeeper_name'];
+      final bShopPhone = booking['shopkeeper_phone'];
+      final bShopAddress = booking['shopkeeper_address'];
+      final bAgentName = booking['delivery_agent_name'];
+      final bAgentPhone = booking['delivery_agent_phone'];
+
       all.forEach((k, v) {
         if (v is Map<String, dynamic>) {
           final id = (v['id'] ?? v['booking_id'] ?? '').toString();
           if (k == bookingId || id == bookingId || (altId.isNotEmpty && id == altId)) {
-            v['status'] = 'ACCEPTED';
-            v['service_status'] = 'ACCEPTED';
+            v['status'] = statusToSet;
+            v['service_status'] = statusToSet;
             v['partner_id'] = pId;
             v['partner_name'] = pName;
             v['partner_phone'] = pPhone;
+            if (bShopName != null) v['shop_name'] = bShopName;
+            if (bShopPhone != null) v['shopkeeper_phone'] = bShopPhone;
+            if (bShopAddress != null) v['shopkeeper_address'] = bShopAddress;
+            if (bAgentName != null) v['delivery_agent_name'] = bAgentName;
+            if (bAgentPhone != null) v['delivery_agent_phone'] = bAgentPhone;
             v['accepted_at'] = acceptedAtIso;
           }
         }
@@ -1047,11 +1073,16 @@ class LiveBookingSyncService {
       _inMemoryBookings.forEach((k, v) {
         final id = (v['id'] ?? v['booking_id'] ?? '').toString();
         if (k == bookingId || id == bookingId || (altId.isNotEmpty && id == altId)) {
-          v['status'] = 'ACCEPTED';
-          v['service_status'] = 'ACCEPTED';
+          v['status'] = statusToSet;
+          v['service_status'] = statusToSet;
           v['partner_id'] = pId;
           v['partner_name'] = pName;
           v['partner_phone'] = pPhone;
+          if (bShopName != null) v['shop_name'] = bShopName;
+          if (bShopPhone != null) v['shopkeeper_phone'] = bShopPhone;
+          if (bShopAddress != null) v['shopkeeper_address'] = bShopAddress;
+          if (bAgentName != null) v['delivery_agent_name'] = bAgentName;
+          if (bAgentPhone != null) v['delivery_agent_phone'] = bAgentPhone;
           v['accepted_at'] = acceptedAtIso;
         }
       });

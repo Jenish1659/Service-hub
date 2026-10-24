@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
@@ -12,6 +13,51 @@ class AdminProductsView extends StatefulWidget {
 
   @override
   State<AdminProductsView> createState() => _AdminProductsViewState();
+}
+
+
+Future<Uint8List> _compressImageUnder1MB(Uint8List rawBytes) async {
+  // If already under 350 KB, return directly
+  if (rawBytes.lengthInBytes <= 350 * 1024) {
+    return rawBytes;
+  }
+  try {
+    final codec = await ui.instantiateImageCodec(
+      rawBytes,
+      targetWidth: 800,
+    );
+    final frame = await codec.getNextFrame();
+    final byteData = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData != null) {
+      final compressed = byteData.buffer.asUint8List();
+      if (compressed.lengthInBytes <= 1024 * 1024) {
+        return compressed;
+      }
+    }
+  } catch (e) {
+    debugPrint('[AdminProducts] Image compression note: $e');
+  }
+
+  try {
+    final codec = await ui.instantiateImageCodec(
+      rawBytes,
+      targetWidth: 500,
+    );
+    final frame = await codec.getNextFrame();
+    final byteData = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData != null) {
+      final compressed = byteData.buffer.asUint8List();
+      if (compressed.lengthInBytes <= 1024 * 1024) {
+        return compressed;
+      }
+    }
+  } catch (_) {}
+
+  // Strict 1MB limit check
+  if (rawBytes.lengthInBytes > 1024 * 1024) {
+    throw Exception('Selected image exceeds 1MB limit. Please choose a photo under 1MB.');
+  }
+  return rawBytes;
 }
 
 class _AdminProductsViewState extends State<AdminProductsView> {
@@ -98,7 +144,7 @@ class _AdminProductsViewState extends State<AdminProductsView> {
           .from('products')
           .select('*, shops(shop_name, shop_type)')
           .order('created_at', ascending: false)
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 12));
       for (final r in res) {
         final m = Map<String, dynamic>.from(r as Map);
         final id = (m['product_id'] ?? m['id'] ?? '').toString();
@@ -111,6 +157,20 @@ class _AdminProductsViewState extends State<AdminProductsView> {
         m['shop_name'] = shop?['shop_name'] ?? 'ServiceHub Store';
         m['category_name'] = shop?['shop_type'] ?? m['category'] ?? 'AC Spare Parts';
         m['category'] = (m['category'] ?? m['category_name'] ?? 'ac_parts').toString().toLowerCase().replaceAll(' ', '_');
+        final rawDesc = (m['description'] ?? '').toString();
+        final tagRegex = RegExp(r'\[Area:\s*(.*?)\s*\|\s*Hub:\s*(.*?)\s*\|\s*ETA:\s*(.*?)\]\s*');
+        final match = tagRegex.firstMatch(rawDesc);
+        if (match != null) {
+          m['area'] = match.group(1);
+          m['location'] = match.group(2);
+          m['delivery_eta'] = match.group(3);
+          m['clean_description'] = rawDesc.replaceFirst(tagRegex, '').trim();
+        } else {
+          m['area'] = m['area'] ?? 'Indira Marg (5 km Radius)';
+          m['location'] = m['location'] ?? (shop?['shop_name'] ?? 'Radha Enterprises Central Hub');
+          m['delivery_eta'] = m['delivery_eta'] ?? '⚡ 15 MINS (Express)';
+          m['clean_description'] = rawDesc;
+        }
         if (id.isNotEmpty) combined[id] = m;
       }
     } catch (e) {
@@ -245,6 +305,9 @@ class _AdminProductsViewState extends State<AdminProductsView> {
     final stockController = TextEditingController(text: '50');
     final descController = TextEditingController();
     final imageUrlController = TextEditingController();
+    final locationController = TextEditingController(text: 'Radha Enterprises Central Hub, Jamnagar');
+    final areaController = TextEditingController(text: 'Indira Marg (5 km Radius)');
+    String selectedDeliveryEta = '⚡ 15 MINS (Express)';
 
     String selectedCategory = 'AC Spare Parts';
     Uint8List? pickedImageBytes;
@@ -389,7 +452,7 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '${(pickedImageBytes!.lengthInBytes / 1024).toStringAsFixed(1)} KB • Real photo selected',
+                                      '${(pickedImageBytes!.lengthInBytes / 1024).toStringAsFixed(1)} KB • Real photo (< 1MB guaranteed)',
                                       style: const TextStyle(color: Color(0xFF16A34A), fontSize: 11, fontWeight: FontWeight.bold),
                                     ),
                                   ],
@@ -432,10 +495,33 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                                           bytes = await File(file.path!).readAsBytes();
                                         }
                                         if (bytes != null) {
-                                          setModalState(() {
-                                            pickedImageBytes = bytes;
-                                            pickedImageName = file.name;
-                                          });
+                                          try {
+                                            final optimized = await _compressImageUnder1MB(bytes);
+                                            if (optimized.lengthInBytes > 1024 * 1024) {
+                                              if (ctx.mounted) {
+                                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text('⚠️ Selected photo exceeds 1MB. Please choose an image under 1MB.'),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              }
+                                              return;
+                                            }
+                                            setModalState(() {
+                                              pickedImageBytes = optimized;
+                                              pickedImageName = file.name;
+                                            });
+                                          } catch (err) {
+                                            if (ctx.mounted) {
+                                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                                SnackBar(
+                                                  content: Text('Image Error: $err'),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            }
+                                          }
                                         }
                                       }
                                     } catch (e) {
@@ -527,6 +613,121 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                       contentPadding: const EdgeInsets.all(12),
                     ),
                   ),
+                  const SizedBox(height: 14),
+
+                  // Location & Delivery Area Section for Fast Hyperlocal Delivery
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(Icons.bolt_rounded, size: 16, color: Color(0xFFB45309)),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Hyperlocal Delivery Area & Store Hub *',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Store / Hub Location *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF334155))),
+                                  const SizedBox(height: 4),
+                                  TextField(
+                                    controller: locationController,
+                                    decoration: InputDecoration(
+                                      hintText: 'e.g. Radha Enterprises Central Hub, Jamnagar',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                      prefixIcon: const Icon(Icons.store_rounded, size: 18, color: Color(0xFF2563EB)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Delivery Area / Serving Zone *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF334155))),
+                                  const SizedBox(height: 4),
+                                  TextField(
+                                    controller: areaController,
+                                    decoration: InputDecoration(
+                                      hintText: 'e.g. Indira Marg (5 km Radius)',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                      prefixIcon: const Icon(Icons.location_on_rounded, size: 18, color: Color(0xFF16A34A)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          children: ['Indira Marg', 'Patel Colony', 'GIDC Zone', '5 km Radius'].map((preset) {
+                            return ActionChip(
+                              label: Text(preset, style: const TextStyle(fontSize: 11)),
+                              padding: EdgeInsets.zero,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              onPressed: () {
+                                setModalState(() {
+                                  areaController.text = '$preset (5 km Radius)';
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Text('Delivery Guarantee: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: selectedDeliveryEta,
+                                items: const [
+                                  DropdownMenuItem(value: '⚡ 15 MINS (Express)', child: Text('⚡ 15 MINS (Instant Hyperlocal)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                                  DropdownMenuItem(value: '⚡ 30 MINS (Priority)', child: Text('⚡ 30 MINS (Priority Express)', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'Same-Day Fast Delivery', child: Text('Same-Day Fast Delivery', style: TextStyle(fontSize: 12))),
+                                ],
+                                onChanged: (val) {
+                                  if (val != null) setModalState(() => selectedDeliveryEta = val);
+                                },
+                                decoration: InputDecoration(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -567,6 +768,16 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                       final desc = descController.text.trim().isNotEmpty
                           ? descController.text.trim()
                           : 'Genuine store certified item with manufacturer warranty.';
+                      final location = locationController.text.trim().isNotEmpty
+                          ? locationController.text.trim()
+                          : 'Radha Enterprises Central Hub, Jamnagar';
+                      final area = areaController.text.trim().isNotEmpty
+                          ? areaController.text.trim()
+                          : 'Indira Marg (5 km Radius)';
+                      final deliveryEta = selectedDeliveryEta;
+
+                      // Encode structured delivery metadata tags for 100% database compatibility
+                      final fullDesc = '[Area: $area | Hub: $location | ETA: $deliveryEta] $desc';
 
                       if (title.isEmpty || price <= 0) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -602,11 +813,11 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                             'shop_id': validShopId,
                             'product_name': title,
                             'price': price,
-                            'description': desc,
+                            'description': fullDesc,
                             'sku': finalSku,
                             'image': finalImage,
                             'status': 'ACTIVE',
-                          }).select().single().timeout(const Duration(seconds: 4));
+                          }).select().single().timeout(const Duration(seconds: 12));
                           createdProductId = inserted['product_id']?.toString();
                           break;
                         } catch (e) {
@@ -621,7 +832,19 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                         }
                       }
 
-                      final effectiveId = createdProductId ?? 'PROD_${DateTime.now().millisecondsSinceEpoch}';
+                      if (createdProductId == null) {
+                        setModalState(() => isPublishing = false);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to publish product to live store. Please check connection and retry.'),
+                            backgroundColor: Color(0xFFDC2626),
+                          ),
+                        );
+                        return;
+                      }
+
+                      final effectiveId = createdProductId;
 
                       final newProd = {
                         'id': effectiveId,
@@ -636,7 +859,11 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                         'mrp': mrp,
                         'sku': finalSku,
                         'stock': stock,
-                        'description': desc,
+                        'description': fullDesc,
+                        'clean_description': desc,
+                        'area': area,
+                        'location': location,
+                        'delivery_eta': deliveryEta,
                         'icon': 'inventory_2_rounded',
                         'image_url': finalImage,
                         'image': finalImage,
@@ -852,6 +1079,7 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                               columns: const [
                                 DataColumn(label: Text('PRODUCT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF475569)))),
                                 DataColumn(label: Text('CATEGORY', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF475569)))),
+                                DataColumn(label: Text('LOCATION & AREA', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF475569)))),
                                 DataColumn(label: Text('SKU', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF475569)))),
                                 DataColumn(label: Text('SELLING PRICE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF475569)))),
                                 DataColumn(label: Text('MRP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF475569)))),
@@ -894,6 +1122,23 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                                           borderRadius: BorderRadius.circular(6),
                                         ),
                                         child: Text(cat, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            (prod['area'] ?? '5 km Radius').toString(),
+                                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                          ),
+                                          Text(
+                                            (prod['location'] ?? 'Central Hub').toString(),
+                                            style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     DataCell(Text(sku, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontFamily: 'monospace'))),

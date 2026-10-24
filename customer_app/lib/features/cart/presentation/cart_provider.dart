@@ -109,6 +109,13 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     _saveToCache(updated);
   }
 
+  void addItemWithQuantity(Map<String, dynamic> product, int quantity) {
+    if (quantity <= 0) return;
+    for (int i = 0; i < quantity; i++) {
+      addItem(product);
+    }
+  }
+
   void updateQuantity(String name, int change) {
     final List<CartItem> updated = [];
     for (final item in state) {

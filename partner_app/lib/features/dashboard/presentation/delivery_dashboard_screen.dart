@@ -352,6 +352,12 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
             continue;
           }
 
+          final shopkeeperId = (b['shopkeeper_id'] ?? b['partner_id'] ?? '').toString();
+          // Delivery agent only receives order AFTER a shopkeeper has accepted it
+          if (bStatus == 'PENDING_SHOPKEEPER' || (bStatus == 'PLACED' && shopkeeperId.isEmpty)) {
+            continue;
+          }
+
           final bId = (b['id'] ?? b['booking_id'] ?? b['order_id'] ?? b['assignment_id'])?.toString();
           final bOrderId = (b['order_id'] ?? b['order_code'] ?? bId)?.toString();
 
@@ -488,66 +494,27 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
   }
 
   Future<void> _acceptTask(Map<String, dynamic> task) async {
-    final assignmentId = task['assignment_id'];
-    final earning = (task['earning'] as num?)?.toDouble() ?? 40.0;
-
-    setState(() {
-      _activeTasks.removeWhere((t) => t['assignment_id'] == assignmentId);
-      _activeDeliveriesCount = _activeTasks.length;
-      _completedDeliveries += 1;
-      _todayEarnings += earning;
-      _recentCompletedDeliveries.insert(0, {
-        'order_code': task['order_id'] ?? '8921',
-        'items_summary': task['items_summary'] ?? '#SH-DEL-8921',
-        'shop_name': task['shop_name'] ?? 'Local Store',
-        'earning': earning,
-        'time': 'Just now',
+    if (_isTestMode) {
+      final assignmentId = task['assignment_id'];
+      final earning = (task['earning'] as num?)?.toDouble() ?? 40.0;
+      setState(() {
+        _activeTasks.removeWhere((t) => (assignmentId != null && t['assignment_id'] == assignmentId) || t['order_id'] == task['order_id']);
+        _activeDeliveriesCount = _activeTasks.length;
+        _completedDeliveries += 1;
+        _todayEarnings += earning;
       });
-    });
-
-    try {
-      if (assignmentId != null) {
-        final client = Supabase.instance.client;
-        await client
-            .from('delivery_assignments')
-            .update({'status': 'DELIVERED', 'delivered_at': DateTime.now().toIso8601String()})
-            .eq('assignment_id', assignmentId);
-
-        try {
-          await client.from('delivery_tracking').insert({
-            'assignment_id': assignmentId,
-            'latitude': (task['customer_lat'] as num?)?.toDouble() ?? (task['rider_lat'] as num?)?.toDouble() ?? 0.0,
-            'longitude': (task['customer_lng'] as num?)?.toDouble() ?? (task['rider_lng'] as num?)?.toDouble() ?? 0.0,
-            'accuracy': 5.0,
-            'speed': 0.0,
-            'recorded_at': DateTime.now().toIso8601String(),
-          });
-        } catch (_) {}
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ Delivery Completed! ₹${earning.toStringAsFixed(0)} added to your earnings.'),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
-
-      final bId = (assignmentId ?? task['order_id'])?.toString();
-      if (bId != null) {
-        final existingBooking = LiveBookingSyncService.instance.getBooking(bId);
-        if (existingBooking != null) {
-          await LiveBookingSyncService.instance.submitBooking({
-            ...existingBooking,
-            'status': 'DELIVERED',
-            'service_status': 'COMPLETED',
-            'delivered_at': DateTime.now().toIso8601String(),
-          });
-        }
-      }
-    } catch (_) {}
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✓ Delivery Completed! ₹${earning.toStringAsFixed(0)} added to your earnings.'),
-          backgroundColor: const Color(0xFF10B981),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      return;
     }
+    _openLiveMap(task);
   }
 
   DateTime? _lastMapOpenTime;
@@ -566,6 +533,30 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
                 'title': 'Live Courier Radar & Fleet View',
                 'status': 'STANDBY',
               });
+
+    if (task != null) {
+      final bId = (task['booking_id'] ?? task['order_id'] ?? task['assignment_id'] ?? task['id'])?.toString();
+      if (bId != null && bId.isNotEmpty) {
+        try {
+          final existing = LiveBookingSyncService.instance.getBooking(bId);
+          if (existing != null) {
+            final curAgent = (existing['delivery_agent_id'] ?? '').toString();
+            if (curAgent.isEmpty) {
+              final agentId = _partnerId.isNotEmpty ? _partnerId : 'DELIVERY_COURIER';
+              LiveBookingSyncService.instance.submitBooking({
+                ...existing,
+                'delivery_agent_id': agentId,
+                'delivery_agent_name': _agentName,
+                'delivery_agent_phone': '',
+                'rider_lat': task['rider_lat'] ?? 22.4707,
+                'rider_lng': task['rider_lng'] ?? 70.0577,
+                'status': existing['status'] == 'ACCEPTED_BY_SHOPKEEPER' ? 'AGENT_ASSIGNED_HEADING_TO_STORE' : existing['status'],
+              });
+            }
+          }
+        } catch (_) {}
+      }
+    }
     context.push('/delivery/map', extra: taskPayload);
   }
 
@@ -687,7 +678,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
                     // 5. Today's Goal Progress Card
                     DeliveryDailyGoalCard(
                       completedCount: _completedDeliveries,
-                      targetCount: 0,
+                      targetCount: 8,
                       bonusAmount: 0,
                       onTap: () {},
                     ),

@@ -376,13 +376,13 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
               (o['order_code'] != null && (o['order_code'] == bCode || o['order_code'] == bId)));
 
           if (!alreadyPresent) {
-            final rawStatus = (b['status'] ?? 'New').toString();
+            final rawStatus = (b['status'] ?? 'New').toString().toUpperCase();
             String displayStatus = 'New';
-            if (rawStatus.toUpperCase() == 'PACKING' || rawStatus.toUpperCase() == 'PREPARING' || rawStatus == 'Preparing') {
+            if (rawStatus == 'PACKING' || rawStatus == 'PREPARING' || rawStatus == 'ACCEPTED_BY_SHOPKEEPER' || rawStatus == 'ACCEPTED') {
               displayStatus = 'Preparing';
-            } else if (rawStatus.toUpperCase() == 'READY' || rawStatus.toUpperCase() == 'READY_FOR_PICKUP' || rawStatus == 'Ready for Pickup') {
+            } else if (rawStatus == 'READY' || rawStatus == 'READY_FOR_PICKUP' || rawStatus == 'OUT_FOR_DELIVERY' || rawStatus == 'PICKED_UP' || rawStatus == 'ASSIGNED_TO_DELIVERY' || rawStatus == 'FINDING_DELIVERY_AGENT') {
               displayStatus = 'Ready for Pickup';
-            } else if (rawStatus.toUpperCase() == 'DELIVERED' || rawStatus.toUpperCase() == 'COMPLETED') {
+            } else if (rawStatus == 'DELIVERED' || rawStatus == 'COMPLETED') {
               displayStatus = 'Completed';
             }
 

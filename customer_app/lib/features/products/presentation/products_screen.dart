@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../cart/presentation/cart_provider.dart';
+import '../services/product_reviews_service.dart';
 import 'products_provider.dart';
 
 class ProductsScreen extends ConsumerStatefulWidget {
@@ -286,7 +287,10 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                       );
                     }
 
-                    return GridView.builder(
+                    return RefreshIndicator(
+                      onRefresh: () async => ref.refresh(productsProvider.future),
+                      color: AppTheme.primaryColor,
+                      child: GridView.builder(
                       padding: EdgeInsets.only(
                         left: 16,
                         right: 16,
@@ -297,14 +301,15 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                         crossAxisCount: 2,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 14,
-                        childAspectRatio: 0.62,
+                        childAspectRatio: 0.56,
                       ),
                       itemCount: filteredProducts.length,
                       itemBuilder: (context, index) {
                         final item = filteredProducts[index];
                         return _buildGridProductCard(context, item);
                       },
-                    );
+                    ),
+                  );
                   },
                 ),
               ),
@@ -403,7 +408,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     final bool isOutOfStock = stock <= 0;
 
     return GestureDetector(
-      onTap: () => _showProductDetailsModal(context, item, images),
+      onTap: () => context.push('/products/details', extra: item),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -512,8 +517,80 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               ],
             ),
 
+            // Dynamic Real Rating & Delivery ETA Pill with Area
             Padding(
-              padding: const EdgeInsets.all(10.0),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xfffef3c7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.bolt_rounded, size: 10, color: Color(0xffb45309)),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              (item['area'] != null && item['area'].toString().isNotEmpty)
+                                  ? '15M • ${item['area']}'
+                                  : '15 MINS',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900, color: Color(0xffb45309)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  () {
+                    final stats = ProductReviewsService.instance.getProductRatingStats(item['id']?.toString() ?? '');
+                    final bool hasRat = stats['has_ratings'] == true;
+                    final double rat = hasRat ? (stats['average_rating'] as num).toDouble() : 0.0;
+                    if (hasRat) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff15803d),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              rat.toStringAsFixed(1),
+                              style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(Icons.star_rounded, size: 9.5, color: Colors.white),
+                          ],
+                        ),
+                      );
+                    }
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xfff1f5f9),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        '★ New',
+                        style: TextStyle(color: Color(0xff64748b), fontSize: 9, fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  }(),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -642,216 +719,6 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  // Multi-Photo Detail Modal
-  void _showProductDetailsModal(BuildContext context, Map<String, dynamic> item, List<String> images) {
-    int activePage = 0;
-    final name = item['name'] ?? item['product_name'] ?? item['title'] ?? 'Product';
-    final price = '₹${item['price'] ?? 349}';
-    final originalPrice = item['original_price'] != null ? '₹${item['original_price']}' : '';
-    final discountRaw = item['discount'];
-    final String discount = (discountRaw != null && discountRaw.toString().trim().isNotEmpty && discountRaw.toString() != '0')
-        ? (discountRaw.toString().contains('%') ? discountRaw.toString() : '$discountRaw% OFF')
-        : '';
-    final String cat = item['category'] ?? '';
-    final String desc = item['description'] ?? 'High quality genuine spare part & product verified for 5 km hyperlocal home delivery.';
-    final stockRaw = item['stock'] ?? item['stock_quantity'] ?? 50;
-    final int stock = (stockRaw is num)
-        ? stockRaw.toInt()
-        : (int.tryParse(stockRaw.toString()) ?? 50);
-    final bool isLowStock = stock > 0 && stock <= 10;
-    final bool isOutOfStock = stock <= 0;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return SizedBox(
-              height: MediaQuery.of(context).size.height * 0.75,
-              child: Column(
-                children: [
-                  // Modal Header handle
-                  Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xffcbd5e1),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-
-                  // Carousel Header (PageView with dots)
-                  Stack(
-                    alignment: Alignment.bottomCenter,
-                    children: [
-                      SizedBox(
-                        height: 220,
-                        child: images.isNotEmpty
-                            ? PageView.builder(
-                                itemCount: images.length,
-                                onPageChanged: (idx) {
-                                  setModalState(() => activePage = idx);
-                                },
-                                itemBuilder: (context, imgIdx) {
-                                  return _buildProductImage(images[imgIdx], cat, height: 220);
-                                },
-                              )
-                            : _buildPlaceholderImage(cat, height: 220),
-                      ),
-
-                      // Carousel Dots Indicator
-                      if (images.length > 1)
-                        Positioned(
-                          bottom: 10,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(images.length, (idx) {
-                              return AnimatedContainer(
-                                duration: const Duration(milliseconds: 250),
-                                margin: const EdgeInsets.symmetric(horizontal: 3),
-                                width: activePage == idx ? 16 : 7,
-                                height: 7,
-                                decoration: BoxDecoration(
-                                  color: activePage == idx ? AppTheme.primaryColor : Colors.white.withValues(alpha: 0.7),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                    ],
-                  ),
-
-                  // Product Specs & Details
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xffeff6ff),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: const Color(0xffbfdbfe)),
-                                  ),
-                                  child: Text(
-                                    cat,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              if (isLowStock)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xffea580c),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '🔥 Only $stock left in stock!',
-                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                  ),
-                                )
-                              else if (!isOutOfStock)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xffdcfce7),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Text(
-                                    'In Stock (Fast Delivery)',
-                                    style: TextStyle(color: Color(0xff15803d), fontSize: 11, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Text(price, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppTheme.primaryColor)),
-                              if (originalPrice.isNotEmpty) ...[
-                                const SizedBox(width: 8),
-                                Text(originalPrice, style: const TextStyle(fontSize: 14, color: Color(0xff94a3b8), decoration: TextDecoration.lineThrough)),
-                              ],
-                              if (discount.isNotEmpty) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: const Color(0xfff0fdf4), borderRadius: BorderRadius.circular(4)),
-                                  child: Text(discount, style: const TextStyle(color: Color(0xff16a34a), fontSize: 11, fontWeight: FontWeight.bold)),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          const Text('Product Description', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xff0f172a))),
-                          const SizedBox(height: 6),
-                          Text(desc, style: const TextStyle(fontSize: 13, color: Color(0xff64748b), height: 1.4)),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Bottom Action Bar
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      border: Border(top: BorderSide(color: Color(0xffe2e8f0))),
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isOutOfStock ? const Color(0xffcbd5e1) : AppTheme.primaryColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        onPressed: isOutOfStock
-                            ? null
-                            : () {
-                                ref.read(cartProvider.notifier).addItem(item);
-                                Navigator.pop(ctx);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('$name added to cart!'),
-                                    backgroundColor: AppTheme.successColor,
-                                  ),
-                                );
-                              },
-                        child: Text(
-                          isOutOfStock ? 'Sold Out' : 'Add to Cart • $price',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
     );
   }
 

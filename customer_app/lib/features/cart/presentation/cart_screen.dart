@@ -82,6 +82,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
 
     final itemsSummary = cartItems.map((item) => '${item.name} x${item.quantity}').join(', ');
+    final itemsJson = cartItems.map((item) => {
+      'id': item.id,
+      'product_id': item.id,
+      'name': item.name,
+      'quantity': item.quantity,
+      'price': item.price,
+    }).toList();
     final pickupOtp = _generateOtpPin();
     final deliveryOtp = _generateOtpPin();
     final otpPin = deliveryOtp;
@@ -172,12 +179,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'service_name': 'Store Order Delivery',
             'category_id': 'store',
             'category_name': 'store',
+            'items': itemsJson,
             'items_summary': itemsSummary,
+            'subtotal': subtotal.toDouble(),
             'address': shippingAddress,
             'customer_address': shippingAddress,
             'estimated_amount': total.toDouble(),
             'final_amount': total.toDouble(),
+            'total_amount': total.toDouble(),
+            'grand_total': total.toDouble(),
             'delivery_charge': deliveryFee.toDouble(),
+            'delivery_fee': deliveryFee.toDouble(),
             'customer_lat': lat,
             'customer_lng': lng,
             'pickup_otp': pickupOtp,
@@ -222,12 +234,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'service_name': 'Store Order Delivery',
             'category_id': 'store',
             'category_name': 'store',
+            'items': itemsJson,
             'items_summary': itemsSummary,
+            'subtotal': subtotal.toDouble(),
             'address': shippingAddress,
             'customer_address': shippingAddress,
             'estimated_amount': total.toDouble(),
             'final_amount': total.toDouble(),
+            'total_amount': total.toDouble(),
+            'grand_total': total.toDouble(),
             'delivery_charge': deliveryFee.toDouble(),
+            'delivery_fee': deliveryFee.toDouble(),
             'customer_lat': lat,
             'customer_lng': lng,
             'pickup_otp': pickupOtp,

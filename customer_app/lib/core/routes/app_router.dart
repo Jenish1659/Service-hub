@@ -28,6 +28,7 @@ import '../../features/services/presentation/service_finding_partner_screen.dart
 import '../../features/services/services/multi_service_booking_service.dart';
 import '../../features/services/services/ac_availability_service.dart';
 import '../../features/products/presentation/products_screen.dart';
+import '../../features/products/presentation/customer_product_details_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/profile/presentation/support_screen.dart';
@@ -99,6 +100,18 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: '/products',
           builder: (BuildContext context, GoRouterState state) => const ProductsScreen(),
+          routes: [
+            GoRoute(
+              path: 'details',
+              parentNavigatorKey: _rootNavigatorKey,
+              builder: (BuildContext context, GoRouterState state) {
+                final product = state.extra is Map<String, dynamic>
+                    ? state.extra as Map<String, dynamic>
+                    : <String, dynamic>{};
+                return CustomerProductDetailsScreen(product: product);
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: '/orders',
