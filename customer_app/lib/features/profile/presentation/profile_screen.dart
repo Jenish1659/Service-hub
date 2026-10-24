@@ -1,5 +1,4 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
+import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/customer_profile_service.dart';
@@ -28,15 +27,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   static const Color textMuted = Color(0xFF64748B);
   static const Color borderGrey = Color(0xFFE2E8F0);
 
-  bool get _isTest {
-    if (kIsWeb) return false;
-    try {
-      return Platform.environment.containsKey('FLUTTER_TEST') ||
-          WidgetsBinding.instance.runtimeType.toString().contains('Test');
-    } catch (_) {
-      return false;
-    }
-  }
+
 
   @override
   void initState() {
@@ -57,6 +48,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       MaterialPageRoute(builder: (_) => screen),
     );
     _loadData();
+  }
+
+  Widget _buildAvatarContent(String? avatarUrl, String? name) {
+    if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
+      final clean = avatarUrl.trim();
+      if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+        final f = File(clean);
+        if (f.existsSync()) {
+          return Image.file(f, fit: BoxFit.cover, width: 84, height: 84);
+        }
+      } else {
+        return Image.network(
+          clean,
+          fit: BoxFit.cover,
+          width: 84,
+          height: 84,
+          errorBuilder: (_, __, ___) => _buildInitials(name),
+        );
+      }
+    }
+    return _buildInitials(name);
+  }
+
+  Widget _buildInitials(String? name) {
+    final clean = (name ?? '').trim();
+    final initial = clean.isNotEmpty ? clean[0].toUpperCase() : 'A';
+    return Center(
+      child: Text(
+        initial,
+        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: primaryBlue),
+      ),
+    );
   }
 
   @override
@@ -133,35 +156,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     Stack(
                       children: [
-                        Container(
-                          width: 84,
-                          height: 84,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFEFF6FF),
-                            border: Border.all(color: Colors.white, width: 3),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.08),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                        GestureDetector(
+                          onTap: () => _navigateTo(const CustomerPersonalInfoScreen()),
+                          child: Container(
+                            width: 84,
+                            height: 84,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFFEFF6FF),
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.08),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: _buildAvatarContent(
+                                _profile['avatar_url']?.toString(),
+                                _profile['full_name']?.toString(),
                               ),
-                            ],
-                            image: _isTest
-                                ? null
-                                : DecorationImage(
-                                    image: NetworkImage(
-                                      _profile['avatar_url'] ??
-                                          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
-                                    ),
-                                    fit: BoxFit.cover,
-                                  ),
+                            ),
                           ),
-                          child: _isTest
-                              ? const Center(
-                                  child: Icon(Icons.person_rounded, size: 44, color: primaryBlue),
-                                )
-                              : null,
                         ),
                         Positioned(
                           bottom: 0,

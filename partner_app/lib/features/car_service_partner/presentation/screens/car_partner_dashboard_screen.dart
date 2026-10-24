@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -258,19 +259,59 @@ class _CarPartnerDashboardScreenState extends State<CarPartnerDashboardScreen> {
     );
   }
 
+  Widget _buildHeaderAvatar(String partnerName) {
+    final photo = (_partnerProfile?['profile_image'] ?? _partnerProfile?['avatar_url'] ?? _partnerProfile?['photo_path'])?.toString().trim();
+    if (photo != null && photo.isNotEmpty) {
+      final isNetwork = photo.startsWith('http://') || photo.startsWith('https://');
+      if (!isNetwork) {
+        final f = File(photo);
+        if (f.existsSync()) {
+          return ClipOval(child: Image.file(f, fit: BoxFit.cover, width: 44, height: 44));
+        }
+      } else {
+        return ClipOval(
+          child: Image.network(
+            photo,
+            fit: BoxFit.cover,
+            width: 44,
+            height: 44,
+            errorBuilder: (_, __, ___) => _buildHeaderInitials(partnerName),
+          ),
+        );
+      }
+    }
+    return _buildHeaderInitials(partnerName);
+  }
+
+  Widget _buildHeaderInitials(String partnerName) {
+    final clean = partnerName.trim();
+    if (clean.isNotEmpty && clean != 'Partner') {
+      return Center(
+        child: Text(
+          clean[0].toUpperCase(),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryBlue),
+        ),
+      );
+    }
+    return const Center(child: Icon(Icons.person_rounded, color: primaryBlue, size: 26));
+  }
+
   Widget _buildTopAppBar(String partnerName) {
     return Row(
       children: [
         // Profile Avatar
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: primaryBlue.withValues(alpha: 0.1),
-            border: Border.all(color: primaryBlue.withValues(alpha: 0.4), width: 1.5),
+        GestureDetector(
+          onTap: () => setState(() => _activeNavIndex = 4),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: primaryBlue.withValues(alpha: 0.1),
+              border: Border.all(color: primaryBlue.withValues(alpha: 0.4), width: 1.5),
+            ),
+            child: _buildHeaderAvatar(partnerName),
           ),
-          child: const Icon(Icons.person_rounded, color: primaryBlue, size: 26),
         ),
         const SizedBox(width: 12),
         // Greeting & Subtitle

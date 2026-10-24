@@ -82,6 +82,7 @@ import '../../features/cooking_partner/presentation/screens/cooking_partner_dash
 import '../../features/cooking_partner/presentation/screens/cooking_partner_profile_screen.dart';
 import '../../features/laundry_partner/presentation/screens/laundry_partner_dashboard_screen.dart';
 import '../../features/laundry_partner/presentation/screens/laundry_partner_profile_screen.dart';
+import '../../features/laundry_partner/presentation/screens/laundry_store_map_screen.dart';
 import '../../features/car_service_partner/presentation/screens/car_partner_dashboard_screen.dart';
 import '../../features/car_service_partner/presentation/screens/car_partner_profile_screen.dart';
 import '../../features/car_service_partner/presentation/screens/car_live_map_screen.dart';
@@ -362,6 +363,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/profile/laundry',
       builder: (context, state) => const LaundryPartnerProfileScreen(),
+    ),
+    GoRoute(
+      path: '/dashboard/laundry/map',
+      builder: (context, state) => const LaundryStoreMapScreen(),
     ),
     GoRoute(
       path: '/profile/car-service',

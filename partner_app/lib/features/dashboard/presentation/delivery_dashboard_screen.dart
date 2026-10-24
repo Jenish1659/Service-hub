@@ -34,6 +34,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
   bool _isOnline = true;
   String _agentName = 'Delivery Agent';
   String _agentCity = 'Rajkot, Gujarat';
+  String? _agentPhotoPath;
   double _todayEarnings = 0.0;
   int _completedDeliveries = 0;
   int _activeDeliveriesCount = 0;
@@ -220,6 +221,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
         setState(() {
           _agentName = resolvedName;
           _agentCity = '$city, $state';
+          _agentPhotoPath = (activeUser['profile_image'] ?? activeUser['avatar_url'] ?? activeUser['photo_path'])?.toString();
           _todayEarnings = 0.0;
           _completedDeliveries = 0;
           _activeDeliveriesCount = 0;
@@ -594,6 +596,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
                       agentName: _agentName,
                       isOnline: _isOnline,
                       unreadNotificationsCount: 0,
+                      photoPath: _agentPhotoPath,
                       onNotificationsTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(

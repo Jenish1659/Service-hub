@@ -1,7 +1,7 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
+import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../data/customer_profile_service.dart';
 
 class CustomerPersonalInfoScreen extends StatefulWidget {
@@ -20,17 +20,10 @@ class _CustomerPersonalInfoScreenState extends State<CustomerPersonalInfoScreen>
   late TextEditingController _emergencyNameController;
   late TextEditingController _emergencyPhoneController;
   String _selectedGender = 'Male';
+  String? _avatarUrl;
   bool _isLoading = false;
 
-  bool get _isTest {
-    if (kIsWeb) return false;
-    try {
-      return Platform.environment.containsKey('FLUTTER_TEST') ||
-          WidgetsBinding.instance.runtimeType.toString().contains('Test');
-    } catch (_) {
-      return false;
-    }
-  }
+
 
   static const Color primaryBlue = Color(0xFF2563EB);
   static const Color darkSlate = Color(0xFF0F172A);
@@ -50,6 +43,7 @@ class _CustomerPersonalInfoScreenState extends State<CustomerPersonalInfoScreen>
     _emergencyNameController = TextEditingController(text: profile['emergency_contact_name'] ?? '');
     _emergencyPhoneController = TextEditingController(text: profile['emergency_contact_phone'] ?? '');
     _selectedGender = profile['gender'] ?? 'Male';
+    _avatarUrl = profile['avatar_url']?.toString();
   }
 
   @override
@@ -102,6 +96,7 @@ class _CustomerPersonalInfoScreenState extends State<CustomerPersonalInfoScreen>
       'gender': _selectedGender,
       'emergency_contact_name': _emergencyNameController.text.trim(),
       'emergency_contact_phone': _emergencyPhoneController.text.trim(),
+      if (_avatarUrl != null) 'avatar_url': _avatarUrl,
     });
 
     setState(() => _isLoading = false);
@@ -116,6 +111,125 @@ class _CustomerPersonalInfoScreenState extends State<CustomerPersonalInfoScreen>
       );
       Navigator.pop(context, true);
     }
+  }
+
+  Future<void> _showPhotoSourceChoice() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Update Profile Photo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkSlate)),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(color: Color(0xFFEFF6FF), shape: BoxShape.circle),
+                  child: const Icon(Icons.camera_alt_rounded, color: primaryBlue),
+                ),
+                title: const Text('Take Photo', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(color: Color(0xFFECFDF5), shape: BoxShape.circle),
+                  child: const Icon(Icons.photo_library_rounded, color: verifiedGreen),
+                ),
+                title: const Text('Choose from Gallery', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+              if (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(color: Color(0xFFFEE2E2), shape: BoxShape.circle),
+                    child: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  ),
+                  title: const Text('Remove Photo', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() => _avatarUrl = null);
+                    CustomerProfileService.instance.updateProfile({'avatar_url': ''});
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Profile photo removed'), behavior: SnackBarBehavior.floating),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (source != null) {
+      await _pickAndSavePhoto(source);
+    }
+  }
+
+  Future<void> _pickAndSavePhoto(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
+      if (picked != null) {
+        setState(() {
+          _avatarUrl = picked.path;
+        });
+        await CustomerProfileService.instance.updateProfile({'avatar_url': picked.path});
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile photo updated successfully!'),
+              backgroundColor: verifiedGreen,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not access ${source == ImageSource.camera ? "camera" : "gallery"}: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Widget _buildAvatarImageContent() {
+    if (_avatarUrl != null && _avatarUrl!.trim().isNotEmpty) {
+      final url = _avatarUrl!.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        final f = File(url);
+        if (f.existsSync()) {
+          return Image.file(f, fit: BoxFit.cover, width: 96, height: 96);
+        }
+      } else {
+        return Image.network(
+          url,
+          fit: BoxFit.cover,
+          width: 96,
+          height: 96,
+          errorBuilder: (_, __, ___) => _buildInitials(),
+        );
+      }
+    }
+    return _buildInitials();
+  }
+
+  Widget _buildInitials() {
+    final name = _nameController.text.trim();
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'A';
+    return Center(
+      child: Text(
+        initial,
+        style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: primaryBlue),
+      ),
+    );
   }
 
   @override
@@ -153,42 +267,33 @@ class _CustomerPersonalInfoScreenState extends State<CustomerPersonalInfoScreen>
               Center(
                 child: Stack(
                   children: [
-                    Container(
-                      width: 96,
-                      height: 96,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.blue.shade50,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                        image: _isTest
-                            ? null
-                            : const DecorationImage(
-                                image: NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80'),
-                                fit: BoxFit.cover,
-                              ),
+                    GestureDetector(
+                      onTap: _showPhotoSourceChoice,
+                      child: Container(
+                        width: 96,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFFEFF6FF),
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: _buildAvatarImageContent(),
+                        ),
                       ),
-                      child: _isTest
-                          ? const Center(
-                              child: Icon(Icons.person_rounded, size: 50, color: primaryBlue),
-                            )
-                          : null,
                     ),
                     Positioned(
                       bottom: 0,
                       right: 0,
                       child: GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Photo update option selected')),
-                          );
-                        },
+                        onTap: _showPhotoSourceChoice,
                         child: Container(
                           width: 30,
                           height: 30,

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../controllers/shopkeeper_profile_controller.dart';
@@ -41,6 +42,40 @@ class _ShopkeeperProfileScreenState extends State<ShopkeeperProfileScreen> {
     if (mounted) {
       setState(() {});
     }
+  }
+
+  Widget _buildStoreAvatar() {
+    final photo = (_controller.shopData?['profile_image'] ??
+            _controller.shopData?['store_image'] ??
+            _controller.shopData?['logo_url'] ??
+            _controller.shopData?['avatar_url'] ??
+            _controller.shopData?['photo_path'])
+        ?.toString()
+        .trim();
+    if (photo != null && photo.isNotEmpty) {
+      final isNetwork = photo.startsWith('http://') || photo.startsWith('https://');
+      if (!isNetwork) {
+        final f = File(photo);
+        if (f.existsSync()) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.file(f, fit: BoxFit.cover, width: 72, height: 72),
+          );
+        }
+      } else {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Image.network(
+            photo,
+            fit: BoxFit.cover,
+            width: 72,
+            height: 72,
+            errorBuilder: (_, __, ___) => const Icon(Icons.storefront_rounded, size: 40, color: Colors.white),
+          ),
+        );
+      }
+    }
+    return const Icon(Icons.storefront_rounded, size: 40, color: Colors.white);
   }
 
   void _navigateTo(String path) {
@@ -192,49 +227,48 @@ class _ShopkeeperProfileScreenState extends State<ShopkeeperProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           // Store Avatar with Camera Badge
-                          Stack(
-                            children: [
-                              Container(
-                                width: 72,
-                                height: 72,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.4),
-                                    width: 2,
+                          GestureDetector(
+                            onTap: () => _navigateTo('/profile/shopkeeper/edit'),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  width: 72,
+                                  height: 72,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.4),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: _buildStoreAvatar(),
+                                ),
+                                Positioned(
+                                  bottom: -2,
+                                  right: -2,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black26,
+                                          blurRadius: 4,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt_rounded,
+                                      size: 13,
+                                      color: emeraldPrimary,
+                                    ),
                                   ),
                                 ),
-                                child: const Icon(
-                                  Icons.storefront_rounded,
-                                  size: 40,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Positioned(
-                                bottom: -2,
-                                right: -2,
-                                child: Container(
-                                  padding: const EdgeInsets.all(5),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black26,
-                                        blurRadius: 4,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.camera_alt_rounded,
-                                    size: 13,
-                                    color: emeraldPrimary,
-                                  ),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           const SizedBox(width: 16),
 

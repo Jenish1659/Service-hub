@@ -287,7 +287,7 @@ class _CustomerBookingDetailsScreenState extends State<CustomerBookingDetailsScr
                               image: _isTest
                                   ? null
                                   : const DecorationImage(
-                                      image: NetworkImage('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80'),
+                                      image: AssetImage('assets/icons/app_logo.png'),
                                       fit: BoxFit.cover,
                                     ),
                             ),

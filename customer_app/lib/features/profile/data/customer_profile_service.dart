@@ -69,7 +69,7 @@ class CustomerProfileService {
     String realDob = '15 March 2005';
     String emergencyName = 'Rahul Bheda';
     String emergencyPhone = '+91 87654 32109';
-    String avatarUrl = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80';
+    String avatarUrl = '';
 
     try {
       final box = _getBox();
@@ -90,6 +90,8 @@ class CustomerProfileService {
       final uName = box.get('user_name');
       if (uName != null && uName.toString().trim().isNotEmpty) realName = uName.toString().trim();
       final uPhone = box.get('user_phone');
+
+
       if (uPhone != null && uPhone.toString().trim().isNotEmpty) realPhone = uPhone.toString().trim();
     } catch (_) {}
 
@@ -639,6 +641,8 @@ class CustomerProfileService {
       final uId = box.get('user_id');
       if (uId != null && uId.toString().isNotEmpty) validCustomerIds.add(uId.toString().trim());
       final uPhone = box.get('user_phone');
+
+
       if (uPhone != null && uPhone.toString().isNotEmpty) {
         final p = uPhone.toString().replaceAll(RegExp(r'\D'), '');
         if (p.isNotEmpty) validPhones.add(p);

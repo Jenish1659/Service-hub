@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +32,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   String _shopkeeperName = 'Store Owner';
   String _shopName = 'ServiceHub Store';
   String _shopAddress = '';
+  String? _storePhotoPath;
   String _shopCategory = 'Store Catalog';
   String _todayHours = '09:00 AM - 08:00 PM';
   double _todaySales = 0.0;
@@ -223,6 +224,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
           } else if (userMap['reviews_count'] is num) {
             _ratingReviewsCount = (userMap['reviews_count'] as num).toInt();
           }
+          _storePhotoPath = (userMap['profile_image'] ?? userMap['store_image'] ?? userMap['logo_url'] ?? userMap['avatar_url'] ?? userMap['photo_path'])?.toString();
         });
 
         // Query real reviews if partnerId or userId is available
@@ -1362,6 +1364,30 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     );
   }
 
+  Widget _buildStoreHeroAvatar() {
+    final clean = _storePhotoPath?.trim() ?? '';
+    if (clean.isNotEmpty) {
+      final isNetwork = clean.startsWith('http://') || clean.startsWith('https://');
+      if (!isNetwork) {
+        final f = File(clean);
+        if (f.existsSync()) {
+          return ClipOval(child: Image.file(f, fit: BoxFit.cover, width: 52, height: 52));
+        }
+      } else {
+        return ClipOval(
+          child: Image.network(
+            clean,
+            fit: BoxFit.cover,
+            width: 52,
+            height: 52,
+            errorBuilder: (_, __, ___) => const Icon(Icons.storefront_rounded, color: Colors.white, size: 28),
+          ),
+        );
+      }
+    }
+    return const Icon(Icons.storefront_rounded, color: Colors.white, size: 28);
+  }
+
   // -------------------------------------------------------------
   // 1. Top Hero Storefront Card (Modern Emerald Gradient & CTA)
   // -------------------------------------------------------------
@@ -1403,7 +1429,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.5),
                   ),
-                  child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 28),
+                  child: _buildStoreHeroAvatar(),
                 ),
               ),
               const SizedBox(width: 12),

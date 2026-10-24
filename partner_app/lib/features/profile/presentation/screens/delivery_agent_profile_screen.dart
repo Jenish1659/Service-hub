@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../dashboard/presentation/widgets/delivery_recent_and_nav_widget.dart';
 import '../controllers/delivery_agent_profile_controller.dart';
+import 'delivery_edit_profile_screen.dart';
 
 class DeliveryAgentProfileScreen extends StatefulWidget {
   final DeliveryAgentProfileController? controller;
@@ -36,6 +38,43 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
 
   void _onControllerUpdate() {
     if (mounted) setState(() {});
+  }
+
+  Widget _buildAvatar() {
+    final photo = (_controller.agentData?['profile_image'] ?? _controller.agentData?['avatar_url'] ?? _controller.agentData?['photo_path'])?.toString().trim();
+    if (photo != null && photo.isNotEmpty) {
+      final isNetwork = photo.startsWith('http://') || photo.startsWith('https://');
+      if (!isNetwork) {
+        final f = File(photo);
+        if (f.existsSync()) {
+          return ClipOval(child: Image.file(f, fit: BoxFit.cover, width: 72, height: 72));
+        }
+      } else {
+        return ClipOval(
+          child: Image.network(
+            photo,
+            fit: BoxFit.cover,
+            width: 72,
+            height: 72,
+            errorBuilder: (_, __, ___) => _buildInitials(),
+          ),
+        );
+      }
+    }
+    return _buildInitials();
+  }
+
+  Widget _buildInitials() {
+    final clean = _controller.agentName.trim();
+    if (clean.isNotEmpty && clean != 'Delivery Partner') {
+      return Center(
+        child: Text(
+          clean[0].toUpperCase(),
+          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.deliveryOrangeDark),
+        ),
+      );
+    }
+    return const Center(child: Icon(Icons.two_wheeler_rounded, size: 38, color: AppColors.deliveryOrangeDark));
   }
 
   void _showSignOutDialog() {
@@ -199,31 +238,40 @@ class _DeliveryAgentProfileScreenState extends State<DeliveryAgentProfileScreen>
                                 Row(
                                   children: [
                                     // Avatar with Camera Icon Overlay
-                                    Stack(
-                                      children: [
-                                        Container(
-                                          width: 72,
-                                          height: 72,
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFFFEDD5),
-                                            shape: BoxShape.circle,
-                                            border: Border.all(color: orangeColor, width: 2.5),
-                                          ),
-                                          child: const Icon(Icons.two_wheeler_rounded, size: 38, color: orangeColor),
-                                        ),
-                                        Positioned(
-                                          bottom: 0,
-                                          right: 0,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(5),
-                                            decoration: const BoxDecoration(
-                                              color: orangeColor,
+                                    GestureDetector(
+                                      onTap: () async {
+                                        await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => DeliveryEditProfileScreen(controller: _controller)),
+                                        );
+                                        _controller.loadDeliveryProfile();
+                                      },
+                                      child: Stack(
+                                        children: [
+                                          Container(
+                                            width: 72,
+                                            height: 72,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFFEDD5),
                                               shape: BoxShape.circle,
+                                              border: Border.all(color: orangeColor, width: 2.5),
                                             ),
-                                            child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                                            child: _buildAvatar(),
                                           ),
-                                        ),
-                                      ],
+                                          Positioned(
+                                            bottom: 0,
+                                            right: 0,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(5),
+                                              decoration: const BoxDecoration(
+                                                color: orangeColor,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                     const SizedBox(width: 14),
                                     Expanded(

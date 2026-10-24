@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -221,14 +222,51 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
     );
   }
 
+  Widget _buildHeaderAvatar(String partnerName) {
+    final photo = (_partnerProfile?['profile_image'] ?? _partnerProfile?['avatar_url'] ?? _partnerProfile?['photo_path'])?.toString().trim();
+    if (photo != null && photo.isNotEmpty) {
+      final isNetwork = photo.startsWith('http://') || photo.startsWith('https://');
+      if (!isNetwork) {
+        final f = File(photo);
+        if (f.existsSync()) {
+          return ClipOval(child: Image.file(f, fit: BoxFit.cover, width: 48, height: 48));
+        }
+      } else {
+        return ClipOval(
+          child: Image.network(
+            photo,
+            fit: BoxFit.cover,
+            width: 48,
+            height: 48,
+            errorBuilder: (_, __, ___) => _buildHeaderInitials(partnerName),
+          ),
+        );
+      }
+    }
+    return _buildHeaderInitials(partnerName);
+  }
+
+  Widget _buildHeaderInitials(String partnerName) {
+    final clean = partnerName.trim();
+    if (clean.isNotEmpty && clean != 'Care Partner') {
+      return Center(
+        child: Text(
+          clean[0].toUpperCase(),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryIndigo),
+        ),
+      );
+    }
+    return const Center(child: Icon(Icons.person, color: primaryIndigo, size: 28));
+  }
+
   // ---------------------------------------------------------------------------
   // TAB 0: HOME DASHBOARD
   // ---------------------------------------------------------------------------
   Widget _buildHomeTab() {
-    final partnerName = _partnerProfile?['name'] ??
+    final partnerName = (_partnerProfile?['name'] ??
         _partnerProfile?['full_name'] ??
         _partnerProfile?['username'] ??
-        'Neha Patel';
+        'Care Partner').toString();
 
     final newCount = !_isOnline
         ? 0
@@ -257,27 +295,35 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
           // 1. Top Header Row matching reference UI
           Row(
             children: [
-              Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: primaryIndigo.withValues(alpha: 0.1),
-                    child: const Icon(Icons.person, color: primaryIndigo, size: 28),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 12,
-                      height: 12,
+              GestureDetector(
+                onTap: () => setState(() => _activeNavIndex = 4),
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
-                        color: _isOnline ? const Color(0xFF10B981) : Colors.grey,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                        color: primaryIndigo.withValues(alpha: 0.1),
+                        border: Border.all(color: primaryIndigo.withValues(alpha: 0.3), width: 1.5),
+                      ),
+                      child: _buildHeaderAvatar(partnerName),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: _isOnline ? const Color(0xFF10B981) : Colors.grey,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(

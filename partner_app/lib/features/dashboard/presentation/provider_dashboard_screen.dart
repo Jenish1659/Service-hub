@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -659,6 +660,30 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
     );
   }
 
+  Widget _buildProviderAvatar(String? avatarUrl) {
+    final clean = avatarUrl?.trim() ?? '';
+    if (clean.isNotEmpty) {
+      final isNetwork = clean.startsWith('http://') || clean.startsWith('https://');
+      if (!isNetwork) {
+        final f = File(clean);
+        if (f.existsSync()) {
+          return Image.file(f, fit: BoxFit.cover, width: 38, height: 38);
+        }
+      } else {
+        return Image.network(
+          clean,
+          fit: BoxFit.cover,
+          width: 38,
+          height: 38,
+          errorBuilder: (_, __, ___) => const Center(
+            child: Icon(Icons.person, color: Colors.white, size: 24),
+          ),
+        );
+      }
+    }
+    return const Center(child: Icon(Icons.person, color: Colors.white, size: 24));
+  }
+
   // --- 1. Custom App Bar matching exact uploaded design ---
   PreferredSizeWidget _buildCustomHeader(BuildContext context, ACProviderDashboardState state) {
     return AppBar(
@@ -773,19 +798,7 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
                     border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
                   ),
                   child: ClipOval(
-                    child: (state.avatarUrl != null && state.avatarUrl!.isNotEmpty)
-                        ? Image.network(
-                            state.avatarUrl!,
-                            fit: BoxFit.cover,
-                            width: 38,
-                            height: 38,
-                            errorBuilder: (context, error, stackTrace) => const Center(
-                              child: Icon(Icons.person, color: Colors.white, size: 24),
-                            ),
-                          )
-                        : const Center(
-                            child: Icon(Icons.person, color: Colors.white, size: 24),
-                          ),
+                    child: _buildProviderAvatar(state.avatarUrl),
                   ),
                 ),
                 if (state.isOnline)

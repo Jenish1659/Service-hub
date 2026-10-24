@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 /// Top bar with hamburger menu, ServiceHub branding, notification badge, and avatar
@@ -5,6 +6,7 @@ class DeliveryDashboardHeader extends StatelessWidget {
   final String agentName;
   final bool isOnline;
   final int unreadNotificationsCount;
+  final String? photoPath;
   final VoidCallback? onMenuTap;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
@@ -14,10 +16,46 @@ class DeliveryDashboardHeader extends StatelessWidget {
     required this.agentName,
     this.isOnline = true,
     this.unreadNotificationsCount = 2,
+    this.photoPath,
     this.onMenuTap,
     this.onNotificationsTap,
     this.onProfileTap,
   });
+
+  Widget _buildRiderAvatar() {
+    final clean = photoPath?.trim() ?? '';
+    if (clean.isNotEmpty) {
+      final isNetwork = clean.startsWith('http://') || clean.startsWith('https://');
+      if (!isNetwork) {
+        final f = File(clean);
+        if (f.existsSync()) {
+          return ClipOval(child: Image.file(f, fit: BoxFit.cover, width: 38, height: 38));
+        }
+      } else {
+        return ClipOval(
+          child: Image.network(
+            clean,
+            fit: BoxFit.cover,
+            width: 38,
+            height: 38,
+            errorBuilder: (_, __, ___) => _buildInitials(),
+          ),
+        );
+      }
+    }
+    return _buildInitials();
+  }
+
+  Widget _buildInitials() {
+    return Text(
+      agentName.isNotEmpty ? agentName[0].toUpperCase() : 'D',
+      style: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,14 +193,7 @@ class DeliveryDashboardHeader extends StatelessWidget {
                       ],
                     ),
                     alignment: Alignment.center,
-                    child: Text(
-                      agentName.isNotEmpty ? agentName[0].toUpperCase() : 'D',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
+                    child: _buildRiderAvatar(),
                   ),
                   Positioned(
                     bottom: 0,

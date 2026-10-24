@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,9 +8,10 @@ import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 import 'laundry_order_details_screen.dart';
 import 'laundry_partner_profile_screen.dart';
+import 'laundry_store_map_screen.dart';
 
 /// Screen 1, 2, 6: Dedicated Laundry Partner Dashboard Screen (Matching Design)
-/// 4-Tab Navigation: Home, Orders, Earnings, Profile
+/// 5-Tab Navigation: Home, Orders, Map, Earnings, Profile
 /// 100% Real Data Guarantee • Zero Fake/Mock Data • Counts Start With Zero
 class LaundryPartnerDashboardScreen extends StatefulWidget {
   const LaundryPartnerDashboardScreen({super.key});
@@ -287,12 +289,42 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
           children: [
             _buildHomeTab(),
             _buildOrdersTab(),
+            _activeNavIndex == 2 ? const LaundryStoreMapScreen(isModal: false) : const SizedBox.shrink(),
             _buildEarningsTab(),
             const LaundryPartnerProfileScreen(showBackButton: false),
           ],
         ),
         bottomNavigationBar: _buildBottomNav(),
       ),
+    );
+  }
+
+  Widget _buildHeaderAvatar() {
+    final photoPath = (_partnerProfile?['profile_image'] ?? _partnerProfile?['avatar_url'])?.toString().trim();
+    if (photoPath != null && photoPath.isNotEmpty) {
+      if (!photoPath.startsWith('http://') && !photoPath.startsWith('https://')) {
+        final f = File(photoPath);
+        if (f.existsSync()) {
+          return ClipOval(
+            child: Image.file(f, fit: BoxFit.cover, width: 44, height: 44),
+          );
+        }
+      } else {
+        return ClipOval(
+          child: Image.network(
+            photoPath,
+            fit: BoxFit.cover,
+            width: 44,
+            height: 44,
+            errorBuilder: (_, __, ___) => const Center(
+              child: Icon(Icons.local_laundry_service_rounded, color: primaryBlue, size: 24),
+            ),
+          ),
+        );
+      }
+    }
+    return const Center(
+      child: Icon(Icons.local_laundry_service_rounded, color: primaryBlue, size: 24),
     );
   }
 
@@ -320,16 +352,17 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
             // 1. Header (Avatar, Welcome back, Online Switch)
             Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFBFDBFE), width: 1.5),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.local_laundry_service_rounded, color: primaryBlue, size: 24),
+                GestureDetector(
+                  onTap: () => setState(() => _activeNavIndex = 4),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFBFDBFE), width: 1.5),
+                    ),
+                    child: _buildHeaderAvatar(),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -510,7 +543,7 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
                     title: 'Earnings',
                     count: '₹${totalEarnings.toInt()}',
                     onTap: () {
-                      setState(() => _activeNavIndex = 2);
+                      setState(() => _activeNavIndex = 3);
                     },
                   ),
                 ),
@@ -582,6 +615,7 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
     required VoidCallback onTap,
   }) {
     return InkWell(
+      key: Key('laundry_quick_action_$title'),
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -1101,26 +1135,92 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
   }
 
   // ==========================================
-  // BOTTOM NAVIGATION BAR (Matching Screen 1, 2, 6, 7)
+  // BOTTOM NAVIGATION BAR (5 items with Elevated Cyan Center Map)
   // ==========================================
   Widget _buildBottomNav() {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: cardBorder, width: 1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8,
+            offset: Offset(0, -2),
+          ),
+        ],
       ),
       child: SafeArea(
         child: SizedBox(
-          height: 60,
+          height: 66,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               _buildBottomNavItem(0, Icons.home_rounded, 'Home'),
               _buildBottomNavItem(1, Icons.shopping_bag_outlined, 'Orders', badgeCount: _newOrders.length),
-              _buildBottomNavItem(2, Icons.account_balance_wallet_outlined, 'Earnings'),
-              _buildBottomNavItem(3, Icons.person_outline_rounded, 'Profile'),
+              _buildElevatedCenterMapItem(),
+              _buildBottomNavItem(3, Icons.account_balance_wallet_outlined, 'Earnings'),
+              _buildBottomNavItem(4, Icons.person_outline_rounded, 'Profile'),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildElevatedCenterMapItem() {
+    final isSelected = _activeNavIndex == 2;
+    return InkWell(
+      key: const Key('laundry_bottom_nav_center_map_button'),
+      onTap: () => setState(() => _activeNavIndex = 2),
+      borderRadius: BorderRadius.circular(24),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0284C7).withValues(alpha: 0.38),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(
+                  color: isSelected ? Colors.white : Colors.transparent,
+                  width: 1.5,
+                ),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.map_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Map',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected ? const Color(0xFF0284C7) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1131,7 +1231,7 @@ class _LaundryPartnerDashboardScreenState extends State<LaundryPartnerDashboardS
     return InkWell(
       onTap: () => setState(() => _activeNavIndex = index),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

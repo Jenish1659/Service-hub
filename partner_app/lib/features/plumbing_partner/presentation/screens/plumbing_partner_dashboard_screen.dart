@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -295,6 +296,43 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
     );
   }
 
+  Widget _buildHeaderAvatar(String partnerName) {
+    final photo = (_partnerProfile?['profile_image'] ?? _partnerProfile?['avatar_url'] ?? _partnerProfile?['photo_path'])?.toString().trim();
+    if (photo != null && photo.isNotEmpty) {
+      final isNetwork = photo.startsWith('http://') || photo.startsWith('https://');
+      if (!isNetwork) {
+        final f = File(photo);
+        if (f.existsSync()) {
+          return ClipOval(child: Image.file(f, fit: BoxFit.cover, width: 48, height: 48));
+        }
+      } else {
+        return ClipOval(
+          child: Image.network(
+            photo,
+            fit: BoxFit.cover,
+            width: 48,
+            height: 48,
+            errorBuilder: (_, __, ___) => _buildHeaderInitials(partnerName),
+          ),
+        );
+      }
+    }
+    return _buildHeaderInitials(partnerName);
+  }
+
+  Widget _buildHeaderInitials(String partnerName) {
+    final clean = partnerName.trim();
+    if (clean.isNotEmpty && clean != 'Plumbing Partner') {
+      return Center(
+        child: Text(
+          clean[0].toUpperCase(),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryBlue),
+        ),
+      );
+    }
+    return const Center(child: Icon(Icons.person_rounded, color: primaryBlue, size: 28));
+  }
+
   // ==========================================
   // TAB 0: HOME SCREEN (Screen 1 in Design)
   // ==========================================
@@ -302,7 +340,7 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
     final partnerName = (_partnerProfile?['name'] ??
             _partnerProfile?['full_name'] ??
             _partnerProfile?['username'] ??
-            'Rohit Patel')
+            'Plumbing Partner')
         .toString();
 
     return RefreshIndicator(
@@ -317,10 +355,18 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
             // Top Header: Profile + Greeting + Online Status + Notification Bell
             Row(
               children: [
-                const CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Color(0xFFEFF6FF),
-                  child: Icon(Icons.person_rounded, color: primaryBlue, size: 28),
+                GestureDetector(
+                  onTap: () => setState(() => _activeNavIndex = 4),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFEFF6FF),
+                      border: Border.all(color: primaryBlue.withValues(alpha: 0.3), width: 1.5),
+                    ),
+                    child: _buildHeaderAvatar(partnerName),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

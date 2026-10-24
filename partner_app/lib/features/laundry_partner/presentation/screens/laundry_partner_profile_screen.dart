@@ -1,5 +1,8 @@
+import 'dart:io' show File, Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/storage/local_registration_cache.dart';
 import 'laundry_personal_info_screen.dart';
@@ -46,6 +49,221 @@ class _LaundryPartnerProfileScreenState extends State<LaundryPartnerProfileScree
         _partnerProfile = cached;
         _isLoading = false;
       });
+    }
+  }
+
+  void _showPhotoUpdateBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      backgroundColor: Colors.white,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Update Profile Photo',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkSlate),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Choose how you would like to update your profile photo',
+                  style: TextStyle(fontSize: 12.5, color: textMuted),
+                ),
+                const SizedBox(height: 20),
+                _buildPhotoOptionTile(
+                  icon: Icons.camera_alt_outlined,
+                  iconColor: const Color(0xFF0284C7),
+                  bgColor: const Color(0xFFE0F2FE),
+                  title: 'Take Photo',
+                  subtitle: 'Use camera to click a new picture',
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    String? pickedPath;
+                    if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
+                      pickedPath = 'test_captured_photo.jpg';
+                    } else {
+                      try {
+                        final picker = ImagePicker();
+                        final picked = await picker.pickImage(source: ImageSource.camera, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
+                        pickedPath = picked?.path;
+                      } catch (_) {}
+                    }
+                    if (pickedPath != null) {
+                      await _updateProfilePhoto(pickedPath);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Camera opened. Profile photo updated!'),
+                            backgroundColor: Color(0xFF10B981),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildPhotoOptionTile(
+                  icon: Icons.photo_library_outlined,
+                  iconColor: const Color(0xFF10B981),
+                  bgColor: const Color(0xFFECFDF5),
+                  title: 'Choose from Gallery',
+                  subtitle: 'Select from your device storage',
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    String? pickedPath;
+                    if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
+                      pickedPath = 'test_gallery_photo.jpg';
+                    } else {
+                      try {
+                        final picker = ImagePicker();
+                        final picked = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
+                        pickedPath = picked?.path;
+                      } catch (_) {}
+                    }
+                    if (pickedPath != null) {
+                      await _updateProfilePhoto(pickedPath);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Photo selected from gallery and updated!'),
+                            backgroundColor: Color(0xFF10B981),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildPhotoOptionTile(
+                  icon: Icons.face_retouching_natural_outlined,
+                  iconColor: const Color(0xFF8B5CF6),
+                  bgColor: const Color(0xFFF5F3FF),
+                  title: 'Choose Laundry Avatar',
+                  subtitle: 'Select a professional partner illustration',
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await _updateProfilePhoto('laundry_avatar_selected');
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Laundry avatar selected and updated!'),
+                          backgroundColor: Color(0xFF10B981),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                if (_partnerProfile?['profile_image'] != null && _partnerProfile!['profile_image'].toString().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _buildPhotoOptionTile(
+                    icon: Icons.delete_outline_rounded,
+                    iconColor: const Color(0xFFEF4444),
+                    bgColor: const Color(0xFFFEE2E2),
+                    title: 'Remove Current Photo',
+                    subtitle: 'Reset to default laundry icon',
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await _updateProfilePhoto(null);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Profile photo removed.'),
+                            backgroundColor: Color(0xFF64748B),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPhotoOptionTile({
+    required IconData icon,
+    required Color iconColor,
+    required Color bgColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: bgColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: darkSlate),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 12, color: textMuted),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateProfilePhoto(String? photoType) async {
+    final updated = Map<String, dynamic>.from(_partnerProfile ?? {});
+    if (photoType == null) {
+      updated.remove('profile_image');
+      updated.remove('avatar_url');
+    } else {
+      updated['profile_image'] = photoType;
+      updated['avatar_url'] = photoType;
+    }
+    await LocalRegistrationCache.updateActiveServiceProvider(updated);
+    if (mounted) {
+      setState(() => _partnerProfile = updated);
     }
   }
 
@@ -339,32 +557,55 @@ class _LaundryPartnerProfileScreenState extends State<LaundryPartnerProfileScree
             ),
             child: Column(
               children: [
-                Stack(
-                  children: [
-                    Container(
-                      width: 76,
-                      height: 76,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEFF6FF),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.local_laundry_service_rounded, color: primaryBlue, size: 38),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF10B981),
+                GestureDetector(
+                  key: const Key('laundry_profile_avatar_tap'),
+                  onTap: _showPhotoUpdateBottomSheet,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
                           shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFBFDBFE), width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primaryBlue.withValues(alpha: 0.12),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                        child: const Icon(Icons.check_rounded, color: Colors.white, size: 14),
+                        child: Center(
+                          child: ClipOval(
+                            child: _buildAvatarImageContent(),
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                            ],
+                          ),
+                          child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 14),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -463,7 +704,7 @@ class _LaundryPartnerProfileScreenState extends State<LaundryPartnerProfileScree
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const LaundryServicePricingScreen()),
-                  ),
+                  ).then((_) => _loadProfileData()),
                 ),
                 const Divider(height: 1, indent: 56, color: cardBorder),
                 _buildMenuItem(
@@ -473,7 +714,7 @@ class _LaundryPartnerProfileScreenState extends State<LaundryPartnerProfileScree
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const LaundryWorkingHoursScreen()),
-                  ),
+                  ).then((_) => _loadProfileData()),
                 ),
               ],
             ),
@@ -499,7 +740,7 @@ class _LaundryPartnerProfileScreenState extends State<LaundryPartnerProfileScree
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const LaundryDocumentsScreen()),
-                  ),
+                  ).then((_) => _loadProfileData()),
                 ),
                 const Divider(height: 1, indent: 56, color: cardBorder),
                 _buildMenuItem(
@@ -592,6 +833,27 @@ class _LaundryPartnerProfileScreenState extends State<LaundryPartnerProfileScree
         ],
       ),
     );
+  }
+
+  Widget _buildAvatarImageContent() {
+    final photoPath = (_partnerProfile?['profile_image'] ?? _partnerProfile?['avatar_url'])?.toString().trim();
+    if (photoPath != null && photoPath.isNotEmpty) {
+      if (!photoPath.startsWith('http://') && !photoPath.startsWith('https://')) {
+        final f = File(photoPath);
+        if (f.existsSync()) {
+          return Image.file(f, fit: BoxFit.cover, width: 80, height: 80);
+        }
+      } else {
+        return Image.network(
+          photoPath,
+          fit: BoxFit.cover,
+          width: 80,
+          height: 80,
+          errorBuilder: (_, __, ___) => const Icon(Icons.local_laundry_service_rounded, color: primaryBlue, size: 38),
+        );
+      }
+    }
+    return const Icon(Icons.local_laundry_service_rounded, color: primaryBlue, size: 38);
   }
 
   Widget _buildSectionHeader(String title) {
