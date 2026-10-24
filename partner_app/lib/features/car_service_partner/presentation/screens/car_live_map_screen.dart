@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../core/services/partner_location_service.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
 
 /// Screen 4: Real Interactive OpenStreetMap Live Map for Car Service Provider
 /// 100% Real Map • Zero Fake Static Image • Live OSM Tiles & GPS Route Navigation
@@ -22,8 +26,10 @@ class _CarLiveMapScreenState extends State<CarLiveMapScreen> {
   late final MapController _mapController;
 
   // Jamnagar Car Garage Operational Base Coordinates (Real GPS Baseline)
-  final LatLng _garageLocation = const LatLng(22.4707, 70.0577);
+  LatLng _garageLocation = PartnerLocationService.jamnagarOperationalBase;
   LatLng _customerLocation = const LatLng(22.4842, 70.0712);
+  StreamSubscription<Position>? _gpsSub;
+  Map<String, dynamic>? _resolvedBooking;
 
   int _selectedFilterIndex = 0; // 0: Current Order, 1: All Customers
   bool _isNavigating = false;
@@ -38,22 +44,64 @@ class _CarLiveMapScreenState extends State<CarLiveMapScreen> {
     super.initState();
     _mapController = MapController();
     _resolveCustomerCoordinates();
+    _initGarageGpsLocation();
   }
 
   @override
   void dispose() {
+    _gpsSub?.cancel();
     _mapController.dispose();
     super.dispose();
   }
 
+  Future<void> _initGarageGpsLocation() async {
+    final loc = await PartnerLocationService.instance.getPartnerOrDeviceLocation();
+    if (mounted) {
+      setState(() => _garageLocation = loc);
+    }
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
+        _gpsSub = Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        ).listen((Position pos) {
+          if (!mounted) return;
+          setState(() {
+            _garageLocation = LatLng(pos.latitude, pos.longitude);
+          });
+        });
+      }
+    } catch (_) {}
+  }
+
   void _resolveCustomerCoordinates() {
-    if (widget.booking != null) {
-      final lat = double.tryParse((widget.booking!['lat'] ?? widget.booking!['latitude'] ?? '').toString());
-      final lng = double.tryParse((widget.booking!['lng'] ?? widget.booking!['longitude'] ?? '').toString());
+    final b = widget.booking ?? _findActiveCarBooking();
+    _resolvedBooking = b;
+    if (b != null) {
+      final lat = double.tryParse((b['customer_lat'] ?? b['lat'] ?? b['latitude'] ?? '').toString());
+      final lng = double.tryParse((b['customer_lng'] ?? b['lng'] ?? b['longitude'] ?? '').toString());
       if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
         _customerLocation = LatLng(lat, lng);
+      } else {
+        _customerLocation = LatLng(_garageLocation.latitude + 0.0095, _garageLocation.longitude + 0.0085);
+      }
+    } else {
+      _customerLocation = LatLng(_garageLocation.latitude + 0.0095, _garageLocation.longitude + 0.0085);
+    }
+  }
+
+  Map<String, dynamic>? _findActiveCarBooking() {
+    final all = LiveBookingSyncService.instance.getAllBookings();
+    for (final b in all) {
+      if (LiveBookingSyncService.isBookingMatchingCategory(b, 'car_service') ||
+          LiveBookingSyncService.isBookingMatchingCategory(b, 'car_care')) {
+        return b;
       }
     }
+    return null;
   }
 
   void _recenterMap(LatLng target) {
@@ -145,9 +193,15 @@ class _CarLiveMapScreenState extends State<CarLiveMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customerName = (widget.booking?['customer_name'] ?? 'Rahul Sharma').toString();
-    final customerPhone = (widget.booking?['customer_phone'] ?? '+91 98765 43210').toString();
-    final address = (widget.booking?['address'] ?? 'Green Park, Jamnagar').toString();
+    final b = _resolvedBooking ?? widget.booking;
+    final customerName = (b?['customer_name'] ?? 'Customer').toString();
+    final customerPhone = (b?['customer_phone'] ?? '').toString();
+    final address = (b?['customer_address'] ?? b?['address'] ?? 'Customer Location, Jamnagar').toString();
+
+    final distInfo = PartnerLocationService.calculateDistanceInfo(
+      from: _garageLocation,
+      to: _customerLocation,
+    );
 
     final polylinePoints = _buildRoutePolyline();
 
@@ -289,7 +343,7 @@ class _CarLiveMapScreenState extends State<CarLiveMapScreen> {
                     ),
                   ),
 
-                  // Route Midpoint ETA Bubble: "2.5 km • 8 mins"
+                  // Route Midpoint Dynamic ETA Bubble
                   Marker(
                     point: polylinePoints[1],
                     width: 120,
@@ -308,11 +362,11 @@ class _CarLiveMapScreenState extends State<CarLiveMapScreen> {
                           ),
                         ],
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          '2.5 km\n8 mins',
+                          '${distInfo.formattedDistance}\n${distInfo.formattedEta}',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color: darkSlate,
@@ -482,9 +536,9 @@ class _CarLiveMapScreenState extends State<CarLiveMapScreen> {
                                 style: const TextStyle(fontSize: 12, color: textMuted),
                               ),
                               const SizedBox(height: 2),
-                              const Text(
-                                '2.5 km • 8 mins',
-                                style: TextStyle(
+                              Text(
+                                distInfo.formattedSummary,
+                                style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   color: primaryBlue,

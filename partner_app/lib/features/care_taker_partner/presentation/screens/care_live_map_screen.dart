@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../core/services/partner_location_service.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
 
 /// Screen 4: Real Interactive OpenStreetMap Live Map for Care Taker & Nursing Specialist
 /// 100% Real Map • Zero Fake Static Images • Live OSM Raster Tiles & Patient GPS Route Navigation
@@ -22,8 +26,10 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
   late final MapController _mapController;
 
   // Jamnagar Central Care Hub / Caregiver Operational Base Coordinates (Real GPS Baseline)
-  final LatLng _caregiverLocation = const LatLng(22.4707, 70.0577);
+  LatLng _caregiverLocation = PartnerLocationService.jamnagarOperationalBase;
   LatLng _patientLocation = const LatLng(22.4842, 70.0712);
+  StreamSubscription<Position>? _gpsSub;
+  Map<String, dynamic>? _resolvedBooking;
 
   int _selectedFilterIndex = 0; // 0: Current Order, 1: All Patients
   bool _isNavigating = false;
@@ -38,22 +44,64 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
     super.initState();
     _mapController = MapController();
     _resolvePatientCoordinates();
+    _initCaregiverGpsLocation();
   }
 
   @override
   void dispose() {
+    _gpsSub?.cancel();
     _mapController.dispose();
     super.dispose();
   }
 
+  Future<void> _initCaregiverGpsLocation() async {
+    final loc = await PartnerLocationService.instance.getPartnerOrDeviceLocation();
+    if (mounted) {
+      setState(() => _caregiverLocation = loc);
+    }
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
+        _gpsSub = Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        ).listen((Position pos) {
+          if (!mounted) return;
+          setState(() {
+            _caregiverLocation = LatLng(pos.latitude, pos.longitude);
+          });
+        });
+      }
+    } catch (_) {}
+  }
+
   void _resolvePatientCoordinates() {
-    if (widget.booking != null) {
-      final lat = double.tryParse((widget.booking!['lat'] ?? widget.booking!['latitude'] ?? '').toString());
-      final lng = double.tryParse((widget.booking!['lng'] ?? widget.booking!['longitude'] ?? '').toString());
+    final b = widget.booking ?? _findActiveCareBooking();
+    _resolvedBooking = b;
+    if (b != null) {
+      final lat = double.tryParse((b['customer_lat'] ?? b['lat'] ?? b['latitude'] ?? '').toString());
+      final lng = double.tryParse((b['customer_lng'] ?? b['lng'] ?? b['longitude'] ?? '').toString());
       if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
         _patientLocation = LatLng(lat, lng);
+      } else {
+        // Offset relative to real caregiver location
+        _patientLocation = LatLng(_caregiverLocation.latitude + 0.0095, _caregiverLocation.longitude + 0.0085);
+      }
+    } else {
+      _patientLocation = LatLng(_caregiverLocation.latitude + 0.0095, _caregiverLocation.longitude + 0.0085);
+    }
+  }
+
+  Map<String, dynamic>? _findActiveCareBooking() {
+    final all = LiveBookingSyncService.instance.getAllBookings();
+    for (final b in all) {
+      if (LiveBookingSyncService.isBookingMatchingCategory(b, 'care_taker')) {
+        return b;
       }
     }
+    return null;
   }
 
   void _recenterMap(LatLng target) {
@@ -162,9 +210,15 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final patientName = (widget.booking?['customer_name'] ?? 'Rajesh Kumar').toString();
-    final patientPhone = (widget.booking?['customer_phone'] ?? '+91 98765 43210').toString();
-    final address = (widget.booking?['address'] ?? 'Shivam Apartment, Jamnagar').toString();
+    final b = _resolvedBooking ?? widget.booking;
+    final patientName = (b?['customer_name'] ?? 'Patient').toString();
+    final patientPhone = (b?['customer_phone'] ?? '').toString();
+    final address = (b?['customer_address'] ?? b?['address'] ?? 'Customer Location, Jamnagar').toString();
+
+    final distInfo = PartnerLocationService.calculateDistanceInfo(
+      from: _caregiverLocation,
+      to: _patientLocation,
+    );
 
     final polylinePoints = _buildRoutePolyline();
 
@@ -336,16 +390,16 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
                         ],
                         border: Border.all(color: cardBorder),
                       ),
-                      child: const FittedBox(
+                      child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.directions_walk_rounded, color: primaryIndigo, size: 16),
-                            SizedBox(width: 4),
+                            const Icon(Icons.directions_walk_rounded, color: primaryIndigo, size: 16),
+                            const SizedBox(width: 4),
                             Text(
-                              '2.5 km • 8 mins',
-                              style: TextStyle(
+                              '${distInfo.formattedDistance} • ${distInfo.formattedEta}',
+                              style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                                 color: darkSlate,
@@ -539,9 +593,9 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 2),
-                            const Text(
-                              '2.5 km • 8 mins away',
-                              style: TextStyle(
+                            Text(
+                              distInfo.formattedSummary,
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: primaryIndigo,

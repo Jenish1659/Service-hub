@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../core/services/partner_location_service.dart';
 
 /// Combined widget rendering both [DeliveryNextPreviewCard] (when queued tasks exist)
 /// and [DeliveryQuickShortcutsGrid].
@@ -80,7 +81,7 @@ class DeliveryNextPreviewCard extends StatelessWidget {
   /// Explicit pickup store name.
   final String? storeName;
 
-  /// Explicit distance string (e.g., '2.4 km').
+  /// Explicit distance string.
   final String? distance;
 
   /// Optional earning for this queued delivery.
@@ -130,9 +131,27 @@ class DeliveryNextPreviewCard extends StatelessWidget {
         resolvedTask?['shop_name']?.toString() ??
         'Fresh Mart Superstore';
 
-    final resolvedDistance = distance ??
-        resolvedTask?['distance']?.toString() ??
-        '1.8 km';
+    final String resolvedDistance;
+    final explicitDist = distance;
+    final taskDist = resolvedTask?['distance']?.toString();
+    if (explicitDist != null && explicitDist.isNotEmpty) {
+      resolvedDistance = explicitDist;
+    } else if (taskDist != null && taskDist.isNotEmpty) {
+      resolvedDistance = taskDist;
+    } else {
+      final sLat = (resolvedTask?['store_lat'] ?? resolvedTask?['customer_lat'] ?? resolvedTask?['lat']) as num?;
+      final sLng = (resolvedTask?['store_lng'] ?? resolvedTask?['customer_lng'] ?? resolvedTask?['lng']) as num?;
+      if (sLat != null && sLng != null && sLat != 0.0 && sLng != 0.0) {
+        final pLoc = PartnerLocationService.instance.lastKnownPosition;
+        final from = pLoc != null
+            ? LatLng(pLoc.latitude, pLoc.longitude)
+            : PartnerLocationService.jamnagarOperationalBase;
+        final info = PartnerLocationService.calculateDistanceInfo(from: from, to: LatLng(sLat.toDouble(), sLng.toDouble()));
+        resolvedDistance = info.formattedDistance;
+      } else {
+        resolvedDistance = 'Nearby';
+      }
+    }
 
     final resolvedEarning = earning ??
         (resolvedTask?['earning'] as num?)?.toDouble() ??

@@ -1,3 +1,5 @@
+import 'package:latlong2/latlong.dart';
+import '../../../../core/services/partner_location_service.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/services/local_registration_cache.dart';
@@ -487,9 +489,9 @@ class _CarRequestDetailsScreenState extends State<CarRequestDetailsScreen> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  const Text(
-                    '2.5 km away',
-                    style: TextStyle(fontSize: 12, color: textMuted),
+                  Text(
+                    _calculateDynamicDistance(widget.booking),
+                    style: const TextStyle(fontSize: 12, color: textMuted),
                   ),
                 ],
               ),
@@ -697,4 +699,20 @@ class _CarRequestDetailsScreenState extends State<CarRequestDetailsScreen> {
       ),
     );
   }
+
+  String _calculateDynamicDistance(Map<String, dynamic>? b) {
+    if (b == null) return 'Operational Hub';
+    final lat = double.tryParse((b['customer_lat'] ?? b['lat'] ?? b['latitude'] ?? '').toString());
+    final lng = double.tryParse((b['customer_lng'] ?? b['lng'] ?? b['longitude'] ?? '').toString());
+    final pLoc = PartnerLocationService.instance.lastKnownPosition;
+    final from = pLoc != null
+        ? LatLng(pLoc.latitude, pLoc.longitude)
+        : PartnerLocationService.jamnagarOperationalBase;
+    if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+      final info = PartnerLocationService.calculateDistanceInfo(from: from, to: LatLng(lat, lng));
+      return info.formattedSummary;
+    }
+    return 'Hyperlocal Operational Area';
+  }
+
 }

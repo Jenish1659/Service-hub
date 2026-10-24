@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../core/services/partner_location_service.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
 
 /// Screen 4: Real Interactive OpenStreetMap Live Map for Cooking Partner
 /// 100% Real Map • Zero Fake Static Image • Live OSM Tiles & GPS Tracking
@@ -22,8 +26,10 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
   late final MapController _mapController;
 
   // Jamnagar Operational Base Coordinates (Real GPS Baseline)
-  final LatLng _cookLocation = const LatLng(22.4707, 70.0577);
+  LatLng _cookLocation = PartnerLocationService.jamnagarOperationalBase;
   LatLng _customerLocation = const LatLng(22.4835, 70.0685);
+  StreamSubscription<Position>? _gpsSub;
+  Map<String, dynamic>? _resolvedBooking;
 
   int _selectedPillIndex = 0; // 0: Current Location, 1: Customer Location
   bool _isNavigating = false;
@@ -38,16 +44,64 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
     super.initState();
     _mapController = MapController();
     _resolveCustomerCoordinates();
+    _initCookGpsLocation();
+  }
+
+  Future<void> _initCookGpsLocation() async {
+    final loc = await PartnerLocationService.instance.getPartnerOrDeviceLocation();
+    if (mounted) {
+      setState(() => _cookLocation = loc);
+    }
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
+        _gpsSub = Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        ).listen((Position pos) {
+          if (!mounted) return;
+          setState(() {
+            _cookLocation = LatLng(pos.latitude, pos.longitude);
+          });
+        });
+      }
+    } catch (_) {}
   }
 
   void _resolveCustomerCoordinates() {
-    if (widget.booking != null) {
-      final lat = double.tryParse((widget.booking!['lat'] ?? widget.booking!['latitude'] ?? '').toString());
-      final lng = double.tryParse((widget.booking!['lng'] ?? widget.booking!['longitude'] ?? '').toString());
+    final b = widget.booking ?? _findActiveCookingBooking();
+    _resolvedBooking = b;
+    if (b != null) {
+      final lat = double.tryParse((b['customer_lat'] ?? b['lat'] ?? b['latitude'] ?? '').toString());
+      final lng = double.tryParse((b['customer_lng'] ?? b['lng'] ?? b['longitude'] ?? '').toString());
       if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
         _customerLocation = LatLng(lat, lng);
+      } else {
+        _customerLocation = LatLng(_cookLocation.latitude + 0.009, _cookLocation.longitude + 0.007);
+      }
+    } else {
+      _customerLocation = LatLng(_cookLocation.latitude + 0.009, _cookLocation.longitude + 0.007);
+    }
+  }
+
+  Map<String, dynamic>? _findActiveCookingBooking() {
+    final all = LiveBookingSyncService.instance.getAllBookings();
+    for (final b in all) {
+      if (LiveBookingSyncService.isBookingMatchingCategory(b, 'cooking') ||
+          LiveBookingSyncService.isBookingMatchingCategory(b, 'cook')) {
+        return b;
       }
     }
+    return null;
+  }
+
+  @override
+  void dispose() {
+    _gpsSub?.cancel();
+    _mapController.dispose();
+    super.dispose();
   }
 
   void _recenterMap(LatLng target) {
@@ -56,7 +110,7 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final booking = widget.booking;
+    final booking = _resolvedBooking ?? widget.booking;
     final customerName = (booking?['customer_name'] ?? booking?['user_name'] ?? '').toString();
     final address = (booking?['address'] ?? booking?['pickup_address'] ?? booking?['customer_address'] ?? '').toString();
 
@@ -68,10 +122,12 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
       _customerLocation,
     ];
 
-    final latDiff = (_customerLocation.latitude - _cookLocation.latitude).abs();
-    final lngDiff = (_customerLocation.longitude - _cookLocation.longitude).abs();
-    final distKm = ((latDiff + lngDiff) * 111.0).clamp(0.5, 30.0);
-    final etaMinutes = (distKm / 25.0 * 60.0).round().clamp(5, 60);
+    final distInfo = PartnerLocationService.calculateDistanceInfo(
+      from: _cookLocation,
+      to: _customerLocation,
+    );
+    final distKm = distInfo.roadKm;
+    final etaMinutes = distInfo.durationMinutes;
 
     return Scaffold(
       backgroundColor: Colors.white,

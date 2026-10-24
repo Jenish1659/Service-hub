@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../core/services/partner_location_service.dart';
+import '../../../../core/services/live_booking_sync_service.dart';
 
 /// Screen 4: Real Interactive OpenStreetMap Live Map for Plumbing Service Provider
 /// 100% Real Map • Zero Fake Static Image • Live OSM Tiles & GPS Route Navigation
@@ -22,8 +26,10 @@ class _PlumbingLiveMapScreenState extends State<PlumbingLiveMapScreen> {
   late final MapController _mapController;
 
   // Jamnagar Plumbing Operational Base Coordinates (Real GPS Baseline)
-  final LatLng _plumberLocation = const LatLng(22.4707, 70.0577);
+  LatLng _plumberLocation = PartnerLocationService.jamnagarOperationalBase;
   LatLng _customerLocation = const LatLng(22.4842, 70.0712);
+  StreamSubscription<Position>? _gpsSub;
+  Map<String, dynamic>? _resolvedBooking;
 
   int _selectedPillIndex = 0; // 0: Current Location, 1: Customer Location
   bool _isNavigating = false;
@@ -38,22 +44,64 @@ class _PlumbingLiveMapScreenState extends State<PlumbingLiveMapScreen> {
     super.initState();
     _mapController = MapController();
     _resolveCustomerCoordinates();
+    _initPlumberGpsLocation();
   }
 
   @override
   void dispose() {
+    _gpsSub?.cancel();
     _mapController.dispose();
     super.dispose();
   }
 
+  Future<void> _initPlumberGpsLocation() async {
+    final loc = await PartnerLocationService.instance.getPartnerOrDeviceLocation();
+    if (mounted) {
+      setState(() => _plumberLocation = loc);
+    }
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
+        _gpsSub = Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        ).listen((Position pos) {
+          if (!mounted) return;
+          setState(() {
+            _plumberLocation = LatLng(pos.latitude, pos.longitude);
+          });
+        });
+      }
+    } catch (_) {}
+  }
+
   void _resolveCustomerCoordinates() {
-    if (widget.booking != null) {
-      final lat = double.tryParse((widget.booking!['lat'] ?? widget.booking!['latitude'] ?? '').toString());
-      final lng = double.tryParse((widget.booking!['lng'] ?? widget.booking!['longitude'] ?? '').toString());
+    final b = widget.booking ?? _findActivePlumbingBooking();
+    _resolvedBooking = b;
+    if (b != null) {
+      final lat = double.tryParse((b['customer_lat'] ?? b['lat'] ?? b['latitude'] ?? '').toString());
+      final lng = double.tryParse((b['customer_lng'] ?? b['lng'] ?? b['longitude'] ?? '').toString());
       if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
         _customerLocation = LatLng(lat, lng);
+      } else {
+        _customerLocation = LatLng(_plumberLocation.latitude + 0.011, _plumberLocation.longitude + 0.009);
+      }
+    } else {
+      _customerLocation = LatLng(_plumberLocation.latitude + 0.011, _plumberLocation.longitude + 0.009);
+    }
+  }
+
+  Map<String, dynamic>? _findActivePlumbingBooking() {
+    final all = LiveBookingSyncService.instance.getAllBookings();
+    for (final b in all) {
+      if (LiveBookingSyncService.isBookingMatchingCategory(b, 'plumbing') ||
+          LiveBookingSyncService.isBookingMatchingCategory(b, 'plumber')) {
+        return b;
       }
     }
+    return null;
   }
 
   void _recenterMap(LatLng target) {
@@ -117,10 +165,15 @@ class _PlumbingLiveMapScreenState extends State<PlumbingLiveMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final booking = widget.booking;
-    final customerName = (booking?['customer_name'] ?? booking?['name'] ?? 'Jignesh Patel').toString();
-    final phone = (booking?['customer_phone'] ?? booking?['phone'] ?? '+91 98765 43210').toString();
-    final address = (booking?['address'] ?? booking?['pickup_address'] ?? 'Shivam Apartment, Jamnagar').toString();
+    final booking = _resolvedBooking ?? widget.booking;
+    final customerName = (booking?['customer_name'] ?? booking?['name'] ?? 'Customer').toString();
+    final phone = (booking?['customer_phone'] ?? booking?['phone'] ?? '').toString();
+    final address = (booking?['customer_address'] ?? booking?['address'] ?? booking?['pickup_address'] ?? 'Customer Location, Jamnagar').toString();
+
+    final distInfo = PartnerLocationService.calculateDistanceInfo(
+      from: _plumberLocation,
+      to: _customerLocation,
+    );
 
     // Intermediate points for realistic route polyline
     final routePoints = [
@@ -301,21 +354,21 @@ class _PlumbingLiveMapScreenState extends State<PlumbingLiveMapScreen> {
                 ],
                 border: Border.all(color: cardBorder),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.directions_rounded, color: primaryBlue, size: 18),
-                  SizedBox(width: 6),
+                  const Icon(Icons.directions_rounded, color: primaryBlue, size: 18),
+                  const SizedBox(width: 6),
                   Text(
-                    '3.2 km',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: darkSlate),
+                    distInfo.formattedDistance,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: darkSlate),
                   ),
-                  SizedBox(width: 6),
-                  Text('•', style: TextStyle(color: textMuted)),
-                  SizedBox(width: 6),
+                  const SizedBox(width: 6),
+                  const Text('•', style: TextStyle(color: textMuted)),
+                  const SizedBox(width: 6),
                   Text(
-                    '8 mins',
-                    style: TextStyle(fontSize: 12, color: textMuted, fontWeight: FontWeight.w600),
+                    distInfo.formattedEta,
+                    style: const TextStyle(fontSize: 12, color: textMuted, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -392,7 +445,7 @@ class _PlumbingLiveMapScreenState extends State<PlumbingLiveMapScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '$address • 3.2 km',
+                              '$address • ${distInfo.formattedDistance}',
                               style: const TextStyle(fontSize: 12, color: textMuted),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

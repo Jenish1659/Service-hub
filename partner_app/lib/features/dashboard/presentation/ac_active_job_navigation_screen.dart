@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/partner_location_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'ac_provider_dashboard_controller.dart';
 
@@ -628,7 +629,7 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
                           ),
                         ),
                         Text(
-                          '1.8 km',
+                          PartnerLocationService.calculateDistanceInfo(from: _partnerLocation, to: _customerLocation).formattedDistance,
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue.shade700),
                         ),
                       ],

@@ -200,35 +200,8 @@ class _LaundryStoreMapScreenState extends State<LaundryStoreMapScreen>
       }
     } catch (_) {}
 
-    // Deterministic fallback nearby riders if no GPS verified couriers exist yet
-    if (_nearbyCouriers.isEmpty) {
-      _nearbyCouriers = [
-        {
-          'name': 'Rahul Verma',
-          'vehicle': 'Electric Scooter',
-          'rating': 4.9,
-          'distance_km': '0.8',
-          'phone': '+91 98251 44321',
-          'location': LatLng(_facilityLocation.latitude + 0.007, _facilityLocation.longitude + 0.006),
-        },
-        {
-          'name': 'Kishan Dave',
-          'vehicle': 'Honda Activa',
-          'rating': 4.8,
-          'distance_km': '1.4',
-          'phone': '+91 98252 88412',
-          'location': LatLng(_facilityLocation.latitude - 0.009, _facilityLocation.longitude + 0.011),
-        },
-        {
-          'name': 'Manish Solanki',
-          'vehicle': 'Delivery Bike',
-          'rating': 5.0,
-          'distance_km': '2.1',
-          'phone': '+91 98250 99314',
-          'location': LatLng(_facilityLocation.latitude + 0.013, _facilityLocation.longitude - 0.008),
-        },
-      ];
-    }
+    // 100% Real Data Guarantee: only display genuine verified couriers
+    // No mock/fake fallback couriers are generated.
   }
 
   void _loadLiveOrders() {

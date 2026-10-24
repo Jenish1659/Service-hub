@@ -1,3 +1,5 @@
+import 'package:latlong2/latlong.dart';
+import '../../../../core/services/partner_location_service.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -1020,7 +1022,7 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
               children: [
                 const Icon(Icons.directions_walk_rounded, size: 14, color: primaryBlue),
                 const SizedBox(width: 4),
-                const Text('2.5 km away', style: TextStyle(fontSize: 11.5, color: primaryBlue, fontWeight: FontWeight.w600)),
+                Text(_calculateJobDistance(b), style: const TextStyle(fontSize: 11.5, color: primaryBlue, fontWeight: FontWeight.w600)),
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -1545,4 +1547,19 @@ class _PlumbingPartnerDashboardScreenState extends State<PlumbingPartnerDashboar
       ),
     );
   }
+
+  String _calculateJobDistance(Map<String, dynamic> b) {
+    final lat = double.tryParse((b['customer_lat'] ?? b['lat'] ?? b['latitude'] ?? '').toString());
+    final lng = double.tryParse((b['customer_lng'] ?? b['lng'] ?? b['longitude'] ?? '').toString());
+    final pLoc = PartnerLocationService.instance.lastKnownPosition;
+    final from = pLoc != null
+        ? LatLng(pLoc.latitude, pLoc.longitude)
+        : PartnerLocationService.jamnagarOperationalBase;
+    if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+      final info = PartnerLocationService.calculateDistanceInfo(from: from, to: LatLng(lat, lng));
+      return info.formattedSummary;
+    }
+    return 'Operational Area';
+  }
+
 }
