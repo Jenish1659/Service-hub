@@ -2,6 +2,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/services/partner_location_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/services/local_registration_cache.dart';
 
@@ -35,48 +36,16 @@ class _CareRequestDetailsScreenState extends State<CareRequestDetailsScreen> {
   }
 
   void _launchCaller(String phone) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Calling customer $phone...'),
-        backgroundColor: primaryIndigo,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    PhoneLauncherService.makePhoneCall(context, phone);
   }
 
   void _showChatDialog(String customerName) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Chat with $customerName', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: TextField(
-          decoration: InputDecoration(
-            hintText: 'Type your message...',
-            hintStyle: const TextStyle(fontSize: 13, color: textMuted),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryIndigo,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Message sent!'), backgroundColor: primaryIndigo, behavior: SnackBarBehavior.floating),
-              );
-            },
-            child: const Text('Send'),
-          ),
-        ],
-      ),
-    );
+    final bId = widget.booking != null ? (widget.booking!['booking_id'] ?? widget.booking!['id'] ?? '').toString() : '';
+    context.push('/chat/$bId', extra: {
+      'customer_name': customerName,
+      'customer_phone': (widget.booking?['customer_phone'] ?? '').toString(),
+      'service_name': 'Caregiver Service',
+    });
   }
 
   Future<void> _handleAccept() async {

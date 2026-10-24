@@ -3,6 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../../../core/services/partner_location_service.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 
@@ -112,6 +114,7 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
   Widget build(BuildContext context) {
     final booking = _resolvedBooking ?? widget.booking;
     final customerName = (booking?['customer_name'] ?? booking?['user_name'] ?? '').toString();
+    final customerPhone = (booking?['customer_phone'] ?? booking?['phone'] ?? '').toString();
     final address = (booking?['address'] ?? booking?['pickup_address'] ?? booking?['customer_address'] ?? '').toString();
 
     // Intermediate points for route polyline (only when customer booking exists)
@@ -441,6 +444,30 @@ class _CookingLiveMapScreenState extends State<CookingLiveMapScreen> {
                                     ),
                                   ],
                                 ),
+                              ),
+                              IconButton(
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFFEDD5),
+                                  shape: const CircleBorder(),
+                                ),
+                                icon: const Icon(Icons.phone_rounded, color: primaryOrange, size: 20),
+                                onPressed: () => PhoneLauncherService.makePhoneCall(context, customerPhone),
+                              ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFFEDD5),
+                                  shape: const CircleBorder(),
+                                ),
+                                icon: const Icon(Icons.chat_bubble_outline_rounded, color: primaryOrange, size: 18),
+                                onPressed: () {
+                                  final bId = (booking['booking_id'] ?? booking['id'] ?? '').toString();
+                                  context.push('/chat/$bId', extra: {
+                                    'customer_name': customerName,
+                                    'customer_phone': customerPhone,
+                                    'service_name': 'Home Chef & Cooking',
+                                  });
+                                },
                               ),
                             ],
                           ),

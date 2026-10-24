@@ -17,6 +17,8 @@ VERIF_FILE_PUBLIC = os.path.join(PUBLIC_DIR, "service_hub_partner_verifications.
 VERIF_FILE_TEMP = os.path.join(TEMP_DIR, "service_hub_partner_verifications.json")
 BOOKING_FILE_PUBLIC = os.path.join(PUBLIC_DIR, "service_hub_live_bookings.json")
 BOOKING_FILE_TEMP = os.path.join(TEMP_DIR, "service_hub_live_bookings.json")
+CHAT_FILE_PUBLIC = os.path.join(PUBLIC_DIR, "service_hub_chat_messages.json")
+CHAT_FILE_TEMP = os.path.join(TEMP_DIR, "service_hub_chat_messages.json")
 
 lock = threading.Lock()
 
@@ -51,8 +53,10 @@ def save_json(data, p1, p2):
 # In-memory stores & file caches
 verifications = load_json(VERIF_FILE_PUBLIC) or load_json(VERIF_FILE_TEMP) or {}
 bookings = load_json(BOOKING_FILE_PUBLIC) or load_json(BOOKING_FILE_TEMP) or {}
+chats = load_json(CHAT_FILE_PUBLIC) or load_json(CHAT_FILE_TEMP) or {}
 _last_verif_mtime = 0
 _last_booking_mtime = 0
+_last_chat_mtime = 0
 
 class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
     web_dir = None
@@ -75,7 +79,7 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        global verifications, bookings, _last_verif_mtime, _last_booking_mtime
+        global verifications, bookings, chats, chats, _last_verif_mtime, _last_booking_mtime, _last_chat_mtime
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
@@ -121,6 +125,38 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps(out).encode("utf-8"))
             return
 
+        if path == "/api/chat" or path.startswith("/api/chat/"):
+            q_params = urllib.parse.parse_qs(parsed.query)
+            booking_id = q_params.get("booking_id", [None])[0]
+            if not booking_id and len(path.split("/")) > 3:
+                booking_id = path.split("/")[3]
+            
+            with lock:
+                try:
+                    p = CHAT_FILE_PUBLIC if os.path.exists(CHAT_FILE_PUBLIC) else (CHAT_FILE_TEMP if os.path.exists(CHAT_FILE_TEMP) else None)
+                    if p:
+                        mtime = os.path.getmtime(p)
+                        if mtime > _last_chat_mtime:
+                            file_data = load_json(p)
+                            if file_data and isinstance(file_data, dict):
+                                chats.update(file_data)
+                            _last_chat_mtime = mtime
+                except Exception:
+                    pass
+                
+                if booking_id:
+                    out = chats.get(str(booking_id), [])
+                else:
+                    out = chats
+            
+            self.send_response(200)
+            self._set_cors()
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.end_headers()
+            self.wfile.write(json.dumps(out).encode("utf-8"))
+            return
+
         if path == "/health":
             self.send_response(200)
             self._set_cors()
@@ -142,12 +178,51 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
                 self.path = "/index.html"
             return super().do_GET()
 
+        if path == "/api/chat" or path.startswith("/api/chat/"):
+            b_id = str(payload.get("booking_id") or payload.get("id") or (path.split("/")[3] if len(path.split("/")) > 3 else "unknown"))
+            msg_text = str(payload.get("text") or payload.get("message") or "").strip()
+            sender_role = str(payload.get("sender_role") or "customer").lower()
+            sender_name = str(payload.get("sender_name") or "")
+            sender_phone = str(payload.get("sender_phone") or "")
+            
+            if not msg_text:
+                self.send_response(400)
+                self._set_cors()
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Empty message text"}).encode("utf-8"))
+                return
+
+            new_msg = {
+                "id": f"msg_{int(time.time()*1000)}",
+                "booking_id": b_id,
+                "sender_role": sender_role,
+                "sender_name": sender_name,
+                "sender_phone": sender_phone,
+                "text": msg_text,
+                "timestamp": payload.get("timestamp") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "created_at": payload.get("created_at") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            }
+
+            with lock:
+                if b_id not in chats or not isinstance(chats[b_id], list):
+                    chats[b_id] = []
+                chats[b_id].append(new_msg)
+                save_json(chats, CHAT_FILE_PUBLIC, CHAT_FILE_TEMP)
+                log(f"[SYNC_SERVER] Chat message appended for {b_id} ({sender_role}): {msg_text[:35]}")
+
+            self.send_response(200)
+            self._set_cors()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "SUCCESS", "data": new_msg}).encode("utf-8"))
+            return
+
         self.send_response(404)
         self._set_cors()
         self.end_headers()
 
     def do_POST(self):
-        global verifications, bookings
+        global verifications, bookings, chats
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
@@ -232,6 +307,45 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"status": "SUCCESS", "data": payload}).encode("utf-8"))
+            return
+
+        if path == "/api/chat" or path.startswith("/api/chat/"):
+            b_id = str(payload.get("booking_id") or payload.get("id") or (path.split("/")[3] if len(path.split("/")) > 3 else "unknown"))
+            msg_text = str(payload.get("text") or payload.get("message") or "").strip()
+            sender_role = str(payload.get("sender_role") or "customer").lower()
+            sender_name = str(payload.get("sender_name") or "")
+            sender_phone = str(payload.get("sender_phone") or "")
+            
+            if not msg_text:
+                self.send_response(400)
+                self._set_cors()
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Empty message text"}).encode("utf-8"))
+                return
+
+            new_msg = {
+                "id": f"msg_{int(time.time()*1000)}",
+                "booking_id": b_id,
+                "sender_role": sender_role,
+                "sender_name": sender_name,
+                "sender_phone": sender_phone,
+                "text": msg_text,
+                "timestamp": payload.get("timestamp") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "created_at": payload.get("created_at") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            }
+
+            with lock:
+                if b_id not in chats or not isinstance(chats[b_id], list):
+                    chats[b_id] = []
+                chats[b_id].append(new_msg)
+                save_json(chats, CHAT_FILE_PUBLIC, CHAT_FILE_TEMP)
+                log(f"[SYNC_SERVER] Chat message appended for {b_id} ({sender_role}): {msg_text[:35]}")
+
+            self.send_response(200)
+            self._set_cors()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "SUCCESS", "data": new_msg}).encode("utf-8"))
             return
 
         self.send_response(404)

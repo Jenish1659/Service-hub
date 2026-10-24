@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 
@@ -364,26 +365,19 @@ class _LaundryOrderDetailsScreenState extends State<LaundryOrderDetailsScreen> {
                       IconButton(
                         style: IconButton.styleFrom(backgroundColor: const Color(0xFFEFF6FF)),
                         icon: const Icon(Icons.phone_rounded, color: primaryBlue, size: 18),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Calling customer $customerPhone...'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
+                        onPressed: () => PhoneLauncherService.makePhoneCall(context, customerPhone),
                       ),
                       const SizedBox(width: 6),
                       IconButton(
                         style: IconButton.styleFrom(backgroundColor: const Color(0xFFEFF6FF)),
                         icon: const Icon(Icons.chat_bubble_outline_rounded, color: primaryBlue, size: 18),
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Opening chat with customer...'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
+                          final bId = (_booking['booking_id'] ?? _booking['id'] ?? '').toString();
+                          context.push('/chat/$bId', extra: {
+                            'customer_name': customerName,
+                            'customer_phone': customerPhone,
+                            'service_name': 'Laundry & Dry Cleaning',
+                          });
                         },
                       ),
                     ],

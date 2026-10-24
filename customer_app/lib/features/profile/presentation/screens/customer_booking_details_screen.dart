@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../data/customer_profile_service.dart';
 
 class CustomerBookingDetailsScreen extends StatefulWidget {
@@ -334,14 +335,8 @@ class _CustomerBookingDetailsScreenState extends State<CustomerBookingDetailsScr
                             ),
                             icon: const Icon(Icons.call_rounded, size: 20),
                             onPressed: () {
-                              final pPhone = _b['partner_phone'] ?? '+91 98250 12345';
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Calling partner: $pPhone'),
-                                  backgroundColor: primaryBlue,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
+                              final pPhone = (_b['partner_phone'] ?? _b['provider_phone'] ?? '').toString();
+                              PhoneLauncherService.makePhoneCall(context, pPhone);
                             },
                           ),
                           const SizedBox(width: 6),
@@ -352,7 +347,10 @@ class _CustomerBookingDetailsScreenState extends State<CustomerBookingDetailsScr
                               foregroundColor: primaryBlue,
                             ),
                             icon: const Icon(Icons.chat_bubble_outline_rounded, size: 20),
-                            onPressed: () => context.push('/chat'),
+                            onPressed: () {
+                              final bId = (_b['booking_id'] ?? _b['id'] ?? '').toString();
+                              context.push('/chat/$bId');
+                            },
                           ),
                         ],
                       );

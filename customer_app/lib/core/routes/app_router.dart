@@ -441,5 +441,13 @@ final GoRouter appRouter = GoRouter(
         return ChatScreen(bookingId: bookingId);
       },
     ),
+    GoRoute(
+      path: '/chat',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (BuildContext context, GoRouterState state) {
+        final bookingId = (state.extra as String?) ?? '';
+        return ChatScreen(bookingId: bookingId);
+      },
+    ),
   ],
 );

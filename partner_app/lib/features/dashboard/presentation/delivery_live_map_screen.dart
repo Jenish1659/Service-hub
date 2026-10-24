@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/theme/app_colors.dart';
 
@@ -438,13 +439,7 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
                   ),
                   onTap: () {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Calling Store: $_storeName ($_storePhone)...'),
-                        backgroundColor: const Color(0xFF2563EB),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    PhoneLauncherService.makePhoneCall(context, _storePhone);
                   },
                 ),
                 const SizedBox(height: 12),
@@ -484,13 +479,7 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
                   ),
                   onTap: () {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Calling Customer: $_customerName ($_customerPhone)...'),
-                        backgroundColor: const Color(0xFF16A34A),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    PhoneLauncherService.makePhoneCall(context, _customerPhone);
                   },
                 ),
                 const SizedBox(height: 16),

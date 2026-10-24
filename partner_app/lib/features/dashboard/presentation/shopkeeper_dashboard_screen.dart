@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/storage/local_registration_cache.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import 'shopkeeper_store_map_screen.dart';
 
@@ -2327,9 +2328,8 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                   icon: const Icon(Icons.call_rounded, size: 14, color: Color(0xFF2563EB)),
                   label: const Text('Call', style: TextStyle(fontSize: 11.5, color: Color(0xFF2563EB))),
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Calling customer: +91 98980 22334'), backgroundColor: Color(0xFF2563EB)),
-                    );
+                    final cPhone = (order['customer_phone'] ?? order['phone'] ?? '').toString();
+                    PhoneLauncherService.makePhoneCall(context, cPhone);
                   },
                 ),
                 const SizedBox(width: 6),

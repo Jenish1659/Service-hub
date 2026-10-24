@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -1152,100 +1153,11 @@ class _ACTechnicianDetailsScreenState extends State<ACTechnicianDetailsScreen> {
   // --- Actions ---
 
   void _callTechnician() {
-    Clipboard.setData(ClipboardData(text: _technicianPhone));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Calling $_technicianName ($_technicianPhone)... Copied to clipboard!'),
-        backgroundColor: const Color(0xFF0F172A),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    PhoneLauncherService.makePhoneCall(context, _technicianPhone);
   }
 
   void _openLiveChat() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          top: 20,
-          left: 20,
-          right: 20,
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Color(0xFF2563EB),
-                          child: Icon(Icons.engineering_rounded, color: Colors.white, size: 18),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Chat with $_technicianName',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const Divider(),
-              Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Hello! I am $_technicianName, your assigned AC Service technician. I am riding towards your address on my $_vehicleModel. Feel free to message me here.',
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF1E3A8A), height: 1.3),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                decoration: InputDecoration(
-                  hintText: 'Type your message for $_technicianName...',
-                  hintStyle: const TextStyle(fontSize: 13),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.send_rounded, color: Color(0xFF2563EB)),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Message sent to technician!'), duration: Duration(seconds: 1)),
-                      );
-                    },
-                  ),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ),
-    );
+    context.push('/chat/${widget.bookingId}');
   }
 
   void _viewTechnicianProfile() {

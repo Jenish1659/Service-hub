@@ -3,6 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../../../core/services/partner_location_service.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 
@@ -109,88 +111,15 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
   }
 
   void _launchCaller(String phone) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Calling patient contact $phone...'),
-        backgroundColor: primaryIndigo,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    PhoneLauncherService.makePhoneCall(context, phone);
   }
 
-  void _showChatDialog(String patientName) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(16)),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: primaryIndigo.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.chat_bubble_outline_rounded, color: primaryIndigo, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Chat with $patientName',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Direct secure messaging with patient representative: $patientName.',
-                style: const TextStyle(fontSize: 13, color: textMuted)),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                hintText: 'Type your message...',
-                hintStyle: const TextStyle(fontSize: 13, color: textMuted),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: cardBorder),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: textMuted)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryIndigo,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Message sent successfully!'),
-                  backgroundColor: primaryIndigo,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            child: const Text('Send'),
-          ),
-        ],
-      ),
-    );
+  void _openChat(String bookingId, String patientName, String patientPhone) {
+    context.push('/chat/$bookingId', extra: {
+      'customer_name': patientName,
+      'customer_phone': patientPhone,
+      'service_name': 'Caregiver Service',
+    });
   }
 
   List<LatLng> _buildRoutePolyline() {
@@ -621,7 +550,7 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
                           padding: const EdgeInsets.all(10),
                         ),
                         icon: const Icon(Icons.chat_bubble_outline_rounded, color: primaryIndigo, size: 20),
-                        onPressed: () => _showChatDialog(patientName),
+                        onPressed: () => _openChat(b != null ? (b['booking_id'] ?? b['id'] ?? '').toString() : '', patientName, patientPhone),
                       ),
                     ],
                   ),

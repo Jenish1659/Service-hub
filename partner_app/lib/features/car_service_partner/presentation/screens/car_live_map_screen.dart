@@ -3,6 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../../../core/services/partner_location_service.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 
@@ -109,71 +111,15 @@ class _CarLiveMapScreenState extends State<CarLiveMapScreen> {
   }
 
   void _launchCaller(String phone) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Calling customer $phone...'),
-        backgroundColor: primaryBlue,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    PhoneLauncherService.makePhoneCall(context, phone);
   }
 
-  void _showChatDialog(String customerName) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(16)),
-        ),
-        title: Row(
-          children: [
-            const Icon(Icons.chat_bubble_outline_rounded, color: primaryBlue, size: 20),
-            const SizedBox(width: 8),
-            Text('Chat with $customerName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Direct live in-app messaging channel for car owner: $customerName.', style: const TextStyle(fontSize: 13, color: textMuted)),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                hintText: 'Type your message...',
-                hintStyle: const TextStyle(fontSize: 13, color: textMuted),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: cardBorder)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: textMuted)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryBlue,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Message sent successfully!'),
-                  backgroundColor: primaryBlue,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            child: const Text('Send'),
-          ),
-        ],
-      ),
-    );
+  void _openChat(String bookingId, String customerName, String customerPhone) {
+    context.push('/chat/$bookingId', extra: {
+      'customer_name': customerName,
+      'customer_phone': customerPhone,
+      'service_name': 'Car Service & Repair',
+    });
   }
 
   List<LatLng> _buildRoutePolyline() {
@@ -567,7 +513,7 @@ class _CarLiveMapScreenState extends State<CarLiveMapScreen> {
                           ),
                           child: IconButton(
                             icon: const Icon(Icons.chat_bubble_outline_rounded, color: primaryBlue, size: 20),
-                            onPressed: () => _showChatDialog(customerName),
+                            onPressed: () => _openChat(b != null ? (b['booking_id'] ?? b['id'] ?? '').toString() : '', customerName, customerPhone),
                           ),
                         ),
                       ],

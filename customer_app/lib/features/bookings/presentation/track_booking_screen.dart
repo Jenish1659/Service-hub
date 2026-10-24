@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/services/routing_service.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../services/services/ac_booking_service.dart';
 
 class TrackBookingScreen extends StatefulWidget {
@@ -996,10 +997,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                             icon: const Icon(Icons.phone_rounded, color: Color(0xFF2563EB), size: 16),
                             label: const Text('Call', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                             onPressed: () {
-                              Clipboard.setData(ClipboardData(text: _partnerPhone));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Calling $_partnerName ($_partnerPhone)...')),
-                              );
+                              PhoneLauncherService.makePhoneCall(context, _partnerPhone);
                             },
                           ),
                         ),

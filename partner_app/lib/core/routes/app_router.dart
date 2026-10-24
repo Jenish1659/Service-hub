@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import '../../features/chat/presentation/partner_chat_screen.dart';
 import '../../features/onboarding/presentation/storyboard_animation_screen.dart';
 import '../../features/auth/presentation/role_selection_screen.dart';
 import '../../features/auth/presentation/service_provider_login_screen.dart';
@@ -784,6 +785,32 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/profile/about',
       builder: (context, state) => const AboutServiceHubScreen(),
+    ),
+    GoRoute(
+      path: '/chat/:id',
+      builder: (context, state) {
+        final bookingId = state.pathParameters['id'] ?? '';
+        final extra = state.extra as Map<String, dynamic>?;
+        return PartnerChatScreen(
+          bookingId: bookingId,
+          initialCustomerName: extra?['customer_name'] as String?,
+          initialCustomerPhone: extra?['customer_phone'] as String?,
+          initialServiceName: extra?['service_name'] as String?,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/chat',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        final bookingId = (extra?['booking_id'] ?? extra?['id'] ?? '').toString();
+        return PartnerChatScreen(
+          bookingId: bookingId,
+          initialCustomerName: extra?['customer_name'] as String?,
+          initialCustomerPhone: extra?['customer_phone'] as String?,
+          initialServiceName: extra?['service_name'] as String?,
+        );
+      },
     ),
   ],
 );

@@ -1,6 +1,8 @@
 import 'package:latlong2/latlong.dart';
 import '../../../../core/services/partner_location_service.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
 import 'cooking_live_map_screen.dart';
@@ -258,11 +260,7 @@ class _CookingRequestDetailsScreenState extends State<CookingRequestDetailsScree
                     ),
                     // Call Button
                     InkWell(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Calling customer $phone...')),
-                        );
-                      },
+                      onTap: () => PhoneLauncherService.makePhoneCall(context, phone),
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -276,9 +274,12 @@ class _CookingRequestDetailsScreenState extends State<CookingRequestDetailsScree
                     // Chat Button
                     InkWell(
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Opening chat with $customerName...')),
-                        );
+                        final bId = (widget.booking['booking_id'] ?? widget.booking['id'] ?? '').toString();
+                        context.push('/chat/$bId', extra: {
+                          'customer_name': customerName,
+                          'customer_phone': phone,
+                          'service_name': 'Home Chef & Cooking',
+                        });
                       },
                       child: Container(
                         padding: const EdgeInsets.all(8),

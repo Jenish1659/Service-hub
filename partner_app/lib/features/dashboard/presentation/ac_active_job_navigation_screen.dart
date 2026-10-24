@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../../../core/services/partner_location_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'ac_provider_dashboard_controller.dart';
@@ -699,13 +700,18 @@ class _ACActiveJobNavigationScreenState extends ConsumerState<ACActiveJobNavigat
                       IconButton(
                         style: IconButton.styleFrom(backgroundColor: const Color(0xFFDCFCE7)),
                         icon: const Icon(Icons.phone_rounded, color: Color(0xFF15803D), size: 20),
+                        onPressed: () => PhoneLauncherService.makePhoneCall(context, customerPhone),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        style: IconButton.styleFrom(backgroundColor: const Color(0xFFDCFCE7)),
+                        icon: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF15803D), size: 18),
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Calling customer $customerName ($customerPhone)...'),
-                              backgroundColor: const Color(0xFF15803D),
-                            ),
-                          );
+                          context.push('/chat/${widget.job['id'] ?? widget.job['booking_id'] ?? ''}', extra: {
+                            'customer_name': customerName,
+                            'customer_phone': customerPhone,
+                            'service_name': 'AC Service',
+                          });
                         },
                       ),
                     ],

@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../../core/services/phone_launcher_service.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/services/routing_service.dart';
 import '../../../../core/storage/local_registration_cache.dart';
@@ -391,13 +392,8 @@ class _ShopkeeperStoreMapScreenState extends State<ShopkeeperStoreMapScreen>
                       label: const Text('Call Customer', style: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold)),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Calling customer: ${order['customer_phone']}'),
-                            backgroundColor: const Color(0xFF059669),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
+                        final cPhone = (order['customer_phone'] ?? order['phone'] ?? '').toString();
+                        PhoneLauncherService.makePhoneCall(context, cPhone);
                       },
                     ),
                   ),
@@ -554,13 +550,8 @@ class _ShopkeeperStoreMapScreenState extends State<ShopkeeperStoreMapScreen>
                       label: const Text('Call Rider', style: TextStyle(color: Color(0xFFEA580C), fontWeight: FontWeight.bold)),
                       onPressed: () {
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Calling rider: ${courier['phone']}'),
-                            backgroundColor: const Color(0xFFEA580C),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
+                        final rPhone = (courier['phone'] ?? '').toString();
+                        PhoneLauncherService.makePhoneCall(context, rPhone);
                       },
                     ),
                   ),
