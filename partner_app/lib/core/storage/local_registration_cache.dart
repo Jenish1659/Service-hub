@@ -461,7 +461,7 @@ class LocalRegistrationCache {
         final pPass = (p['password'] ?? '').toString().trim();
 
         if ((pPhone == cleanId || pEmail == cleanId || pName == cleanId || pPhone.endsWith(cleanId)) &&
-            (pPass.isEmpty || pPass == cleanPass)) {
+            (pPass.isNotEmpty && pPass == cleanPass)) {
           await updateActivePartner(p);
           return p;
         }
@@ -479,7 +479,7 @@ class LocalRegistrationCache {
       final pPass = (active['password'] ?? '').toString().trim();
 
       if ((pPhone == cleanId || pEmail == cleanId || pName == cleanId || pPhone.endsWith(cleanId)) &&
-          (pPass.isEmpty || pPass == cleanPass)) {
+          (pPass.isNotEmpty && pPass == cleanPass)) {
         return active;
       }
     }

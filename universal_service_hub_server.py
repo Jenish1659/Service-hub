@@ -48,12 +48,15 @@ def save_json(data, p1, p2):
         except Exception as e:
             log(f"Error saving {p}: {e}")
 
-# In-memory stores
+# In-memory stores & file caches
 verifications = load_json(VERIF_FILE_PUBLIC) or load_json(VERIF_FILE_TEMP) or {}
 bookings = load_json(BOOKING_FILE_PUBLIC) or load_json(BOOKING_FILE_TEMP) or {}
+_last_verif_mtime = 0
+_last_booking_mtime = 0
 
 class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
     web_dir = None
+    timeout = 15
 
     def __init__(self, *args, directory=None, **kwargs):
         self.web_dir = directory
@@ -72,32 +75,48 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        global verifications, bookings
+        global verifications, bookings, _last_verif_mtime, _last_booking_mtime
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
         if path == "/api/verifications":
             with lock:
-                file_data = load_json(VERIF_FILE_PUBLIC)
-                if file_data:
-                    verifications.update(file_data)
+                try:
+                    if os.path.exists(VERIF_FILE_PUBLIC):
+                        mtime = os.path.getmtime(VERIF_FILE_PUBLIC)
+                        if mtime > _last_verif_mtime:
+                            file_data = load_json(VERIF_FILE_PUBLIC)
+                            if file_data:
+                                verifications.update(file_data)
+                            _last_verif_mtime = mtime
+                except Exception:
+                    pass
                 out = list(verifications.values())
             self.send_response(200)
             self._set_cors()
             self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.end_headers()
             self.wfile.write(json.dumps(out).encode("utf-8"))
             return
 
         if path == "/api/bookings":
             with lock:
-                file_data = load_json(BOOKING_FILE_PUBLIC)
-                if file_data:
-                    bookings.update(file_data)
+                try:
+                    if os.path.exists(BOOKING_FILE_PUBLIC):
+                        mtime = os.path.getmtime(BOOKING_FILE_PUBLIC)
+                        if mtime > _last_booking_mtime:
+                            file_data = load_json(BOOKING_FILE_PUBLIC)
+                            if file_data:
+                                bookings.update(file_data)
+                            _last_booking_mtime = mtime
+                except Exception:
+                    pass
                 out = list(bookings.values())
             self.send_response(200)
             self._set_cors()
             self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.end_headers()
             self.wfile.write(json.dumps(out).encode("utf-8"))
             return
@@ -106,6 +125,7 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self._set_cors()
             self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.end_headers()
             self.wfile.write(json.dumps({
                 "status": "OK",
@@ -219,11 +239,20 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def end_headers(self):
+        if hasattr(self, 'command') and self.command == 'GET':
+            if any(self.path.endswith(ext) for ext in ('.js', '.wasm', '.png', '.jpg', '.jpeg', '.svg', '.ttf', '.woff', '.woff2', '.css', '.ico')):
+                self.send_header("Cache-Control", "public, max-age=86400, immutable")
+            elif self.path.startswith('/api/'):
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self._set_cors()
         super().end_headers()
 
     def log_message(self, format, *args):
         pass
+
+class ThreadedHTTPServer(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
 
 def run_server(port, web_dir=None, name="Server"):
     def handler_factory(*args, **kwargs):
@@ -236,10 +265,9 @@ def run_server(port, web_dir=None, name="Server"):
         ".json": "application/json",
     })
 
-    socketserver.TCPServer.allow_reuse_address = True
     try:
-        with socketserver.TCPServer(("0.0.0.0", port), handler_factory) as httpd:
-            log(f"[+] {name} successfully running on http://0.0.0.0:{port} (dir: {web_dir})")
+        with ThreadedHTTPServer(("0.0.0.0", port), handler_factory) as httpd:
+            log(f"[+] {name} (Multi-Threaded) successfully running on http://0.0.0.0:{port} (dir: {web_dir})")
             httpd.serve_forever()
     except Exception as e:
         log(f"[-] Failed to bind port {port} for {name}: {e}")

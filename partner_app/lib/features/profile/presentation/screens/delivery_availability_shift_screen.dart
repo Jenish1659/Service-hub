@@ -300,10 +300,26 @@ class _DeliveryAvailabilityShiftScreenState extends State<DeliveryAvailabilitySh
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-
-            // Save Changes Button
-            SizedBox(
+            const SizedBox(height: 24),
+            
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 10,
+                offset: Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
@@ -319,8 +335,6 @@ class _DeliveryAvailabilityShiftScreenState extends State<DeliveryAvailabilitySh
                     : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
-            const SizedBox(height: 20),
-          ],
         ),
       ),
     );

@@ -92,6 +92,7 @@ class _ProviderReviewApplicationScreenState
       'verification_id': appId,
       'user_id': partnerId,
       'username': username.isNotEmpty ? username : 'ptr_${DateTime.now().millisecondsSinceEpoch % 10000}',
+      'password': password,
       'name': fullName,
       'full_name': fullName,
       'first_name': firstName,

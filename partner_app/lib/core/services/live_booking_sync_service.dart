@@ -141,6 +141,8 @@ class LiveBookingSyncService {
   }
 
   Timer? _pollingTimer;
+  bool _isSyncing = false;
+  bool _isPollingHttp = false;
 
   final Map<String, Map<String, dynamic>> _inMemoryBookings = {};
   final Map<String, Map<String, dynamic>> _inMemoryVerifications = {};
@@ -256,7 +258,7 @@ class LiveBookingSyncService {
 
     _setupRealtimeSubscription();
 
-    _pollingTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 6), (_) {
       reloadAllFromDisk();
       _pollHttpBridge();
       _syncWithSupabase();
@@ -341,7 +343,9 @@ class LiveBookingSyncService {
   }
 
   Future<void> _syncWithSupabase() async {
+    if (_isSyncing) return;
     if (!_isSupabaseReady()) return;
+    _isSyncing = true;
     try {
       final supabase = Supabase.instance.client;
 
@@ -354,7 +358,8 @@ class LiveBookingSyncService {
             .filter('status', 'in', ['SEARCHING_PROVIDER', 'OFFERED_TO_PROVIDERS', 'PENDING', 'BROADCASTED', 'SCHEDULED'])
             .filter('partner_id', 'is', 'null')
             .order('created_at', ascending: false)
-            .limit(50);
+            .limit(50)
+            .timeout(const Duration(seconds: 4));
       } catch (_) {
         try {
           rows = await supabase
@@ -539,6 +544,9 @@ class LiveBookingSyncService {
   }
 
   Future<void> _pollHttpBridge() async {
+    if (_isPollingHttp) return;
+    _isPollingHttp = true;
+    try {
     if (!kIsWeb) {
       try {
         if (Platform.environment.containsKey('FLUTTER_TEST') ||
@@ -593,6 +601,9 @@ class LiveBookingSyncService {
         }
         break;
       } catch (_) {}
+    }
+    } finally {
+      _isPollingHttp = false;
     }
   }
 

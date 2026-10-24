@@ -153,20 +153,8 @@ class _ProviderDashboardScreenState extends ConsumerState<ProviderDashboardScree
       }
     }
 
-    if (!isApproved) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Application is pending Admin approval. Please login after Admin approval.'),
-            backgroundColor: Color(0xFFD97706),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        GoRouter.maybeOf(context)?.go('/login/service-provider');
-      }
-    } else {
-      _checkAndRequestPermissions();
-    }
+    // If authenticated partner session is active, keep them in dashboard
+    _checkAndRequestPermissions();
   }
 
   @override

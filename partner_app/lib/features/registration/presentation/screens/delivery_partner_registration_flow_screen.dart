@@ -753,6 +753,7 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
         'category_name': 'Delivery Partner ($_selectedVehicleType)',
         'role': 'delivery_agent',
         'role_name': 'delivery_agent',
+        'password': password,
         'document_type': 'DELIVERY_ONBOARDING',
         'verification_type': 'DRIVING_LICENSE',
         'vehicle_type': _selectedVehicleType,
@@ -787,6 +788,7 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
 
       await LiveBookingSyncService.instance.submitPartnerVerification(verificationPayload);
       await LocalRegistrationCache.updateActiveDeliveryAgent(verificationPayload);
+        await LocalRegistrationCache.saveRegisteredPartner(verificationPayload);
     } catch (_) {}
 
     setState(() {

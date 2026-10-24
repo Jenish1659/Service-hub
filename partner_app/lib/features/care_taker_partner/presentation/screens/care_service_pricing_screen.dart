@@ -349,9 +349,25 @@ class _CareServicePricingScreenState extends State<CareServicePricingScreen> {
             ),
 
             const SizedBox(height: 24),
-
-            // Save Changes Button
-            SizedBox(
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+          bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 10,
+                offset: Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
@@ -365,8 +381,6 @@ class _CareServicePricingScreenState extends State<CareServicePricingScreen> {
                 child: const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
-            const SizedBox(height: 20),
-          ],
         ),
       ),
     );

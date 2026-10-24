@@ -888,6 +888,7 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
         'business_type': category,
         'role': 'shopkeeper',
         'role_name': 'shopkeeper',
+        'password': password,
         'city': city.isNotEmpty ? city : 'Jamnagar',
         'state': 'Gujarat',
         'address': fullAddress,
@@ -918,6 +919,7 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
       try {
         await LiveBookingSyncService.instance.submitPartnerVerification(verificationPayload);
         await LocalRegistrationCache.updateActiveShopkeeper(verificationPayload);
+        await LocalRegistrationCache.saveRegisteredPartner(verificationPayload);
       } catch (err) {
         debugPrint('LiveBookingSyncService shopkeeper broadcast note: $err');
       }

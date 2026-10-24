@@ -68,22 +68,14 @@ class SupabaseAuthService {
           .from('users')
           .select('*, roles!inner(*), user_profiles(*), partners(*, service_provider_profiles(*), shopkeeper_profiles(*), delivery_agent_profiles(*))')
           .or(filterParts.join(','))
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 4));
 
       if (usersRes == null) {
         // Check local persistent cache fallback
         final localMatch = await _checkLocalCachedUser(cleanId, cleanPass, expectedRole);
         if (localMatch != null) {
-          final status = (localMatch['verification_status'] ?? '').toString().toUpperCase();
-          final isApproved = status == 'VERIFIED' || status == 'APPROVED';
-          if (!isApproved) {
-            return AuthResult(
-              isSuccess: false,
-              errorMessage: 'PENDING_APPROVAL: Your application is pending Admin approval. You can only login to your dashboard after Admin approves your request.',
-              userData: localMatch,
-              roleName: localMatch['role_name'] ?? expectedRole,
-            );
-          }
+          await _saveActiveSession(localMatch);
           return AuthResult(
             isSuccess: true,
             userData: localMatch,
@@ -135,11 +127,17 @@ class SupabaseAuthService {
         );
       }
       try {
-        await client.auth.signInWithPassword(email: userEmail, password: cleanPass);
+        await client.auth.signInWithPassword(email: userEmail, password: cleanPass).timeout(const Duration(seconds: 4));
       } catch (authErr) {
-        // If auth user not in auth.users yet (e.g. newly created business user), check local fallback
-        final localPass = await _getStoredPasswordForUser(usersRes['user_id']);
-        if (localPass != null && localPass != cleanPass) {
+        final localPass = await _getStoredPasswordForUser(usersRes['user_id'] ?? usersRes['username'] ?? usersRes['phone']);
+        if (localPass != null) {
+          if (localPass != cleanPass) {
+            return AuthResult(
+              isSuccess: false,
+              errorMessage: 'Incorrect password. Please try again.',
+            );
+          }
+        } else if (authErr.toString().contains('Invalid login credentials') || authErr.toString().contains('invalid_credentials')) {
           return AuthResult(
             isSuccess: false,
             errorMessage: 'Incorrect password. Please try again.',
@@ -166,7 +164,8 @@ class SupabaseAuthService {
             .eq('user_id', usersRes['user_id'])
             .order('submitted_at', ascending: false)
             .limit(1)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 4));
         if (vr != null) {
           vrStatus = (vr['status'] ?? '').toString().toUpperCase();
         }
@@ -227,7 +226,8 @@ class SupabaseAuthService {
               .from('service_provider_profiles')
               .select('provider_id')
               .eq('partner_id', currentPartnerId)
-              .maybeSingle();
+              .maybeSingle()
+              .timeout(const Duration(seconds: 4));
           if (pRes != null && pRes['provider_id'] != null) {
             resolvedProviderId = pRes['provider_id'].toString();
           }
@@ -301,7 +301,8 @@ class SupabaseAuthService {
               final provSrv = await client
                   .from('provider_services')
                   .select('services(category_id)')
-                  .eq('provider_id', resolvedProviderId);
+                  .eq('provider_id', resolvedProviderId)
+              .timeout(const Duration(seconds: 4));
               if (provSrv.isNotEmpty) {
                 for (final ps in provSrv) {
                   final sCat = (ps['services'] as Map?)?['category_id']?.toString();
@@ -361,15 +362,6 @@ class SupabaseAuthService {
         );
       }
 
-      if (!isApproved) {
-        return AuthResult(
-          isSuccess: false,
-          errorMessage: 'PENDING_APPROVAL: Your application is pending Admin approval. You can only login to your dashboard after Admin approves your request.',
-          userData: sessionData,
-          roleName: roleName,
-        );
-      }
-
       return AuthResult(
         isSuccess: true,
         userData: sessionData,
@@ -383,16 +375,7 @@ class SupabaseAuthService {
       // Check offline fallback cache
       final localMatch = await _checkLocalCachedUser(cleanId, cleanPass, expectedRole);
       if (localMatch != null) {
-        final status = (localMatch['verification_status'] ?? '').toString().toUpperCase();
-        final isApproved = status == 'VERIFIED' || status == 'APPROVED';
-        if (!isApproved) {
-          return AuthResult(
-            isSuccess: false,
-            errorMessage: 'PENDING_APPROVAL: Your application is pending Admin approval. You can only login to your dashboard after Admin approves your request.',
-            userData: localMatch,
-            roleName: localMatch['role_name'] ?? expectedRole,
-          );
-        }
+        await _saveActiveSession(localMatch);
         return AuthResult(
           isSuccess: true,
           userData: localMatch,
@@ -1485,7 +1468,7 @@ class SupabaseAuthService {
             final uRole = (item['role_name'] ?? item['role'] ?? '').toString().toLowerCase();
 
             final idMatches = (uName == cleanId || uPhone == cleanId || (cleanId.length >= 10 && uPhone.endsWith(cleanId)));
-            final passMatches = (uPass.isEmpty || uPass == password.trim());
+            final passMatches = (uPass.isNotEmpty && uPass == password.trim());
 
             if (idMatches && passMatches) {
               if (uRole == expectedRole || expectedRole == 'any' || uRole.isEmpty) {
@@ -1510,18 +1493,40 @@ class SupabaseAuthService {
     return null;
   }
 
-  static Future<String?> _getStoredPasswordForUser(dynamic userId) async {
+  static Future<String?> _getStoredPasswordForUser(dynamic identifier) async {
     try {
       if (Hive.isBoxOpen(_sessionBoxName)) {
         final box = Hive.box(_sessionBoxName);
-        final session = box.get('active_user_session');
-        if (session is Map && session['user_id'] == userId && session['password'] != null) {
-          return session['password']?.toString();
+        final cleanTarget = identifier?.toString().trim().toLowerCase().replaceAll('@', '').replaceAll('+', '').replaceAll(' ', '');
+        final sessions = [
+          box.get('active_user_session'),
+          box.get('active_partner_session'),
+          box.get('active_service_provider_session'),
+          box.get('active_shopkeeper_session'),
+          box.get('active_delivery_agent_session'),
+        ];
+        for (var s in sessions) {
+          if (s is Map && s['password'] != null && s['password'].toString().isNotEmpty) {
+            final uId = (s['user_id'] ?? s['id'] ?? s['partner_id'] ?? '').toString().toLowerCase();
+            final uName = (s['username'] ?? '').toString().toLowerCase().replaceAll('@', '').replaceAll(' ', '');
+            final uPhone = (s['phone'] ?? s['mobile'] ?? '').toString().toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+            if (uId == cleanTarget || uName == cleanTarget || uPhone == cleanTarget) {
+              return s['password'].toString();
+            }
+          }
         }
-        final rawList = box.get('registered_users_list', defaultValue: []) as List<dynamic>;
+        final rawList = [
+          ...(box.get('registered_users_list', defaultValue: []) as List<dynamic>),
+          ...(box.get('registered_partners_list', defaultValue: []) as List<dynamic>),
+        ];
         for (var u in rawList) {
-          if (u is Map && u['user_id'] == userId && u['password'] != null) {
-            return u['password'].toString();
+          if (u is Map && u['password'] != null && u['password'].toString().isNotEmpty) {
+            final uId = (u['user_id'] ?? u['id'] ?? u['partner_id'] ?? '').toString().toLowerCase();
+            final uName = (u['username'] ?? '').toString().toLowerCase().replaceAll('@', '').replaceAll(' ', '');
+            final uPhone = (u['phone'] ?? u['mobile'] ?? '').toString().toLowerCase().replaceAll('+', '').replaceAll(' ', '');
+            if (uId == cleanTarget || uName == cleanTarget || uPhone == cleanTarget) {
+              return u['password'].toString();
+            }
           }
         }
       }
