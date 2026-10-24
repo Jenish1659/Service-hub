@@ -400,7 +400,10 @@ class _DeliveryAgentLoginScreenState extends State<DeliveryAgentLoginScreen> {
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          onPressed: () {},
+                          onPressed: () {
+                            final typed = _usernameController.text.trim();
+                            context.push('/forgot-password', extra: typed.isNotEmpty ? typed : null);
+                          },
                           child: const Text('Forgot Password?', style: TextStyle(fontSize: 12, color: AppColors.deliveryOrangePrimary, fontWeight: FontWeight.bold)),
                         ),
                       ],
@@ -447,7 +450,7 @@ class _DeliveryAgentLoginScreenState extends State<DeliveryAgentLoginScreen> {
                         ),
                         onPressed: () {
                           final typed = _usernameController.text.trim();
-                          context.push('/register/status-tracker', extra: typed.isNotEmpty ? typed : null);
+                          context.push('/track-application', extra: typed.isNotEmpty ? typed : null);
                         },
                         icon: const Icon(Icons.track_changes_rounded, color: Color(0xFF2563EB), size: 18),
                         label: const Text(

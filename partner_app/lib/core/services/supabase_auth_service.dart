@@ -1644,13 +1644,309 @@ class SupabaseAuthService {
           }
           await box.put('registered_users_list', updatedList);
         }
-        await box.flush();
       }
     } catch (e) {
       if (kDebugMode) debugPrint('[SupabaseAuthService] Local password cache update note: $e');
     }
 
     return true;
+  }
+
+  /// Find user by Username, Mobile Number, or Email ID (for Forgot Password verification)
+  static Future<Map<String, dynamic>?> findUserByIdentifier(String identifier) async {
+    final cleanId = identifier.trim().toLowerCase().replaceAll('@', '');
+    if (cleanId.isEmpty) return null;
+
+    final cleanDigits = cleanId.replaceAll(RegExp(r'\D'), '');
+    final isPhone = cleanDigits.length >= 10;
+    final last10 = isPhone ? cleanDigits.substring(cleanDigits.length - 10) : '';
+
+    final filterParts = <String>[
+      'username.ilike.$cleanId',
+      'email.ilike.$cleanId',
+      'phone.eq.$cleanId',
+    ];
+    if (isPhone) {
+      filterParts.add('phone.eq.+91$last10');
+      filterParts.add('phone.ilike.%$last10');
+      filterParts.add('phone.eq.$last10');
+    }
+
+    try {
+      final c = safeClient;
+      if (c != null) {
+        final res = await c
+            .from('users')
+            .select('*, roles(*), user_profiles(*), partners(*)')
+            .or(filterParts.join(','))
+            .maybeSingle()
+            .timeout(const Duration(seconds: 4));
+
+        if (res != null) {
+          return Map<String, dynamic>.from(res);
+        }
+      }
+    } catch (_) {}
+
+    // Fallback to local Hive registered users cache
+    try {
+      if (Hive.isBoxOpen(_sessionBoxName)) {
+        final box = Hive.box(_sessionBoxName);
+        final rawList = box.get('registered_users_list', defaultValue: []);
+        if (rawList is List) {
+          for (final item in rawList) {
+            if (item is Map) {
+              final uName = (item['username'] ?? '').toString().toLowerCase();
+              final uPhone = (item['phone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
+              final uEmail = (item['email'] ?? '').toString().toLowerCase();
+
+              if (uName == cleanId ||
+                  uEmail == cleanId ||
+                  (isPhone && uPhone.endsWith(last10)) ||
+                  uPhone == cleanDigits) {
+                return Map<String, dynamic>.from(item);
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  /// Reset and update password in Supabase database and local cache using verified identifier
+  static Future<bool> resetPasswordForIdentifier({
+    required String identifier,
+    required String newPassword,
+  }) async {
+    final cleanPass = newPassword.trim();
+    if (cleanPass.length < 6) return false;
+
+    final cleanId = identifier.trim().toLowerCase().replaceAll('@', '');
+    final cleanDigits = cleanId.replaceAll(RegExp(r'\D'), '');
+    final isPhone = cleanDigits.length >= 10;
+    final last10 = isPhone ? cleanDigits.substring(cleanDigits.length - 10) : '';
+
+    String? resolvedUserId;
+    final userMap = await findUserByIdentifier(identifier);
+    if (userMap != null) {
+      resolvedUserId = (userMap['user_id'] ?? userMap['id'])?.toString();
+    }
+
+    final c = safeClient;
+    if (c != null) {
+      if (resolvedUserId != null && resolvedUserId.isNotEmpty) {
+        try {
+          await c.from('users').update({
+            'password_hash': cleanPass,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('user_id', resolvedUserId).timeout(const Duration(seconds: 4));
+        } catch (_) {
+          try {
+            await c.from('users').update({
+              'password_hash': cleanPass,
+              'updated_at': DateTime.now().toIso8601String(),
+            }).eq('id', resolvedUserId).timeout(const Duration(seconds: 4));
+          } catch (_) {}
+        }
+      } else {
+        try {
+          final filter = isPhone ? 'phone.eq.$cleanId,phone.eq.+91$last10,phone.eq.$last10' : 'username.eq.$cleanId,email.eq.$cleanId';
+          await c.from('users').update({
+            'password_hash': cleanPass,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).or(filter).timeout(const Duration(seconds: 4));
+        } catch (_) {}
+      }
+    }
+
+    // Update local Hive caches so subsequent logins work offline/online immediately
+    try {
+      if (Hive.isBoxOpen(_sessionBoxName)) {
+        final box = Hive.box(_sessionBoxName);
+
+        void updateCreds(String key) {
+          final s = box.get(key);
+          if (s is Map) {
+            final m = Map<String, dynamic>.from(s);
+            final mUser = (m['username'] ?? m['phone'] ?? m['email'])?.toString().toLowerCase();
+            if (mUser == cleanId || (isPhone && (m['phone'] ?? '').toString().contains(last10))) {
+              m['password'] = cleanPass;
+              m['password_hash'] = cleanPass;
+              box.put(key, m);
+            }
+          }
+        }
+
+        updateCreds('user_credentials');
+        updateCreds('cached_credentials');
+        updateCreds('active_user_session');
+        updateCreds('active_partner_session');
+        updateCreds('active_delivery_agent_session');
+        updateCreds('active_shopkeeper_session');
+        updateCreds('active_service_provider_session');
+
+        final rawList = box.get('registered_users_list', defaultValue: []);
+        if (rawList is List) {
+          final updatedList = <dynamic>[];
+          bool updated = false;
+          for (var item in rawList) {
+            if (item is Map) {
+              final m = Map<String, dynamic>.from(item);
+              final itemUid = (m['user_id'] ?? m['id'])?.toString();
+              final itemUser = (m['username'] ?? '').toString().toLowerCase();
+              final itemPhone = (m['phone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
+              final itemEmail = (m['email'] ?? '').toString().toLowerCase();
+
+              if ((resolvedUserId != null && itemUid == resolvedUserId) ||
+                  itemUser == cleanId ||
+                  itemEmail == cleanId ||
+                  (isPhone && itemPhone.endsWith(last10))) {
+                m['password'] = cleanPass;
+                m['password_hash'] = cleanPass;
+                updated = true;
+              }
+              updatedList.add(m);
+            } else {
+              updatedList.add(item);
+            }
+          }
+          if (!updated && userMap != null) {
+            final m = Map<String, dynamic>.from(userMap);
+            m['password'] = cleanPass;
+            m['password_hash'] = cleanPass;
+            updatedList.add(m);
+          }
+          await box.put('registered_users_list', updatedList);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[SupabaseAuthService] Local password cache update note: $e');
+    }
+
+    return true;
+  }
+
+  /// Find all authentic submitted partner applications linked with a verified phone number
+  static Future<List<Map<String, dynamic>>> findApplicationsByPhone(String phone) async {
+    final cleanDigits = phone.replaceAll(RegExp(r'\D'), '').trim();
+    if (cleanDigits.length < 10) return [];
+    final last10 = cleanDigits.substring(cleanDigits.length - 10);
+    final results = <Map<String, dynamic>>[];
+    final seenIds = <String>{};
+
+    // 1. Check LiveBookingSyncService memory & disk verifications
+    try {
+      final syncVerifs = LiveBookingSyncService.instance.getAllPartnerVerifications();
+      for (final v in syncVerifs) {
+        final vPhone = (v['phone'] ?? v['mobile'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
+        if (vPhone.endsWith(last10)) {
+          final appId = (v['verification_id'] ?? v['id'] ?? v['partner_id'] ?? 'APP-$last10').toString();
+          if (!seenIds.contains(appId)) {
+            seenIds.add(appId);
+            final bName = (v['business_name'] ?? '').toString().trim();
+            final pName = (v['name'] ?? v['partner_name'] ?? '').toString().trim();
+            final displayName = bName.isNotEmpty ? bName : (pName.isNotEmpty ? pName : 'Applicant');
+            results.add({
+              'id': appId,
+              'application_id': appId,
+              'role': v['role_name'] ?? v['role'] ?? v['category'] ?? 'Service Partner',
+              'name': displayName,
+              'applicant_name': pName,
+              'business_name': bName,
+              'status': (v['status'] ?? v['verification_status'] ?? 'PENDING').toString().toUpperCase(),
+              'phone': v['phone'] ?? phone,
+              'city': v['city'] ?? v['area'] ?? 'Jamnagar',
+              'category': v['category'] ?? v['category_name'] ?? '',
+              'created_at': v['created_at'] ?? v['submitted_at'] ?? DateTime.now().toIso8601String(),
+            });
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 2. Query Supabase database
+    final c = safeClient;
+    if (c != null) {
+      try {
+        final userMatches = await c
+            .from('users')
+            .select('*, roles(*), user_profiles(*), partners(*, service_provider_profiles(*), shopkeeper_profiles(*), delivery_agent_profiles(*))')
+            .or('phone.eq.+91$last10,phone.eq.$last10,phone.ilike.%$last10')
+            .timeout(const Duration(seconds: 4));
+
+        for (final u in userMatches) {
+          final uPhone = (u['phone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
+          if (uPhone.endsWith(last10)) {
+            final roleData = u['roles'] as Map<String, dynamic>? ?? {};
+            final roleName = (roleData['role_name'] ?? 'partner').toString();
+            final profile = u['user_profiles'] as Map<String, dynamic>? ?? {};
+            final partnerList = u['partners'] as List<dynamic>? ?? (u['partners'] is Map ? [u['partners']] : []);
+
+            String applicantName = '${profile['first_name'] ?? ''} ${profile['last_name'] ?? ''}'.trim();
+            if (applicantName.isEmpty) applicantName = (u['username'] ?? 'Partner Applicant').toString();
+
+            for (final p in partnerList) {
+              if (p is Map<String, dynamic>) {
+                final pId = (p['partner_id'] ?? u['user_id'] ?? '').toString();
+                if (pId.isNotEmpty && !seenIds.contains(pId)) {
+                  seenIds.add(pId);
+                  
+                  String displayRole = 'Service Partner';
+                  if (roleName.contains('shopkeeper')) {
+                    displayRole = 'Shopkeeper';
+                  } else if (roleName.contains('delivery')) {
+                    displayRole = 'Delivery Agent';
+                  } else if (roleName.contains('service_provider')) {
+                    displayRole = 'Service Technician';
+                  }
+
+                  results.add({
+                    'id': pId,
+                    'application_id': 'SHB-${pId.substring(0, pId.length > 8 ? 8 : pId.length).toUpperCase()}',
+                    'role': displayRole,
+                    'name': applicantName,
+                    'status': (p['verification_status'] ?? 'PENDING').toString().toUpperCase(),
+                    'phone': u['phone'] ?? phone,
+                    'city': 'Jamnagar',
+                    'category': roleName,
+                    'created_at': p['created_at'] ?? u['created_at'] ?? DateTime.now().toIso8601String(),
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Fallback to local draft registration in LocalRegistrationCache / Hive
+    try {
+      final draft = await LocalRegistrationCache.getDraft();
+      if (draft != null) {
+        final dPhone = (draft['phone'] ?? draft['mobile'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
+        if (dPhone.endsWith(last10)) {
+          final draftId = (draft['verification_id'] ?? draft['id'] ?? 'DRAFT-$last10').toString();
+          if (!seenIds.contains(draftId)) {
+            seenIds.add(draftId);
+            results.add({
+              'id': draftId,
+              'application_id': draftId,
+              'role': draft['role'] ?? draft['category'] ?? 'Registered Partner',
+              'name': draft['first_name'] ?? draft['business_name'] ?? 'Applicant',
+              'status': 'UNDER_REVIEW',
+              'phone': phone,
+              'city': draft['city'] ?? 'Jamnagar',
+              'category': draft['category'] ?? '',
+              'created_at': draft['created_at'] ?? DateTime.now().toIso8601String(),
+            });
+          }
+        }
+      }
+    } catch (_) {}
+
+    return results;
   }
 
   /// Real-time 2-way database synchronization for Delivery Agent

@@ -5,6 +5,8 @@ import '../../features/auth/presentation/role_selection_screen.dart';
 import '../../features/auth/presentation/service_provider_login_screen.dart';
 import '../../features/auth/presentation/shopkeeper_login_screen.dart';
 import '../../features/auth/presentation/delivery_agent_login_screen.dart';
+import '../../features/auth/presentation/forgot_password_screen.dart';
+import '../../features/registration/presentation/screens/track_application_verification_screen.dart';
 import '../../features/registration/presentation/screens/provider_basic_info_registration_screen.dart';
 import '../../features/registration/presentation/screens/provider_category_selection_screen.dart';
 import '../../features/registration/presentation/screens/provider_service_options_selection_screen.dart';
@@ -140,6 +142,18 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/login/delivery',
       builder: (context, state) => const DeliveryAgentLoginScreen(),
+    ),
+    GoRoute(
+      path: '/track-application',
+      builder: (context, state) => TrackApplicationVerificationScreen(
+        initialPhone: state.extra as String?,
+      ),
+    ),
+    GoRoute(
+      path: '/forgot-password',
+      builder: (context, state) => ForgotPasswordScreen(
+        initialIdentifier: state.extra as String?,
+      ),
     ),
     GoRoute(
       path: '/register',
