@@ -152,9 +152,11 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
       context: context,
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          width: 550,
-          padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 550),
+            child: Container(
+              padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,7 +260,9 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildCustomerStatBox(String label, String value, IconData icon, Color color) {

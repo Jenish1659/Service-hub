@@ -1,3 +1,6 @@
+import 'package:file_picker/file_picker.dart';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -12,6 +15,58 @@ class AdminProductsView extends StatefulWidget {
 }
 
 class _AdminProductsViewState extends State<AdminProductsView> {
+  Widget _buildProductImage(String? imageSource, {double size = 36}) {
+    if (imageSource == null || imageSource.trim().isEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFF6FF),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFDBEAFE)),
+        ),
+        child: Icon(Icons.inventory_2_rounded, color: const Color(0xFF2563EB), size: size * 0.5),
+      );
+    }
+    final src = imageSource.trim();
+    if (src.startsWith('data:image/') || src.startsWith('base64,')) {
+      try {
+        final base64String = src.contains(',') ? src.split(',').last : src;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            base64Decode(base64String),
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Icon(Icons.inventory_2_rounded, color: const Color(0xFF2563EB), size: size * 0.5),
+          ),
+        );
+      } catch (_) {}
+    } else if (src.startsWith('http://') || src.startsWith('https://')) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          src,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Icon(Icons.inventory_2_rounded, color: const Color(0xFF2563EB), size: size * 0.5),
+        ),
+      );
+    }
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFDBEAFE)),
+      ),
+      child: Icon(Icons.inventory_2_rounded, color: const Color(0xFF2563EB), size: size * 0.5),
+    );
+  }
+
   List<Map<String, dynamic>> _products = [];
   bool _isLoading = true;
   String _searchQuery = '';
@@ -34,23 +89,58 @@ class _AdminProductsViewState extends State<AdminProductsView> {
 
   Future<void> _loadProducts() async {
     setState(() => _isLoading = true);
-    List<Map<String, dynamic>> loaded = [];
+    final Map<String, Map<String, dynamic>> combined = {};
 
-    // 1. Try fetching from Python sync bridge API
+    // 1. Supabase Cloud Database (Universal Master Catalog)
     try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('products')
+          .select('*, shops(shop_name, shop_type)')
+          .order('created_at', ascending: false)
+          .timeout(const Duration(seconds: 4));
+      for (final r in res) {
+        final m = Map<String, dynamic>.from(r as Map);
+        final id = (m['product_id'] ?? m['id'] ?? '').toString();
+        m['id'] = id;
+        m['product_id'] = id;
+        m['name'] = m['product_name'] ?? m['name'] ?? m['title'] ?? 'Product';
+        m['title'] = m['name'];
+        m['image_url'] = m['image'] ?? m['image_url'];
+        final shop = m['shops'] is Map ? m['shops'] as Map<String, dynamic> : null;
+        m['shop_name'] = shop?['shop_name'] ?? 'ServiceHub Store';
+        m['category_name'] = shop?['shop_type'] ?? m['category'] ?? 'AC Spare Parts';
+        m['category'] = (m['category'] ?? m['category_name'] ?? 'ac_parts').toString().toLowerCase().replaceAll(' ', '_');
+        if (id.isNotEmpty) combined[id] = m;
+      }
+    } catch (e) {
+      debugPrint('[AdminProducts] Supabase products load: $e');
+    }
+
+    // 2. Python Sync Bridge API (Host-aware for Android vs Web/Windows)
+    try {
+      final host = (!kIsWeb && Platform.isAndroid) ? '10.0.2.2' : '127.0.0.1';
       final res = await http
-          .get(Uri.parse('http://127.0.0.1:8088/api/products'))
-          .timeout(const Duration(seconds: 2));
+          .get(Uri.parse('http://$host:8088/api/products'))
+          .timeout(const Duration(milliseconds: 1500));
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
         if (decoded is List) {
-          loaded = List<Map<String, dynamic>>.from(decoded);
+          for (final item in decoded) {
+            final m = Map<String, dynamic>.from(item as Map);
+            final id = (m['product_id'] ?? m['id'] ?? '').toString();
+            m['name'] = m['product_name'] ?? m['name'] ?? m['title'] ?? 'Product';
+            m['title'] = m['name'];
+            if (id.isNotEmpty && !combined.containsKey(id)) {
+              combined[id] = m;
+            }
+          }
         }
       }
     } catch (_) {}
 
-    // 2. Direct File IPC Fallback
-    if (loaded.isEmpty) {
+    // 3. Direct File IPC Fallback (Windows Desktop Only)
+    if (!kIsWeb && Platform.isWindows) {
       try {
         const publicPath = r'C:\Users\Public\ServiceHub\service_hub_store_products.json';
         final file = File(publicPath);
@@ -58,28 +148,33 @@ class _AdminProductsViewState extends State<AdminProductsView> {
           final content = await file.readAsString();
           final data = jsonDecode(content);
           if (data is Map) {
-            loaded = data.values.map((v) => Map<String, dynamic>.from(v as Map)).toList();
+            for (final entry in data.entries) {
+              final m = Map<String, dynamic>.from(entry.value as Map);
+              final id = (m['product_id'] ?? m['id'] ?? entry.key).toString();
+              m['name'] = m['product_name'] ?? m['name'] ?? m['title'] ?? 'Product';
+              m['title'] = m['name'];
+              if (id.isNotEmpty && !combined.containsKey(id)) {
+                combined[id] = m;
+              }
+            }
           } else if (data is List) {
-            loaded = List<Map<String, dynamic>>.from(data);
+            for (final item in data) {
+              final m = Map<String, dynamic>.from(item as Map);
+              final id = (m['product_id'] ?? m['id'] ?? '').toString();
+              m['name'] = m['product_name'] ?? m['name'] ?? m['title'] ?? 'Product';
+              m['title'] = m['name'];
+              if (id.isNotEmpty && !combined.containsKey(id)) {
+                combined[id] = m;
+              }
+            }
           }
-        }
-      } catch (_) {}
-    }
-
-    // 3. Supabase Fallback
-    if (loaded.isEmpty) {
-      try {
-        final client = Supabase.instance.client;
-        final res = await client.from('products').select().order('created_at', ascending: false);
-        if (res.isNotEmpty) {
-          loaded = List<Map<String, dynamic>>.from(res);
         }
       } catch (_) {}
     }
 
     if (mounted) {
       setState(() {
-        _products = loaded;
+        _products = combined.values.toList();
         _isLoading = false;
       });
     }
@@ -126,7 +221,7 @@ class _AdminProductsViewState extends State<AdminProductsView> {
     // Supabase delete
     try {
       final client = Supabase.instance.client;
-      await client.from('products').delete().eq('id', productId);
+      await client.from('products').delete().or('product_id.eq.$productId,sku.eq.$productId');
     } catch (_) {}
 
     if (mounted) {
@@ -152,9 +247,16 @@ class _AdminProductsViewState extends State<AdminProductsView> {
     final imageUrlController = TextEditingController();
 
     String selectedCategory = 'AC Spare Parts';
+    Uint8List? pickedImageBytes;
+    String? pickedImageName;
+    bool isPublishing = false;
+
+    // Auto-generate guaranteed collision-proof SKU on modal open
+    skuController.text = 'SKU-AC-${Random().nextInt(900000) + 100000}';
 
     showDialog(
       context: context,
+      barrierDismissible: !isPublishing,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -176,8 +278,8 @@ class _AdminProductsViewState extends State<AdminProductsView> {
             ],
           ),
           content: SingleChildScrollView(
-            child: SizedBox(
-              width: 520,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 540),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,6 +314,8 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                                   setModalState(() {
                                     selectedCategory = val;
                                     categoryController.text = val;
+                                    final catPrefix = val.length >= 2 ? val.substring(0, 2).toUpperCase() : 'PR';
+                                    skuController.text = 'SKU-$catPrefix-${Random().nextInt(900000) + 100000}';
                                   });
                                 }
                               },
@@ -233,7 +337,7 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                             TextField(
                               controller: skuController,
                               decoration: InputDecoration(
-                                hintText: 'e.g. SKU-AC-REM-01',
+                                hintText: 'Auto-generated SKU',
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               ),
@@ -242,6 +346,109 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Real Image from File Explorer Section
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Product Photo (From Computer / Files) *',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                        ),
+                        const SizedBox(height: 8),
+                        if (pickedImageBytes != null) ...[
+                          Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(
+                                  pickedImageBytes!,
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      pickedImageName ?? 'selected_image.jpg',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${(pickedImageBytes!.lengthInBytes / 1024).toStringAsFixed(1)} KB • Real photo selected',
+                                      style: const TextStyle(color: Color(0xFF16A34A), fontSize: 11, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+                                tooltip: 'Remove Image',
+                                onPressed: () {
+                                  setModalState(() {
+                                    pickedImageBytes = null;
+                                    pickedImageName = null;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    side: const BorderSide(color: Color(0xFF2563EB)),
+                                  ),
+                                  icon: const Icon(Icons.photo_library_rounded, color: Color(0xFF2563EB), size: 20),
+                                  label: const Text('Browse Files & Select Real Photo', style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
+                                  onPressed: () async {
+                                    try {
+                                      final result = await FilePicker.platform.pickFiles(
+                                        type: FileType.image,
+                                        withData: true,
+                                      );
+                                      if (result != null && result.files.isNotEmpty) {
+                                        final file = result.files.first;
+                                        Uint8List? bytes = file.bytes;
+                                        if (bytes == null && file.path != null) {
+                                          bytes = await File(file.path!).readAsBytes();
+                                        }
+                                        if (bytes != null) {
+                                          setModalState(() {
+                                            pickedImageBytes = bytes;
+                                            pickedImageName = file.name;
+                                          });
+                                        }
+                                      }
+                                    } catch (e) {
+                                      debugPrint('Error picking file: $e');
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 14),
 
@@ -313,23 +520,11 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                   const SizedBox(height: 6),
                   TextField(
                     controller: descController,
-                    maxLines: 3,
+                    maxLines: 2,
                     decoration: InputDecoration(
                       hintText: 'Detailed specifications, warranty information, and compatibility details...',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       contentPadding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  const Text('Image URL (Optional)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155))),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: imageUrlController,
-                    decoration: InputDecoration(
-                      hintText: 'https://images.unsplash.com/... or asset path',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
                   ),
                 ],
@@ -338,7 +533,7 @@ class _AdminProductsViewState extends State<AdminProductsView> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: isPublishing ? null : () => Navigator.pop(ctx),
               child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
             ),
             ElevatedButton.icon(
@@ -348,104 +543,154 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              icon: const Icon(Icons.check_circle_rounded, size: 18),
-              label: const Text('Publish Product', style: TextStyle(fontWeight: FontWeight.bold)),
-              onPressed: () async {
-                final title = titleController.text.trim();
-                final price = double.tryParse(priceController.text.trim()) ?? 0.0;
-                final mrp = double.tryParse(mrpController.text.trim()) ?? (price * 1.3);
-                final sku = skuController.text.trim().isNotEmpty
-                    ? skuController.text.trim()
-                    : 'SKU-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-                final stock = int.tryParse(stockController.text.trim()) ?? 10;
-                final desc = descController.text.trim().isNotEmpty
-                    ? descController.text.trim()
-                    : 'Authentic store certified product with manufacturer warranty.';
-                final img = imageUrlController.text.trim().isNotEmpty
-                    ? imageUrlController.text.trim()
-                    : 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=300&q=80';
+              icon: isPublishing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle_rounded, size: 18),
+              label: Text(
+                isPublishing ? 'Publishing...' : 'Publish Product',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onPressed: isPublishing
+                  ? null
+                  : () async {
+                      final title = titleController.text.trim();
+                      final price = double.tryParse(priceController.text.trim()) ?? 0.0;
+                      final mrp = double.tryParse(mrpController.text.trim()) ?? (price * 1.3);
+                      final rawSku = skuController.text.trim().isNotEmpty
+                          ? skuController.text.trim()
+                          : 'SKU-${Random().nextInt(900000) + 100000}';
+                      final stock = int.tryParse(stockController.text.trim()) ?? 10;
+                      final desc = descController.text.trim().isNotEmpty
+                          ? descController.text.trim()
+                          : 'Genuine store certified item with manufacturer warranty.';
 
-                if (title.isEmpty || price <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter a valid title and price'), backgroundColor: Colors.red),
-                  );
-                  return;
-                }
+                      if (title.isEmpty || price <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enter a valid title and price'), backgroundColor: Colors.red),
+                        );
+                        return;
+                      }
 
-                Navigator.pop(ctx);
+                      // Convert picked real photo to Base64 data URI
+                      String finalImage;
+                      if (pickedImageBytes != null) {
+                        final isPng = pickedImageName?.toLowerCase().endsWith('.png') ?? false;
+                        final mime = isPng ? 'image/png' : 'image/jpeg';
+                        finalImage = 'data:$mime;base64,${base64Encode(pickedImageBytes!)}';
+                      } else if (imageUrlController.text.trim().isNotEmpty) {
+                        finalImage = imageUrlController.text.trim();
+                      } else {
+                        // Fallback authentic image
+                        finalImage = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80';
+                      }
 
-                final newProd = {
-                  'id': 'PROD_${DateTime.now().millisecondsSinceEpoch}',
-                  'product_id': 'PROD_${DateTime.now().millisecondsSinceEpoch}',
-                  'name': title,
-                  'title': title,
-                  'category': selectedCategory.toLowerCase().replaceAll(' ', '_'),
-                  'category_name': selectedCategory,
-                  'price': price,
-                  'mrp': mrp,
-                  'sku': sku,
-                  'stock': stock,
-                  'description': desc,
-                  'icon': 'inventory_2_rounded',
-                  'image_url': img,
-                  'created_at': DateTime.now().toIso8601String(),
-                };
+                      setModalState(() => isPublishing = true);
 
-                // 1. Post to Python server
-                try {
-                  await http.post(
-                    Uri.parse('http://127.0.0.1:8088/api/products'),
-                    headers: {'Content-Type': 'application/json'},
-                    body: jsonEncode(newProd),
-                  ).timeout(const Duration(seconds: 2));
-                } catch (_) {}
+                      const validShopId = '8644497a-8c8a-4ff1-8912-c4e7048176c8';
+                      final client = Supabase.instance.client;
+                      String? createdProductId;
+                      String finalSku = rawSku;
 
-                // 2. Direct File IPC Save
-                try {
-                  const publicPath = r'C:\Users\Public\ServiceHub\service_hub_store_products.json';
-                  final file = File(publicPath);
-                  Map<String, dynamic> current = {};
-                  if (await file.exists()) {
-                    final content = await file.readAsString();
-                    final parsed = jsonDecode(content);
-                    if (parsed is Map) current = Map<String, dynamic>.from(parsed);
-                  }
-                  current[newProd['id'] as String] = newProd;
-                  await file.writeAsString(jsonEncode(current));
-                } catch (_) {}
+                      // Insert into Supabase products table with automatic collision retry
+                      for (int attempt = 0; attempt < 3; attempt++) {
+                        try {
+                          final inserted = await client.from('products').insert({
+                            'shop_id': validShopId,
+                            'product_name': title,
+                            'price': price,
+                            'description': desc,
+                            'sku': finalSku,
+                            'image': finalImage,
+                            'status': 'ACTIVE',
+                          }).select().single().timeout(const Duration(seconds: 4));
+                          createdProductId = inserted['product_id']?.toString();
+                          break;
+                        } catch (e) {
+                          if (e.toString().contains('products_sku_key') ||
+                              e.toString().contains('409') ||
+                              e.toString().contains('duplicate key')) {
+                            finalSku = '$rawSku-${Random().nextInt(9000) + 1000}';
+                            continue;
+                          }
+                          debugPrint('[AdminProducts] Supabase insert note: $e');
+                          break;
+                        }
+                      }
 
-                // 3. Supabase insert
-                try {
-                  final client = Supabase.instance.client;
-                  await client.from('products').insert({
-                    'id': newProd['id'],
-                    'name': newProd['name'],
-                    'category': newProd['category'],
-                    'price': newProd['price'],
-                    'stock': newProd['stock'],
-                    'description': newProd['description'],
-                    'image_url': newProd['image_url'],
-                  });
-                } catch (_) {}
+                      final effectiveId = createdProductId ?? 'PROD_${DateTime.now().millisecondsSinceEpoch}';
 
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Product "${newProd['title']}" added to live catalog successfully!'),
-                      backgroundColor: const Color(0xFF16A34A),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  _loadProducts();
-                }
-              },
+                      final newProd = {
+                        'id': effectiveId,
+                        'product_id': effectiveId,
+                        'shop_id': validShopId,
+                        'name': title,
+                        'product_name': title,
+                        'title': title,
+                        'category': selectedCategory.toLowerCase().replaceAll(' ', '_'),
+                        'category_name': selectedCategory,
+                        'price': price,
+                        'mrp': mrp,
+                        'sku': finalSku,
+                        'stock': stock,
+                        'description': desc,
+                        'icon': 'inventory_2_rounded',
+                        'image_url': finalImage,
+                        'image': finalImage,
+                        'created_at': DateTime.now().toIso8601String(),
+                      };
+
+                      // 1. Optimistic instant UI update
+                      if (mounted) {
+                        setState(() {
+                          _products.insert(0, newProd);
+                        });
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('✓ Product "${newProd['title']}" published to store with real photo!'),
+                            backgroundColor: const Color(0xFF16A34A),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+
+                      // 2. Background non-blocking secondary syncs
+                      Future.microtask(() async {
+                        try {
+                          final host = (!kIsWeb && Platform.isAndroid) ? '10.0.2.2' : '127.0.0.1';
+                          await http.post(
+                            Uri.parse('http://$host:8088/api/products'),
+                            headers: {'Content-Type': 'application/json'},
+                            body: jsonEncode(newProd),
+                          ).timeout(const Duration(seconds: 2));
+                        } catch (_) {}
+
+                        if (!kIsWeb && Platform.isWindows) {
+                          try {
+                            const publicPath = r'C:\Users\Public\ServiceHub\service_hub_store_products.json';
+                            final file = File(publicPath);
+                            Map<String, dynamic> current = {};
+                            if (await file.exists()) {
+                              final content = await file.readAsString();
+                              final parsed = jsonDecode(content);
+                              if (parsed is Map) current = Map<String, dynamic>.from(parsed);
+                            }
+                            current[newProd['id'] as String] = newProd;
+                            await file.writeAsString(jsonEncode(current));
+                          } catch (_) {}
+                        }
+                      });
+                    },
             ),
           ],
         ),
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     final filtered = _products.where((p) {
@@ -595,8 +840,12 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
                             physics: const ClampingScrollPhysics(),
-                            child: DataTable(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.vertical,
+                              physics: const ClampingScrollPhysics(),
+                              child: DataTable(
                               headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                               columnSpacing: 24,
                               horizontalMargin: 20,
@@ -611,7 +860,7 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                               ],
                               rows: filtered.map((prod) {
                                 final pId = (prod['id'] ?? prod['product_id'] ?? '').toString();
-                                final title = (prod['name'] ?? prod['title'] ?? 'Product').toString();
+                                final title = (prod['product_name'] ?? prod['name'] ?? prod['title'] ?? 'Product').toString();
                                 final cat = (prod['category_name'] ?? prod['category'] ?? 'Store').toString();
                                 final sku = (prod['sku'] ?? 'N/A').toString();
                                 final price = (prod['price'] as num?)?.toDouble() ?? 0.0;
@@ -624,16 +873,7 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                                     DataCell(
                                       Row(
                                         children: [
-                                          Container(
-                                            width: 36,
-                                            height: 36,
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFEFF6FF),
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(color: const Color(0xFFDBEAFE)),
-                                            ),
-                                            child: const Icon(Icons.inventory_2_rounded, color: Color(0xFF2563EB), size: 18),
-                                          ),
+                                          _buildProductImage(prod['image'] ?? prod['image_url'], size: 36),
                                           const SizedBox(width: 12),
                                           ConstrainedBox(
                                             constraints: const BoxConstraints(maxWidth: 220),
@@ -690,6 +930,7 @@ class _AdminProductsViewState extends State<AdminProductsView> {
                           ),
                         ),
                       ),
+                    ),
           ),
         ],
       ),

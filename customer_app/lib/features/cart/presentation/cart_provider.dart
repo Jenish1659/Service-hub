@@ -7,6 +7,7 @@ class CartItem {
   final int price;
   final String category;
   int quantity;
+  final String? shopId;
 
   CartItem({
     required this.id,
@@ -14,6 +15,7 @@ class CartItem {
     required this.price,
     required this.category,
     this.quantity = 1,
+    this.shopId,
   });
 
   Map<String, dynamic> toJson() {
@@ -23,6 +25,7 @@ class CartItem {
       'price': price,
       'category': category,
       'quantity': quantity,
+      'shop_id': shopId,
     };
   }
 
@@ -33,6 +36,7 @@ class CartItem {
       price: (json['price'] as num?)?.toInt() ?? 0,
       category: json['category'] as String? ?? 'General',
       quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      shopId: json['shop_id'] as String? ?? json['shopId'] as String?,
     );
   }
 }
@@ -76,6 +80,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     final price = int.tryParse(priceRaw) ?? 349;
     final category = product['category'] ?? 'General';
     final id = product['id']?.toString() ?? name;
+    final shopId = product['shop_id']?.toString() ?? product['shopId']?.toString();
 
     final existingIndex = state.indexWhere((item) => item.name == name);
     List<CartItem> updated;
@@ -89,6 +94,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
               price: state[i].price,
               category: state[i].category,
               quantity: state[i].quantity + 1,
+              shopId: state[i].shopId ?? shopId,
             )
           else
             state[i],
@@ -96,7 +102,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     } else {
       updated = [
         ...state,
-        CartItem(id: id, name: name, price: price, category: category, quantity: 1),
+        CartItem(id: id, name: name, price: price, category: category, quantity: 1, shopId: shopId),
       ];
     }
     state = updated;
@@ -115,6 +121,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
             price: item.price,
             category: item.category,
             quantity: newQty,
+            shopId: item.shopId,
           ));
         }
       } else {

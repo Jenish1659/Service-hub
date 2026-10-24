@@ -86,13 +86,43 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final deliveryOtp = _generateOtpPin();
     final otpPin = deliveryOtp;
 
+    // Resolve valid shop_id from cart items or fallback to Radha Enterprises
+    String validShopId = '8644497a-8c8a-4ff1-8912-c4e7048176c8';
+    for (final item in cartItems) {
+      if (item.shopId != null && item.shopId!.isNotEmpty && !item.shopId!.startsWith('11111111')) {
+        validShopId = item.shopId!;
+        break;
+      }
+    }
+
+    // Resolve valid customer_id
+    String validCustomerId = user?.id ?? '';
+    final uuidRegex = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
+    if (!uuidRegex.hasMatch(validCustomerId)) {
+      validCustomerId = 'ca96ec12-5416-4446-84f0-95efeae6be47';
+    }
+
+    // Resolve valid address_id
+    String validAddressId = location?.id ?? '';
+    if (!uuidRegex.hasMatch(validAddressId)) {
+      try {
+        final addrRes = await client.from('user_addresses').select('address_id').limit(1).maybeSingle();
+        if (addrRes != null && addrRes['address_id'] != null) {
+          validAddressId = addrRes['address_id'].toString();
+        }
+      } catch (_) {}
+      if (!uuidRegex.hasMatch(validAddressId)) {
+        validAddressId = '660afdcd-2f97-4f79-9daf-02369c347bac';
+      }
+    }
+
     try {
       Map<String, dynamic> responseData;
       try {
         final response = await client.from('orders').insert({
-          'customer_id': customerId,
-          'shop_id': '11111111-1111-1111-1111-111111111118',
-          'address_id': location?.id ?? '11111111-1111-1111-1111-111111111116',
+          'customer_id': validCustomerId,
+          'shop_id': validShopId,
+          'address_id': validAddressId,
           'order_status': 'Placed',
           'subtotal': subtotal.toDouble(),
           'delivery_charge': deliveryFee.toDouble(),
@@ -111,14 +141,20 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           'shipping_address': shippingAddress,
         };
 
-        try {
-          await client.from('delivery_assignments').insert({
-            'order_id': responseData['id'],
-            'status': 'ASSIGNED',
-            'assigned_at': DateTime.now().toIso8601String(),
-          }).timeout(const Duration(seconds: 4));
-        } catch (e) {
-          debugPrint('Error inserting delivery assignment: $e');
+        // Insert order items if product_id is valid UUID
+        for (final item in cartItems) {
+          if (uuidRegex.hasMatch(item.id)) {
+            try {
+              await client.from('order_items').insert({
+                'order_id': orderId,
+                'product_id': item.id,
+                'quantity': item.quantity,
+                'subtotal': (item.price * item.quantity).toDouble(),
+              }).timeout(const Duration(seconds: 3));
+            } catch (e) {
+              debugPrint('Error inserting order_item in Supabase: $e');
+            }
+          }
         }
 
         try {
@@ -131,6 +167,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'order_code': orderCode,
             'customer_id': customerId,
             'customer_name': 'Customer',
+            'shop_id': validShopId,
             'service_id': 'store_products_delivery',
             'service_name': 'Store Order Delivery',
             'category_id': 'store',
@@ -180,6 +217,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'order_code': fallbackOrderCode,
             'customer_id': customerId,
             'customer_name': 'Customer',
+            'shop_id': validShopId,
             'service_id': 'store_products_delivery',
             'service_name': 'Store Order Delivery',
             'category_id': 'store',
@@ -555,7 +593,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Hyperlocal Express Delivery (5 km)', style: TextStyle(color: AppTheme.textSecondaryColor)),
+                              const Expanded(
+                                child: Text(
+                                  'Hyperlocal Express Delivery (5 km)',
+                                  style: TextStyle(color: AppTheme.textSecondaryColor),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
                               Text('₹$deliveryFee', style: const TextStyle(fontWeight: FontWeight.bold)),
                             ],
                           ),

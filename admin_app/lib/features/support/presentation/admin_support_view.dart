@@ -83,9 +83,11 @@ class _AdminSupportViewState extends State<AdminSupportView> {
       context: context,
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          width: 580,
-          padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: Container(
+              padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,7 +192,9 @@ class _AdminSupportViewState extends State<AdminSupportView> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   @override

@@ -112,6 +112,9 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
         // Cross-check with LiveBookingSyncService
         final uId = (userMap['user_id'] ?? userMap['id'] ?? '').toString();
         final pId = (userMap['partner_id'] ?? '').toString();
+        if (_partnerId.isEmpty) {
+          _partnerId = pId.isNotEmpty ? pId : uId;
+        }
         final phone = (userMap['phone'] ?? '').toString();
         if (phone.isNotEmpty) _phone = phone;
         final username = (userMap['username'] ?? '').toString().trim();
@@ -360,7 +363,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
           // Concurrency Claim Guarantee:
           // If this order is already claimed by another shopkeeper, hide immediately!
           final assignedPartner = (b['partner_id'] ?? b['shopkeeper_id'] ?? '').toString();
-          if (assignedPartner.isNotEmpty && assignedPartner != _partnerId && assignedPartner != _partnerId) {
+          if (assignedPartner.isNotEmpty && assignedPartner != _partnerId && (uId.isEmpty || assignedPartner != uId)) {
             continue;
           }
 
@@ -896,7 +899,6 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
 
       await client.from('orders').update({
         'order_status': dbStatus,
-        'status': dbStatus,
       }).or('order_id.eq.$rawId,order_code.eq.$orderId').timeout(const Duration(seconds: 2));
 
       if (newStatus == 'Ready for Pickup') {

@@ -62,8 +62,8 @@ class _AdminServicesViewState extends State<AdminServicesView> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Add New Service', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
           content: SingleChildScrollView(
-            child: SizedBox(
-              width: 480,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,9 +237,10 @@ class _AdminServicesViewState extends State<AdminServicesView> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Edit Pricing for ${srv['name']}'),
-        content: SizedBox(
-          width: 440,
-          child: Column(
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -263,7 +264,8 @@ class _AdminServicesViewState extends State<AdminServicesView> {
             ],
           ),
         ),
-        actions: [
+      ),
+      actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),

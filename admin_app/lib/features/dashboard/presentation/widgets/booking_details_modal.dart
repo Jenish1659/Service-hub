@@ -7,7 +7,7 @@ class BookingDetailsModal {
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
-          width: 580,
+          constraints: const BoxConstraints(maxWidth: 580),
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,

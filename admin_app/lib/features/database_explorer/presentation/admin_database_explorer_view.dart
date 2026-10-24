@@ -619,9 +619,14 @@ class _AdminDatabaseExplorerViewState extends State<AdminDatabaseExplorerView> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: Column(
-          children: [
-            // Table Header Row
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const ClampingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 800),
+            child: Column(
+              children: [
+                // Table Header Row
             Container(
               color: const Color(0xFFF8FAFC),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -653,7 +658,9 @@ class _AdminDatabaseExplorerViewState extends State<AdminDatabaseExplorerView> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildRecordRow(Map<String, dynamic> row, int index) {

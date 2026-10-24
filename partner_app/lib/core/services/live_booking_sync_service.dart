@@ -1142,6 +1142,7 @@ class LiveBookingSyncService {
     final booking = all[bookingId] as Map<String, dynamic>? ?? _inMemoryBookings[bookingId];
     if (booking != null) {
       booking['current_milestone'] = milestone;
+      booking['milestone'] = milestone;
       booking['status'] = milestone;
       booking['milestone_updated_at'] = DateTime.now().toIso8601String();
       all[bookingId] = booking;

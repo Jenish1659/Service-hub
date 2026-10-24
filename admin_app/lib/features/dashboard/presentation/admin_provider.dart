@@ -80,7 +80,7 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
     } catch (_) {}
 
     try {
-      final partnersRes = await client.from('partners').select('partner_id, verification_status');
+      final partnersRes = await client.from('partners').select('partner_id, verification_status').timeout(const Duration(seconds: 3));
       totalPartners = partnersRes.length;
       for (var p in partnersRes) {
         final st = (p['verification_status'] ?? '').toString().toUpperCase();
@@ -94,7 +94,8 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
       final verRes = await client
           .from('verification_requests')
           .select('verification_id, user_id, status')
-          .or('status.eq.PENDING,status.eq.UNDER_REVIEW,status.eq.SUBMITTED,status.eq.IN_REVIEW');
+          .or('status.eq.PENDING,status.eq.UNDER_REVIEW,status.eq.SUBMITTED,status.eq.IN_REVIEW')
+          .timeout(const Duration(seconds: 3));
       final Set<String> distinctPending = {};
       for (var r in verRes) {
         final uid = (r['user_id'] ?? r['verification_id'] ?? '').toString().trim();
@@ -109,13 +110,14 @@ final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) asyn
       final customersRes = await client
           .from('users')
           .select('user_id, roles!inner(role_name)')
-          .eq('roles.role_name', 'customer');
+          .eq('roles.role_name', 'customer')
+          .timeout(const Duration(seconds: 3));
       totalCustomers = customersRes.length;
     } catch (_) {
       try {
-        final roleRes = await client.from('roles').select('role_id').eq('role_name', 'customer').maybeSingle();
+        final roleRes = await client.from('roles').select('role_id').eq('role_name', 'customer').maybeSingle().timeout(const Duration(seconds: 3));
         if (roleRes != null) {
-          final cRes = await client.from('users').select('user_id').eq('role_id', roleRes['role_id']);
+          final cRes = await client.from('users').select('user_id').eq('role_id', roleRes['role_id']).timeout(const Duration(seconds: 3));
           totalCustomers = cRes.length;
         }
       } catch (_) {}
@@ -383,7 +385,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
             .select('*, users:users!verification_requests_user_id_fkey(*, user_profiles(*), roles(*), partners(*, shopkeeper_profiles(*), delivery_agent_profiles(*), service_provider_profiles(*)))')
             .or('status.eq.PENDING,status.eq.IN_REVIEW,status.eq.UNDER_REVIEW,status.eq.SUBMITTED')
             .order('submitted_at', ascending: false)
-            .timeout(const Duration(milliseconds: 10000));
+            .timeout(const Duration(milliseconds: 3000));
         anyQuerySucceeded = true;
       } catch (joinErr) {
         debugPrint('Source C rich join error, falling back to basic join: $joinErr');
@@ -393,7 +395,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
               .select('*, users:users!verification_requests_user_id_fkey(*, user_profiles(*), roles(*))')
               .or('status.eq.PENDING,status.eq.IN_REVIEW,status.eq.UNDER_REVIEW,status.eq.SUBMITTED')
               .order('submitted_at', ascending: false)
-              .timeout(const Duration(milliseconds: 10000));
+              .timeout(const Duration(milliseconds: 3000));
           anyQuerySucceeded = true;
         } catch (_) {
           response = await client
@@ -401,7 +403,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
               .select('*')
               .or('status.eq.PENDING,status.eq.IN_REVIEW,status.eq.UNDER_REVIEW,status.eq.SUBMITTED')
               .order('submitted_at', ascending: false)
-              .timeout(const Duration(milliseconds: 10000));
+              .timeout(const Duration(milliseconds: 3000));
           anyQuerySucceeded = true;
         }
       }
@@ -580,7 +582,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
             .select('*, users(*, user_profiles(*), roles(*)), shopkeeper_profiles(*), delivery_agent_profiles(*), service_provider_profiles(*)')
             .or('verification_status.eq.PENDING,verification_status.eq.UNDER_REVIEW,verification_status.eq.SUBMITTED')
             .order('joined_at', ascending: false)
-            .timeout(const Duration(milliseconds: 10000));
+            .timeout(const Duration(milliseconds: 3000));
         anyQuerySucceeded = true;
       } catch (joinErr) {
         debugPrint('Source D join error, falling back to direct partners query: $joinErr');
@@ -589,7 +591,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
             .select('*')
             .or('verification_status.eq.PENDING,verification_status.eq.UNDER_REVIEW,verification_status.eq.SUBMITTED')
             .order('joined_at', ascending: false)
-            .timeout(const Duration(milliseconds: 10000));
+            .timeout(const Duration(milliseconds: 3000));
         anyQuerySucceeded = true;
       }
 
@@ -698,13 +700,13 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
         shopProfiles = await client
             .from('shopkeeper_profiles')
             .select('*, partners!inner(*, users(*, user_profiles(*), roles(*)))')
-            .timeout(const Duration(milliseconds: 10000));
+            .timeout(const Duration(milliseconds: 3000));
         anyQuerySucceeded = true;
       } catch (_) {
         shopProfiles = await client
             .from('shopkeeper_profiles')
             .select('*')
-            .timeout(const Duration(milliseconds: 10000));
+            .timeout(const Duration(milliseconds: 3000));
         anyQuerySucceeded = true;
       }
 
@@ -791,13 +793,13 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
         deliveryProfiles = await client
             .from('delivery_agent_profiles')
             .select('*, partners!inner(*, users(*, user_profiles(*), roles(*)))')
-            .timeout(const Duration(milliseconds: 10000));
+            .timeout(const Duration(milliseconds: 3000));
         anyQuerySucceeded = true;
       } catch (_) {
         deliveryProfiles = await client
             .from('delivery_agent_profiles')
             .select('*')
-            .timeout(const Duration(milliseconds: 10000));
+            .timeout(const Duration(milliseconds: 3000));
         anyQuerySucceeded = true;
       }
 
@@ -885,13 +887,13 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
         provProfiles = await client
             .from('service_provider_profiles')
             .select('*, partners!inner(*, users(*, user_profiles(*), roles(*)))')
-            .timeout(const Duration(milliseconds: 10000));
+            .timeout(const Duration(milliseconds: 3000));
         anyQuerySucceeded = true;
       } catch (_) {
         provProfiles = await client
             .from('service_provider_profiles')
             .select('*')
-            .timeout(const Duration(milliseconds: 10000));
+            .timeout(const Duration(milliseconds: 3000));
         anyQuerySucceeded = true;
       }
 

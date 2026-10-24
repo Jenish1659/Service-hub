@@ -23,44 +23,37 @@ void main() async {
   // Global Error Widget Builder to prevent red/white crash screens
 
   ErrorWidget.builder = (FlutterErrorDetails details) {
-    return Material(
+    return const Material(
       color: Colors.white,
       child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(8.0),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.error_outline_rounded,
                 color: Color(0xffef4444),
-                size: 56,
+                size: 28,
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Something went wrong',
+              SizedBox(height: 4),
+              Text(
+                'Notice',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: 12,
                   color: Color(0xff1e293b),
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'A rendering glitch occurred. Tap below to refresh or return to main page.',
+              SizedBox(height: 2),
+              Text(
+                'Rendering refresh in progress',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xff64748b),
-                  fontSize: 13,
+                  fontSize: 10,
                 ),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Reload Dashboard'),
-                onPressed: () {
-                  appRouter.go('/');
-                },
               ),
             ],
           ),

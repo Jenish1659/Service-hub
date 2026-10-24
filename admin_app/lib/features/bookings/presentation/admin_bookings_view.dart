@@ -278,7 +278,12 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
                       ),
                     )
                   : SingleChildScrollView(
-                      child: DataTable(
+                      scrollDirection: Axis.horizontal,
+                      physics: const ClampingScrollPhysics(),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        physics: const ClampingScrollPhysics(),
+                        child: DataTable(
                         columnSpacing: 18,
                         horizontalMargin: 20,
                         headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
@@ -327,6 +332,7 @@ class _AdminBookingsViewState extends State<AdminBookingsView> {
                         }).toList(),
                       ),
                     ),
+                  ),
             ),
           ),
         ],

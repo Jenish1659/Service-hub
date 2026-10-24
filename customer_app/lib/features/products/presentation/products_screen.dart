@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -243,11 +245,21 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     }
 
                     final filteredProducts = products.where((p) {
-                      final cat = p['category']?.toString() ?? '';
-                      final name = p['name']?.toString().toLowerCase() ?? '';
-                      final desc = p['description']?.toString().toLowerCase() ?? '';
+                      final cat = (p['category'] ?? '').toString().toLowerCase();
+                      final name = (p['name'] ?? p['product_name'] ?? p['title'] ?? '').toString().toLowerCase();
+                      final desc = (p['description'] ?? '').toString().toLowerCase();
 
-                      bool matchesCategory = (selectedCategory == 'All') || (cat.toLowerCase() == selectedCategory.toLowerCase());
+                      bool matchesCategory = (selectedCategory == 'All');
+                      if (!matchesCategory) {
+                        if (selectedCategory == 'AC Repair' && (cat.contains('ac') || cat.contains('air') || cat.contains('cool'))) matchesCategory = true;
+                        if (selectedCategory == 'Car Service' && (cat.contains('car') || cat.contains('auto'))) matchesCategory = true;
+                        if (selectedCategory == 'Plumbing' && (cat.contains('plumb') || cat.contains('hardware') || cat.contains('pipe') || cat.contains('valve'))) matchesCategory = true;
+                        if (selectedCategory == 'Cooking' && (cat.contains('cook') || cat.contains('kitchen') || cat.contains('grocery') || cat.contains('food'))) matchesCategory = true;
+                        if (selectedCategory == 'Laundry' && (cat.contains('laundr') || cat.contains('wash'))) matchesCategory = true;
+                        if (selectedCategory == 'Care Taker' && (cat.contains('care') || cat.contains('medic') || cat.contains('health'))) matchesCategory = true;
+                        if (cat == selectedCategory.toLowerCase().replaceAll(' ', '_')) matchesCategory = true;
+                      }
+
                       bool matchesSearch = _searchQuery.isEmpty ||
                           name.contains(_searchQuery.toLowerCase()) ||
                           desc.contains(_searchQuery.toLowerCase()) ||
@@ -285,7 +297,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                         crossAxisCount: 2,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 14,
-                        childAspectRatio: 0.68,
+                        childAspectRatio: 0.62,
                       ),
                       itemCount: filteredProducts.length,
                       itemBuilder: (context, index) {
@@ -358,10 +370,13 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   }
 
   Widget _buildGridProductCard(BuildContext context, Map<String, dynamic> item) {
-    final name = item['name'] ?? 'Product';
+    final name = item['name'] ?? item['product_name'] ?? item['title'] ?? 'Product';
     final price = '₹${item['price'] ?? 349}';
     final originalPrice = item['original_price'] != null ? '₹${item['original_price']}' : '';
-    final discount = item['discount'] ?? '';
+    final discountRaw = item['discount'];
+    final String discount = (discountRaw != null && discountRaw.toString().trim().isNotEmpty && discountRaw.toString() != '0')
+        ? (discountRaw.toString().contains('%') ? discountRaw.toString() : '$discountRaw% OFF')
+        : '';
     final String cat = item['category'] ?? '';
 
     // Extract real photos
@@ -376,8 +391,14 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
     if (images.isEmpty && item['image_url'] != null && item['image_url'].toString().trim().isNotEmpty) {
       images.add(item['image_url'].toString().trim());
     }
+    if (images.isEmpty && item['image'] != null && item['image'].toString().trim().isNotEmpty) {
+      images.add(item['image'].toString().trim());
+    }
 
-    final int stock = (item['stock'] ?? item['stock_quantity'] ?? 100) as int;
+    final stockRaw = item['stock'] ?? item['stock_quantity'] ?? 50;
+    final int stock = (stockRaw is num)
+        ? stockRaw.toInt()
+        : (int.tryParse(stockRaw.toString()) ?? 50);
     final bool isLowStock = stock > 0 && stock <= 10;
     final bool isOutOfStock = stock <= 0;
 
@@ -411,14 +432,8 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     topRight: Radius.circular(17),
                   ),
                   child: images.isNotEmpty
-                      ? Image.network(
-                          images.first,
-                          height: 120,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildPlaceholderImage(cat),
-                        )
-                      : _buildPlaceholderImage(cat),
+                      ? _buildProductImage(images.first, cat, height: 120)
+                      : _buildPlaceholderImage(cat, height: 120),
                 ),
 
                 // Multi-Photo Count Badge
@@ -543,40 +558,49 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       if (!isLowStock && !isOutOfStock && discount.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xfff0fdf4),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: const Color(0xffbbf7d0)),
-                          ),
-                          child: Text(
-                            discount,
-                            style: const TextStyle(
-                              color: Color(0xff16a34a),
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xfff0fdf4),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xffbbf7d0)),
+                            ),
+                            child: Text(
+                              discount,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xff16a34a),
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         )
                       else if (!isLowStock && !isOutOfStock)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xfff0fdf4),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'In Stock',
-                            style: TextStyle(
-                              color: Color(0xff16a34a),
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xfff0fdf4),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'In Stock',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Color(0xff16a34a),
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         )
                       else
                         const SizedBox(),
+                      const SizedBox(width: 4),
 
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
@@ -624,13 +648,19 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
   // Multi-Photo Detail Modal
   void _showProductDetailsModal(BuildContext context, Map<String, dynamic> item, List<String> images) {
     int activePage = 0;
-    final name = item['name'] ?? 'Product';
+    final name = item['name'] ?? item['product_name'] ?? item['title'] ?? 'Product';
     final price = '₹${item['price'] ?? 349}';
     final originalPrice = item['original_price'] != null ? '₹${item['original_price']}' : '';
-    final discount = item['discount'] ?? '';
+    final discountRaw = item['discount'];
+    final String discount = (discountRaw != null && discountRaw.toString().trim().isNotEmpty && discountRaw.toString() != '0')
+        ? (discountRaw.toString().contains('%') ? discountRaw.toString() : '$discountRaw% OFF')
+        : '';
     final String cat = item['category'] ?? '';
     final String desc = item['description'] ?? 'High quality genuine spare part & product verified for 5 km hyperlocal home delivery.';
-    final int stock = (item['stock'] ?? item['stock_quantity'] ?? 100) as int;
+    final stockRaw = item['stock'] ?? item['stock_quantity'] ?? 50;
+    final int stock = (stockRaw is num)
+        ? stockRaw.toInt()
+        : (int.tryParse(stockRaw.toString()) ?? 50);
     final bool isLowStock = stock > 0 && stock <= 10;
     final bool isOutOfStock = stock <= 0;
 
@@ -672,13 +702,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                                   setModalState(() => activePage = idx);
                                 },
                                 itemBuilder: (context, imgIdx) {
-                                  return Image.network(
-                                    images[imgIdx],
-                                    width: double.infinity,
-                                    height: 220,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => _buildPlaceholderImage(cat, height: 220),
-                                  );
+                                  return _buildProductImage(images[imgIdx], cat, height: 220);
                                 },
                               )
                             : _buildPlaceholderImage(cat, height: 220),
@@ -716,19 +740,23 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                         children: [
                           Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xffeff6ff),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xffbfdbfe)),
-                                ),
-                                child: Text(
-                                  cat,
-                                  style: const TextStyle(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.bold),
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xffeff6ff),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xffbfdbfe)),
+                                  ),
+                                  child: Text(
+                                    cat,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ),
-                              const Spacer(),
+                              const SizedBox(width: 8),
                               if (isLowStock)
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -825,6 +853,49 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
         );
       },
     );
+  }
+
+    Widget _buildProductImage(String? imageSource, String cat, {double height = 120}) {
+    if (imageSource == null || imageSource.trim().isEmpty) {
+      return _buildPlaceholderImage(cat, height: height);
+    }
+    final src = imageSource.trim();
+    if (src.startsWith('data:image/') || src.startsWith('base64,')) {
+      try {
+        final base64String = src.contains(',') ? src.split(',').last : src;
+        return Image.memory(
+          base64Decode(base64String),
+          height: height,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildPlaceholderImage(cat, height: height),
+        );
+      } catch (_) {
+        return _buildPlaceholderImage(cat, height: height);
+      }
+    } else if (src.startsWith('http://') || src.startsWith('https://')) {
+      return Image.network(
+        src,
+        height: height,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholderImage(cat, height: height),
+      );
+    } else {
+      try {
+        final f = File(src);
+        if (f.existsSync()) {
+          return Image.file(
+            f,
+            height: height,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildPlaceholderImage(cat, height: height),
+          );
+        }
+      } catch (_) {}
+      return _buildPlaceholderImage(cat, height: height);
+    }
   }
 
   Widget _buildPlaceholderImage(String cat, {double height = 120}) {

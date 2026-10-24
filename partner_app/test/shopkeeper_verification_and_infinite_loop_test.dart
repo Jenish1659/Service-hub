@@ -177,7 +177,7 @@ void main() {
       const hardcodedMockShopId = 'SH-SHOP-2026-8910';
       const hardcodedMockDelId = 'SH-DEL-2026-9042';
 
-      final userUuid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+      const userUuid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
       final clean = userUuid.replaceAll('-', '');
       final dynamicShopId = 'SH-SHOP-2026-${clean.substring(0, 6).toUpperCase()}';
       final dynamicDelId = 'SH-DEL-2026-${clean.substring(0, 6).toUpperCase()}';

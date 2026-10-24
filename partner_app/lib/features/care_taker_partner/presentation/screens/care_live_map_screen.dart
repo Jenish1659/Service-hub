@@ -99,7 +99,16 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
     final all = LiveBookingSyncService.instance.getAllBookings();
     for (final b in all) {
       if (LiveBookingSyncService.isBookingMatchingCategory(b, 'care_taker')) {
-        return b;
+        final status = (b['status'] ?? '').toString().toUpperCase();
+        final isActive = status == 'ACCEPTED' ||
+            status == 'ASSIGNED' ||
+            status == 'IN_PROGRESS' ||
+            status == 'CONFIRMED' ||
+            status == 'ARRIVED' ||
+            status == 'ON_THE_WAY';
+        if (isActive) {
+          return b;
+        }
       }
     }
     return null;

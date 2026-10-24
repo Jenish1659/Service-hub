@@ -332,10 +332,11 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
             ),
           ],
         ),
-        content: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
@@ -380,6 +381,7 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
             ],
           ),
         ),
+      ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
