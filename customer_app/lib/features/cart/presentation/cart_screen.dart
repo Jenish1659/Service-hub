@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/customer_database_sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../location/providers/location_provider.dart';
 import 'cart_provider.dart';
@@ -102,26 +103,24 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       }
     }
 
-    // Resolve valid customer_id
+    // Resolve authentic active customer and address dynamically
     String validCustomerId = user?.id ?? '';
-    final uuidRegex = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
-    if (!uuidRegex.hasMatch(validCustomerId)) {
-      validCustomerId = 'ca96ec12-5416-4446-84f0-95efeae6be47';
-    }
-
-    // Resolve valid address_id
     String validAddressId = location?.id ?? '';
-    if (!uuidRegex.hasMatch(validAddressId)) {
-      try {
-        final addrRes = await client.from('user_addresses').select('address_id').limit(1).maybeSingle();
-        if (addrRes != null && addrRes['address_id'] != null) {
-          validAddressId = addrRes['address_id'].toString();
-        }
-      } catch (_) {}
-      if (!uuidRegex.hasMatch(validAddressId)) {
-        validAddressId = '660afdcd-2f97-4f79-9daf-02369c347bac';
+    String customerDisplayName = user?.userMetadata?['name'] ?? 'Customer';
+    final uuidRegex = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
+
+    try {
+      final custData = await CustomerDatabaseSyncService.ensureActiveCustomerAccount(
+        fallbackName: customerDisplayName,
+      );
+      if (!uuidRegex.hasMatch(validCustomerId)) {
+        validCustomerId = custData['user_id']?.toString() ?? '';
       }
-    }
+      if (!uuidRegex.hasMatch(validAddressId)) {
+        validAddressId = custData['address_id']?.toString() ?? '';
+      }
+      customerDisplayName = (custData['name'] ?? custData['full_name'] ?? customerDisplayName).toString();
+    } catch (_) {}
 
     try {
       Map<String, dynamic> responseData;
@@ -207,7 +206,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           'id': fallbackOrderId,
           'order_id': fallbackOrderId,
           'order_code': fallbackOrderCode,
-          'customer_id': customerId,
+          'customer_id': validCustomerId,
           'status': 'Placed',
           'items_summary': itemsSummary,
           'subtotal': subtotal.toDouble(),
@@ -227,8 +226,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'type': 'DELIVERY_ORDER',
             'status': 'PENDING_SHOPKEEPER',
             'order_code': fallbackOrderCode,
-            'customer_id': customerId,
-            'customer_name': 'Customer',
+            'customer_id': validCustomerId,
+            'customer_name': customerDisplayName,
             'shop_id': validShopId,
             'service_id': 'store_products_delivery',
             'service_name': 'Store Order Delivery',

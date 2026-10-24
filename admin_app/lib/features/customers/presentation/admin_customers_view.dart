@@ -85,6 +85,20 @@ class _AdminCustomersViewState extends State<AdminCustomersView> {
         }
       }
 
+      try {
+        final ordersRes = await client.from('orders').select('customer_id, subtotal, total_amount');
+        for (var o in ordersRes) {
+          final cId = o['customer_id']?.toString() ?? '';
+          if (cId.isNotEmpty) {
+            final amt = (o['total_amount'] as num?)?.toDouble() ??
+                (o['subtotal'] as num?)?.toDouble() ??
+                0.0;
+            bookingCounts[cId] = (bookingCounts[cId] ?? 0) + 1;
+            customerSpent[cId] = (customerSpent[cId] ?? 0.0) + amt;
+          }
+        }
+      } catch (_) {}
+
       // 4. Map user records
       final List<Map<String, dynamic>> loaded = [];
       for (var u in usersRes) {

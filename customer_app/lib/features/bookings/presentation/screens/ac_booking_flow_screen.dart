@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/services/live_booking_sync_service.dart';
+import '../../../../core/services/customer_database_sync_service.dart';
 import '../../../services/services/ac_availability_service.dart';
 import '../../../services/services/ac_booking_service.dart';
 import '../../../services/presentation/ac_booking_confirmed_screen.dart';
@@ -71,27 +72,26 @@ class ACBookingFlowScreen extends ConsumerStatefulWidget {
     try {
       supabase = Supabase.instance.client;
     } catch (_) {}
-    String realCustomerId = '3e2584b1-4943-4196-abaa-1de62a456703';
-    String realAddressId = '0cbd6285-4c82-4af4-9849-f9b910bb0c14';
+    String realCustomerId = '';
+    String realAddressId = '';
     String realServiceId = 'f27fbac4-115c-4674-9c93-6b6ff8e1d080';
 
-    if (supabase != null) {
-      try {
-        final user = supabase.auth.currentUser;
-        if (user != null) {
-          final uRes = await supabase.from('users').select('user_id').eq('auth_id', user.id).maybeSingle();
-          if (uRes != null && uRes['user_id'] != null) {
-            realCustomerId = uRes['user_id'].toString();
-          }
-        } else if (customerId != null && RegExp(uuidRegex).hasMatch(customerId)) {
-          realCustomerId = customerId;
-        }
-        final aRes = await supabase.from('user_addresses').select('address_id').eq('user_id', realCustomerId).limit(1).maybeSingle();
-        if (aRes != null && aRes['address_id'] != null) {
-          realAddressId = aRes['address_id'].toString();
-        }
-      } catch (_) {}
-    } else if (customerId != null && RegExp(uuidRegex).hasMatch(customerId)) {
+    try {
+      final custData = await CustomerDatabaseSyncService.ensureActiveCustomerAccount(
+        fallbackName: customerName.isNotEmpty ? customerName : null,
+        fallbackPhone: customerPhone?.isNotEmpty == true ? customerPhone : null,
+      );
+      realCustomerId = custData['user_id']?.toString() ?? '';
+      realAddressId = custData['address_id']?.toString() ?? '';
+      if (customerName.isEmpty || customerName == 'Customer') {
+        customerName = (custData['name'] ?? custData['full_name'] ?? 'Customer').toString();
+      }
+      if (customerPhone == null || customerPhone.isEmpty) {
+        customerPhone = (custData['phone'] ?? '').toString();
+      }
+    } catch (_) {}
+
+    if (realCustomerId.isEmpty && customerId != null && RegExp(uuidRegex).hasMatch(customerId)) {
       realCustomerId = customerId;
     }
 

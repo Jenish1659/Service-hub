@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/services/live_booking_sync_service.dart';
 import '../../../../core/services/h3_geospatial_service.dart';
+import '../../../../core/services/customer_database_sync_service.dart';
 import '../../location/providers/location_provider.dart';
 import '../services/ac_availability_service.dart';
 import '../services/ac_booking_service.dart';
@@ -131,82 +132,18 @@ class _ServiceReviewConfirmScreenState extends ConsumerState<ServiceReviewConfir
     String realServiceId = '';
 
     try {
-      final authUser = supabase.auth.currentUser;
-      if (authUser != null) {
-        realCustomerId = authUser.id;
-        final meta = authUser.userMetadata ?? {};
-        userName = (meta['full_name'] ?? meta['name'] ?? userName).toString();
-        userPhone = authUser.phone ?? (meta['phone'] ?? userPhone).toString();
-      } else if (Hive.isBoxOpen('customer_cache')) {
-        final box = Hive.box('customer_cache');
-        final cachedId = box.get('user_id')?.toString();
-        if (cachedId != null && cachedId.isNotEmpty && cachedId.contains('-')) {
-          final uRes = await supabase.from('users').select('user_id').eq('user_id', cachedId).maybeSingle();
-          if (uRes != null && uRes['user_id'] != null) {
-            realCustomerId = cachedId;
-          }
-        }
+      // Ensure authentic active customer and address in Supabase
+      final customerData = await CustomerDatabaseSyncService.ensureActiveCustomerAccount(
+        fallbackName: (userName.isNotEmpty && userName != 'Customer') ? userName : null,
+        fallbackPhone: userPhone.isNotEmpty ? userPhone : null,
+      );
+      realCustomerId = customerData['user_id']?.toString() ?? '';
+      realAddressId = customerData['address_id']?.toString() ?? '';
+      if (userName.isEmpty || userName == 'Customer') {
+        userName = (customerData['name'] ?? customerData['full_name'] ?? 'Customer').toString();
       }
-
-      if (realCustomerId.isEmpty) {
-        try {
-          final custUser = await supabase
-              .from('users')
-              .select('user_id, username, phone, user_profiles(first_name, last_name), roles!inner(role_name)')
-              .eq('roles.role_name', 'customer')
-              .eq('account_status', 'ACTIVE')
-              .limit(1)
-              .maybeSingle();
-          if (custUser != null && custUser['user_id'] != null) {
-            realCustomerId = custUser['user_id'].toString();
-            if (userName == 'Customer') {
-              dynamic prof = custUser['user_profiles'];
-              if (prof is List && prof.isNotEmpty) prof = prof.first;
-              userName = (prof is Map)
-                  ? '${prof['first_name'] ?? ""} ${prof['last_name'] ?? ""}'.trim()
-                  : (custUser['username'] ?? 'Customer').toString();
-            }
-            if (userPhone.isEmpty) {
-              userPhone = custUser['phone']?.toString() ?? '';
-            }
-          }
-        } catch (_) {}
-      }
-
-      if (realCustomerId.isEmpty) {
-        try {
-          final fallbackUser = await supabase
-              .from('users')
-              .select('user_id, username, phone, user_profiles(first_name, last_name)')
-              .eq('account_status', 'ACTIVE')
-              .limit(1)
-              .maybeSingle();
-          if (fallbackUser != null && fallbackUser['user_id'] != null) {
-            realCustomerId = fallbackUser['user_id'].toString();
-            if (userName == 'Customer') {
-              dynamic prof = fallbackUser['user_profiles'];
-              if (prof is List && prof.isNotEmpty) prof = prof.first;
-              userName = (prof is Map)
-                  ? '${prof['first_name'] ?? ""} ${prof['last_name'] ?? ""}'.trim()
-                  : (fallbackUser['username'] ?? 'Customer').toString();
-            }
-            if (userPhone.isEmpty) {
-              userPhone = fallbackUser['phone']?.toString() ?? '';
-            }
-          }
-        } catch (_) {}
-      }
-
-      if (realCustomerId.isNotEmpty) {
-        final aRes = await supabase.from('user_addresses').select('address_id').eq('user_id', realCustomerId).limit(1).maybeSingle();
-        if (aRes != null && aRes['address_id'] != null) {
-          realAddressId = aRes['address_id'].toString();
-        }
-      }
-
-      // Fallback customer user if none resolved
-      if (realCustomerId.isEmpty) {
-        realCustomerId = '3e2584b1-4943-4196-abaa-1de62a456703';
+      if (userPhone.isEmpty) {
+        userPhone = (customerData['phone'] ?? '').toString();
       }
 
       // Resolve Real Service ID from Database catalog
@@ -381,9 +318,9 @@ class _ServiceReviewConfirmScreenState extends ConsumerState<ServiceReviewConfir
       try {
         await supabase.from('service_bookings').insert({
           'booking_id': bookingUuid,
-          'customer_id': '3e2584b1-4943-4196-abaa-1de62a456703',
+          'customer_id': realCustomerId,
           'service_id': realServiceId.isNotEmpty ? realServiceId : 'f27fbac4-115c-4674-9c93-6b6ff8e1d080',
-          'address_id': '0cbd6285-4c82-4af4-9849-f9b910bb0c14',
+          'address_id': realAddressId,
           'status': initialStatus,
           'service_status': initialStatus,
           'booking_date': widget.selectedDate.formattedIso,
