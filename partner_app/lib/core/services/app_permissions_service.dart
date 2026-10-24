@@ -170,6 +170,39 @@ class AppPermissionsService {
     return status.isGranted;
   }
 
+  /// 6. Request Display Over Other Apps Permission (System Alert Window / Full Screen Dispatch Overlays)
+  Future<bool> requestDisplayOverOtherAppsPermission(
+    BuildContext context, {
+    String title = 'Display Over Other Apps',
+    String rationale = 'ServiceHub Partner requires permission to display over other apps so you receive instant full-screen job alerts and customer parcel pickup requests even when using other apps or on the home screen.',
+  }) async {
+    PermissionStatus status = await Permission.systemAlertWindow.status;
+    if (status.isGranted) return true;
+
+    if (!context.mounted) return false;
+    final shouldRequest = await _showRationaleDialog(
+      context: context,
+      title: title,
+      description: rationale,
+      icon: Icons.layers_rounded,
+      actionLabel: 'Allow Overlay Access',
+    );
+    if (!shouldRequest) return false;
+
+    status = await Permission.systemAlertWindow.request();
+    if (status.isGranted) return true;
+
+    if (status.isPermanentlyDenied || status.isDenied) {
+      if (!context.mounted) return false;
+      await _showSettingsDialog(
+        context: context,
+        title: 'Overlay Permission Required',
+        description: 'To receive dispatch alerts on top of other apps, please enable "Display over other apps" in device settings.',
+      );
+    }
+    return status.isGranted;
+  }
+
   // --- Reusable Modern Permission Dialogue ---
   Future<bool> _showRationaleDialog({
     required BuildContext context,

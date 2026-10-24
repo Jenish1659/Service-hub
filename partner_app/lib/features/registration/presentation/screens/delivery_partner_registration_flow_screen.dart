@@ -599,9 +599,11 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
 
   // Supabase Database Real Submission Handler
   Future<void> _submitToSupabaseDatabase() async {
+    if (_isSubmittingToDb) return;
     setState(() {
       _isSubmittingToDb = true;
     });
+    try {
 
     final String fullName = _fullNameController.text.trim();
     final String phone = _phoneController.text.trim();
@@ -791,11 +793,31 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
         await LocalRegistrationCache.saveRegisteredPartner(verificationPayload);
     } catch (_) {}
 
-    setState(() {
-      _isSubmittingToDb = false;
-      _submittedRegistrationId = 'SH-DEL-2026-${(1000 + DateTime.now().millisecond % 9000)}';
-      _currentStep = 11; // Move to Screen 12 (Verification Pending)
-    });
+      if (mounted) {
+        setState(() {
+          final suffix = (createdUserId ?? DateTime.now().millisecondsSinceEpoch.toString()).replaceAll('-', '');
+          _submittedRegistrationId = 'SH-DEL-2026-${suffix.substring(0, suffix.length >= 6 ? 6 : suffix.length).toUpperCase()}';
+          _currentStep = 11; // Move to Screen 12 (Verification Pending)
+        });
+      }
+    } catch (e) {
+      debugPrint('[DeliveryPartnerRegistration] Submission error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Registration note: ${e.toString()}'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmittingToDb = false;
+        });
+      }
+    }
   }
 
   @override
@@ -2247,8 +2269,8 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
           title: 'Emergency Contact',
           onEdit: () => setState(() => _currentStep = 5),
           items: [
-            {'label': 'Contact Name', 'value': _emergencyNameController.text.isEmpty ? 'Amit (Brother)' : '${_emergencyNameController.text} ($_emergencyRelationship)'},
-            {'label': 'Contact Number', 'value': _emergencyPhoneController.text.isEmpty ? '+91 91234 56789' : '+91 ${_emergencyPhoneController.text}'},
+            {'label': 'Contact Name', 'value': _emergencyNameController.text.trim().isEmpty ? 'Not Provided' : '${_emergencyNameController.text.trim()} ($_emergencyRelationship)'},
+            {'label': 'Contact Number', 'value': _emergencyPhoneController.text.trim().isEmpty ? 'Not Provided' : '+91 ${_emergencyPhoneController.text.trim()}'},
           ],
         ),
         const SizedBox(height: 14),
@@ -2307,15 +2329,21 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 3,
               ),
-              onPressed: _submitToSupabaseDatabase,
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
-                  Text('Submit for Verification', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                ],
-              ),
+              onPressed: _isSubmittingToDb ? null : _submitToSupabaseDatabase,
+              child: _isSubmittingToDb
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text('Submit for Verification', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ],
+                    ),
             ),
           ),
       ],

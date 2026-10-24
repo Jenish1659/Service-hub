@@ -14,6 +14,7 @@ import '../../bookings/presentation/admin_bookings_view.dart';
 import '../../partners/presentation/admin_partners_view.dart';
 import '../../customers/presentation/admin_customers_view.dart';
 import '../../services/presentation/admin_services_view.dart';
+import '../../products/presentation/admin_products_view.dart';
 import '../../finance/presentation/admin_finance_view.dart';
 import '../../support/presentation/admin_support_view.dart';
 import '../../settings/presentation/admin_settings_view.dart';
@@ -435,6 +436,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     }
     if (_activeTab == 'Customers') {
       return AdminCustomersView(customerCount: stats['totalCustomers'] ?? 0);
+    }
+    if (_activeTab == 'Store Products & Catalog' || _activeTab == 'Store Products' || _activeTab == 'Products') {
+      return const AdminProductsView();
     }
     if (_activeTab == 'Services' || _activeTab == 'All Services') {
       return const AdminServicesView();

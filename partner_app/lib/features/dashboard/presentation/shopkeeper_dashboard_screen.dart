@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../../../core/services/app_permissions_service.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +47,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   int _activeNavIndex = 0;
   bool _isLoading = false;
   String _partnerId = '';
+  String _phone = '';
   DateTime? _lastBackPressTime;
   StreamSubscription? _liveBookingSub;
 
@@ -59,6 +63,9 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     _loadShopData();
     _liveBookingSub = LiveBookingSyncService.instance.bookingsStream.listen((_) {
       if (mounted) _loadShopData();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkOverlayPermission();
     });
   }
 
@@ -106,6 +113,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
         final uId = (userMap['user_id'] ?? userMap['id'] ?? '').toString();
         final pId = (userMap['partner_id'] ?? '').toString();
         final phone = (userMap['phone'] ?? '').toString();
+        if (phone.isNotEmpty) _phone = phone;
         final username = (userMap['username'] ?? '').toString().trim();
         final syncRecord = LiveBookingSyncService.instance.getPartnerVerification(uId) ??
             (pId.isNotEmpty ? LiveBookingSyncService.instance.getPartnerVerification(pId) : null) ??
@@ -349,6 +357,13 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
               !(b['service_name'] ?? '').toString().toLowerCase().contains('laundry');
           if (!isStoreOrder) continue;
 
+          // Concurrency Claim Guarantee:
+          // If this order is already claimed by another shopkeeper, hide immediately!
+          final assignedPartner = (b['partner_id'] ?? b['shopkeeper_id'] ?? '').toString();
+          if (assignedPartner.isNotEmpty && assignedPartner != _partnerId && assignedPartner != _partnerId) {
+            continue;
+          }
+
           final bCode = (b['order_code'] ?? b['order_id'] ?? b['id'] ?? '').toString();
           final bId = (b['id'] ?? b['booking_id'] ?? b['order_id'] ?? bCode).toString();
 
@@ -392,29 +407,66 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
               'booking_id': bId,
               'order_code': bCode,
               'item_title': b['items_summary'] ?? b['service_name'] ?? 'Store Order Delivery',
+              'items_summary': b['items_summary'] ?? b['service_name'] ?? 'Store Order Delivery',
               'customer_name': b['customer_name'] ?? 'Customer',
+              'customer_phone': b['customer_phone'] ?? b['phone'],
               'item_count': 1,
               'location': b['customer_address'] ?? b['address'] ?? 'Local Delivery',
               'amount': amt,
               'status': displayStatus,
               'status_color': stColor,
               'status_bg': stBg,
-              'delivery_pin': b['delivery_pin'],
+              'delivery_pin': b['delivery_pin'] ?? b['delivery_otp'],
+              'delivery_otp': b['delivery_otp'] ?? b['delivery_pin'],
+              'pickup_otp': b['pickup_otp'] ?? b['pickup_pin'],
+              'pickup_pin': b['pickup_otp'] ?? b['pickup_pin'],
+              'partner_id': b['partner_id'],
+              'shopkeeper_id': b['shopkeeper_id'],
             });
           }
         }
       } catch (_) {}
 
-      // Query products from Hive if available
+      // Query products from Live Sync Server (8088) & Shared File IPC
+      List<Map<String, dynamic>> loadedCatalog = [];
       try {
-        if (Hive.isBoxOpen('partner_cache')) {
-          final box = Hive.box('partner_cache');
-          final pRaw = box.get('shopkeeper_products');
-          if (pRaw != null && pRaw is List) {
-            _catalogProducts = pRaw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        final res = await http.get(Uri.parse('http://127.0.0.1:8088/api/products')).timeout(const Duration(milliseconds: 1500));
+        if (res.statusCode == 200) {
+          final decoded = jsonDecode(res.body);
+          if (decoded is List) {
+            loadedCatalog = List<Map<String, dynamic>>.from(decoded);
           }
         }
       } catch (_) {}
+
+      if (loadedCatalog.isEmpty) {
+        try {
+          const publicPath = r'C:\Users\Public\ServiceHub\service_hub_store_products.json';
+          final file = File(publicPath);
+          if (await file.exists()) {
+            final content = await file.readAsString();
+            final data = jsonDecode(content);
+            if (data is Map) {
+              loadedCatalog = data.values.map((v) => Map<String, dynamic>.from(v as Map)).toList();
+            } else if (data is List) {
+              loadedCatalog = List<Map<String, dynamic>>.from(data);
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (loadedCatalog.isEmpty) {
+        try {
+          if (Hive.isBoxOpen('partner_cache')) {
+            final box = Hive.box('partner_cache');
+            final pRaw = box.get('shopkeeper_products');
+            if (pRaw != null && pRaw is List) {
+              loadedCatalog = pRaw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+            }
+          }
+        } catch (_) {}
+      }
+      _catalogProducts = loadedCatalog;
 
       if (mounted) {
         setState(() {
@@ -433,6 +485,12 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     } catch (_) {} finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _checkOverlayPermission() async {
+    try {
+      await AppPermissionsService.instance.requestDisplayOverOtherAppsPermission(context);
+    } catch (_) {}
   }
 
   void _toggleShopStatus(bool val) async {
@@ -477,282 +535,6 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
         }
       } catch (_) {}
     }
-  }
-
-  void _showAddProductModal() {
-    final nameCtrl = TextEditingController();
-    final priceCtrl = TextEditingController();
-    final mrpCtrl = TextEditingController();
-    final stockCtrl = TextEditingController();
-    final skuCtrl = TextEditingController();
-    String? selectedCat;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (modalCtx, setModalState) {
-          return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFECFDF5),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.add_business_rounded, color: Color(0xFF059669), size: 22),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Add Product to Store Catalog', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
-                              Text('Make your items discoverable to technicians & customers', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Product Name
-                    const Text('Product Title *', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: nameCtrl,
-                      decoration: InputDecoration(
-                        hintText: 'e.g. Copper Pipe 1/4" (15 Meter Coil)',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Category Dropdown
-                    const Text('Product Category *', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                    const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedCat,
-                      hint: const Text('Select a product category *'),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'AC Service Parts', child: Text('AC Service Parts')),
-                        DropdownMenuItem(value: 'Water Purifier', child: Text('Water Purifier / RO Parts')),
-                        DropdownMenuItem(value: 'Appliance Parts', child: Text('Washing Machine & Appliance')),
-                        DropdownMenuItem(value: 'Plumbing Parts', child: Text('Plumbing Supplies & Taps')),
-                        DropdownMenuItem(value: 'Tools & Equipment', child: Text('Tools & Hardware Equipment')),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setModalState(() => selectedCat = v);
-                      },
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Price & MRP
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Selling Price (₹) *', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                              const SizedBox(height: 6),
-                              TextField(
-                                controller: priceCtrl,
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  prefixText: '₹ ',
-                                  hintText: '0.00',
-                                  filled: true,
-                                  fillColor: const Color(0xFFF8FAFC),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('MRP (₹) (Optional)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                              const SizedBox(height: 6),
-                              TextField(
-                                controller: mrpCtrl,
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  prefixText: '₹ ',
-                                  hintText: '0.00',
-                                  filled: true,
-                                  fillColor: const Color(0xFFF8FAFC),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Stock Count & SKU
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Available Stock *', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                              const SizedBox(height: 6),
-                              TextField(
-                                controller: stockCtrl,
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  hintText: '0',
-                                  suffixText: 'units',
-                                  filled: true,
-                                  fillColor: const Color(0xFFF8FAFC),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('SKU / Code (Optional)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-                              const SizedBox(height: 6),
-                              TextField(
-                                controller: skuCtrl,
-                                decoration: InputDecoration(
-                                  hintText: 'e.g. SKU-101',
-                                  filled: true,
-                                  fillColor: const Color(0xFFF8FAFC),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 22),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF059669),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        icon: const Icon(Icons.cloud_upload_rounded, size: 18),
-                        label: const Text('Save & Publish to Store Catalog', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        onPressed: () {
-                          final title = nameCtrl.text.trim();
-                          if (title.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter a product title *'), backgroundColor: Colors.red),
-                            );
-                            return;
-                          }
-                          if (selectedCat == null || selectedCat!.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please select a product category *'), backgroundColor: Colors.red),
-                            );
-                            return;
-                          }
-                          final price = double.tryParse(priceCtrl.text.trim());
-                          if (price == null || price <= 0) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter a valid selling price *'), backgroundColor: Colors.red),
-                            );
-                            return;
-                          }
-                          final stock = int.tryParse(stockCtrl.text.trim());
-                          if (stock == null || stock <= 0) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter available stock quantity *'), backgroundColor: Colors.red),
-                            );
-                            return;
-                          }
-                          final sku = skuCtrl.text.trim().isNotEmpty ? skuCtrl.text.trim() : 'SH-SKU-${DateTime.now().millisecondsSinceEpoch}';
-
-                          setState(() {
-                            _catalogProducts.insert(0, {
-                              'name': title,
-                              'category': selectedCat,
-                              'price': price,
-                              'stock': stock,
-                              'sku': sku,
-                            });
-                          });
-
-                          try {
-                            if (Hive.isBoxOpen('partner_cache')) {
-                              final box = Hive.box('partner_cache');
-                              box.put('shopkeeper_products', _catalogProducts);
-                            }
-                          } catch (_) {}
-
-                          Navigator.pop(modalCtx);
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('✓ "$title" added to store inventory successfully!'),
-                              backgroundColor: const Color(0xFF059669),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
   }
 
   void _showInventorySheet() {
@@ -827,7 +609,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                 separatorBuilder: (_, __) => const Divider(height: 16),
                 itemBuilder: (c, i) {
                   final p = _catalogProducts[i];
-                  final stock = p['stock'] as int;
+                  final stock = (p['stock'] as num?)?.toInt() ?? 0;
                   final isOut = stock == 0;
                   final isLow = stock > 0 && stock <= 5;
 
@@ -893,11 +675,11 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: const Text('Add New Product', style: TextStyle(fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.refresh_rounded, size: 20),
+                label: const Text('Sync Catalog from Admin', style: TextStyle(fontWeight: FontWeight.bold)),
                 onPressed: () {
                   Navigator.pop(ctx);
-                  _showAddProductModal();
+                  _loadShopData();
                 },
               ),
             ),
@@ -1073,9 +855,15 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     final rawId = ord['raw_id']?.toString() ?? orderId;
     final bookingId = ord['booking_id']?.toString() ?? rawId;
 
+    final currentPId = _partnerId.isNotEmpty ? _partnerId : 'SHOP_OWNER';
     setState(() {
       ord['status'] = newStatus;
       if (newStatus == 'Preparing') {
+        ord['partner_id'] = currentPId;
+        ord['shopkeeper_id'] = currentPId;
+        ord['shopkeeper_name'] = _shopName;
+        ord['shopkeeper_phone'] = _phone;
+        ord['shopkeeper_address'] = _shopAddress;
         ord['status_color'] = const Color(0xFFD97706);
         ord['status_bg'] = const Color(0xFFFEF3C7);
         if (_newOrdersCount > 0) _newOrdersCount--;
@@ -1124,15 +912,42 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
     try {
       String syncStatus = 'ASSIGNED';
       if (newStatus == 'Preparing') {
-        syncStatus = 'PACKING';
+        syncStatus = 'ACCEPTED_BY_SHOPKEEPER';
+        // Atomic claim lock: ensures immediate disappearance from all other shopkeepers
+        final partnerPayload = {
+          'partner_id': currentPId,
+          'shopkeeper_id': currentPId,
+          'shopkeeper_name': _shopName,
+          'shop_name': _shopName,
+          'shopkeeper_phone': _phone,
+          'shopkeeper_address': _shopAddress,
+          'status': 'ACCEPTED_BY_SHOPKEEPER',
+        };
+        await LiveBookingSyncService.instance.acceptBooking(bookingId, partnerPayload);
+        await LiveBookingSyncService.instance.updateBookingStatus(bookingId, 'ACCEPTED_BY_SHOPKEEPER');
+        await LiveBookingSyncService.instance.updateMilestone(bookingId, 'ACCEPTED_BY_SHOPKEEPER');
+        if (orderId.isNotEmpty && orderId != bookingId) {
+          await LiveBookingSyncService.instance.acceptBooking(orderId, partnerPayload);
+          await LiveBookingSyncService.instance.updateBookingStatus(orderId, 'ACCEPTED_BY_SHOPKEEPER');
+          await LiveBookingSyncService.instance.updateMilestone(orderId, 'ACCEPTED_BY_SHOPKEEPER');
+        }
       } else if (newStatus == 'Ready for Pickup') {
-        syncStatus = 'READY';
+        syncStatus = 'READY_FOR_PICKUP';
+        await LiveBookingSyncService.instance.updateBookingStatus(bookingId, 'READY_FOR_PICKUP');
+        await LiveBookingSyncService.instance.updateMilestone(bookingId, 'READY_FOR_PICKUP');
+        if (orderId.isNotEmpty && orderId != bookingId) {
+          await LiveBookingSyncService.instance.updateBookingStatus(orderId, 'READY_FOR_PICKUP');
+          await LiveBookingSyncService.instance.updateMilestone(orderId, 'READY_FOR_PICKUP');
+        }
       } else if (newStatus == 'Completed') {
         syncStatus = 'DELIVERED';
+        await LiveBookingSyncService.instance.updateBookingStatus(bookingId, 'DELIVERED');
+        await LiveBookingSyncService.instance.updateMilestone(bookingId, 'DELIVERED');
+        if (orderId.isNotEmpty && orderId != bookingId) {
+          await LiveBookingSyncService.instance.updateBookingStatus(orderId, 'DELIVERED');
+          await LiveBookingSyncService.instance.updateMilestone(orderId, 'DELIVERED');
+        }
       }
-
-      await LiveBookingSyncService.instance.updateBookingStatus(bookingId, syncStatus);
-      await LiveBookingSyncService.instance.updateMilestone(bookingId, syncStatus);
       if (orderId.isNotEmpty && orderId != bookingId) {
         await LiveBookingSyncService.instance.updateBookingStatus(orderId, syncStatus);
         await LiveBookingSyncService.instance.updateMilestone(orderId, syncStatus);
@@ -1892,7 +1707,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
   // -------------------------------------------------------------
   Widget _buildQuickActionsRow() {
     final actions = [
-      {'title': 'Add Product', 'icon': Icons.add_rounded, 'color': const Color(0xFF059669), 'bg': const Color(0xFF059669), 'onTap': _showAddProductModal},
+      {'title': 'Store Catalog', 'icon': Icons.inventory_2_rounded, 'color': const Color(0xFF059669), 'bg': const Color(0xFF059669), 'onTap': _showInventorySheet},
       {'title': 'Manage Products', 'icon': Icons.category_outlined, 'color': Colors.white, 'bg': const Color(0xFF3B82F6), 'onTap': _showInventorySheet},
       {'title': 'Inventory', 'icon': Icons.inventory_2_outlined, 'color': Colors.white, 'bg': const Color(0xFF8B5CF6), 'onTap': _showInventorySheet},
       {'title': 'Offers', 'icon': Icons.local_offer_outlined, 'color': Colors.white, 'bg': const Color(0xFFF97316), 'onTap': _showOffersDialog},
@@ -1989,11 +1804,11 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      onPressed: _showAddProductModal,
+                      onPressed: _showInventorySheet,
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('Add Product', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                          Text('View Catalog', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
                           SizedBox(width: 4),
                           Icon(Icons.arrow_forward_rounded, size: 14),
                         ],
@@ -2282,6 +2097,29 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
             '${order['customer_name']} • ${order['item_count']} item(s) • ${order['location']}',
             style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
           ),
+          if ((order['pickup_otp'] != null || order['pickup_pin'] != null) && status != 'Completed') ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.pin_rounded, color: Color(0xFFD97706), size: 16),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Pickup OTP: ${order['pickup_otp'] ?? order['pickup_pin']} (Share with delivery rider upon arrival)',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF92400E)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -2300,7 +2138,7 @@ class _ShopkeeperDashboardScreenState extends State<ShopkeeperDashboardScreen> {
                   ),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Order #${order['order_id']} details: 2x Universal AC Remote'), backgroundColor: const Color(0xFF0F172A)),
+                      SnackBar(content: Text('Order #${order['order_id']} items: ${order['item_title'] ?? order['items_summary'] ?? "Store items"}'), backgroundColor: const Color(0xFF0F172A)),
                     );
                   },
                   child: const Text('Details', style: TextStyle(fontSize: 12, color: Color(0xFF334155))),

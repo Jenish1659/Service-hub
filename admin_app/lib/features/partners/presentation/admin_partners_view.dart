@@ -31,20 +31,37 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
   }
 
   bool _isShopkeeperItem(Map<String, dynamic> p) {
-    final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
-    if (role == 'shopkeeper') return true;
-    if (role == 'delivery_agent' || role == 'service_provider') return false;
+    final vType = (p['verification_type'] ?? '').toString().toUpperCase();
     final docType = (p['document_type'] ?? '').toString().toUpperCase();
-    if (docType == 'PROVIDER_ONBOARDING' || docType == 'DELIVERY_ONBOARDING') return false;
+    final remarks = (p['remarks'] ?? '').toString().toLowerCase();
+    final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
     final cat = (p['category'] ?? p['category_name'] ?? '').toString().toLowerCase();
     final bName = (p['business_name'] ?? p['shop_name'] ?? '').toString().toLowerCase();
+
+    // Direct shopkeeper indicators
+    if (vType == 'SHOP_LICENSE' || docType.contains('SHOP') || remarks.contains('role: shopkeeper') || remarks.contains('role:shopkeeper') || role == 'shopkeeper') {
+      return true;
+    }
+    // Explicit other roles check
+    if (role == 'delivery_agent' || docType == 'DELIVERY_ONBOARDING' || vType == 'DRIVING_LICENSE') return false;
+    if (role == 'service_provider' && !cat.contains('parts') && !cat.contains('store') && !cat.contains('shop') && !cat.contains('supplies') && !cat.contains('grocery')) {
+      return false;
+    }
+
     return role.contains('shop') ||
         role.contains('store') ||
         cat.contains('shop') ||
         cat.contains('store') ||
+        cat.contains('parts') ||
+        cat.contains('supplies') ||
+        cat.contains('grocery') ||
+        cat.contains('hardware') ||
         bName.contains('shop') ||
         bName.contains('store') ||
         bName.contains('parts') ||
+        bName.contains('supplies') ||
+        bName.contains('traders') ||
+        bName.contains('enterprise') ||
         docType.contains('SHOP') ||
         (p['shop_id'] != null && p['shop_id'].toString().trim().isNotEmpty) ||
         (p['shop_name'] != null && p['shop_name'].toString().trim().isNotEmpty);

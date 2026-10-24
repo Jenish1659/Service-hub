@@ -20,6 +20,7 @@ class _ProviderReviewApplicationScreenState
     extends State<ProviderReviewApplicationScreen> {
   bool _declarationAccurate = false;
   bool _declarationTerms = false;
+  bool _isSubmitting = false;
   Map<String, dynamic>? _draftData;
 
   @override
@@ -38,6 +39,7 @@ class _ProviderReviewApplicationScreenState
   }
 
   Future<void> _handleSubmit() async {
+    if (_isSubmitting) return;
     if (!_declarationAccurate || !_declarationTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -48,6 +50,8 @@ class _ProviderReviewApplicationScreenState
       );
       return;
     }
+    setState(() => _isSubmitting = true);
+    try {
 
     final draft = _draftData ?? {};
     final username = (draft['username'] ?? '').toString().trim();
@@ -177,8 +181,20 @@ class _ProviderReviewApplicationScreenState
       debugPrint('[ProviderReview] Supabase registration note: $err');
     }
 
-    if (mounted) {
-      context.go('/register/success');
+      if (mounted) {
+        context.go('/register/success');
+      }
+    } catch (e) {
+      debugPrint('[ProviderReview] Error submitting: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Submission error: $e'), backgroundColor: const Color(0xFFEF4444)),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
@@ -627,22 +643,32 @@ class _ProviderReviewApplicationScreenState
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: ElevatedButton.icon(
+                          child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: primaryColor,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               elevation: 2,
                             ),
-                            onPressed: _handleSubmit,
-                            icon: const Icon(Icons.send_rounded, color: Colors.white, size: 16),
-                            label: const Flexible(
-                              child: Text(
-                                'Submit for Verification',
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                              ),
-                            ),
+                            onPressed: _isSubmitting ? null : _handleSubmit,
+                            child: _isSubmitting
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
+                                  )
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.send_rounded, color: Colors.white, size: 16),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Submit for Verification',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
                           ),
                         ),
                       ],

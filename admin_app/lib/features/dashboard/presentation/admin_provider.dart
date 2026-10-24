@@ -478,7 +478,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
         final vTypeUpper = (item['verification_type'] ?? '').toString().toUpperCase();
         final docTypeUpper = (item['document_type'] ?? '').toString().toUpperCase();
 
-        if (vTypeUpper == 'SHOP_LICENSE' || docTypeUpper == 'SHOPKEEPER_ONBOARDING' || roleFromRemarks == 'shopkeeper') {
+        if (vTypeUpper == 'SHOP_LICENSE' || docTypeUpper == 'SHOPKEEPER_ONBOARDING' || roleFromRemarks == 'shopkeeper' || remarks.toLowerCase().contains('role: shopkeeper') || remarks.toLowerCase().contains('role:shopkeeper')) {
           parsedRole = 'shopkeeper';
         } else if (vTypeUpper == 'DRIVING_LICENSE' || docTypeUpper == 'DELIVERY_ONBOARDING' || roleFromRemarks == 'delivery_agent' || roleFromRemarks == 'delivery_partner') {
           parsedRole = 'delivery_agent';

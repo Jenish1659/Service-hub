@@ -180,15 +180,17 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
 
     if (rawStatus == 'SCHEDULED') {
       normalizedStatus = 'SCHEDULED';
-    } else if (rawStatus == 'SEARCHING_PROVIDER' || rawStatus == 'PENDING') {
+    } else if (rawStatus == 'SEARCHING_PROVIDER' || rawStatus == 'PENDING' || rawStatus == 'PENDING_SHOPKEEPER') {
       normalizedStatus = 'SEARCHING';
-    } else if (rawStatus == 'ACCEPTED' || rawStatus == 'ASSIGNED' || rawStatus == 'CONFIRMED' || rawStatus == 'ON_THE_WAY' || rawStatus == 'EN ROUTE') {
+    } else if (rawStatus == 'ACCEPTED_BY_SHOPKEEPER' || rawStatus == 'PACKING' || rawStatus == 'PREPARING') {
+      normalizedStatus = 'IN_PROGRESS';
+    } else if (rawStatus == 'ACCEPTED' || rawStatus == 'ASSIGNED' || rawStatus == 'CONFIRMED' || rawStatus == 'ON_THE_WAY' || rawStatus == 'EN ROUTE' || rawStatus == 'OUT_FOR_DELIVERY' || rawStatus == 'PICKED_UP' || rawStatus == 'READY_FOR_PICKUP') {
       normalizedStatus = 'ON_THE_WAY';
     } else if (rawStatus == 'ARRIVED') {
       normalizedStatus = 'ARRIVED';
     } else if (rawStatus == 'STARTED' || rawStatus == 'SERVICE_STARTED' || rawStatus == 'IN_PROGRESS') {
       normalizedStatus = 'IN_PROGRESS';
-    } else if (rawStatus == 'COMPLETED' || rawStatus == 'SERVICE_COMPLETED' || rawStatus == 'PAYMENT_COMPLETED' || rawStatus == 'CLOSED' || rawStatus == 'REVIEWED') {
+    } else if (rawStatus == 'COMPLETED' || rawStatus == 'SERVICE_COMPLETED' || rawStatus == 'PAYMENT_COMPLETED' || rawStatus == 'CLOSED' || rawStatus == 'REVIEWED' || rawStatus == 'DELIVERED') {
       normalizedStatus = 'COMPLETED';
     } else if (rawStatus.contains('CANCELLED')) {
       normalizedStatus = 'CANCELLED';
@@ -227,9 +229,9 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
     final cLat = (data['customer_latitude'] ?? data['customer_lat'] as num?)?.toDouble() ?? 22.4707;
     final cLng = (data['customer_longitude'] ?? data['customer_lng'] as num?)?.toDouble() ?? 70.0577;
 
-    // Real Partner coordinates
-    var rawPLat = (data['partner_lat'] ?? data['partner_latitude'] as num?)?.toDouble();
-    var rawPLng = (data['partner_lng'] ?? data['partner_longitude'] as num?)?.toDouble();
+    // Real Partner / Delivery Agent coordinates
+    var rawPLat = (data['delivery_agent_lat'] ?? data['partner_lat'] ?? data['partner_latitude'] as num?)?.toDouble();
+    var rawPLng = (data['delivery_agent_lng'] ?? data['partner_lng'] ?? data['partner_longitude'] as num?)?.toDouble();
 
     // If partner is assigned but exact GPS coordinates not yet reported, place partner in Jamnagar near customer
     if ((rawPLat == null || rawPLng == null) && hasPartnerAssigned) {
@@ -265,7 +267,10 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
       if (data['entrance_pin'] != null && data['entrance_pin'].toString().isNotEmpty) {
         _entrancePin = data['entrance_pin'].toString();
       }
-      if (data['completion_otp'] != null && data['completion_otp'].toString().isNotEmpty) {
+      final delOtp = data['delivery_otp'] ?? data['delivery_pin'] ?? data['completion_otp'];
+      if (delOtp != null && delOtp.toString().isNotEmpty) {
+        _completionOtp = delOtp.toString();
+      } else if (data['completion_otp'] != null && data['completion_otp'].toString().isNotEmpty) {
         _completionOtp = data['completion_otp'].toString();
       }
     });

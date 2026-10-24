@@ -61,7 +61,8 @@ class SupabaseAuthService {
       ];
       if (isPhone) {
         filterParts.add('phone.eq.+91$last10');
-        filterParts.add('phone.ilike.*$last10*');
+        filterParts.add('phone.ilike.%$last10');
+        filterParts.add('phone.eq.$last10');
       }
 
       final usersRes = await client
@@ -450,7 +451,7 @@ class SupabaseAuthService {
         final userMatches = await client
             .from('users')
             .select('user_id, phone, email, username')
-            .or('phone.eq.$cleanPhone,email.eq.$cleanEmail,username.eq.$cleanUsername${rawDigits.length >= 10 ? ',phone.ilike.*${rawDigits.substring(rawDigits.length - 10)}*' : ''}')
+            .or('phone.eq.$cleanPhone,email.eq.$cleanEmail,username.eq.$cleanUsername${rawDigits.length >= 10 ? ',phone.eq.+91${rawDigits.substring(rawDigits.length - 10)},phone.eq.${rawDigits.substring(rawDigits.length - 10)}' : ''}')
             .limit(1);
 
         if (userMatches.isNotEmpty) {
@@ -813,7 +814,7 @@ class SupabaseAuthService {
       // 2. Fetch role_id for shopkeeper
       String roleId = 'a96fc0d6-afd9-45a4-bab1-ee41363b033a';
       try {
-        final roleRes = await client.from('roles').select('role_id').eq('role_name', 'shopkeeper').maybeSingle();
+        final roleRes = await client.from('roles').select('role_id').eq('role_name', 'shopkeeper').maybeSingle().timeout(const Duration(seconds: 4));
         if (roleRes != null && roleRes['role_id'] != null) {
           roleId = roleRes['role_id'].toString();
         }
@@ -826,7 +827,7 @@ class SupabaseAuthService {
         final userMatches = await client
             .from('users')
             .select('user_id, phone, email, username')
-            .or('phone.eq.$cleanPhone,email.eq.$cleanEmail,username.eq.$cleanUsername${rawDigits.length >= 10 ? ',phone.ilike.*${rawDigits.substring(rawDigits.length - 10)}*' : ''}')
+            .or('phone.eq.$cleanPhone,email.eq.$cleanEmail,username.eq.$cleanUsername${rawDigits.length >= 10 ? ',phone.eq.+91${rawDigits.substring(rawDigits.length - 10)},phone.eq.${rawDigits.substring(rawDigits.length - 10)}' : ''}')
             .limit(1);
 
         if (userMatches.isNotEmpty) {
@@ -972,7 +973,7 @@ class SupabaseAuthService {
           'verification_type': 'SHOP_LICENSE',
           'status': 'PENDING',
           'remarks': kycRemarks,
-        }).select().single();
+        }).select().single().timeout(const Duration(seconds: 4));
         createdVerId = vrInsert['verification_id']?.toString();
       } catch (vrErr) {
         if (kDebugMode) {
@@ -1171,7 +1172,7 @@ class SupabaseAuthService {
         final userMatches = await client
             .from('users')
             .select('user_id, phone, email, username')
-            .or('phone.eq.$cleanPhone,email.eq.$cleanEmail,username.eq.$cleanUsername${rawDigits.length >= 10 ? ',phone.ilike.*${rawDigits.substring(rawDigits.length - 10)}*' : ''}')
+            .or('phone.eq.$cleanPhone,email.eq.$cleanEmail,username.eq.$cleanUsername${rawDigits.length >= 10 ? ',phone.eq.+91${rawDigits.substring(rawDigits.length - 10)},phone.eq.${rawDigits.substring(rawDigits.length - 10)}' : ''}')
             .limit(1);
 
         if (userMatches.isNotEmpty) {

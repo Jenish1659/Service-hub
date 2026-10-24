@@ -79,6 +79,7 @@ class AdminSidebar extends StatelessWidget {
 
                   _buildGroupHeader('ALL SERVICES'),
                   _buildNavItem('All Services', Icons.miscellaneous_services_rounded),
+                  _buildNavItem('Store Products & Catalog', Icons.inventory_2_rounded),
 
                   _buildGroupHeader('SERVICES / BOOKINGS'),
                   _buildNavItem('AC Service Bookings', Icons.ac_unit_rounded),

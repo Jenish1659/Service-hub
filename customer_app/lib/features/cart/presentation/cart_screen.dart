@@ -82,7 +82,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
 
     final itemsSummary = cartItems.map((item) => '${item.name} x${item.quantity}').join(', ');
-    final otpPin = _generateOtpPin();
+    final pickupOtp = _generateOtpPin();
+    final deliveryOtp = _generateOtpPin();
+    final otpPin = deliveryOtp;
 
     try {
       Map<String, dynamic> responseData;
@@ -96,7 +98,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           'delivery_charge': deliveryFee.toDouble(),
           'total_amount': total.toDouble(),
           'payment_status': 'PAID',
-        }).select().single();
+        }).select().single().timeout(const Duration(seconds: 4));
         final generatedOrderCode = 'ORD-${DateTime.now().millisecondsSinceEpoch}';
         final orderId = (response['order_id'] ?? response['id'] ?? 'ord_${DateTime.now().millisecondsSinceEpoch}').toString();
         final orderCode = (response['order_code'] ?? generatedOrderCode).toString();
@@ -114,7 +116,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'order_id': responseData['id'],
             'status': 'ASSIGNED',
             'assigned_at': DateTime.now().toIso8601String(),
-          });
+          }).timeout(const Duration(seconds: 4));
         } catch (e) {
           debugPrint('Error inserting delivery assignment: $e');
         }
@@ -125,12 +127,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'booking_id': responseData['id'],
             'order_id': responseData['id'],
             'type': 'DELIVERY_ORDER',
-            'status': 'ASSIGNED',
+            'status': 'PENDING_SHOPKEEPER',
             'order_code': orderCode,
             'customer_id': customerId,
             'customer_name': 'Customer',
-            'service_id': 'food_grocery_delivery',
+            'service_id': 'store_products_delivery',
             'service_name': 'Store Order Delivery',
+            'category_id': 'store',
+            'category_name': 'store',
+            'items_summary': itemsSummary,
             'address': shippingAddress,
             'customer_address': shippingAddress,
             'estimated_amount': total.toDouble(),
@@ -138,7 +143,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'delivery_charge': deliveryFee.toDouble(),
             'customer_lat': lat,
             'customer_lng': lng,
-            'delivery_pin': otpPin,
+            'pickup_otp': pickupOtp,
+            'delivery_otp': deliveryOtp,
+            'delivery_pin': deliveryOtp,
             'created_at': DateTime.now().toIso8601String(),
           });
         } catch (e) {
@@ -169,12 +176,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'booking_id': responseData['id'],
             'order_id': responseData['id'],
             'type': 'DELIVERY_ORDER',
-            'status': 'ASSIGNED',
+            'status': 'PENDING_SHOPKEEPER',
             'order_code': fallbackOrderCode,
             'customer_id': customerId,
             'customer_name': 'Customer',
-            'service_id': 'food_grocery_delivery',
+            'service_id': 'store_products_delivery',
             'service_name': 'Store Order Delivery',
+            'category_id': 'store',
+            'category_name': 'store',
+            'items_summary': itemsSummary,
             'address': shippingAddress,
             'customer_address': shippingAddress,
             'estimated_amount': total.toDouble(),
@@ -182,7 +192,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             'delivery_charge': deliveryFee.toDouble(),
             'customer_lat': lat,
             'customer_lng': lng,
-            'delivery_pin': otpPin,
+            'pickup_otp': pickupOtp,
+            'delivery_otp': deliveryOtp,
+            'delivery_pin': deliveryOtp,
             'created_at': DateTime.now().toIso8601String(),
           });
         } catch (e) {
@@ -208,12 +220,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isPlacingOrder = false;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error placing order: ${e.toString()}'), backgroundColor: AppTheme.dangerColor),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPlacingOrder = false;
+        });
       }
     }
   }

@@ -557,13 +557,13 @@ class LiveBookingSyncService {
     }
 
     final List<String> hosts = kIsWeb
-        ? ['127.0.0.1', 'localhost']
-        : ['10.0.2.2', '127.0.0.1', 'localhost'];
+        ? const ['127.0.0.1', 'localhost']
+        : (Platform.isAndroid ? const ['10.0.2.2', '127.0.0.1'] : const ['127.0.0.1', 'localhost']);
 
     for (final host in hosts) {
       try {
         final uriVerif = Uri.parse('http://$host:8088/api/verifications');
-        final respVerif = await http.get(uriVerif).timeout(const Duration(milliseconds: 3000));
+        final respVerif = await http.get(uriVerif).timeout(const Duration(milliseconds: 600));
         if (respVerif.statusCode == 200) {
           final List<dynamic> list = jsonDecode(respVerif.body);
           bool hasNew = false;
@@ -582,7 +582,7 @@ class LiveBookingSyncService {
         }
 
         final uriBook = Uri.parse('http://$host:8088/api/bookings');
-        final respBook = await http.get(uriBook).timeout(const Duration(milliseconds: 3000));
+        final respBook = await http.get(uriBook).timeout(const Duration(milliseconds: 600));
         if (respBook.statusCode == 200) {
           final List<dynamic> list = jsonDecode(respBook.body);
           bool hasNew = false;
@@ -618,8 +618,8 @@ class LiveBookingSyncService {
     }
 
     final List<String> hosts = kIsWeb
-        ? ['127.0.0.1', 'localhost']
-        : ['10.0.2.2', '127.0.0.1', 'localhost'];
+        ? const ['127.0.0.1', 'localhost']
+        : (Platform.isAndroid ? const ['10.0.2.2', '127.0.0.1'] : const ['127.0.0.1', 'localhost']);
 
     for (final host in hosts) {
       try {
@@ -628,7 +628,7 @@ class LiveBookingSyncService {
           uri,
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(payload),
-        ).timeout(const Duration(milliseconds: 3000));
+        ).timeout(const Duration(milliseconds: 600));
         if (resp.statusCode == 200) {
           debugPrint('[SyncBridge] Broadcast to $uri successful.');
         }
@@ -870,6 +870,8 @@ class LiveBookingSyncService {
     if (booking != null) {
       booking['partner_lat'] = latitude;
       booking['partner_lng'] = longitude;
+      booking['delivery_agent_lat'] = latitude;
+      booking['delivery_agent_lng'] = longitude;
       if (distanceMeters != null) booking['distance_meters'] = distanceMeters;
       booking['partner_location_updated_at'] = DateTime.now().toIso8601String();
       all[bookingId] = booking;

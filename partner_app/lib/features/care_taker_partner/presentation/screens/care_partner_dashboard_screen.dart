@@ -130,6 +130,23 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
     }
   }
 
+  Map<String, dynamic>? _getActiveCareBooking() {
+    final all = LiveBookingSyncService.instance.getAllBookings();
+    final pId = _partnerProfile?['id']?.toString() ?? _partnerProfile?['user_id']?.toString() ?? '';
+    for (final b in all) {
+      if (LiveBookingSyncService.isBookingMatchingCategory(b, 'care_taker')) {
+        final bPartnerId = (b['partner_id'] ?? '').toString();
+        final s = (b['status'] ?? b['service_status'] ?? '').toString().toUpperCase();
+        final isAcceptedByMe = (bPartnerId.isNotEmpty && (bPartnerId == pId || pId.isEmpty)) ||
+            LiveBookingSyncService.instance.isBookingAccepted((b['id'] ?? b['booking_id'] ?? '').toString());
+        if (isAcceptedByMe && (s == 'ACCEPTED' || s == 'IN_PROGRESS' || s == 'ON_THE_WAY' || s == 'ARRIVED')) {
+          return b;
+        }
+      }
+    }
+    return null;
+  }
+
   Future<void> _acceptBooking(Map<String, dynamic> item) async {
     final bId = (item['id'] ?? item['booking_id'] ?? '').toString();
     setState(() {
@@ -210,7 +227,7 @@ class _CarePartnerDashboardScreenState extends State<CarePartnerDashboardScreen>
               _buildHomeTab(),
               _buildJobsTab(),
               _activeNavIndex == 2
-                  ? const CareLiveMapScreen(showAppBar: false)
+                  ? CareLiveMapScreen(booking: _getActiveCareBooking(), showAppBar: false)
                   : const SizedBox.shrink(),
               _buildEarningsTab(),
               const CarePartnerProfileScreen(),

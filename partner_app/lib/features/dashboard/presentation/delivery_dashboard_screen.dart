@@ -33,7 +33,9 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
 
   bool _isOnline = true;
   String _agentName = 'Delivery Agent';
-  String _agentCity = 'Rajkot, Gujarat';
+  String _agentCity = 'Jamnagar, Gujarat';
+  String _memberSince = '';
+  String _shiftHours = 'Flexible Shift';
   String? _agentPhotoPath;
   double _todayEarnings = 0.0;
   int _completedDeliveries = 0;
@@ -73,8 +75,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
       setState(() => _isLoading = true);
     }
     try {
-      final activeUser = await LocalRegistrationCache.getActiveDeliveryAgent() ??
-          await LocalRegistrationCache.getActivePartner();
+      final activeUser = await LocalRegistrationCache.getActiveDeliveryAgent();
       if (activeUser == null) {
         _isFetching = false;
         if (mounted) GoRouter.maybeOf(context)?.go('/login/delivery-agent');
@@ -217,10 +218,16 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
       final city = (activeUser['city'] ?? 'Rajkot').toString();
       final state = (activeUser['state'] ?? 'Gujarat').toString();
 
+      final createdAt = (activeUser['created_at'] ?? '').toString();
+      final memberSinceStr = createdAt.length >= 10 ? createdAt.substring(0, 10) : '';
+      final shift = (activeUser['shift_hours'] ?? activeUser['shift'] ?? 'Flexible Shift').toString();
+
       if (mounted) {
         setState(() {
           _agentName = resolvedName;
           _agentCity = '$city, $state';
+          _memberSince = memberSinceStr;
+          _shiftHours = shift;
           _agentPhotoPath = (activeUser['profile_image'] ?? activeUser['avatar_url'] ?? activeUser['photo_path'])?.toString();
           _todayEarnings = 0.0;
           _completedDeliveries = 0;
@@ -286,12 +293,12 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
         final fee = (order?['delivery_charge'] as num?)?.toDouble() ?? 40.0;
 
         final orderCode = order?['order_code']?.toString() ?? t['order_id']?.toString() ?? '';
-        final cLat = (address?['latitude'] as num?)?.toDouble() ?? 22.4800;
-        final cLng = (address?['longitude'] as num?)?.toDouble() ?? 70.0700;
-        final sLat = (shop?['latitude'] as num?)?.toDouble() ?? 22.4740;
-        final sLng = (shop?['longitude'] as num?)?.toDouble() ?? 70.0600;
-        final rLat = (t['rider_lat'] as num?)?.toDouble() ?? 22.4650;
-        final rLng = (t['rider_lng'] as num?)?.toDouble() ?? 70.0500;
+        final cLat = (address?['latitude'] as num?)?.toDouble() ?? 0.0;
+        final cLng = (address?['longitude'] as num?)?.toDouble() ?? 0.0;
+        final sLat = (shop?['latitude'] as num?)?.toDouble() ?? 0.0;
+        final sLng = (shop?['longitude'] as num?)?.toDouble() ?? 0.0;
+        final rLat = (t['rider_lat'] as num?)?.toDouble() ?? 0.0;
+        final rLng = (t['rider_lng'] as num?)?.toDouble() ?? 0.0;
 
         tasks.add({
           'assignment_id': t['assignment_id'],
@@ -374,12 +381,12 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
               'customer_name': b['customer_name'] ?? 'Customer',
               'customer_address': b['customer_address'] ?? b['address'] ?? 'Customer Address',
               'customer_phone': b['customer_phone'] ?? '',
-              'rider_lat': (b['rider_lat'] as num?)?.toDouble() ?? 22.4650,
-              'rider_lng': (b['rider_lng'] as num?)?.toDouble() ?? 70.0500,
-              'store_lat': (b['store_lat'] as num?)?.toDouble() ?? 22.4740,
-              'store_lng': (b['store_lng'] as num?)?.toDouble() ?? 70.0600,
-              'customer_lat': (b['customer_lat'] as num?)?.toDouble() ?? 22.4800,
-              'customer_lng': (b['customer_lng'] as num?)?.toDouble() ?? 70.0700,
+              'rider_lat': (b['rider_lat'] as num?)?.toDouble() ?? 0.0,
+              'rider_lng': (b['rider_lng'] as num?)?.toDouble() ?? 0.0,
+              'store_lat': (b['store_lat'] as num?)?.toDouble() ?? 0.0,
+              'store_lng': (b['store_lng'] as num?)?.toDouble() ?? 0.0,
+              'customer_lat': (b['customer_lat'] as num?)?.toDouble() ?? 0.0,
+              'customer_lng': (b['customer_lng'] as num?)?.toDouble() ?? 0.0,
               'earning': fee,
               'items_summary': orderCode != null && !itemsSummary.toString().contains('#')
                   ? 'Order #$orderCode'
@@ -387,7 +394,13 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
               'eta': b['eta'] ?? 'Calculating ETA...',
               'distance': b['distance'] ?? '-- km',
               'payment_type': b['payment_type'] ?? 'Online Payment',
-              'delivery_pin': b['delivery_pin'],
+              'delivery_pin': b['delivery_pin'] ?? b['delivery_otp'],
+              'delivery_otp': b['delivery_otp'] ?? b['delivery_pin'],
+              'pickup_otp': b['pickup_otp'] ?? b['pickup_pin'],
+              'pickup_pin': b['pickup_otp'] ?? b['pickup_pin'],
+              'store_name': b['shopkeeper_name'] ?? b['shop_name'] ?? b['store_name'] ?? 'Pickup Store',
+              'store_address': b['shopkeeper_address'] ?? b['shop_address'] ?? b['store_address'] ?? 'Store Pickup Location',
+              'store_phone': b['shopkeeper_phone'] ?? b['shop_phone'] ?? b['store_phone'] ?? '',
             });
           }
         }
@@ -503,8 +516,8 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
         try {
           await client.from('delivery_tracking').insert({
             'assignment_id': assignmentId,
-            'latitude': 22.4707,
-            'longitude': 70.0577,
+            'latitude': (task['customer_lat'] as num?)?.toDouble() ?? (task['rider_lat'] as num?)?.toDouble() ?? 0.0,
+            'longitude': (task['customer_lng'] as num?)?.toDouble() ?? (task['rider_lng'] as num?)?.toDouble() ?? 0.0,
             'accuracy': 5.0,
             'speed': 0.0,
             'recorded_at': DateTime.now().toIso8601String(),
@@ -630,14 +643,14 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
                     // 2. Greeting Section with Verified Badge
                     DeliveryGreetingSection(
                       agentName: _agentName,
-                      memberSince: 'Aug 2024',
+                      memberSince: _memberSince,
                       isVerified: true,
                     ),
 
                     // 3. Shift & Status Card
                     DeliveryShiftStatusCard(
                       isOnline: _isOnline,
-                      shiftHours: '9:00 AM – 8:00 PM',
+                      shiftHours: _shiftHours,
                       locationCity: _agentCity,
                       onToggleOnline: (val) async {
                         setState(() => _isOnline = val);
@@ -674,8 +687,8 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
                     // 5. Today's Goal Progress Card
                     DeliveryDailyGoalCard(
                       completedCount: _completedDeliveries,
-                      targetCount: 8,
-                      bonusAmount: 200,
+                      targetCount: 0,
+                      bonusAmount: 0,
                       onTap: () {},
                     ),
 
@@ -714,7 +727,7 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
                       onSupportTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('24/7 Rider Support Hotline: +91 1800 200 9999'),
+                            content: Text('Support is active in the Help & Support section.'),
                             backgroundColor: Color(0xFF9333EA),
                             behavior: SnackBarBehavior.floating,
                           ),

@@ -133,6 +133,16 @@ class _DataAndPermissionsScreenState extends State<DataAndPermissionsScreen> {
                         description: 'Ensures you never miss an incoming service dispatch opportunity.',
                         isGranted: true,
                       ),
+                      const Divider(height: 1, color: Color(0xFFF1F5F9), indent: 56),
+                      _buildPermissionRow(
+                        icon: Icons.layers_outlined,
+                        iconBg: const Color(0xFFE0E7FF),
+                        iconColor: const Color(0xFF4338CA),
+                        title: 'Display Over Other Apps',
+                        status: 'Allowed (Floating Alerts)',
+                        description: 'Enables high-priority full-screen dispatch and parcel pickup alerts when working in other apps.',
+                        isGranted: true,
+                      ),
                     ]),
                     const SizedBox(height: 20),
 

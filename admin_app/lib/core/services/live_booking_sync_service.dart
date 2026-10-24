@@ -139,13 +139,13 @@ class LiveBookingSyncService {
 
   Future<void> _pollHttpBridge() async {
     final List<String> hosts = kIsWeb
-        ? ['127.0.0.1', 'localhost']
-        : ['10.0.2.2', '127.0.0.1', 'localhost'];
+        ? const ['127.0.0.1', 'localhost']
+        : (Platform.isAndroid ? const ['10.0.2.2', '127.0.0.1'] : const ['127.0.0.1', 'localhost']);
 
     for (final host in hosts) {
       try {
         final uriVerif = Uri.parse('http://$host:8088/api/verifications');
-        final respVerif = await http.get(uriVerif).timeout(const Duration(milliseconds: 3000));
+        final respVerif = await http.get(uriVerif).timeout(const Duration(milliseconds: 600));
         if (respVerif.statusCode == 200) {
           final List<dynamic> list = jsonDecode(respVerif.body);
           bool hasNew = false;
@@ -164,7 +164,7 @@ class LiveBookingSyncService {
         }
 
         final uriBook = Uri.parse('http://$host:8088/api/bookings');
-        final respBook = await http.get(uriBook).timeout(const Duration(milliseconds: 3000));
+        final respBook = await http.get(uriBook).timeout(const Duration(milliseconds: 600));
         if (respBook.statusCode == 200) {
           final List<dynamic> list = jsonDecode(respBook.body);
           bool hasNew = false;
@@ -190,8 +190,8 @@ class LiveBookingSyncService {
     if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) return;
 
     final List<String> hosts = kIsWeb
-        ? ['127.0.0.1', 'localhost']
-        : ['10.0.2.2', '127.0.0.1', 'localhost'];
+        ? const ['127.0.0.1', 'localhost']
+        : (Platform.isAndroid ? const ['10.0.2.2', '127.0.0.1'] : const ['127.0.0.1', 'localhost']);
 
     for (final host in hosts) {
       try {
@@ -200,7 +200,7 @@ class LiveBookingSyncService {
           uri,
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(payload),
-        ).timeout(const Duration(milliseconds: 3000));
+        ).timeout(const Duration(milliseconds: 600));
         if (resp.statusCode == 200) {
           debugPrint('[SyncBridge] Admin broadcast to $uri successful.');
         }

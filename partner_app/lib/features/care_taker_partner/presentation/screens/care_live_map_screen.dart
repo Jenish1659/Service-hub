@@ -29,7 +29,7 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
 
   // Jamnagar Central Care Hub / Caregiver Operational Base Coordinates (Real GPS Baseline)
   LatLng _caregiverLocation = PartnerLocationService.jamnagarOperationalBase;
-  LatLng _patientLocation = const LatLng(22.4842, 70.0712);
+  LatLng? _patientLocation;
   StreamSubscription<Position>? _gpsSub;
   Map<String, dynamic>? _resolvedBooking;
 
@@ -88,11 +88,10 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
       if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
         _patientLocation = LatLng(lat, lng);
       } else {
-        // Offset relative to real caregiver location
-        _patientLocation = LatLng(_caregiverLocation.latitude + 0.0095, _caregiverLocation.longitude + 0.0085);
+        _patientLocation = null;
       }
     } else {
-      _patientLocation = LatLng(_caregiverLocation.latitude + 0.0095, _caregiverLocation.longitude + 0.0085);
+      _patientLocation = null;
     }
   }
 
@@ -123,31 +122,35 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
   }
 
   List<LatLng> _buildRoutePolyline() {
+    if (_patientLocation == null) return [];
     return [
       _caregiverLocation,
       LatLng(
-        _caregiverLocation.latitude + (_patientLocation.latitude - _caregiverLocation.latitude) * 0.35,
-        _caregiverLocation.longitude + (_patientLocation.longitude - _caregiverLocation.longitude) * 0.15,
+        _caregiverLocation.latitude + (_patientLocation!.latitude - _caregiverLocation.latitude) * 0.35,
+        _caregiverLocation.longitude + (_patientLocation!.longitude - _caregiverLocation.longitude) * 0.15,
       ),
       LatLng(
-        _caregiverLocation.latitude + (_patientLocation.latitude - _caregiverLocation.latitude) * 0.7,
-        _caregiverLocation.longitude + (_patientLocation.longitude - _caregiverLocation.longitude) * 0.65,
+        _caregiverLocation.latitude + (_patientLocation!.latitude - _caregiverLocation.latitude) * 0.7,
+        _caregiverLocation.longitude + (_patientLocation!.longitude - _caregiverLocation.longitude) * 0.65,
       ),
-      _patientLocation,
+      _patientLocation!,
     ];
   }
 
   @override
   Widget build(BuildContext context) {
     final b = _resolvedBooking ?? widget.booking;
+    final hasActivePatient = b != null && _patientLocation != null;
     final patientName = (b?['customer_name'] ?? 'Patient').toString();
     final patientPhone = (b?['customer_phone'] ?? '').toString();
     final address = (b?['customer_address'] ?? b?['address'] ?? 'Customer Location, Jamnagar').toString();
 
-    final distInfo = PartnerLocationService.calculateDistanceInfo(
-      from: _caregiverLocation,
-      to: _patientLocation,
-    );
+    final distInfo = hasActivePatient
+        ? PartnerLocationService.calculateDistanceInfo(
+            from: _caregiverLocation,
+            to: _patientLocation!,
+          )
+        : null;
 
     final polylinePoints = _buildRoutePolyline();
 
@@ -217,18 +220,19 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
                 ],
               ),
 
-              // Road Polyline GPS Navigation Route
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: polylinePoints,
-                    strokeWidth: 4.5,
-                    color: primaryIndigo,
-                    borderStrokeWidth: 2.0,
-                    borderColor: Colors.white,
-                  ),
-                ],
-              ),
+              // Road Polyline GPS Navigation Route (only when active patient is assigned)
+              if (hasActivePatient && polylinePoints.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: polylinePoints,
+                      strokeWidth: 4.5,
+                      color: primaryIndigo,
+                      borderStrokeWidth: 2.0,
+                      borderColor: Colors.white,
+                    ),
+                  ],
+                ),
 
               // Real Interactive Markers Layer
               MarkerLayer(
@@ -265,80 +269,82 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
                     ),
                   ),
 
-                  // Patient Destination Residence Marker
-                  Marker(
-                    point: _patientLocation,
-                    width: 54,
-                    height: 54,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEF4444),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFEF4444).withValues(alpha: 0.45),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                            border: Border.all(color: Colors.white, width: 2.5),
-                          ),
-                          child: const Icon(
-                            Icons.home_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ETA / Distance Floating Label Badge along route
-                  Marker(
-                    point: LatLng(
-                      (_caregiverLocation.latitude + _patientLocation.latitude) / 2 + 0.002,
-                      (_caregiverLocation.longitude + _patientLocation.longitude) / 2,
-                    ),
-                    width: 160,
-                    height: 40,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.12),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                  if (hasActivePatient && _patientLocation != null && distInfo != null) ...[
+                    // Patient Destination Residence Marker
+                    Marker(
+                      point: _patientLocation!,
+                      width: 54,
+                      height: 54,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFEF4444).withValues(alpha: 0.45),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                              border: Border.all(color: Colors.white, width: 2.5),
+                            ),
+                            child: const Icon(
+                              Icons.home_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         ],
-                        border: Border.all(color: cardBorder),
                       ),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.directions_walk_rounded, color: primaryIndigo, size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${distInfo.formattedDistance} • ${distInfo.formattedEta}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: darkSlate,
-                              ),
+                    ),
+
+                    // ETA / Distance Floating Label Badge along route
+                    Marker(
+                      point: LatLng(
+                        (_caregiverLocation.latitude + _patientLocation!.latitude) / 2 + 0.002,
+                        (_caregiverLocation.longitude + _patientLocation!.longitude) / 2,
+                      ),
+                      width: 160,
+                      height: 40,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
                           ],
+                          border: Border.all(color: cardBorder),
+                        ),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.directions_walk_rounded, color: primaryIndigo, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${distInfo.formattedDistance} • ${distInfo.formattedEta}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: darkSlate,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ],
@@ -391,7 +397,7 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
                   child: InkWell(
                     onTap: () {
                       setState(() => _selectedFilterIndex = 1);
-                      _recenterMap(_patientLocation);
+                      if (_patientLocation != null) _recenterMap(_patientLocation!);
                     },
                     borderRadius: BorderRadius.circular(10),
                     child: Container(
@@ -468,138 +474,208 @@ class _CareLiveMapScreenState extends State<CareLiveMapScreen> {
             ),
           ),
 
-          // 4. Bottom Patient Dispatch & Navigation Card matching reference UI
+          // 4. Bottom Active Patient Dispatch Card OR Standby Radar Card
           Positioned(
             left: 16,
             right: 16,
             bottom: 16,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-                border: Border.all(color: cardBorder),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Patient Info Row
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: primaryIndigo.withValues(alpha: 0.12),
-                        child: const Icon(Icons.person, color: primaryIndigo, size: 28),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+            child: hasActivePatient && distInfo != null
+                ? Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Patient Info Row
+                        Row(
                           children: [
-                            Text(
-                              patientName,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: darkSlate,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundColor: primaryIndigo.withValues(alpha: 0.12),
+                              child: const Icon(Icons.person, color: primaryIndigo, size: 28),
                             ),
-                            const SizedBox(height: 3),
-                            Text(
-                              address,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: textMuted,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    patientName,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: darkSlate,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    address,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: textMuted,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    distInfo.formattedSummary,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: primaryIndigo,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              distInfo.formattedSummary,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: primaryIndigo,
+                            // Call Action Button
+                            IconButton(
+                              style: IconButton.styleFrom(
+                                backgroundColor: const Color(0xFFF1F5F9),
+                                padding: const EdgeInsets.all(10),
                               ),
+                              icon: const Icon(Icons.call_rounded, color: primaryIndigo, size: 20),
+                              onPressed: () => _launchCaller(patientPhone),
+                            ),
+                            const SizedBox(width: 6),
+                            // In-app Chat Action Button
+                            IconButton(
+                              style: IconButton.styleFrom(
+                                backgroundColor: const Color(0xFFF1F5F9),
+                                padding: const EdgeInsets.all(10),
+                              ),
+                              icon: const Icon(Icons.chat_bubble_outline_rounded, color: primaryIndigo, size: 20),
+                              onPressed: () => _openChat((b['booking_id'] ?? b['id'] ?? '').toString(), patientName, patientPhone),
                             ),
                           ],
                         ),
-                      ),
-                      // Call Action Button
-                      IconButton(
-                        style: IconButton.styleFrom(
-                          backgroundColor: const Color(0xFFF1F5F9),
-                          padding: const EdgeInsets.all(10),
-                        ),
-                        icon: const Icon(Icons.call_rounded, color: primaryIndigo, size: 20),
-                        onPressed: () => _launchCaller(patientPhone),
-                      ),
-                      const SizedBox(width: 6),
-                      // In-app Chat Action Button
-                      IconButton(
-                        style: IconButton.styleFrom(
-                          backgroundColor: const Color(0xFFF1F5F9),
-                          padding: const EdgeInsets.all(10),
-                        ),
-                        icon: const Icon(Icons.chat_bubble_outline_rounded, color: primaryIndigo, size: 20),
-                        onPressed: () => _openChat(b != null ? (b['booking_id'] ?? b['id'] ?? '').toString() : '', patientName, patientPhone),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(height: 14),
 
-                  const SizedBox(height: 14),
-
-                  // Start Real Navigation Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryIndigo,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      icon: Icon(
-                        _isNavigating ? Icons.navigation_rounded : Icons.near_me_rounded,
-                        size: 20,
-                      ),
-                      label: Text(
-                        _isNavigating ? 'Navigating to Patient...' : 'Start Navigation',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      onPressed: () {
-                        setState(() => _isNavigating = !_isNavigating);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              _isNavigating
-                                  ? 'GPS Turn-by-Turn Navigation started to $address'
-                                  : 'Navigation stopped.',
+                        // Start Real Navigation Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryIndigo,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                            backgroundColor: primaryIndigo,
-                            behavior: SnackBarBehavior.floating,
+                            icon: Icon(
+                              _isNavigating ? Icons.navigation_rounded : Icons.near_me_rounded,
+                              size: 20,
+                            ),
+                            label: Text(
+                              _isNavigating ? 'Navigating to Patient...' : 'Start Navigation',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            onPressed: () {
+                              setState(() => _isNavigating = !_isNavigating);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    _isNavigating
+                                        ? 'GPS Turn-by-Turn Navigation started to $address'
+                                        : 'Navigation stopped.',
+                                  ),
+                                  backgroundColor: primaryIndigo,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
+                        ),
+                      ],
+                    ),
+                  )
+                : Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2FF),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.radar_rounded, color: primaryIndigo, size: 28),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Active Standby Mode',
+                                style: TextStyle(
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: darkSlate,
+                                ),
+                              ),
+                              SizedBox(height: 3),
+                              Text(
+                                'Caregiver live GPS active. Scanning for patient service dispatches...',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: textMuted,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                          ),
+                          child: const Text(
+                            'ONLINE',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF16A34A),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
           ),
         ],
       ),

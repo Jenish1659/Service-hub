@@ -148,16 +148,26 @@ class LocalRegistrationCache {
     _memoryStorage[_spSessionKey] = jsonEncode(updated);
     _memoryStorage[_activeRoleKey] = 'service_provider';
     _memoryStorage[_legacyPartnerKey] = jsonEncode(updated);
+    _memoryStorage.remove(_shopSessionKey);
+    _memoryStorage.remove(_deliverySessionKey);
     try {
       final box = _getBox();
       if (_isTestMode) {
         box.put(_spSessionKey, updated);
         box.put(_activeRoleKey, 'service_provider');
         box.put(_legacyPartnerKey, updated);
+        box.delete(_shopSessionKey);
+        box.delete(_deliverySessionKey);
+        box.delete('cached_shopkeeper_data');
+        box.delete('cached_delivery_data');
       } else {
         await box.put(_spSessionKey, updated);
         await box.put(_activeRoleKey, 'service_provider');
         await box.put(_legacyPartnerKey, updated);
+        await box.delete(_shopSessionKey);
+        await box.delete(_deliverySessionKey);
+        await box.delete('cached_shopkeeper_data');
+        await box.delete('cached_delivery_data');
         await box.flush();
       }
     } catch (_) {}
@@ -197,16 +207,24 @@ class LocalRegistrationCache {
     _memoryStorage[_shopSessionKey] = jsonEncode(updated);
     _memoryStorage[_activeRoleKey] = 'shopkeeper';
     _memoryStorage[_legacyPartnerKey] = jsonEncode(updated);
+    _memoryStorage.remove(_deliverySessionKey);
+    _memoryStorage.remove(_spSessionKey);
     try {
       final box = _getBox();
       if (_isTestMode) {
         box.put(_shopSessionKey, updated);
         box.put(_activeRoleKey, 'shopkeeper');
         box.put(_legacyPartnerKey, updated);
+        box.delete(_deliverySessionKey);
+        box.delete(_spSessionKey);
+        box.delete('cached_delivery_data');
       } else {
         await box.put(_shopSessionKey, updated);
         await box.put(_activeRoleKey, 'shopkeeper');
         await box.put(_legacyPartnerKey, updated);
+        await box.delete(_deliverySessionKey);
+        await box.delete(_spSessionKey);
+        await box.delete('cached_delivery_data');
         await box.flush();
       }
     } catch (_) {}
@@ -249,16 +267,24 @@ class LocalRegistrationCache {
     _memoryStorage[_deliverySessionKey] = jsonEncode(updated);
     _memoryStorage[_activeRoleKey] = 'delivery_agent';
     _memoryStorage[_legacyPartnerKey] = jsonEncode(updated);
+    _memoryStorage.remove(_shopSessionKey);
+    _memoryStorage.remove(_spSessionKey);
     try {
       final box = _getBox();
       if (_isTestMode) {
         box.put(_deliverySessionKey, updated);
         box.put(_activeRoleKey, 'delivery_agent');
         box.put(_legacyPartnerKey, updated);
+        box.delete(_shopSessionKey);
+        box.delete(_spSessionKey);
+        box.delete('cached_shopkeeper_data');
       } else {
         await box.put(_deliverySessionKey, updated);
         await box.put(_activeRoleKey, 'delivery_agent');
         await box.put(_legacyPartnerKey, updated);
+        await box.delete(_shopSessionKey);
+        await box.delete(_spSessionKey);
+        await box.delete('cached_shopkeeper_data');
         await box.flush();
       }
     } catch (_) {}

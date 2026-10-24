@@ -155,7 +155,7 @@ class ACBookingFlowScreen extends ConsumerStatefulWidget {
           'entrance_pin': pin,
           'completion_otp': otp,
           'created_at': nowIso,
-        });
+        }).timeout(const Duration(seconds: 4));
         debugPrint('Successfully wrote booking to Supabase service_bookings table: $bookingUuid');
       } catch (e) {
         debugPrint('Supabase service_bookings insert note: $e');
@@ -168,7 +168,7 @@ class ACBookingFlowScreen extends ConsumerStatefulWidget {
       try {
         final candidatesRes = await supabase
             .from('service_provider_profiles')
-            .select('provider_id, partner_id, about, partners(partner_id, user_id, verification_status, availability_status, users(user_id, is_active, account_status, roles(role_name)), partner_live_locations(latitude, longitude))');
+            .select('provider_id, partner_id, about, partners(partner_id, user_id, verification_status, availability_status, users(user_id, is_active, account_status, roles(role_name)), partner_live_locations(latitude, longitude))').timeout(const Duration(seconds: 4));
 
         for (final c in candidatesRes) {
           final partner = c['partners'] as Map<String, dynamic>?;

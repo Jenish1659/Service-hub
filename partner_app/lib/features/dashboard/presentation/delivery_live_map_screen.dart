@@ -288,6 +288,16 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
             _deliveryStatus = 'ARRIVED_AT_STORE';
           });
         }
+
+        // Live stream GPS coordinates to booking for customer tracking
+        final bId = (widget.task['booking_id'] ?? widget.task['id'] ?? widget.task['order_id'] ?? '').toString();
+        if (bId.isNotEmpty && (_deliveryStatus == 'OUT_FOR_DELIVERY' || _deliveryStatus == 'ON_THE_WAY_TO_STORE')) {
+          LiveBookingSyncService.instance.updatePartnerLocation(
+            bId,
+            pos.latitude,
+            pos.longitude,
+          );
+        }
       });
     } catch (_) {}
   }
@@ -491,9 +501,113 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
     );
   }
 
+  void _showPickupOtpDialog() {
+    final otpController = TextEditingController();
+    final expectedOtp = widget.task['pickup_otp']?.toString() ??
+        widget.task['pickup_pin']?.toString() ??
+        '';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.inventory_2_rounded, color: Color(0xFF2563EB), size: 24),
+            SizedBox(width: 8),
+            Text('Verify Store Pickup', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Collect parcel from $_storeName.\n\nAsk the shopkeeper for the 4-digit Pickup OTP:',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 8),
+              decoration: InputDecoration(
+                hintText: '----',
+                counterText: '',
+                filled: true,
+                fillColor: const Color(0xFFF1F5F9),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              final entered = otpController.text.trim();
+              if (expectedOtp.isNotEmpty && entered != expectedOtp) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Invalid Pickup PIN. Please collect the correct 4-digit code from the shopkeeper.'),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              setState(() {
+                _deliveryStatus = 'OUT_FOR_DELIVERY';
+              });
+
+              final bookingId = (widget.task['booking_id'] ?? widget.task['id'] ?? widget.task['order_id'] ?? '').toString();
+              try {
+                await LiveBookingSyncService.instance.updateBookingStatus(bookingId, 'OUT_FOR_DELIVERY');
+                await LiveBookingSyncService.instance.updateMilestone(bookingId, 'OUT_FOR_DELIVERY');
+                await LiveBookingSyncService.instance.updatePartnerLocation(
+                  bookingId,
+                  _riderLocation.latitude,
+                  _riderLocation.longitude,
+                );
+              } catch (_) {}
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Pickup authenticated! Package is now out for delivery.'),
+                    backgroundColor: Color(0xFF2563EB),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: const Text('Verify Pickup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showCompleteDeliveryOtpDialog() {
     final otpController = TextEditingController();
-    final expectedOtp = widget.task['delivery_pin']?.toString() ?? '4829';
+    final expectedOtp = widget.task['delivery_otp']?.toString() ??
+        widget.task['delivery_pin']?.toString() ??
+        widget.task['completion_otp']?.toString() ??
+        '';
 
     showDialog(
       context: context,
@@ -525,8 +639,6 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
               decoration: InputDecoration(
                 hintText: '----',
                 counterText: '',
-                helperText: 'Demo Verification PIN: $expectedOtp',
-                helperStyle: const TextStyle(color: Color(0xFF16A34A), fontSize: 11),
                 filled: true,
                 fillColor: const Color(0xFFF1F5F9),
                 border: OutlineInputBorder(
@@ -549,10 +661,10 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
             ),
             onPressed: () async {
               final entered = otpController.text.trim();
-              if (entered.isNotEmpty && entered != expectedOtp) {
+              if (expectedOtp.isNotEmpty && entered != expectedOtp) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Invalid PIN. Please enter correct 4-digit PIN ($expectedOtp)'),
+                  const SnackBar(
+                    content: Text('Invalid Delivery PIN. Please enter the authentic 4-digit PIN provided by the customer.'),
                     backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
                   ),
@@ -1177,16 +1289,7 @@ class _DeliveryLiveMapScreenState extends State<DeliveryLiveMapScreen>
                   ? null
                   : () {
                       if (_deliveryStatus == 'ARRIVED_AT_STORE') {
-                        setState(() {
-                          _deliveryStatus = 'OUT_FOR_DELIVERY';
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Order picked up! En route to customer dropoff.'),
-                            backgroundColor: Color(0xFF2563EB),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
+                        _showPickupOtpDialog();
                       } else if (widget.task['require_otp'] == false) {
                         _completeDeliveryAction();
                       } else {

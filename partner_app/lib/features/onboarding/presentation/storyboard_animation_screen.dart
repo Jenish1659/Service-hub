@@ -37,22 +37,25 @@ class _StoryboardAnimationScreenState extends State<StoryboardAnimationScreen> {
           if (user != null) {
             final uRes = await client
                 .from('users')
-                .select('user_id, username, email, phone, role_name, partners(partner_id, verification_status, availability_status)')
+                .select('user_id, username, email, phone, role_id, roles(role_name), partners(partner_id, verification_status, availability_status)')
                 .eq('user_id', user.id)
-                .maybeSingle();
+                .maybeSingle()
+                .timeout(const Duration(seconds: 4));
             if (uRes != null) {
               dynamic pData = uRes['partners'];
               if (pData is List && pData.isNotEmpty) pData = pData.first;
+              final roleName = (uRes['roles'] is Map ? uRes['roles']['role_name'] : null)?.toString() ?? '';
               activePartner = {
                 'user_id': uRes['user_id'],
                 'username': uRes['username'],
                 'email': uRes['email'],
                 'phone': uRes['phone'],
-                'role_name': uRes['role_name'],
+                'role_name': roleName,
+                'role': roleName,
                 'partner_id': pData?['partner_id'] ?? uRes['user_id'],
-                'verification_status': pData?['verification_status'] ?? 'VERIFIED',
+                'verification_status': pData?['verification_status'] ?? 'PENDING',
               };
-              await LocalRegistrationCache.updateActivePartner(activePartner);
+              await LocalRegistrationCache.updateActivePartner(activePartner, roleName);
             }
           }
         } catch (_) {}
@@ -71,7 +74,7 @@ class _StoryboardAnimationScreenState extends State<StoryboardAnimationScreen> {
         final status = (activePartner['verification_status'] ?? activePartner['status'] ?? activePartner['account_status'] ?? '').toString().toUpperCase();
 
         // If explicitly pending verification, redirect to status tracker
-        if (status == 'PENDING' || status == 'IN_REVIEW') {
+        if (status == 'PENDING' || status == 'IN_REVIEW' || status == 'UNDER_REVIEW' || status == 'SUBMITTED' || status == 'PENDING_VERIFICATION') {
           final phoneOrUser = activePartner['phone'] ?? activePartner['username'] ?? activePartner['user_id'];
           context.go('/register/status-tracker', extra: phoneOrUser?.toString());
           return;
@@ -80,14 +83,24 @@ class _StoryboardAnimationScreenState extends State<StoryboardAnimationScreen> {
         // For verified, active, or existing authenticated partners (non-empty role or partner_id)
         final role = (activePartner['role_name'] ?? activePartner['role'] ?? activePartner['partner_type'] ?? '').toString().toLowerCase();
         if (role == 'delivery_agent' || (role.contains('delivery') && !role.contains('shop') && !role.contains('service'))) {
-          context.go('/dashboard/delivery');
+          if (status == 'VERIFIED' || status == 'APPROVED') {
+            context.go('/dashboard/delivery');
+          } else {
+            final phoneOrUser = activePartner['phone'] ?? activePartner['username'] ?? activePartner['user_id'];
+            context.go('/register/status-tracker', extra: phoneOrUser?.toString());
+          }
           return;
         } else if (role == 'shopkeeper' || role.contains('shop') || role.contains('store')) {
-          final cat = (activePartner['category'] ?? activePartner['business_type'] ?? '').toString().toLowerCase();
-          if (cat.contains('laundry')) {
-            context.go('/dashboard/laundry');
+          if (status == 'VERIFIED' || status == 'APPROVED') {
+            final cat = (activePartner['category'] ?? activePartner['business_type'] ?? '').toString().toLowerCase();
+            if (cat.contains('laundry')) {
+              context.go('/dashboard/laundry');
+            } else {
+              context.go('/dashboard/shopkeeper');
+            }
           } else {
-            context.go('/dashboard/shopkeeper');
+            final phoneOrUser = activePartner['phone'] ?? activePartner['username'] ?? activePartner['user_id'];
+            context.go('/register/status-tracker', extra: phoneOrUser?.toString());
           }
           return;
         } else if (role == 'service_provider' || role.contains('provider') || role.contains('expert') || role.contains('technician')) {

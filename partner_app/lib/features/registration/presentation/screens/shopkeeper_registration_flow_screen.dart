@@ -142,7 +142,7 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
 
   // Database Submission state
   bool _isSubmittingToDb = false;
-  String _submittedRegistrationId = 'SH-SHOP-2026-8910';
+  String _submittedRegistrationId = '';
 
   Future<void> _pickProfilePhoto() async {
     final picked = await MediaDocumentPickerService.instance.pickImageWithSourceChoice(
@@ -712,9 +712,11 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
 
   // Supabase Database Real Submission Handler
   Future<void> _submitToSupabaseDatabase() async {
+    if (_isSubmittingToDb) return;
     setState(() {
       _isSubmittingToDb = true;
     });
+    try {
 
     final String firstName = _firstNameController.text.trim();
     final String lastName = _lastNameController.text.trim();
@@ -924,13 +926,33 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
         debugPrint('LiveBookingSyncService shopkeeper broadcast note: $err');
       }
 
-    setState(() {
-      _isSubmittingToDb = false;
-      if (_submittedRegistrationId.isEmpty || _submittedRegistrationId == 'SH-SHOP-2026-8910') {
-        _submittedRegistrationId = 'SH-SHOP-2026-${(1000 + DateTime.now().millisecond % 9000)}';
+      if (mounted) {
+        setState(() {
+          if (_submittedRegistrationId.isEmpty) {
+            final suffix = (createdUserId ?? DateTime.now().millisecondsSinceEpoch.toString()).replaceAll('-', '');
+            _submittedRegistrationId = 'SH-SHOP-2026-${suffix.substring(0, suffix.length >= 6 ? 6 : suffix.length).toUpperCase()}';
+          }
+          _currentStep = 7;
+        });
       }
-      _currentStep = 7;
-    });
+    } catch (e) {
+      debugPrint('[ShopkeeperRegistration] Submission error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Registration note: ${e.toString()}'),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmittingToDb = false;
+        });
+      }
+    }
   }
 
   @override
@@ -2236,15 +2258,21 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 3,
               ),
-              onPressed: _submitToSupabaseDatabase,
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
-                  Text('Submit for Verification', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                ],
-              ),
+              onPressed: _isSubmittingToDb ? null : _submitToSupabaseDatabase,
+              child: _isSubmittingToDb
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text('Submit for Verification', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      ],
+                    ),
             ),
           ),
       ],

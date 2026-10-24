@@ -19,6 +19,8 @@ BOOKING_FILE_PUBLIC = os.path.join(PUBLIC_DIR, "service_hub_live_bookings.json")
 BOOKING_FILE_TEMP = os.path.join(TEMP_DIR, "service_hub_live_bookings.json")
 CHAT_FILE_PUBLIC = os.path.join(PUBLIC_DIR, "service_hub_chat_messages.json")
 CHAT_FILE_TEMP = os.path.join(TEMP_DIR, "service_hub_chat_messages.json")
+PRODUCT_FILE_PUBLIC = os.path.join(PUBLIC_DIR, "service_hub_store_products.json")
+PRODUCT_FILE_TEMP = os.path.join(TEMP_DIR, "service_hub_store_products.json")
 
 lock = threading.Lock()
 
@@ -54,9 +56,11 @@ def save_json(data, p1, p2):
 verifications = load_json(VERIF_FILE_PUBLIC) or load_json(VERIF_FILE_TEMP) or {}
 bookings = load_json(BOOKING_FILE_PUBLIC) or load_json(BOOKING_FILE_TEMP) or {}
 chats = load_json(CHAT_FILE_PUBLIC) or load_json(CHAT_FILE_TEMP) or {}
+products = load_json(PRODUCT_FILE_PUBLIC) or load_json(PRODUCT_FILE_TEMP) or {}
 _last_verif_mtime = 0
 _last_booking_mtime = 0
 _last_chat_mtime = 0
+_last_product_mtime = 0
 
 class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
     web_dir = None
@@ -79,7 +83,7 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        global verifications, bookings, chats, chats, _last_verif_mtime, _last_booking_mtime, _last_chat_mtime
+        global verifications, bookings, chats, products, products, _last_verif_mtime, _last_booking_mtime, _last_chat_mtime, _last_product_mtime
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
@@ -96,6 +100,28 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
                 except Exception:
                     pass
                 out = list(verifications.values())
+            self.send_response(200)
+            self._set_cors()
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.end_headers()
+            self.wfile.write(json.dumps(out).encode("utf-8"))
+            return
+
+        if path == "/api/products" or path.startswith("/api/products"):
+            with lock:
+                try:
+                    p = PRODUCT_FILE_PUBLIC if os.path.exists(PRODUCT_FILE_PUBLIC) else (PRODUCT_FILE_TEMP if os.path.exists(PRODUCT_FILE_TEMP) else None)
+                    if p:
+                        mtime = os.path.getmtime(p)
+                        if mtime > _last_product_mtime:
+                            file_data = load_json(p)
+                            if file_data and isinstance(file_data, dict):
+                                products.update(file_data)
+                            _last_product_mtime = mtime
+                except Exception:
+                    pass
+                out = list(products.values())
             self.send_response(200)
             self._set_cors()
             self.send_header("Content-Type", "application/json")
@@ -124,6 +150,30 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(out).encode("utf-8"))
             return
+
+        if path == "/api/products" or path.startswith("/api/products/"):
+            with lock:
+                try:
+                    p = PRODUCT_FILE_PUBLIC if os.path.exists(PRODUCT_FILE_PUBLIC) else (PRODUCT_FILE_TEMP if os.path.exists(PRODUCT_FILE_TEMP) else None)
+                    if p:
+                        mtime = os.path.getmtime(p)
+                        if mtime > _last_product_mtime:
+                            file_data = load_json(p)
+                            if file_data and isinstance(file_data, dict):
+                                products.update(file_data)
+                            _last_product_mtime = mtime
+                except Exception:
+                    pass
+                out = list(products.values())
+            self.send_response(200)
+            self._set_cors()
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.end_headers()
+            self.wfile.write(json.dumps(out).encode("utf-8"))
+            return
+
+
 
         if path == "/api/chat" or path.startswith("/api/chat/"):
             q_params = urllib.parse.parse_qs(parsed.query)
@@ -178,44 +228,7 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
                 self.path = "/index.html"
             return super().do_GET()
 
-        if path == "/api/chat" or path.startswith("/api/chat/"):
-            b_id = str(payload.get("booking_id") or payload.get("id") or (path.split("/")[3] if len(path.split("/")) > 3 else "unknown"))
-            msg_text = str(payload.get("text") or payload.get("message") or "").strip()
-            sender_role = str(payload.get("sender_role") or "customer").lower()
-            sender_name = str(payload.get("sender_name") or "")
-            sender_phone = str(payload.get("sender_phone") or "")
-            
-            if not msg_text:
-                self.send_response(400)
-                self._set_cors()
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": "Empty message text"}).encode("utf-8"))
-                return
 
-            new_msg = {
-                "id": f"msg_{int(time.time()*1000)}",
-                "booking_id": b_id,
-                "sender_role": sender_role,
-                "sender_name": sender_name,
-                "sender_phone": sender_phone,
-                "text": msg_text,
-                "timestamp": payload.get("timestamp") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "created_at": payload.get("created_at") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-            }
-
-            with lock:
-                if b_id not in chats or not isinstance(chats[b_id], list):
-                    chats[b_id] = []
-                chats[b_id].append(new_msg)
-                save_json(chats, CHAT_FILE_PUBLIC, CHAT_FILE_TEMP)
-                log(f"[SYNC_SERVER] Chat message appended for {b_id} ({sender_role}): {msg_text[:35]}")
-
-            self.send_response(200)
-            self._set_cors()
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"status": "SUCCESS", "data": new_msg}).encode("utf-8"))
-            return
 
         self.send_response(404)
         self._set_cors()
@@ -294,6 +307,24 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({"status": "SUCCESS", "message": f"Rejected {target_id}"}).encode("utf-8"))
             return
 
+        if path == "/api/products" or path.startswith("/api/products"):
+            with lock:
+                p_id = str(payload.get("id") or payload.get("product_id") or f"PROD_{int(time.time()*1000)}")
+                payload["id"] = p_id
+                payload["product_id"] = p_id
+                if "created_at" not in payload:
+                    payload["created_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                products[p_id] = payload
+                save_json(products, PRODUCT_FILE_PUBLIC, PRODUCT_FILE_TEMP)
+                log(f"[SYNC_SERVER] Store Product added/updated: {p_id} ({payload.get('name') or payload.get('title')})")
+
+            self.send_response(200)
+            self._set_cors()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "SUCCESS", "data": payload}).encode("utf-8"))
+            return
+
         if path == "/api/bookings":
             with lock:
                 b_id = str(payload.get("id") or payload.get("booking_id") or f"AC_{int(time.time()*1000)}")
@@ -309,43 +340,28 @@ class ServiceHubHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({"status": "SUCCESS", "data": payload}).encode("utf-8"))
             return
 
-        if path == "/api/chat" or path.startswith("/api/chat/"):
-            b_id = str(payload.get("booking_id") or payload.get("id") or (path.split("/")[3] if len(path.split("/")) > 3 else "unknown"))
-            msg_text = str(payload.get("text") or payload.get("message") or "").strip()
-            sender_role = str(payload.get("sender_role") or "customer").lower()
-            sender_name = str(payload.get("sender_name") or "")
-            sender_phone = str(payload.get("sender_phone") or "")
-            
-            if not msg_text:
-                self.send_response(400)
-                self._set_cors()
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": "Empty message text"}).encode("utf-8"))
-                return
 
-            new_msg = {
-                "id": f"msg_{int(time.time()*1000)}",
-                "booking_id": b_id,
-                "sender_role": sender_role,
-                "sender_name": sender_name,
-                "sender_phone": sender_phone,
-                "text": msg_text,
-                "timestamp": payload.get("timestamp") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "created_at": payload.get("created_at") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-            }
 
+        self.send_response(404)
+        self._set_cors()
+        self.end_headers()
+
+    def do_DELETE(self):
+        global products
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        if path.startswith("/api/products/"):
+            p_id = path.split("/")[-1]
             with lock:
-                if b_id not in chats or not isinstance(chats[b_id], list):
-                    chats[b_id] = []
-                chats[b_id].append(new_msg)
-                save_json(chats, CHAT_FILE_PUBLIC, CHAT_FILE_TEMP)
-                log(f"[SYNC_SERVER] Chat message appended for {b_id} ({sender_role}): {msg_text[:35]}")
-
+                if p_id in products:
+                    del products[p_id]
+                    save_json(products, PRODUCT_FILE_PUBLIC, PRODUCT_FILE_TEMP)
+                    log(f"[SYNC_SERVER] Store Product deleted: {p_id}")
             self.send_response(200)
             self._set_cors()
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"status": "SUCCESS", "data": new_msg}).encode("utf-8"))
+            self.wfile.write(json.dumps({"status": "SUCCESS", "deleted_id": p_id}).encode("utf-8"))
             return
 
         self.send_response(404)
