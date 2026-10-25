@@ -108,7 +108,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         final digits = identifier.replaceAll(RegExp(r'\D'), '');
         phone = digits.substring(digits.length - 10);
       } else {
-        phone = '9825144556'; // Default fallback verified partner contact
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No verified mobile number found for this account. Please contact support.'),
+            backgroundColor: Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
       }
       _resolvedPhone = phone;
 

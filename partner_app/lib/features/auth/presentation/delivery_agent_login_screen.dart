@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/vector_avatar_widgets.dart';
 import '../../../core/services/supabase_auth_service.dart';
+import '../../../core/utils/service_category_route_helper.dart';
 
 class DeliveryAgentLoginScreen extends StatefulWidget {
   const DeliveryAgentLoginScreen({super.key});
@@ -52,7 +53,21 @@ class _DeliveryAgentLoginScreenState extends State<DeliveryAgentLoginScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        context.go('/dashboard/delivery');
+        final role = (result.roleName ?? '').toLowerCase();
+        if (role == 'delivery_agent') {
+          context.go('/dashboard/delivery');
+        } else if (role == 'shopkeeper') {
+          final cat = result.userData?['category']?.toString().toLowerCase();
+          if (cat == 'laundry') {
+            context.go('/dashboard/laundry');
+          } else {
+            context.go('/dashboard/shopkeeper');
+          }
+        } else {
+          final cat = result.userData?['category'] ?? result.userData?['service_category_id'];
+          final targetRoute = ServiceCategoryRouteHelper.getDashboardRoute(cat?.toString());
+          context.go(targetRoute);
+        }
       } else {
         final errorMsg = result.errorMessage ?? 'Invalid credentials. Please check your username/phone and password.';
         if (errorMsg.contains('PENDING_APPROVAL')) {

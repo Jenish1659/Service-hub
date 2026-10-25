@@ -55,9 +55,21 @@ class _ServiceProviderLoginScreenState extends State<ServiceProviderLoginScreen>
             behavior: SnackBarBehavior.floating,
           ),
         );
-        final cat = result.userData?['category'] ?? result.userData?['service_category_id'];
-        final targetRoute = ServiceCategoryRouteHelper.getDashboardRoute(cat?.toString());
-        context.go(targetRoute);
+        final role = (result.roleName ?? '').toLowerCase();
+        if (role == 'delivery_agent') {
+          context.go('/dashboard/delivery');
+        } else if (role == 'shopkeeper') {
+          final cat = result.userData?['category']?.toString().toLowerCase();
+          if (cat == 'laundry') {
+            context.go('/dashboard/laundry');
+          } else {
+            context.go('/dashboard/shopkeeper');
+          }
+        } else {
+          final cat = result.userData?['category'] ?? result.userData?['service_category_id'];
+          final targetRoute = ServiceCategoryRouteHelper.getDashboardRoute(cat?.toString());
+          context.go(targetRoute);
+        }
       } else {
         final errorMsg = result.errorMessage ?? 'Invalid credentials. Please check your username/phone and password.';
         if (errorMsg.contains('PENDING_APPROVAL')) {

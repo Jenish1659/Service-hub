@@ -142,8 +142,8 @@ class LocalRegistrationCache {
     return null;
   }
 
-  static Future<void> updateActiveServiceProvider(Map<String, dynamic> updates) async {
-    final current = await getActiveServiceProvider() ?? {};
+  static Future<void> updateActiveServiceProvider(Map<String, dynamic> updates, {bool replace = false}) async {
+    final current = replace ? <String, dynamic>{} : (await getActiveServiceProvider() ?? {});
     final updated = {...current, ...updates, 'role_name': 'service_provider'};
     _memoryStorage[_spSessionKey] = jsonEncode(updated);
     _memoryStorage[_activeRoleKey] = 'service_provider';
@@ -201,8 +201,8 @@ class LocalRegistrationCache {
     return null;
   }
 
-  static Future<void> updateActiveShopkeeper(Map<String, dynamic> updates) async {
-    final current = await getActiveShopkeeper() ?? {};
+  static Future<void> updateActiveShopkeeper(Map<String, dynamic> updates, {bool replace = false}) async {
+    final current = replace ? <String, dynamic>{} : (await getActiveShopkeeper() ?? {});
     final updated = {...current, ...updates, 'role_name': 'shopkeeper'};
     _memoryStorage[_shopSessionKey] = jsonEncode(updated);
     _memoryStorage[_activeRoleKey] = 'shopkeeper';
@@ -261,8 +261,8 @@ class LocalRegistrationCache {
     return null;
   }
 
-  static Future<void> updateActiveDeliveryAgent(Map<String, dynamic> updates) async {
-    final current = await getActiveDeliveryAgent() ?? {};
+  static Future<void> updateActiveDeliveryAgent(Map<String, dynamic> updates, {bool replace = false}) async {
+    final current = replace ? <String, dynamic>{} : (await getActiveDeliveryAgent() ?? {});
     final updated = {...current, ...updates, 'role_name': 'delivery_agent'};
     _memoryStorage[_deliverySessionKey] = jsonEncode(updated);
     _memoryStorage[_activeRoleKey] = 'delivery_agent';
@@ -358,15 +358,21 @@ class LocalRegistrationCache {
     return await getActivePartner();
   }
 
-  static Future<void> updateActivePartner(Map<String, dynamic> updates, [String? explicitRole]) async {
+  static Future<void> updateActivePartner(Map<String, dynamic> updates, [String? explicitRole, bool replace = false]) async {
     final role = (explicitRole ?? updates['role_name'] ?? updates['role'] ?? updates['partner_type'] ?? updates['category'] ?? '').toString().toLowerCase();
     if (role == 'shopkeeper' || role.contains('shop') || role.contains('store')) {
-      await updateActiveShopkeeper(updates);
+      await updateActiveShopkeeper(updates, replace: replace);
     } else if (role == 'delivery_agent' || (role.contains('delivery') && !role.contains('shop') && !role.contains('service'))) {
-      await updateActiveDeliveryAgent(updates);
+      await updateActiveDeliveryAgent(updates, replace: replace);
     } else {
-      await updateActiveServiceProvider(updates);
+      await updateActiveServiceProvider(updates, replace: replace);
     }
+  }
+
+  /// Sets fresh isolated active session, wiping previous cached partner data
+  static Future<void> setActiveSession(Map<String, dynamic> sessionData) async {
+    await clearActiveSession();
+    await updateActivePartner(sessionData, null, true);
   }
 
   static void clearMemorySession() {
@@ -436,7 +442,7 @@ class LocalRegistrationCache {
         await box.put('registered_partners_list', partners);
       } catch (_) {}
 
-      await updateActivePartner(payload);
+      await updateActivePartner(payload, null, true);
 
       if (kDebugMode) {
         debugPrint('[LocalRegistrationCache] Registered partner saved: ${partnerData['name']} ($phone)');

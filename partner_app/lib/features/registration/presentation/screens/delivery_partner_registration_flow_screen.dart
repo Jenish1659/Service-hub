@@ -723,10 +723,13 @@ class _DeliveryPartnerRegistrationFlowScreenState extends State<DeliveryPartnerR
       );
 
       if (regResult.userData != null) {
-        createdUserId = regResult.userData!['user_id']?.toString();
-        createdPartnerId = regResult.userData!['partner_id']?.toString();
-        createdVerId = regResult.userData!['verification_id']?.toString();
-        await LocalRegistrationCache.updateActiveDeliveryAgent(regResult.userData!);
+        final regData = Map<String, dynamic>.from(regResult.userData!);
+        regData['password'] = password;
+        createdUserId = regData['user_id']?.toString();
+        createdPartnerId = regData['partner_id']?.toString();
+        createdVerId = regData['verification_id']?.toString();
+        await LocalRegistrationCache.updateActiveDeliveryAgent(regData);
+        await LocalRegistrationCache.saveRegisteredPartner(regData);
       }
       debugPrint('✓ Real delivery partner registration executed via SupabaseAuthService successfully!');
     } catch (e) {

@@ -173,6 +173,7 @@ class _ProviderReviewApplicationScreenState
         partnerRecord['id'] = regResult.userData!['verification_id'] ?? partnerRecord['id'];
         partnerRecord['category'] = category;
         partnerRecord['service_category_id'] = category;
+        partnerRecord['password'] = password;
         await LocalRegistrationCache.saveRegisteredPartner(partnerRecord);
         await LocalRegistrationCache.updateActiveServiceProvider(partnerRecord);
         await LiveBookingSyncService.instance.submitPartnerVerification(partnerRecord);

@@ -845,7 +845,10 @@ class _ShopkeeperRegistrationFlowScreenState extends State<ShopkeeperRegistratio
       );
 
       if (regResult.userData != null) {
-        await LocalRegistrationCache.updateActiveShopkeeper(regResult.userData!);
+        final regData = Map<String, dynamic>.from(regResult.userData!);
+        regData['password'] = password;
+        await LocalRegistrationCache.updateActiveShopkeeper(regData);
+        await LocalRegistrationCache.saveRegisteredPartner(regData);
         if (regResult.userData!['user_id'] != null) {
           createdUserId = regResult.userData!['user_id'].toString();
           createdPartnerId = regResult.userData!['partner_id']?.toString();

@@ -297,47 +297,6 @@ class ACProviderDashboardNotifier extends StateNotifier<ACProviderDashboardState
         }
       } catch (_) {}
     }
-
-    // Direct Database Fallback: Resolve active online AC partner from Supabase if still empty
-    if (state.partnerId.isEmpty) {
-      try {
-        final supabase = Supabase.instance.client;
-        final res = await supabase
-            .from('partners')
-            .select('partner_id, partner_code, verification_status, availability_status, users(user_id, username, phone, user_profiles(first_name, last_name, profile_photo)), service_provider_profiles(provider_id, about)')
-            .eq('verification_status', 'VERIFIED')
-            .eq('availability_status', 'ONLINE')
-            .limit(10);
-        for (final row in res) {
-          final sppList = row['service_provider_profiles'];
-          dynamic spp = sppList is List && sppList.isNotEmpty ? sppList.first : (sppList is Map ? sppList : null);
-          final about = (spp?['about'] ?? '').toString().toLowerCase();
-          final isAc = (about.contains('ac') || about.contains('air conditioning') || about.contains('hvac') || about.contains('cooling')) && !about.contains('car');
-          if (isAc) {
-            final u = _asMap(row['users']);
-            final prof = _asMap(u?['user_profiles']);
-            final pName = '${prof?['first_name'] ?? ""} ${prof?['last_name'] ?? ""}'.trim();
-            final resolvedPartnerId = row['partner_id']?.toString() ?? '';
-            final resolvedProviderId = spp?['provider_id']?.toString() ?? '';
-            state = state.copyWith(
-              partnerId: resolvedPartnerId,
-              providerId: resolvedProviderId,
-              providerName: pName.isNotEmpty ? pName : (u?['username'] ?? 'AC Service Partner').toString(),
-              businessName: '${pName.isNotEmpty ? pName : "AC"} Service Center',
-              avatarUrl: prof?['profile_photo']?.toString(),
-              category: 'ac_service',
-              categoryName: 'AC Service Provider',
-              verificationStatus: 'VERIFIED',
-              isOnline: true,
-            );
-            if (resolvedPartnerId.isNotEmpty) {
-              PartnerLocationService.instance.startLiveLocationTracking(partnerId: resolvedPartnerId);
-            }
-            break;
-          }
-        }
-      } catch (_) {}
-    }
   }
 
   Future<void> _loadLiveBookingsAndMetrics() async {
