@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/utils/partner_role_resolver.dart';
 
 class AdminPartnersView extends StatefulWidget {
   final List<Map<String, dynamic>> unverifiedPartners;
@@ -30,66 +31,11 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
     super.dispose();
   }
 
-  bool _isShopkeeperItem(Map<String, dynamic> p) {
-    final vType = (p['verification_type'] ?? '').toString().toUpperCase();
-    final docType = (p['document_type'] ?? '').toString().toUpperCase();
-    final remarks = (p['remarks'] ?? '').toString().toLowerCase();
-    final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
-    final cat = (p['category'] ?? p['category_name'] ?? '').toString().toLowerCase();
-    final bName = (p['business_name'] ?? p['shop_name'] ?? '').toString().toLowerCase();
+  bool _isShopkeeperItem(Map<String, dynamic> p) => PartnerRoleResolver.isShopkeeper(p);
 
-    // Direct shopkeeper indicators
-    if (vType == 'SHOP_LICENSE' || docType.contains('SHOP') || remarks.contains('role: shopkeeper') || remarks.contains('role:shopkeeper') || role == 'shopkeeper') {
-      return true;
-    }
-    // Explicit other roles check
-    if (role == 'delivery_agent' || docType == 'DELIVERY_ONBOARDING' || vType == 'DRIVING_LICENSE') return false;
-    if (role == 'service_provider' && !cat.contains('parts') && !cat.contains('store') && !cat.contains('shop') && !cat.contains('supplies') && !cat.contains('grocery')) {
-      return false;
-    }
+  bool _isDeliveryAgentItem(Map<String, dynamic> p) => PartnerRoleResolver.isDeliveryAgent(p);
 
-    return role.contains('shop') ||
-        role.contains('store') ||
-        cat.contains('shop') ||
-        cat.contains('store') ||
-        cat.contains('parts') ||
-        cat.contains('supplies') ||
-        cat.contains('grocery') ||
-        cat.contains('hardware') ||
-        bName.contains('shop') ||
-        bName.contains('store') ||
-        bName.contains('parts') ||
-        bName.contains('supplies') ||
-        bName.contains('traders') ||
-        bName.contains('enterprise') ||
-        docType.contains('SHOP') ||
-        (p['shop_id'] != null && p['shop_id'].toString().trim().isNotEmpty) ||
-        (p['shop_name'] != null && p['shop_name'].toString().trim().isNotEmpty);
-  }
-
-  bool _isDeliveryAgentItem(Map<String, dynamic> p) {
-    final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
-    if (role == 'delivery_agent') return true;
-    if (role == 'shopkeeper' || role == 'service_provider') return false;
-    final docType = (p['document_type'] ?? '').toString().toUpperCase();
-    final verType = (p['verification_type'] ?? '').toString().toUpperCase();
-    if (docType == 'PROVIDER_ONBOARDING' || docType.contains('SHOP') || verType == 'SHOP_LICENSE') return false;
-    final cat = (p['category'] ?? p['category_name'] ?? '').toString().toLowerCase();
-    final bName = (p['business_name'] ?? '').toString().toLowerCase();
-    return cat.contains('delivery') ||
-        cat.contains('rider') ||
-        role.contains('delivery') ||
-        role.contains('rider') ||
-        bName.contains('delivery') ||
-        bName.contains('rider') ||
-        docType.contains('DELIVERY') ||
-        verType == 'DRIVING_LICENSE' ||
-        (p['delivery_agent_id'] != null && p['delivery_agent_id'].toString().trim().isNotEmpty) ||
-        (p['vehicle_type'] != null && p['vehicle_type'].toString().trim().isNotEmpty) ||
-        (p['vehicle_number'] != null && p['vehicle_number'].toString().trim().isNotEmpty) ||
-        (p['vehicle_reg_number'] != null && p['vehicle_reg_number'].toString().trim().isNotEmpty) ||
-        (p['driving_license_number'] != null && p['driving_license_number'].toString().trim().isNotEmpty);
-  }
+  bool _isServiceProviderItem(Map<String, dynamic> p) => PartnerRoleResolver.isServiceProvider(p);
 
   void _executeApprove(String id, String name, Map<String, dynamic> partner) {
     setState(() {
@@ -272,7 +218,7 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
     final bankName = (partner['bank_name'] ?? 'Bank Account').toString();
     final ifsc = (partner['ifsc_code'] ?? partner['bank_ifsc'] ?? '').toString();
 
-    final isDelivery = _isDeliveryAgentItem(partner) || widget.filterRole == 'delivery_agent';
+    final isDelivery = _isDeliveryAgentItem(partner);
     final vehicleTypeRaw = (partner['vehicle_type'] ?? partner['vehicleType'] ?? '').toString();
     final vehicleNoRaw = (partner['vehicle_number'] ?? partner['registration_number'] ?? partner['vehicle_no'] ?? partner['rc_number'] ?? '').toString();
     final dlNumberRaw = (partner['driving_license_number'] ?? partner['driving_license'] ?? partner['driving_license_no'] ?? partner['dl_number'] ?? '').toString();
@@ -292,10 +238,10 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
       }
     }
     if (vehicleNo.isEmpty && isDelivery) {
-      vehicleNo = 'GJ-10-EA-4821';
+      vehicleNo = 'Pending Verification';
     }
     if (dlNumber.isEmpty && isDelivery) {
-      dlNumber = 'GJ10 20240009876';
+      dlNumber = 'Pending Verification';
     }
 
     showDialog(
@@ -440,16 +386,7 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
     final isDeliveryAgentQueue = widget.filterRole == 'delivery_agent';
 
     final roleFiltered = widget.unverifiedPartners.where((p) {
-      if (widget.filterRole == 'delivery_agent') {
-        return _isDeliveryAgentItem(p);
-      }
-      if (widget.filterRole == 'shopkeeper') {
-        return _isShopkeeperItem(p) && !_isDeliveryAgentItem(p);
-      }
-      if (widget.filterRole == 'service_provider') {
-        return !_isShopkeeperItem(p) && !_isDeliveryAgentItem(p);
-      }
-      return true;
+      return PartnerRoleResolver.matchesQueue(p, widget.filterRole);
     }).toList();
 
     // Deduplicate candidates within this role view
@@ -460,7 +397,7 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
       final verId = (p['verification_id'] ?? p['id'] ?? '').toString().trim();
       final phone = (p['phone'] ?? '').toString().replaceAll(RegExp(r'\D'), '');
       final phone10 = phone.length >= 10 ? phone.substring(phone.length - 10) : phone;
-      final role = (p['role_name'] ?? p['role'] ?? widget.filterRole).toString().toLowerCase();
+      final role = PartnerRoleResolver.resolveRole(p);
 
       // Deduplicate key scopes candidate to their specific ROLE:
       // A user can be BOTH a Shopkeeper AND a Delivery Agent, but cannot have multiple cards in the SAME role.
@@ -754,8 +691,8 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
 
                       final isExpanded = _expandedIds.contains(id);
 
-                      final isDeliveryAgent = _isDeliveryAgentItem(p) || widget.filterRole == 'delivery_agent';
-                      final isShopkeeper = !isDeliveryAgent && (category.toLowerCase().contains('shop') || (p['category'] ?? '').toString().toLowerCase().contains('shop'));
+                      final isDeliveryAgent = _isDeliveryAgentItem(p);
+                      final isShopkeeper = _isShopkeeperItem(p);
 
                       final vehicleTypeRaw = (p['vehicle_type'] ?? p['vehicleType'] ?? '').toString();
                       final vehicleNoRaw = (p['vehicle_number'] ?? p['registration_number'] ?? p['vehicle_no'] ?? p['rc_number'] ?? '').toString();
@@ -775,10 +712,10 @@ class _AdminPartnersViewState extends State<AdminPartnersView> {
                         }
                       }
                       if (vNo.isEmpty && isDeliveryAgent) {
-                        vNo = 'GJ-10-EA-4821';
+                        vNo = 'Pending Verification';
                       }
                       if (dlNo.isEmpty && isDeliveryAgent) {
-                        dlNo = 'GJ10 20240009876';
+                        dlNo = 'Pending Verification';
                       }
 
                       return LayoutBuilder(

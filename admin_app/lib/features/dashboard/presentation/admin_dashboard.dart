@@ -21,6 +21,7 @@ import '../../settings/presentation/admin_settings_view.dart';
 import '../../ai_operations/presentation/admin_ai_operations_view.dart';
 import '../../database_explorer/presentation/admin_database_explorer_view.dart';
 import '../../../core/services/live_booking_sync_service.dart';
+import '../../../core/utils/partner_role_resolver.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -107,8 +108,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     // 4. Role-specific profile updates
     final String pRole = (partnerMap?['role_name'] ?? partnerMap?['role'] ?? '').toString().toLowerCase();
-    final bool isShopkeeper = pRole == 'shopkeeper' || (partnerMap != null && _isShopkeeper(partnerMap));
-    final bool isDelivery = !isShopkeeper && (pRole == 'delivery_agent' || (partnerMap != null && _isDeliveryAgent(partnerMap)));
+    final bool isShopkeeper = partnerMap != null ? PartnerRoleResolver.isShopkeeper(partnerMap) : pRole == 'shopkeeper';
+    final bool isDelivery = partnerMap != null ? PartnerRoleResolver.isDeliveryAgent(partnerMap) : pRole == 'delivery_agent';
     final bool isServiceProvider = !isShopkeeper && !isDelivery;
 
     if (isDelivery) {
@@ -235,8 +236,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     // 4. Role-specific profile updates
     final String pRole = (partnerMap?['role_name'] ?? partnerMap?['role'] ?? '').toString().toLowerCase();
-    final bool isShopkeeper = pRole == 'shopkeeper' || (partnerMap != null && _isShopkeeper(partnerMap));
-    final bool isDelivery = !isShopkeeper && (pRole == 'delivery_agent' || (partnerMap != null && _isDeliveryAgent(partnerMap)));
+    final bool isShopkeeper = partnerMap != null ? PartnerRoleResolver.isShopkeeper(partnerMap) : pRole == 'shopkeeper';
+    final bool isDelivery = partnerMap != null ? PartnerRoleResolver.isDeliveryAgent(partnerMap) : pRole == 'delivery_agent';
 
     if (isDelivery && targetPartnerId != null && _isUuid(targetPartnerId)) {
       try {
@@ -282,9 +283,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final allBookings = bookingsAsync.value ?? [];
     final unverifiedPartners = unverifiedPartnersAsync.value ?? [];
 
-    final unverifiedShopkeepers = unverifiedPartners.where((p) => _isShopkeeper(p) && !_isDeliveryAgent(p)).toList();
-    final unverifiedDeliveryAgents = unverifiedPartners.where(_isDeliveryAgent).toList();
-    final unverifiedProviders = unverifiedPartners.where((p) => !_isShopkeeper(p) && !_isDeliveryAgent(p)).toList();
+    final unverifiedShopkeepers = unverifiedPartners.where(PartnerRoleResolver.isShopkeeper).toList();
+    final unverifiedDeliveryAgents = unverifiedPartners.where(PartnerRoleResolver.isDeliveryAgent).toList();
+    final unverifiedProviders = unverifiedPartners.where(PartnerRoleResolver.isServiceProvider).toList();
 
     final isCompact = MediaQuery.of(context).size.width < 768;
 
@@ -458,70 +459,20 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return _buildMainDashboardContent(stats, allBookings, unverifiedPartners);
   }
 
-  bool _isShopkeeper(Map<String, dynamic> p) {
-    final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
-    if (role == 'shopkeeper') return true;
-    if (role == 'delivery_agent' || role == 'service_provider') return false;
-    final docType = (p['document_type'] ?? '').toString().toUpperCase();
-    if (docType == 'PROVIDER_ONBOARDING' || docType == 'DELIVERY_ONBOARDING' || role.contains('technician') || role.contains('expert')) {
-      return false;
-    }
-    final cat = (p['category'] ?? p['category_name'] ?? '').toString().toLowerCase();
-    final bName = (p['business_name'] ?? p['shop_name'] ?? '').toString().toLowerCase();
-    return role.contains('shop') ||
-        role.contains('store') ||
-        cat.contains('shop') ||
-        cat.contains('store') ||
-        cat.contains('parts') ||
-        cat.contains('grocery') ||
-        cat.contains('pharmacy') ||
-        cat.contains('retail') ||
-        cat.contains('hardware') ||
-        cat.contains('ac_parts') ||
-        cat.contains('laundry_supplies') ||
-        cat.contains('car_parts') ||
-        bName.contains('store') ||
-        bName.contains('electronics') ||
-        bName.contains('parts') ||
-        docType.contains('SHOP') ||
-        (p['shop_id'] != null && p['shop_id'].toString().trim().isNotEmpty) ||
-        (p['shop_name'] != null && p['shop_name'].toString().trim().isNotEmpty);
-  }
+  bool _isShopkeeper(Map<String, dynamic> p) => PartnerRoleResolver.isShopkeeper(p);
 
-  bool _isDeliveryAgent(Map<String, dynamic> p) {
-    final role = (p['role_name'] ?? p['role'] ?? '').toString().toLowerCase();
-    if (role == 'delivery_agent') return true;
-    if (role == 'shopkeeper' || role == 'service_provider') return false;
-    final docType = (p['document_type'] ?? '').toString().toUpperCase();
-    final verType = (p['verification_type'] ?? '').toString().toUpperCase();
-    if (docType == 'PROVIDER_ONBOARDING' || docType.contains('SHOP') || verType == 'SHOP_LICENSE') {
-      return false;
-    }
-    final cat = (p['category'] ?? p['category_name'] ?? '').toString().toLowerCase();
-    final bName = (p['business_name'] ?? '').toString().toLowerCase();
-    return cat.contains('delivery') ||
-        cat.contains('rider') ||
-        role.contains('delivery') ||
-        role.contains('rider') ||
-        bName.contains('delivery') ||
-        bName.contains('rider') ||
-        docType.contains('DELIVERY') ||
-        verType == 'DRIVING_LICENSE' ||
-        (p['delivery_agent_id'] != null && p['delivery_agent_id'].toString().trim().isNotEmpty) ||
-        (p['vehicle_type'] != null && p['vehicle_type'].toString().trim().isNotEmpty) ||
-        (p['vehicle_number'] != null && p['vehicle_number'].toString().trim().isNotEmpty) ||
-        (p['vehicle_reg_number'] != null && p['vehicle_reg_number'].toString().trim().isNotEmpty) ||
-        (p['driving_license_number'] != null && p['driving_license_number'].toString().trim().isNotEmpty);
-  }
+  bool _isDeliveryAgent(Map<String, dynamic> p) => PartnerRoleResolver.isDeliveryAgent(p);
+
+  bool _isServiceProvider(Map<String, dynamic> p) => PartnerRoleResolver.isServiceProvider(p);
 
   Widget _buildMainDashboardContent(
     Map<String, dynamic> stats,
     List<Map<String, dynamic>> allBookings,
     List<Map<String, dynamic>> unverifiedPartners,
   ) {
-    final unverifiedShopkeepers = unverifiedPartners.where((p) => _isShopkeeper(p) && !_isDeliveryAgent(p)).toList();
-    final unverifiedDeliveryAgents = unverifiedPartners.where(_isDeliveryAgent).toList();
-    final unverifiedProviders = unverifiedPartners.where((p) => !_isShopkeeper(p) && !_isDeliveryAgent(p)).toList();
+    final unverifiedShopkeepers = unverifiedPartners.where(PartnerRoleResolver.isShopkeeper).toList();
+    final unverifiedDeliveryAgents = unverifiedPartners.where(PartnerRoleResolver.isDeliveryAgent).toList();
+    final unverifiedProviders = unverifiedPartners.where(PartnerRoleResolver.isServiceProvider).toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),

@@ -541,6 +541,7 @@ class SupabaseAuthService {
             userId = matchedId;
             // Update existing user to pending verification
             await client.from('users').update({
+              'role_id': roleId,
               'account_status': 'PENDING_VERIFICATION',
               'is_active': true,
             }).eq('user_id', matchedId);

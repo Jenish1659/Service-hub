@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/services/live_booking_sync_service.dart';
+import '../../../core/utils/partner_role_resolver.dart';
 
 // 1. Pure Dynamic Stats Stream Provider (100% Real Database Data)
 final adminStatsStreamProvider = StreamProvider<Map<String, dynamic>>((ref) async* {
@@ -178,7 +179,7 @@ bool _isPartnerResolved(Map<String, dynamic> candidate) {
 }
 
 String _canonicalPartnerKey(Map<String, dynamic> candidate) {
-  final role = (candidate['role_name'] ?? candidate['role'] ?? 'provider').toString().toLowerCase();
+  final role = PartnerRoleResolver.resolveRole(candidate);
   final uId = (candidate['user_id'] ?? '').toString().trim();
   if (uId.isNotEmpty) return 'role:${role}_user:$uId';
   final pId = (candidate['partner_id'] ?? '').toString().trim();
@@ -197,31 +198,31 @@ Map<String, dynamic>? _findExistingCandidate(
   final uId = (candidate['user_id'] ?? '').toString().trim();
   final pId = (candidate['partner_id'] ?? '').toString().trim();
   final verId = (candidate['verification_id'] ?? candidate['id'] ?? '').toString().trim();
-  final cRole = (candidate['role_name'] ?? candidate['role'] ?? '').toString().toLowerCase();
+  final phone10 = _clean10DigitPhone(candidate['phone']);
 
   for (final existing in store.values) {
     final eUid = (existing['user_id'] ?? '').toString().trim();
     final ePid = (existing['partner_id'] ?? '').toString().trim();
     final eVerId = (existing['verification_id'] ?? existing['id'] ?? '').toString().trim();
-    final eRole = (existing['role_name'] ?? existing['role'] ?? '').toString().toLowerCase();
+    final ePhone10 = _clean10DigitPhone(existing['phone']);
 
-    // 1. If roles are explicitly different, do not merge them
-    if (cRole.isNotEmpty && eRole.isNotEmpty && cRole != eRole) {
-      continue;
-    }
-
-    // 2. Exact verification ID match
+    // 1. Exact verification ID match
     if (verId.isNotEmpty && eVerId.isNotEmpty && verId == eVerId) {
       return existing;
     }
 
-    // 3. Exact partner ID match for the same role
+    // 2. Exact partner ID match
     if (pId.isNotEmpty && ePid.isNotEmpty && pId == ePid) {
       return existing;
     }
 
-    // 4. Same user and same role
+    // 3. Same user_id
     if (uId.isNotEmpty && eUid.isNotEmpty && uId == eUid) {
+      return existing;
+    }
+
+    // 4. Same 10-digit phone
+    if (phone10.isNotEmpty && ePhone10.isNotEmpty && phone10 == ePhone10) {
       return existing;
     }
   }
@@ -229,7 +230,7 @@ Map<String, dynamic>? _findExistingCandidate(
 }
 
 void _sanitizeRoleFields(Map<String, dynamic> item) {
-  final role = (item['role_name'] ?? item['role'] ?? 'service_provider').toString().toLowerCase();
+  final role = PartnerRoleResolver.resolveRole(item);
   item['role'] = role;
   item['role_name'] = role;
 
@@ -314,15 +315,19 @@ void _upsertCanonicalCandidate(
       existing['id'] = v2;
     }
 
-    final cRole = (candidate['role_name'] ?? candidate['role'] ?? '').toString().toLowerCase();
-    final eRole = (existing['role_name'] ?? existing['role'] ?? '').toString().toLowerCase();
-    if (cRole.isNotEmpty && cRole != 'service_provider' && eRole == 'service_provider') {
-      existing['role'] = cRole;
-      existing['role_name'] = cRole;
-      existing['category'] = candidate['category'] ?? existing['category'];
-      existing['category_name'] = candidate['category_name'] ?? existing['category_name'];
-      existing['document_type'] = candidate['document_type'] ?? existing['document_type'];
-      existing['verification_type'] = candidate['verification_type'] ?? existing['verification_type'];
+    final cRole = PartnerRoleResolver.resolveRole(candidate);
+    final eRole = PartnerRoleResolver.resolveRole(existing);
+    if (cRole != eRole) {
+      if (candidate['shop_id'] != null && candidate['shop_id'].toString().isNotEmpty) {
+        existing['role'] = 'shopkeeper';
+        existing['role_name'] = 'shopkeeper';
+      } else if (candidate['delivery_agent_id'] != null && candidate['delivery_agent_id'].toString().isNotEmpty) {
+        existing['role'] = 'delivery_agent';
+        existing['role_name'] = 'delivery_agent';
+      } else if (cRole != 'service_provider' && eRole == 'service_provider') {
+        existing['role'] = cRole;
+        existing['role_name'] = cRole;
+      }
     }
 
     _sanitizeRoleFields(existing);
@@ -540,7 +545,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           'phone': realPhone,
           'email': realEmail,
           'business_name': bName.isNotEmpty ? bName : (isDelivery ? '$displayName Express Delivery' : (isShop ? '$displayName Store' : '$displayName Services')),
-          'shop_name': bName.isNotEmpty ? bName : (isShop ? '$displayName Store' : ''),
+          'shop_name': isShop ? (bName.isNotEmpty ? bName : '$displayName Store') : '',
           'business_address': bAddr,
           'address': bAddr,
           'category': parsedCategory,
@@ -669,7 +674,7 @@ final adminUnverifiedPartnersStreamProvider = StreamProvider<List<Map<String, dy
           'phone': (u['phone'] ?? prof['phone'] ?? '').toString(),
           'email': (u['email'] ?? '').toString(),
           'business_name': bName.isNotEmpty ? bName : name,
-          'shop_name': bName.isNotEmpty ? bName : (isShop ? name : ''),
+          'shop_name': isShop ? (bName.isNotEmpty ? bName : '$name Store') : '',
           'category': cat,
           'category_name': catName,
           'role_name': role,

@@ -161,8 +161,86 @@ void main() {
       expect(find.text('Partner Verification & KYC Queue'), findsOneWidget);
 
       // Shopkeeper and Delivery Agent MUST NOT be visible in Service Provider queue
+      expect(find.text('Rajesh Sharma'), findsOneWidget);
       expect(find.text('Jenish Bheda'), findsNothing);
       expect(find.text('Suresh Express Rider'), findsNothing);
+    });
+
+    testWidgets('4. Complex edge case: Service Provider with "Store", "Enterprise", or "Delivery" in business name / category NEVER leaks into Shopkeeper or Delivery Agent queues', (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final complexCandidates = [
+        {
+          'id': 'vr_laundry_sp',
+          'verification_id': 'vr_laundry_sp',
+          'user_id': 'user_laundry_99',
+          'partner_id': 'part_laundry_99',
+          'name': 'Rushi Laundry Express',
+          'full_name': 'Rushi Laundry Express',
+          'phone': '8460249346',
+          'role_name': 'service_provider',
+          'role': 'service_provider',
+          'category': 'laundry',
+          'category_name': 'Laundry Pickup & Delivery Services',
+          'business_name': 'Rushi Enterprise Store & Laundry Service',
+          'document_type': 'PROVIDER_ONBOARDING',
+          'verification_type': 'AADHAAR',
+          'status': 'PENDING',
+        },
+      ];
+
+      // Test A: Shopkeeper queue MUST NOT show Rushi
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AdminPartnersView(
+              filterRole: 'shopkeeper',
+              unverifiedPartners: complexCandidates,
+              onApprove: (id, name, [map]) {},
+              onReject: (id, name, [map, reason]) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Rushi Laundry Express'), findsNothing);
+
+      // Test B: Delivery queue MUST NOT show Rushi
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AdminPartnersView(
+              filterRole: 'delivery_agent',
+              unverifiedPartners: complexCandidates,
+              onApprove: (id, name, [map]) {},
+              onReject: (id, name, [map, reason]) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Rushi Laundry Express'), findsNothing);
+
+      // Test C: Service Provider queue MUST show Rushi
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AdminPartnersView(
+              filterRole: 'service_provider',
+              unverifiedPartners: complexCandidates,
+              onApprove: (id, name, [map]) {},
+              onReject: (id, name, [map, reason]) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Rushi Laundry Express'), findsOneWidget);
     });
   });
 }
